@@ -14,6 +14,10 @@ import {
   Kanban,
   ShieldCheck,
   DollarSign,
+  Rocket,
+  Award,
+  Shield,
+  Zap,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -43,6 +47,13 @@ const salesNav = [
   { title: "Pipeline", url: "/pipeline", icon: Kanban },
   { title: "Deal Registrations", url: "/deal-registrations", icon: ShieldCheck },
   { title: "Commissions", url: "/commissions", icon: DollarSign },
+];
+
+const partnerOpsNav = [
+  { title: "Onboarding", url: "/onboarding", icon: Rocket },
+  { title: "Certifications", url: "/certifications", icon: Award },
+  { title: "Tiers", url: "/tiers", icon: Shield },
+  { title: "Performance", url: "/performance", icon: Zap },
 ];
 
 const resourcesNav = [

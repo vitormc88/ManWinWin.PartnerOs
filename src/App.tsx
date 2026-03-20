@@ -16,6 +16,10 @@ import Pipeline from "@/pages/Pipeline";
 import DealDetail from "@/pages/DealDetail";
 import DealRegistrations from "@/pages/DealRegistrations";
 import Commissions from "@/pages/Commissions";
+import Onboarding from "@/pages/Onboarding";
+import Certifications from "@/pages/Certifications";
+import PartnerTiers from "@/pages/PartnerTiers";
+import PartnerPerformance from "@/pages/PartnerPerformance";
 import ComingSoon from "@/pages/ComingSoon";
 import NotFound from "@/pages/NotFound";
 
@@ -40,6 +44,10 @@ const App = () => (
             <Route path="/deals/new" element={<ComingSoon />} />
             <Route path="/deal-registrations" element={<DealRegistrations />} />
             <Route path="/commissions" element={<Commissions />} />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/certifications" element={<Certifications />} />
+            <Route path="/tiers" element={<PartnerTiers />} />
+            <Route path="/performance" element={<PartnerPerformance />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/knowledge" element={<ComingSoon />} />
