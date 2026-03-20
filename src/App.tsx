@@ -12,6 +12,10 @@ import ClientDetail from "@/pages/ClientDetail";
 import Renewals from "@/pages/Renewals";
 import Analytics from "@/pages/Analytics";
 import Notifications from "@/pages/Notifications";
+import Pipeline from "@/pages/Pipeline";
+import DealDetail from "@/pages/DealDetail";
+import DealRegistrations from "@/pages/DealRegistrations";
+import Commissions from "@/pages/Commissions";
 import ComingSoon from "@/pages/ComingSoon";
 import NotFound from "@/pages/NotFound";
 
@@ -31,6 +35,11 @@ const App = () => (
             <Route path="/clients" element={<ClientsLicenses />} />
             <Route path="/clients/:id" element={<ClientDetail />} />
             <Route path="/renewals" element={<Renewals />} />
+            <Route path="/pipeline" element={<Pipeline />} />
+            <Route path="/deals/:id" element={<DealDetail />} />
+            <Route path="/deals/new" element={<ComingSoon />} />
+            <Route path="/deal-registrations" element={<DealRegistrations />} />
+            <Route path="/commissions" element={<Commissions />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/knowledge" element={<ComingSoon />} />
