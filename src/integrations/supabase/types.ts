@@ -292,6 +292,62 @@ export type Database = {
         }
         Relationships: []
       }
+      commissions: {
+        Row: {
+          approved_at: string | null
+          commission_type: string
+          commission_value: number | null
+          created_at: string
+          deal_id: string | null
+          id: string
+          notes: string | null
+          paid_at: string | null
+          partner_id: string
+          partner_margin_pct: number | null
+          payment_status: string
+          services_revenue: number | null
+          software_revenue: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          commission_type?: string
+          commission_value?: number | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          partner_id: string
+          partner_margin_pct?: number | null
+          payment_status?: string
+          services_revenue?: number | null
+          software_revenue?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          commission_type?: string
+          commission_value?: number | null
+          created_at?: string
+          deal_id?: string | null
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          partner_id?: string
+          partner_margin_pct?: number | null
+          payment_status?: string
+          services_revenue?: number | null
+          software_revenue?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           billing_notes: string | null
@@ -371,6 +427,255 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      deal_activities: {
+        Row: {
+          activity_type: string
+          created_at: string
+          deal_id: string
+          description: string | null
+          id: string
+          performed_by: string | null
+          subject: string | null
+        }
+        Insert: {
+          activity_type?: string
+          created_at?: string
+          deal_id: string
+          description?: string | null
+          id?: string
+          performed_by?: string | null
+          subject?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          deal_id?: string
+          description?: string | null
+          id?: string
+          performed_by?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_contacts: {
+        Row: {
+          contact_name: string
+          created_at: string
+          deal_id: string
+          email: string | null
+          id: string
+          is_decision_maker: boolean | null
+          notes: string | null
+          phone: string | null
+          role: string | null
+        }
+        Insert: {
+          contact_name: string
+          created_at?: string
+          deal_id: string
+          email?: string | null
+          id?: string
+          is_decision_maker?: boolean | null
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+        }
+        Update: {
+          contact_name?: string
+          created_at?: string
+          deal_id?: string
+          email?: string | null
+          id?: string
+          is_decision_maker?: boolean | null
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_registrations: {
+        Row: {
+          conflict_deal_id: string | null
+          deal_id: string
+          id: string
+          notes: string | null
+          partner_id: string
+          registration_status: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          submitted_at: string
+        }
+        Insert: {
+          conflict_deal_id?: string | null
+          deal_id: string
+          id?: string
+          notes?: string | null
+          partner_id: string
+          registration_status?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          submitted_at?: string
+        }
+        Update: {
+          conflict_deal_id?: string | null
+          deal_id?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string
+          registration_status?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_registrations_conflict_deal_id_fkey"
+            columns: ["conflict_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_registrations_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_tasks: {
+        Row: {
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          deal_id: string
+          description: string | null
+          due_date: string | null
+          id: string
+          is_completed: boolean | null
+          title: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deal_id: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean | null
+          title: string
+        }
+        Update: {
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          deal_id?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          is_completed?: boolean | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          aging_days: number | null
+          assigned_salesperson: string | null
+          company_name: string
+          country: string | null
+          created_at: string
+          description: string | null
+          expected_close_date: string | null
+          expected_value: number | null
+          id: string
+          industry: string | null
+          last_activity_at: string | null
+          lead_source: string | null
+          notes: string | null
+          partner_id: string | null
+          probability: number | null
+          stage: string
+          stage_entered_at: string | null
+          status: string
+          total_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          aging_days?: number | null
+          assigned_salesperson?: string | null
+          company_name: string
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          expected_close_date?: string | null
+          expected_value?: number | null
+          id?: string
+          industry?: string | null
+          last_activity_at?: string | null
+          lead_source?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          probability?: number | null
+          stage?: string
+          stage_entered_at?: string | null
+          status?: string
+          total_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          aging_days?: number | null
+          assigned_salesperson?: string | null
+          company_name?: string
+          country?: string | null
+          created_at?: string
+          description?: string | null
+          expected_close_date?: string | null
+          expected_value?: number | null
+          id?: string
+          industry?: string | null
+          last_activity_at?: string | null
+          lead_source?: string | null
+          notes?: string | null
+          partner_id?: string | null
+          probability?: number | null
+          stage?: string
+          stage_entered_at?: string | null
+          status?: string
+          total_value?: number | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       licensed_modules: {
         Row: {
