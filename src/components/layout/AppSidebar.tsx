@@ -136,6 +136,7 @@ export function AppSidebar() {
       <SidebarContent className="px-1.5">
         {renderGroup("Main", mainNav)}
         {renderGroup("Sales CRM", salesNav)}
+        {renderGroup("Partner Ops", partnerOpsNav)}
         {renderGroup("Resources", resourcesNav)}
         {renderGroup("Engage", communityNav)}
       </SidebarContent>
