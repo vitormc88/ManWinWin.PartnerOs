@@ -1,24 +1,31 @@
-import { useParams, Link } from "react-router-dom";
-import { usePartner } from "@/hooks/usePartners";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { usePartner, useUpdatePartner, useArchivePartner } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
 import { useDeals } from "@/hooks/useDeals";
 import { useRenewals } from "@/hooks/useDeals";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Mail, MapPin, Calendar, TrendingUp, Users, DollarSign, Building2, Kanban, RefreshCcw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Pencil, Archive, Save, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
-const statusVariant: Record<string, "success" | "secondary" | "warning" | "destructive"> = {
-  Active: "success", Inactive: "secondary", Negotiation: "warning",
-};
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function PartnerDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: partner, isLoading } = usePartner(id);
   const { data: clients = [] } = useClients({ partner_id: id });
   const { data: deals = [] } = useDeals({ partner_id: id });
   const { data: renewals = [] } = useRenewals();
+  const updatePartner = useUpdatePartner();
+  const archivePartner = useArchivePartner();
   const { data: certs = [] } = useQuery({
     queryKey: ["partner_certs", id],
     queryFn: async () => {
@@ -31,21 +38,54 @@ export default function PartnerDetail() {
   });
 
   const partnerRenewals = renewals.filter((r: any) => r.partner_id === id);
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Record<string, any>>({});
 
   if (isLoading) return <div className="max-w-5xl mx-auto py-12 text-center text-muted-foreground">Loading...</div>;
+  if (!partner) return (
+    <div className="max-w-5xl mx-auto py-12 text-center">
+      <p className="text-muted-foreground">Partner not found</p>
+      <Link to="/partners" className="text-primary text-sm mt-2 inline-block hover:underline">← Back to Partners</Link>
+    </div>
+  );
 
-  if (!partner) {
-    return (
-      <div className="max-w-5xl mx-auto py-12 text-center">
-        <p className="text-muted-foreground">Partner not found</p>
-        <Link to="/partners" className="text-primary text-sm mt-2 inline-block hover:underline">← Back to Partners</Link>
-      </div>
-    );
-  }
+  const startEdit = () => {
+    setEditForm({
+      company_name: partner.company_name,
+      legal_name: partner.legal_name || "",
+      primary_contact_name: partner.primary_contact_name || "",
+      primary_contact_email: partner.primary_contact_email || "",
+      phone: partner.phone || "",
+      website: partner.website || "",
+      country: partner.country || "",
+      region: partner.region || "",
+      partnership_level: partner.partnership_level || "Reseller",
+      status: partner.status || "Active",
+      alert_notice_days: partner.alert_notice_days ?? 60,
+      onboarding_status: partner.onboarding_status || "Not Started",
+      notes: partner.notes || "",
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    try {
+      await updatePartner.mutateAsync({ id: partner.id, ...editForm });
+      toast.success("Partner updated successfully");
+      setEditing(false);
+    } catch (e: any) { toast.error(e?.message || "Failed to update partner"); }
+  };
+
+  const handleArchive = async () => {
+    try {
+      await archivePartner.mutateAsync(partner.id);
+      toast.success("Partner archived");
+      navigate("/partners");
+    } catch (e: any) { toast.error(e?.message || "Failed to archive"); }
+  };
 
   const score = partner.health_score ?? 50;
   const healthLabel = score >= 80 ? "Excellent" : score >= 60 ? "Good" : score >= 40 ? "At Risk" : "Critical";
-  const healthVariant = score >= 80 ? "success" : score >= 60 ? "info" : score >= 40 ? "warning" : "destructive";
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -57,38 +97,37 @@ export default function PartnerDetail() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-foreground tracking-tight">{partner.company_name}</h1>
-              <Badge variant={statusVariant[partner.status || "Active"] || "secondary"}>{partner.status}</Badge>
+              <Badge variant={partner.status === "Active" ? "success" : partner.status === "Negotiation" ? "warning" : "secondary"}>{partner.status}</Badge>
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-              <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{partner.country}</span>
-              {partner.start_date && <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />Since {partner.start_date}</span>}
+              <span>{partner.country}</span>
+              {partner.start_date && <span>Since {partner.start_date}</span>}
               <Badge variant="outline" className="font-normal">{partner.partnership_level}</Badge>
               <span className="font-mono text-xs">{partner.partner_code}</span>
             </div>
           </div>
-          <Badge variant={healthVariant as any} className="text-sm px-3 py-1">
-            Health: {score}/100 · {healthLabel}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={startEdit}><Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit</Button>
+            {partner.status !== "Archived" && (
+              <Button variant="outline" size="sm" onClick={handleArchive} className="text-destructive hover:text-destructive"><Archive className="h-3.5 w-3.5 mr-1.5" /> Archive</Button>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 animate-reveal-up stagger-1">
-        <div className="bg-card rounded-xl border p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-muted-foreground mb-2"><DollarSign className="h-4 w-4" /><span className="text-sm font-medium">Revenue YTD</span></div>
-          <p className="text-2xl font-bold tabular-nums text-foreground">€{Number(partner.revenue_ytd || 0).toLocaleString()}</p>
-        </div>
-        <div className="bg-card rounded-xl border p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-muted-foreground mb-2"><TrendingUp className="h-4 w-4" /><span className="text-sm font-medium">Pipeline</span></div>
-          <p className="text-2xl font-bold tabular-nums text-foreground">€{Number(partner.pipeline_value || 0).toLocaleString()}</p>
-        </div>
-        <div className="bg-card rounded-xl border p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-muted-foreground mb-2"><Users className="h-4 w-4" /><span className="text-sm font-medium">Clients</span></div>
-          <p className="text-2xl font-bold tabular-nums text-foreground">{clients.length}</p>
-        </div>
-        <div className="bg-card rounded-xl border p-5 shadow-sm">
-          <div className="flex items-center gap-2 text-muted-foreground mb-2"><Kanban className="h-4 w-4" /><span className="text-sm font-medium">Open Deals</span></div>
-          <p className="text-2xl font-bold tabular-nums text-foreground">{deals.filter(d => d.status === "Open").length}</p>
-        </div>
+        {[
+          { label: "Revenue YTD", value: `€${Number(partner.revenue_ytd || 0).toLocaleString()}` },
+          { label: "Pipeline", value: `€${Number(partner.pipeline_value || 0).toLocaleString()}` },
+          { label: "Clients", value: clients.length },
+          { label: "Open Deals", value: deals.filter(d => d.status === "Open").length },
+        ].map(kpi => (
+          <div key={kpi.label} className="bg-card rounded-xl border p-5 shadow-sm">
+            <span className="text-sm font-medium text-muted-foreground">{kpi.label}</span>
+            <p className="text-2xl font-bold tabular-nums text-foreground mt-1">{kpi.value}</p>
+          </div>
+        ))}
       </div>
 
       <Tabs defaultValue="overview" className="animate-reveal-up stagger-2">
@@ -113,6 +152,7 @@ export default function PartnerDetail() {
                 ["Region", partner.region],
                 ["Alert Days", partner.alert_notice_days],
                 ["Onboarding", partner.onboarding_status],
+                ["Health Score", `${score}/100 · ${healthLabel}`],
               ].map(([label, value]) => (
                 <div key={label as string} className="flex items-start gap-3 py-1 border-b border-border/40 last:border-0">
                   <span className="text-xs text-muted-foreground w-32 shrink-0">{label}</span>
@@ -244,14 +284,73 @@ export default function PartnerDetail() {
         </TabsContent>
       </Tabs>
 
-      {score < 40 && (
-        <div className="bg-warning/10 border border-warning/30 rounded-xl p-5 animate-reveal-up">
-          <h3 className="font-semibold text-foreground flex items-center gap-2">⚠️ Smart Insight</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            This partner's health score is {score}/100. Consider scheduling a re-engagement call or reviewing the partnership terms.
-          </p>
-        </div>
-      )}
+      {/* Edit Partner Dialog */}
+      <Dialog open={editing} onOpenChange={setEditing}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit Partner</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Company Name *</Label><Input value={editForm.company_name || ""} onChange={e => setEditForm(f => ({ ...f, company_name: e.target.value }))} /></div>
+              <div><Label>Legal Name</Label><Input value={editForm.legal_name || ""} onChange={e => setEditForm(f => ({ ...f, legal_name: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Contact Person</Label><Input value={editForm.primary_contact_name || ""} onChange={e => setEditForm(f => ({ ...f, primary_contact_name: e.target.value }))} /></div>
+              <div><Label>Contact Email</Label><Input value={editForm.primary_contact_email || ""} onChange={e => setEditForm(f => ({ ...f, primary_contact_email: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Phone</Label><Input value={editForm.phone || ""} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} /></div>
+              <div><Label>Website</Label><Input value={editForm.website || ""} onChange={e => setEditForm(f => ({ ...f, website: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Country</Label><Input value={editForm.country || ""} onChange={e => setEditForm(f => ({ ...f, country: e.target.value }))} /></div>
+              <div><Label>Region</Label><Input value={editForm.region || ""} onChange={e => setEditForm(f => ({ ...f, region: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Partnership Level</Label>
+                <Select value={editForm.partnership_level || "Reseller"} onValueChange={v => setEditForm(f => ({ ...f, partnership_level: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Reseller">Reseller</SelectItem>
+                    <SelectItem value="Implementer">Implementer</SelectItem>
+                    <SelectItem value="Strategic Connector">Strategic Connector</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={editForm.status || "Active"} onValueChange={v => setEditForm(f => ({ ...f, status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                    <SelectItem value="Negotiation">Negotiation</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Alert Notice Days</Label><Input type="number" value={editForm.alert_notice_days ?? 60} onChange={e => setEditForm(f => ({ ...f, alert_notice_days: parseInt(e.target.value) || 60 }))} /></div>
+              <div>
+                <Label>Onboarding Status</Label>
+                <Select value={editForm.onboarding_status || "Not Started"} onValueChange={v => setEditForm(f => ({ ...f, onboarding_status: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Not Started">Not Started</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label>Notes</Label><Textarea value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={3} /></div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditing(false)}><X className="h-4 w-4 mr-1.5" /> Cancel</Button>
+              <Button onClick={saveEdit} disabled={updatePartner.isPending}><Save className="h-4 w-4 mr-1.5" /> {updatePartner.isPending ? "Saving..." : "Save Changes"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,24 +1,31 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Download, Plus, ChevronDown } from "lucide-react";
+import { Search, Download, Plus, ChevronDown, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
-import { useClients } from "@/hooks/useClients";
+import { useClients, useCreateClient } from "@/hooks/useClients";
 import { usePartners } from "@/hooks/usePartners";
+import { toast } from "sonner";
 
 export default function ClientsLicenses() {
   const navigate = useNavigate();
   const { data: clients = [], isLoading } = useClients();
   const { data: partners = [] } = usePartners();
+  const createClient = useCreateClient();
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortField, setSortField] = useState<string>("commercial_name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [showArchived, setShowArchived] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState({ client_code: "", commercial_name: "", short_name: "", country: "", sector: "", partner_id: "", license_type: "", status: "Active" });
 
   const partnerMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -28,9 +35,10 @@ export default function ClientsLicenses() {
 
   const filtered = useMemo(() => {
     let list = [...clients];
+    list = list.filter(c => showArchived ? c.status === "Archived" : c.status !== "Archived");
     if (search) {
       const q = search.toLowerCase();
-      list = list.filter(c => c.commercial_name.toLowerCase().includes(q) || c.client_code.toLowerCase().includes(q) || (c.country || "").toLowerCase().includes(q));
+      list = list.filter(c => c.commercial_name.toLowerCase().includes(q) || c.client_code.toLowerCase().includes(q) || (c.country || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q));
     }
     if (partnerFilter !== "all") {
       list = list.filter(c => partnerFilter === "hq" ? !c.partner_id : c.partner_id === partnerFilter);
@@ -48,7 +56,7 @@ export default function ClientsLicenses() {
       return 0;
     });
     return list;
-  }, [clients, search, partnerFilter, statusFilter, sortField, sortDir]);
+  }, [clients, search, partnerFilter, statusFilter, sortField, sortDir, showArchived]);
 
   const activeCount = filtered.filter(c => c.status === "Active").length;
   const premiumCount = filtered.filter(c => c.is_premium).length;
@@ -70,9 +78,27 @@ export default function ClientsLicenses() {
     const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v || ""}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = "clients-export.csv"; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = "clients-export.csv"; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleCreate = async () => {
+    if (!form.client_code || !form.commercial_name) { toast.error("Client code and commercial name are required"); return; }
+    try {
+      await createClient.mutateAsync({
+        client_code: form.client_code,
+        commercial_name: form.commercial_name,
+        short_name: form.short_name || null,
+        country: form.country || null,
+        sector: form.sector || null,
+        partner_id: form.partner_id || null,
+        license_type: form.license_type || null,
+        status: form.status,
+      });
+      toast.success("Client created successfully");
+      setShowCreate(false);
+      setForm({ client_code: "", commercial_name: "", short_name: "", country: "", sector: "", partner_id: "", license_type: "", status: "Active" });
+    } catch (e: any) { toast.error(e?.message || "Failed to create client"); }
   };
 
   return (
@@ -83,8 +109,11 @@ export default function ClientsLicenses() {
           <p className="text-sm text-muted-foreground mt-1">Centralized license management across all partners</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
+            <Archive className="h-4 w-4 mr-1.5" /> {showArchived ? "Show Active" : "Show Archived"}
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-1.5" /> Export</Button>
-          <Button size="sm"><Plus className="h-4 w-4 mr-1.5" /> Add Client</Button>
+          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Client</Button>
         </div>
       </div>
 
@@ -134,7 +163,7 @@ export default function ClientsLicenses() {
               {isLoading ? (
                 <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">Loading clients...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">No clients match your filters.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">{showArchived ? "No archived clients." : "No clients match your filters."} <button onClick={() => setShowCreate(true)} className="text-primary hover:underline">Create client</button></TableCell></TableRow>
               ) : filtered.map(c => (
                 <TableRow key={c.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => navigate(`/clients/${c.id}`)}>
                   <TableCell className="font-mono text-xs text-muted-foreground">{c.client_code}</TableCell>
@@ -159,6 +188,53 @@ export default function ClientsLicenses() {
           Showing {filtered.length} of {clients.length} clients
         </div>
       </div>
+
+      {/* Create Client Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Create New Client</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Client Code *</Label><Input value={form.client_code} onChange={e => setForm(f => ({...f, client_code: e.target.value}))} placeholder="e.g. CL-001" /></div>
+              <div><Label>Commercial Name *</Label><Input value={form.commercial_name} onChange={e => setForm(f => ({...f, commercial_name: e.target.value}))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Short Name</Label><Input value={form.short_name} onChange={e => setForm(f => ({...f, short_name: e.target.value}))} /></div>
+              <div><Label>Country</Label><Input value={form.country} onChange={e => setForm(f => ({...f, country: e.target.value}))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Sector</Label><Input value={form.sector} onChange={e => setForm(f => ({...f, sector: e.target.value}))} /></div>
+              <div>
+                <Label>Linked Partner</Label>
+                <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({...f, partner_id: v === "none" ? "" : v}))}>
+                  <SelectTrigger><SelectValue placeholder="HQ Direct" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">HQ Direct</SelectItem>
+                    {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>License Type</Label><Input value={form.license_type} onChange={e => setForm(f => ({...f, license_type: e.target.value}))} placeholder="e.g. Business" /></div>
+              <div>
+                <Label>Status</Label>
+                <Select value={form.status} onValueChange={v => setForm(f => ({...f, status: v}))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
+              <Button onClick={handleCreate} disabled={createClient.isPending}>{createClient.isPending ? "Creating..." : "Create Client"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

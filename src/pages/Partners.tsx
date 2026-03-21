@@ -1,7 +1,7 @@
-import { usePartners, type Partner } from "@/hooks/usePartners";
+import { usePartners, useCreatePartner, useArchivePartner, useRestorePartner, type Partner } from "@/hooks/usePartners";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Search, Filter, Plus } from "lucide-react";
+import { Search, Plus, Archive, RotateCcw, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,60 +9,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreatePartner } from "@/hooks/usePartners";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
 const statusVariant: Record<string, "success" | "secondary" | "warning" | "destructive"> = {
-  Active: "success",
-  Inactive: "secondary",
-  Negotiation: "warning",
-};
-
-const getHealthVariant = (score: number) => {
-  if (score >= 80) return "success" as const;
-  if (score >= 60) return "info" as const;
-  if (score >= 40) return "warning" as const;
-  return "destructive" as const;
-};
-
-const getHealthLabel = (score: number) => {
-  if (score >= 80) return "Excellent";
-  if (score >= 60) return "Good";
-  if (score >= 40) return "At Risk";
-  return "Critical";
+  Active: "success", Inactive: "secondary", Negotiation: "warning", Archived: "secondary",
 };
 
 export default function Partners() {
   const { data: partners = [], isLoading } = usePartners();
   const createPartner = useCreatePartner();
+  const archivePartner = useArchivePartner();
+  const restorePartner = useRestorePartner();
   const [search, setSearch] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ company_name: "", partner_code: "", country: "", partnership_level: "Reseller", status: "Active", primary_contact_name: "", primary_contact_email: "", notes: "" });
 
-  const filtered = partners.filter((p) =>
-    p.company_name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.country || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = partners
+    .filter(p => showArchived ? p.status === "Archived" : p.status !== "Archived")
+    .filter(p => p.company_name.toLowerCase().includes(search.toLowerCase()) || (p.country || "").toLowerCase().includes(search.toLowerCase()));
 
   const handleCreate = async () => {
-    if (!form.company_name || !form.partner_code) {
-      toast.error("Company name and partner code are required");
-      return;
-    }
-
-    if (form.primary_contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.primary_contact_email)) {
-      toast.error("Please enter a valid primary contact email");
-      return;
-    }
-
+    if (!form.company_name || !form.partner_code) { toast.error("Company name and partner code are required"); return; }
+    if (form.primary_contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.primary_contact_email)) { toast.error("Please enter a valid email"); return; }
     try {
       await createPartner.mutateAsync(form);
       toast.success("Partner created successfully");
       setShowCreate(false);
       setForm({ company_name: "", partner_code: "", country: "", partnership_level: "Reseller", status: "Active", primary_contact_name: "", primary_contact_email: "", notes: "" });
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to create partner");
-    }
+    } catch (e: any) { toast.error(e?.message || "Failed to create partner"); }
+  };
+
+  const handleArchive = async (id: string, name: string) => {
+    try { await archivePartner.mutateAsync(id); toast.success(`${name} archived`); }
+    catch (e: any) { toast.error(e?.message || "Failed to archive"); }
+  };
+
+  const handleRestore = async (id: string, name: string) => {
+    try { await restorePartner.mutateAsync(id); toast.success(`${name} restored`); }
+    catch (e: any) { toast.error(e?.message || "Failed to restore"); }
   };
 
   return (
@@ -71,18 +57,21 @@ export default function Partners() {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Partner CRM</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {partners.length} partners · {partners.filter((p) => p.status === "Active").length} active
+            {partners.filter(p => p.status === "Active").length} active · {partners.filter(p => p.status === "Archived").length} archived
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="h-4 w-4 mr-1.5" /> Add Partner
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
+            <Archive className="h-4 w-4 mr-1.5" /> {showArchived ? "Show Active" : "Show Archived"}
+          </Button>
+          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Partner</Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 animate-reveal-up stagger-1">
         <div className="flex items-center gap-2 bg-card border rounded-lg px-3 py-2 flex-1 max-w-sm">
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-          <input type="text" placeholder="Search by company or country..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-transparent text-sm outline-none w-full placeholder:text-muted-foreground" />
+          <input type="text" placeholder="Search by company or country..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-sm outline-none w-full placeholder:text-muted-foreground" />
         </div>
       </div>
 
@@ -99,14 +88,15 @@ export default function Partners() {
                 <th className="text-right px-5 py-3 font-medium text-muted-foreground">Pipeline</th>
                 <th className="text-left px-5 py-3 font-medium text-muted-foreground">Health</th>
                 <th className="text-left px-5 py-3 font-medium text-muted-foreground">Clients</th>
+                <th className="text-right px-5 py-3 font-medium text-muted-foreground w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {isLoading ? (
-                <tr><td colSpan={8} className="px-5 py-8 text-center text-muted-foreground">Loading partners...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-8 text-center text-muted-foreground">Loading partners...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-8 text-center text-muted-foreground">No partners found. <button onClick={() => setShowCreate(true)} className="text-primary hover:underline">Create your first partner</button></td></tr>
-              ) : filtered.map((p) => (
+                <tr><td colSpan={9} className="px-5 py-8 text-center text-muted-foreground">{showArchived ? "No archived partners." : "No partners found."} <button onClick={() => setShowCreate(true)} className="text-primary hover:underline">Create partner</button></td></tr>
+              ) : filtered.map(p => (
                 <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="px-5 py-3">
                     <Link to={`/partners/${p.id}`} className="font-medium text-foreground hover:text-primary transition-colors">{p.company_name}</Link>
@@ -124,6 +114,19 @@ export default function Partners() {
                     </div>
                   </td>
                   <td className="px-5 py-3 text-muted-foreground tabular-nums">{p.number_of_clients ?? 0}</td>
+                  <td className="px-5 py-3 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild><Link to={`/partners/${p.id}`}>View Details</Link></DropdownMenuItem>
+                        {p.status === "Archived" ? (
+                          <DropdownMenuItem onClick={() => handleRestore(p.id, p.company_name)}><RotateCcw className="h-4 w-4 mr-2" /> Restore</DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={() => handleArchive(p.id, p.company_name)} className="text-destructive"><Archive className="h-4 w-4 mr-2" /> Archive</DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -131,7 +134,6 @@ export default function Partners() {
         </div>
       </div>
 
-      {/* Create Partner Dialog */}
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Create New Partner</DialogTitle></DialogHeader>
