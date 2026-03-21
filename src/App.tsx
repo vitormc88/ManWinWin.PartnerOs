@@ -23,6 +23,7 @@ import Onboarding from "@/pages/Onboarding";
 import Certifications from "@/pages/Certifications";
 import PartnerTiers from "@/pages/PartnerTiers";
 import PartnerPerformance from "@/pages/PartnerPerformance";
+import KnowledgeBase from "@/pages/KnowledgeBase";
 import ComingSoon from "@/pages/ComingSoon";
 import NotFound from "@/pages/NotFound";
 
