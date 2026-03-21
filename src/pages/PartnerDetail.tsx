@@ -1,6 +1,6 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { usePartner, useUpdatePartner, useArchivePartner } from "@/hooks/usePartners";
-import { useClients } from "@/hooks/useClients";
+import { useClients, useCreateClient } from "@/hooks/useClients";
 import { useDeals } from "@/hooks/useDeals";
 import { useRenewals } from "@/hooks/useDeals";
 import { Badge } from "@/components/ui/badge";
@@ -11,8 +11,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Pencil, Archive, Save, X } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Pencil, Archive, Save, X, Plus } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -20,12 +20,14 @@ import { toast } from "sonner";
 export default function PartnerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: partner, isLoading } = usePartner(id);
   const { data: clients = [] } = useClients({ partner_id: id });
   const { data: deals = [] } = useDeals({ partner_id: id });
   const { data: renewals = [] } = useRenewals();
   const updatePartner = useUpdatePartner();
   const archivePartner = useArchivePartner();
+  const createClient = useCreateClient();
   const { data: certs = [] } = useQuery({
     queryKey: ["partner_certs", id],
     queryFn: async () => {
@@ -40,6 +42,11 @@ export default function PartnerDetail() {
   const partnerRenewals = renewals.filter((r: any) => r.partner_id === id);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, any>>({});
+  const [showAddClient, setShowAddClient] = useState(false);
+  const [showAddDeal, setShowAddDeal] = useState(false);
+  const [clientForm, setClientForm] = useState({ client_code: "", commercial_name: "", country: "", sector: "" });
+  const [dealForm, setDealForm] = useState({ company_name: "", country: "", expected_value: "", assigned_salesperson: "" });
+  const [saving, setSaving] = useState(false);
 
   if (isLoading) return <div className="max-w-5xl mx-auto py-12 text-center text-muted-foreground">Loading...</div>;
   if (!partner) return (
@@ -82,6 +89,46 @@ export default function PartnerDetail() {
       toast.success("Partner archived");
       navigate("/partners");
     } catch (e: any) { toast.error(e?.message || "Failed to archive"); }
+  };
+
+  const handleAddClient = async () => {
+    if (!clientForm.client_code || !clientForm.commercial_name) { toast.error("Client code and name are required"); return; }
+    setSaving(true);
+    try {
+      await createClient.mutateAsync({
+        client_code: clientForm.client_code,
+        commercial_name: clientForm.commercial_name,
+        country: clientForm.country || null,
+        sector: clientForm.sector || null,
+        partner_id: partner.id,
+      });
+      toast.success("Client created and linked to partner");
+      setShowAddClient(false);
+      setClientForm({ client_code: "", commercial_name: "", country: "", sector: "" });
+    } catch (e: any) { toast.error(e?.message || "Failed to create client"); }
+    finally { setSaving(false); }
+  };
+
+  const handleAddDeal = async () => {
+    if (!dealForm.company_name) { toast.error("Company name is required"); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("deals").insert({
+        company_name: dealForm.company_name,
+        partner_id: partner.id,
+        country: dealForm.country || null,
+        expected_value: dealForm.expected_value ? parseFloat(dealForm.expected_value) : 0,
+        assigned_salesperson: dealForm.assigned_salesperson || null,
+        stage: "Lead",
+        status: "Open",
+      });
+      if (error) throw error;
+      toast.success("Deal created and linked to partner");
+      queryClient.invalidateQueries({ queryKey: ["deals"] });
+      setShowAddDeal(false);
+      setDealForm({ company_name: "", country: "", expected_value: "", assigned_salesperson: "" });
+    } catch (e: any) { toast.error(e?.message || "Failed to create deal"); }
+    finally { setSaving(false); }
   };
 
   const score = partner.health_score ?? 50;
@@ -169,9 +216,14 @@ export default function PartnerDetail() {
           </div>
         </TabsContent>
 
-        <TabsContent value="clients" className="mt-5">
+        <TabsContent value="clients" className="mt-5 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setShowAddClient(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Client</Button>
+          </div>
           {clients.length === 0 ? (
-            <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">No clients linked to this partner.</div>
+            <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">
+              No clients linked to this partner. <button onClick={() => setShowAddClient(true)} className="text-primary hover:underline">Add one</button>
+            </div>
           ) : (
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
               <table className="w-full text-sm">
@@ -198,9 +250,14 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="deals" className="mt-5">
+        <TabsContent value="deals" className="mt-5 space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setShowAddDeal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Deal</Button>
+          </div>
           {deals.length === 0 ? (
-            <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">No deals found.</div>
+            <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">
+              No deals found. <button onClick={() => setShowAddDeal(true)} className="text-primary hover:underline">Create one</button>
+            </div>
           ) : (
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
               <table className="w-full text-sm">
@@ -347,6 +404,46 @@ export default function PartnerDetail() {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEditing(false)}><X className="h-4 w-4 mr-1.5" /> Cancel</Button>
               <Button onClick={saveEdit} disabled={updatePartner.isPending}><Save className="h-4 w-4 mr-1.5" /> {updatePartner.isPending ? "Saving..." : "Save Changes"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Client Dialog */}
+      <Dialog open={showAddClient} onOpenChange={setShowAddClient}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Client to {partner.company_name}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Client Code *</Label><Input value={clientForm.client_code} onChange={e => setClientForm(f => ({ ...f, client_code: e.target.value }))} placeholder="e.g. CL-001" /></div>
+              <div><Label>Commercial Name *</Label><Input value={clientForm.commercial_name} onChange={e => setClientForm(f => ({ ...f, commercial_name: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Country</Label><Input value={clientForm.country} onChange={e => setClientForm(f => ({ ...f, country: e.target.value }))} /></div>
+              <div><Label>Sector</Label><Input value={clientForm.sector} onChange={e => setClientForm(f => ({ ...f, sector: e.target.value }))} /></div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAddClient(false)}>Cancel</Button>
+              <Button onClick={handleAddClient} disabled={saving}>{saving ? "Creating..." : "Create Client"}</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Deal Dialog */}
+      <Dialog open={showAddDeal} onOpenChange={setShowAddDeal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Deal for {partner.company_name}</DialogTitle></DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div><Label>Company Name *</Label><Input value={dealForm.company_name} onChange={e => setDealForm(f => ({ ...f, company_name: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>Country</Label><Input value={dealForm.country} onChange={e => setDealForm(f => ({ ...f, country: e.target.value }))} /></div>
+              <div><Label>Expected Value (€)</Label><Input type="number" value={dealForm.expected_value} onChange={e => setDealForm(f => ({ ...f, expected_value: e.target.value }))} /></div>
+            </div>
+            <div><Label>Assigned Salesperson</Label><Input value={dealForm.assigned_salesperson} onChange={e => setDealForm(f => ({ ...f, assigned_salesperson: e.target.value }))} /></div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAddDeal(false)}>Cancel</Button>
+              <Button onClick={handleAddDeal} disabled={saving}>{saving ? "Creating..." : "Create Deal"}</Button>
             </div>
           </div>
         </DialogContent>
