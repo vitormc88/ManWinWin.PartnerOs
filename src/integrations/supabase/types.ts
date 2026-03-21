@@ -1890,6 +1890,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_partner: { Args: { _partner_id: string }; Returns: boolean }
+      can_view_partner: { Args: { _partner_id: string }; Returns: boolean }
       get_user_partner_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
@@ -1899,6 +1901,10 @@ export type Database = {
         Returns: boolean
       }
       is_hq_user: { Args: { _user_id: string }; Returns: boolean }
+      is_partner_manager_for_partner: {
+        Args: { _partner_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
