@@ -1,0 +1,169 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+export interface UserProfile {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  partner_id: string | null;
+  is_hq: boolean | null;
+  is_active: boolean | null;
+  last_login_at: string | null;
+  invitation_status: string | null;
+  created_at: string | null;
+  roles: string[];
+  partner_name?: string;
+}
+
+export interface ModulePermission {
+  module_key: string;
+  access_level: string;
+}
+
+const MODULE_KEYS = [
+  "dashboard", "clients", "renewals", "pipeline", "deal_registrations",
+  "commissions", "onboarding", "certifications", "knowledge_base",
+  "training", "announcements", "community", "settings",
+];
+
+export const MODULE_KEYS_LIST = MODULE_KEYS;
+
+export const MODULE_LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
+  clients: "Clients & Licenses",
+  renewals: "Renewals",
+  pipeline: "Pipeline",
+  deal_registrations: "Deal Registrations",
+  commissions: "Commissions",
+  onboarding: "Onboarding",
+  certifications: "Certifications",
+  knowledge_base: "Knowledge Base",
+  training: "Training",
+  announcements: "Announcements",
+  community: "Community",
+  settings: "Settings",
+};
+
+export function useUsers() {
+  return useQuery({
+    queryKey: ["users-management"],
+    queryFn: async () => {
+      const { data: profiles, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      const { data: allRoles } = await supabase
+        .from("user_roles")
+        .select("user_id, role");
+
+      const { data: partners } = await supabase
+        .from("partners")
+        .select("id, company_name");
+
+      const partnerMap = new Map(partners?.map(p => [p.id, p.company_name]) || []);
+      const roleMap = new Map<string, string[]>();
+      allRoles?.forEach(r => {
+        const existing = roleMap.get(r.user_id) || [];
+        existing.push(r.role);
+        roleMap.set(r.user_id, existing);
+      });
+
+      return (profiles || []).map(p => ({
+        ...p,
+        roles: roleMap.get(p.id) || [],
+        partner_name: p.partner_id ? partnerMap.get(p.partner_id) || "Unknown" : undefined,
+      })) as UserProfile[];
+    },
+  });
+}
+
+export function useUserPermissions(userId: string | undefined) {
+  return useQuery({
+    queryKey: ["user-permissions", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_module_permissions")
+        .select("module_key, access_level")
+        .eq("user_id", userId!);
+      if (error) throw error;
+      return data as ModulePermission[];
+    },
+  });
+}
+
+export function useMyPermissions() {
+  return useQuery({
+    queryKey: ["my-permissions"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data, error } = await supabase
+        .from("user_module_permissions")
+        .select("module_key, access_level")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data as ModulePermission[];
+    },
+  });
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, updates }: {
+      userId: string;
+      updates: { full_name?: string; phone?: string; partner_id?: string | null; is_hq?: boolean; is_active?: boolean };
+    }) => {
+      const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); toast.success("User updated"); },
+    onError: (e: any) => toast.error(e.message || "Failed to update user"),
+  });
+}
+
+export function useUpdateUserRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+      // Delete existing roles for user
+      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
+      if (delErr) throw delErr;
+      // Insert new role
+      const { error: insErr } = await supabase.from("user_roles").insert({ user_id: userId, role });
+      if (insErr) throw insErr;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); toast.success("Role updated"); },
+    onError: (e: any) => toast.error(e.message || "Failed to update role"),
+  });
+}
+
+export function useSavePermissions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, permissions }: { userId: string; permissions: ModulePermission[] }) => {
+      // Delete all existing
+      const { error: delErr } = await supabase.from("user_module_permissions").delete().eq("user_id", userId);
+      if (delErr) throw delErr;
+      // Insert new ones (skip no_access)
+      const toInsert = permissions
+        .filter(p => p.access_level !== "no_access")
+        .map(p => ({ user_id: userId, module_key: p.module_key, access_level: p.access_level }));
+      if (toInsert.length > 0) {
+        const { error: insErr } = await supabase.from("user_module_permissions").insert(toInsert);
+        if (insErr) throw insErr;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["user-permissions"] });
+      qc.invalidateQueries({ queryKey: ["my-permissions"] });
+      toast.success("Permissions saved");
+    },
+    onError: (e: any) => toast.error(e.message || "Failed to save permissions"),
+  });
+}
