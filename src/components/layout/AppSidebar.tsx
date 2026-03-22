@@ -93,9 +93,22 @@ const communityNav = [
 
 export function AppSidebar() {
   const { profile, roles, signOut } = useAuth();
+  const { data: myPerms } = useMyPermissions();
   const { state, toggleSidebar } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const isHqUser = roles.some(r => ["hq_admin", "partner_manager", "hq_standard"].includes(r));
+  const isAdmin = roles.includes("hq_admin");
+
+  // HQ users see everything; partner users filtered by permissions
+  const canSee = (url: string) => {
+    if (isHqUser) return true;
+    const moduleKey = urlToModule[url];
+    if (!moduleKey) return true;
+    if (!myPerms || myPerms.length === 0) return true; // no perms set = show all (fallback)
+    return myPerms.some(p => p.module_key === moduleKey && p.access_level !== "no_access");
+  };
+
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
