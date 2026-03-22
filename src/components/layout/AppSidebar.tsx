@@ -185,6 +185,20 @@ export function AppSidebar() {
 
       <SidebarFooter className="px-3 py-3">
         <SidebarMenu>
+          {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive("/users")}>
+                <NavLink
+                  to="/users"
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <UserCog className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && <span>User Management</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <NavLink
