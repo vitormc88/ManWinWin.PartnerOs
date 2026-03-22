@@ -62,6 +62,7 @@ const App = () => (
               <Route path="/community" element={<ComingSoon />} />
               <Route path="/announcements" element={<ComingSoon />} />
               <Route path="/settings" element={<ComingSoon />} />
+              <Route path="/users" element={<UserManagement />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

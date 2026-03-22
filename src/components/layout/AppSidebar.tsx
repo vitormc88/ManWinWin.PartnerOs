@@ -1,5 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { LogOut } from "lucide-react";
+import { useMyPermissions } from "@/hooks/useUsers";
+import { LogOut, UserCog } from "lucide-react";
 import {
   LayoutDashboard,
   Users,
