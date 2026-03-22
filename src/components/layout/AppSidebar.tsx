@@ -38,6 +38,27 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
+// Map URLs to module keys for permission filtering
+const urlToModule: Record<string, string> = {
+  "/": "dashboard",
+  "/partners": "dashboard", // always visible if dashboard access
+  "/clients": "clients",
+  "/renewals": "renewals",
+  "/analytics": "dashboard",
+  "/pipeline": "pipeline",
+  "/deal-registrations": "deal_registrations",
+  "/commissions": "commissions",
+  "/onboarding": "onboarding",
+  "/certifications": "certifications",
+  "/tiers": "dashboard",
+  "/performance": "dashboard",
+  "/knowledge": "knowledge_base",
+  "/training": "training",
+  "/community": "community",
+  "/announcements": "announcements",
+  "/notifications": "dashboard",
+};
+
 const mainNav = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Partners", url: "/partners", icon: Users },
