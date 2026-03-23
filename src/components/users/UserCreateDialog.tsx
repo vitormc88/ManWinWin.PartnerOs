@@ -52,42 +52,38 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
 
     setSaving(true);
     try {
-      // Create auth user via edge function or directly create profile
-      // Since we can't create auth users from the client, we create a profile entry
-      // that will be matched when the user signs up with this email
-      const profileId = crypto.randomUUID();
-      
-      const { error: profileErr } = await supabase.from("profiles").insert({
-        id: profileId,
-        full_name: fullName.trim(),
-        email: email.trim().toLowerCase(),
-        phone: phone || null,
-        partner_id: isPartnerRole && partnerId !== "none" ? partnerId : null,
-        is_hq: !isPartnerRole,
-        is_active: true,
-        invitation_status: "invited",
-      } as any);
+      const { data, error } = await supabase.functions.invoke("admin-create-user", {
+        body: {
+          email: email.trim().toLowerCase(),
+          full_name: fullName.trim(),
+          phone: phone || null,
+          role,
+          partner_id: isPartnerRole && partnerId !== "none" ? partnerId : null,
+          is_hq: !isPartnerRole,
+          is_active: true,
+        },
+      });
 
-      if (profileErr) throw profileErr;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Assign role
-      const { error: roleErr } = await supabase.from("user_roles").insert({
-        user_id: profileId,
-        role,
-      } as any);
-
-      if (roleErr) {
-        // Cleanup profile if role insert fails
-        await supabase.from("profiles").delete().eq("id", profileId);
-        throw roleErr;
-      }
-
-      toast.success(`User "${fullName}" created successfully`);
+      toast.success(
+        data?.temporaryPassword
+          ? `User created. Temporary password: ${data.temporaryPassword}`
+          : `User "${fullName}" created successfully`
+      );
       qc.invalidateQueries({ queryKey: ["users-management"] });
       resetForm();
       onClose();
     } catch (e: any) {
-      toast.error(e.message || "Failed to create user");
+      const message = e?.message || "Failed to create user";
+      if (message.toLowerCase().includes("already") || message.toLowerCase().includes("exists")) {
+        toast.error("A user with this email already exists");
+      } else if (message.toLowerCase().includes("partner")) {
+        toast.error("Partner is required for partner users");
+      } else {
+        toast.error(message);
+      }
     } finally {
       setSaving(false);
     }
@@ -146,7 +142,7 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
           )}
 
           <p className="text-xs text-muted-foreground">
-            The user will be pre-registered. When they sign up with this email, their profile and role will be active.
+            The user will be created with a real login identity and temporary password.
           </p>
 
           <div className="flex justify-end gap-2">

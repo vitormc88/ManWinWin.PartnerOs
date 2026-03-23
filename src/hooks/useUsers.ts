@@ -2,6 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const mapUserError = (error: any, fallback: string) => {
+  const message = error?.message || fallback;
+  if (message.toLowerCase().includes("last active hq admin")) return "You cannot change or deactivate the last active HQ Admin.";
+  if (message.toLowerCase().includes("row-level security") || message.toLowerCase().includes("permission denied")) return "You do not have permission to perform this action.";
+  return message;
+};
+
 export interface UserProfile {
   id: string;
   full_name: string | null;
@@ -123,7 +130,7 @@ export function useUpdateUser() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); toast.success("User updated"); },
-    onError: (e: any) => toast.error(e.message || "Failed to update user"),
+    onError: (e: any) => toast.error(mapUserError(e, "Failed to update user")),
   });
 }
 
@@ -131,15 +138,20 @@ export function useUpdateUserRole() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      // Delete existing roles for user
-      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId);
+      const { data: existingRoles, error: readErr } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+      if (readErr) throw readErr;
+
+      const hasRoleAlready = existingRoles?.some((item) => String(item.role) === role);
+      if (!hasRoleAlready) {
+        const { error: insErr } = await supabase.from("user_roles").insert({ user_id: userId, role } as any);
+        if (insErr) throw insErr;
+      }
+
+      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId).neq("role", role as any);
       if (delErr) throw delErr;
-      // Insert new role
-      const { error: insErr } = await supabase.from("user_roles").insert({ user_id: userId, role } as any);
-      if (insErr) throw insErr;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); toast.success("Role updated"); },
-    onError: (e: any) => toast.error(e.message || "Failed to update role"),
+    onError: (e: any) => toast.error(mapUserError(e, "Failed to update role")),
   });
 }
 
@@ -164,6 +176,6 @@ export function useSavePermissions() {
       qc.invalidateQueries({ queryKey: ["my-permissions"] });
       toast.success("Permissions saved");
     },
-    onError: (e: any) => toast.error(e.message || "Failed to save permissions"),
+    onError: (e: any) => toast.error(mapUserError(e, "Failed to save permissions")),
   });
 }
