@@ -19,29 +19,53 @@ const routeModules: Array<{ prefix: string; moduleKey: string }> = [
   { prefix: "/analytics", moduleKey: "dashboard" },
   { prefix: "/partners", moduleKey: "dashboard" },
   { prefix: "/notifications", moduleKey: "dashboard" },
+  { prefix: "/tiers", moduleKey: "dashboard" },
+  { prefix: "/performance", moduleKey: "dashboard" },
   { prefix: "/users", moduleKey: "_admin_only" },
 ];
+
+// Order of modules to try when redirecting away from a denied dashboard
+const fallbackModuleOrder = [
+  { path: "/clients", moduleKey: "clients" },
+  { path: "/pipeline", moduleKey: "pipeline" },
+  { path: "/renewals", moduleKey: "renewals" },
+  { path: "/deal-registrations", moduleKey: "deal_registrations" },
+  { path: "/commissions", moduleKey: "commissions" },
+  { path: "/knowledge", moduleKey: "knowledge_base" },
+  { path: "/onboarding", moduleKey: "onboarding" },
+  { path: "/certifications", moduleKey: "certifications" },
+  { path: "/training", moduleKey: "training" },
+  { path: "/announcements", moduleKey: "announcements" },
+  { path: "/community", moduleKey: "community" },
+];
+
+const LoadingSpinner = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
+const AccessDenied = ({ message }: { message: string }) => (
+  <div className="min-h-screen flex items-center justify-center bg-background px-6">
+    <div className="rounded-xl border bg-card p-6 text-center max-w-md">
+      <h2 className="text-lg font-semibold text-foreground">Access restricted</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+    </div>
+  </div>
+);
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, isLoading, isAdmin } = useAuth();
   const location = useLocation();
   const { data: myPerms, isLoading: permsLoading, isError: permsError } = useMyPermissions();
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
+  if (isLoading) return <LoadingSpinner />;
   if (!session) return <Navigate to="/auth" replace />;
 
   // HQ Admin bypasses all module checks
   if (isAdmin) return <>{children}</>;
 
   // Find which module this route belongs to
-  // Use exact match first, then prefix match — but skip "/" prefix to avoid false positives
   const matchedRoute = routeModules.find((route) => {
     if (route.prefix === "/") return location.pathname === "/";
     return location.pathname === route.prefix || location.pathname.startsWith(`${route.prefix}/`);
@@ -49,74 +73,35 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   // Admin-only routes (like /users) are blocked for non-admins
   if (matchedRoute?.moduleKey === "_admin_only") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
-        <div className="rounded-xl border bg-card p-6 text-center max-w-md">
-          <h2 className="text-lg font-semibold text-foreground">Access restricted</h2>
-          <p className="mt-2 text-sm text-muted-foreground">This section is restricted to administrators.</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied message="This section is restricted to administrators." />;
   }
 
-  // Dashboard (root "/") — allow if user has ANY permission at all
-  if (!matchedRoute || location.pathname === "/") {
-    if (permsLoading) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      );
-    }
-    // Allow dashboard if user has any module permission
-    const hasDashboard = myPerms?.some((p) => p.module_key === "dashboard" && p.access_level !== "no_access");
-    const hasAnyPerm = myPerms && myPerms.length > 0;
-    if (hasDashboard || hasAnyPerm) return <>{children}</>;
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
-        <div className="rounded-xl border bg-card p-6 text-center max-w-md">
-          <h2 className="text-lg font-semibold text-foreground">Access restricted</h2>
-          <p className="mt-2 text-sm text-muted-foreground">You do not have permission to access this module.</p>
-        </div>
-      </div>
-    );
-  }
+  // Wait for permissions to load before making any access decision
+  if (permsLoading) return <LoadingSpinner />;
 
-  // Wait for permissions to load
-  if (permsLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  // If permissions failed to load, show error instead of blocking
   if (permsError || !myPerms) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
-        <div className="rounded-xl border bg-card p-6 text-center max-w-md">
-          <h2 className="text-lg font-semibold text-foreground">Unable to load permissions</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Please refresh the page or contact your administrator.</p>
-        </div>
-      </div>
-    );
+    return <AccessDenied message="Unable to load permissions. Please refresh the page or contact your administrator." />;
   }
 
-  // Check access for the specific module ONLY — independent of all other modules
-  const hasAccess = myPerms.some(
-    (permission) => permission.module_key === matchedRoute.moduleKey && permission.access_level !== "no_access"
-  );
+  // Helper: check if user has access to a specific module
+  const hasModuleAccess = (moduleKey: string) =>
+    myPerms.some((p) => p.module_key === moduleKey && p.access_level !== "no_access");
 
-  if (!hasAccess) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
-        <div className="rounded-xl border bg-card p-6 text-center max-w-md">
-          <h2 className="text-lg font-semibold text-foreground">Access restricted</h2>
-          <p className="mt-2 text-sm text-muted-foreground">You do not have permission to access this module.</p>
-        </div>
-      </div>
-    );
+  // Dashboard / root "/" — if user has NO dashboard access, redirect to first available module
+  if (!matchedRoute || location.pathname === "/") {
+    if (hasModuleAccess("dashboard")) return <>{children}</>;
+
+    // Find first available module to redirect to
+    const firstAvailable = fallbackModuleOrder.find((m) => hasModuleAccess(m.moduleKey));
+    if (firstAvailable) return <Navigate to={firstAvailable.path} replace />;
+
+    // User has no permissions at all
+    return <AccessDenied message="You do not have permission to access any module. Contact your administrator." />;
+  }
+
+  // Check access for the specific module ONLY
+  if (!hasModuleAccess(matchedRoute.moduleKey)) {
+    return <AccessDenied message="You do not have permission to access this module." />;
   }
 
   return <>{children}</>;
