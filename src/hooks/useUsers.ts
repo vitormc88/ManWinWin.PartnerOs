@@ -141,7 +141,7 @@ export function useUpdateUserRole() {
       const { data: existingRoles, error: readErr } = await supabase.from("user_roles").select("role").eq("user_id", userId);
       if (readErr) throw readErr;
 
-      const hasRoleAlready = existingRoles?.some((item) => item.role === role);
+      const hasRoleAlready = existingRoles?.some((item) => String(item.role) === role);
       if (!hasRoleAlready) {
         const { error: insErr } = await supabase.from("user_roles").insert({ user_id: userId, role } as any);
         if (insErr) throw insErr;
