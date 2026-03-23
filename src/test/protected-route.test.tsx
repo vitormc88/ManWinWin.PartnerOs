@@ -29,6 +29,7 @@ describe("ProtectedRoute", () => {
         { module_key: "pipeline", access_level: "view" },
       ],
       isLoading: false,
+      isResolved: true,
       isError: false,
     });
   });
@@ -62,6 +63,25 @@ describe("ProtectedRoute", () => {
     );
 
     expect(await screen.findByText("Clients content")).toBeInTheDocument();
+    expect(screen.queryByText("Access restricted")).not.toBeInTheDocument();
+  });
+
+  it("keeps showing loading while permissions are still unresolved", () => {
+    mockUseMyPermissions.mockReturnValue({
+      data: undefined,
+      isLoading: true,
+      isResolved: false,
+      isError: false,
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/"]}>
+        <Routes>
+          <Route path="/" element={<ProtectedRoute><div>Dashboard content</div></ProtectedRoute>} />
+        </Routes>
+      </MemoryRouter>
+    );
+
     expect(screen.queryByText("Access restricted")).not.toBeInTheDocument();
   });
 });

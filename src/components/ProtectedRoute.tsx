@@ -16,15 +16,14 @@ const routeModules: Array<{ prefix: string; moduleKey: string }> = [
   { prefix: "/announcements", moduleKey: "announcements" },
   { prefix: "/community", moduleKey: "community" },
   { prefix: "/settings", moduleKey: "settings" },
-  { prefix: "/analytics", moduleKey: "dashboard" },
-  { prefix: "/partners", moduleKey: "dashboard" },
-  { prefix: "/notifications", moduleKey: "dashboard" },
-  { prefix: "/tiers", moduleKey: "dashboard" },
-  { prefix: "/performance", moduleKey: "dashboard" },
+  { prefix: "/analytics", moduleKey: "_admin_only" },
+  { prefix: "/partners", moduleKey: "_admin_only" },
+  { prefix: "/notifications", moduleKey: "_admin_only" },
+  { prefix: "/tiers", moduleKey: "_admin_only" },
+  { prefix: "/performance", moduleKey: "_admin_only" },
   { prefix: "/users", moduleKey: "_admin_only" },
 ];
 
-// Order of modules to try when redirecting away from a denied dashboard
 const fallbackModuleOrder = [
   { path: "/clients", moduleKey: "clients" },
   { path: "/pipeline", moduleKey: "pipeline" },
@@ -57,49 +56,47 @@ const AccessDenied = ({ message }: { message: string }) => (
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, isLoading, isAdmin } = useAuth();
   const location = useLocation();
-  const { data: myPerms, isLoading: permsLoading, isError: permsError } = useMyPermissions();
+  const {
+    data: myPerms,
+    isLoading: permsLoading,
+    isError: permsError,
+    isResolved: permsResolved,
+  } = useMyPermissions();
 
   if (isLoading) return <LoadingSpinner />;
   if (!session) return <Navigate to="/auth" replace />;
-
-  // HQ Admin bypasses all module checks
   if (isAdmin) return <>{children}</>;
 
-  // Find which module this route belongs to
-  const matchedRoute = routeModules.find((route) => {
-    if (route.prefix === "/") return location.pathname === "/";
-    return location.pathname === route.prefix || location.pathname.startsWith(`${route.prefix}/`);
-  });
+  const matchedRoute = routeModules.find((route) =>
+    location.pathname === route.prefix || location.pathname.startsWith(`${route.prefix}/`)
+  );
 
-  // Admin-only routes (like /users) are blocked for non-admins
   if (matchedRoute?.moduleKey === "_admin_only") {
     return <AccessDenied message="This section is restricted to administrators." />;
   }
 
-  // Wait for permissions to load before making any access decision
-  if (permsLoading) return <LoadingSpinner />;
+  if (permsLoading || !permsResolved) return <LoadingSpinner />;
 
   if (permsError || !myPerms) {
     return <AccessDenied message="Unable to load permissions. Please refresh the page or contact your administrator." />;
   }
 
-  // Helper: check if user has access to a specific module
   const hasModuleAccess = (moduleKey: string) =>
     myPerms.some((p) => p.module_key === moduleKey && p.access_level !== "no_access");
 
-  const firstAvailable = fallbackModuleOrder.find((m) => hasModuleAccess(m.moduleKey));
+  const firstAvailable = fallbackModuleOrder.find((module) => hasModuleAccess(module.moduleKey));
 
-  // Dashboard / root "/" — if user has NO dashboard access, redirect to first available module
-  if (!matchedRoute || location.pathname === "/") {
+  if (location.pathname === "/") {
     if (hasModuleAccess("dashboard")) return <>{children}</>;
-
     if (firstAvailable) return <Navigate to={firstAvailable.path} replace />;
 
-    // User has no permissions at all
     return <AccessDenied message="You do not have permission to access any module. Contact your administrator." />;
   }
 
-  // Check access for the specific module ONLY
+  if (!matchedRoute) {
+    return <>{children}</>;
+  }
+
   if (!hasModuleAccess(matchedRoute.moduleKey)) {
     if (firstAvailable && firstAvailable.path !== location.pathname) {
       return <Navigate to={firstAvailable.path} replace />;

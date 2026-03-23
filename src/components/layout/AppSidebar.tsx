@@ -41,22 +41,22 @@ import {
 // Map URLs to module keys for permission filtering
 const urlToModule: Record<string, string> = {
   "/": "dashboard",
-  "/partners": "dashboard", // always visible if dashboard access
+  "/partners": "_admin_only",
   "/clients": "clients",
   "/renewals": "renewals",
-  "/analytics": "dashboard",
+  "/analytics": "_admin_only",
   "/pipeline": "pipeline",
   "/deal-registrations": "deal_registrations",
   "/commissions": "commissions",
   "/onboarding": "onboarding",
   "/certifications": "certifications",
-  "/tiers": "dashboard",
-  "/performance": "dashboard",
+  "/tiers": "_admin_only",
+  "/performance": "_admin_only",
   "/knowledge": "knowledge_base",
   "/training": "training",
   "/community": "community",
   "/announcements": "announcements",
-  "/notifications": "dashboard",
+  "/notifications": "_admin_only",
 };
 
 const mainNav = [
@@ -99,13 +99,12 @@ export function AppSidebar() {
   const location = useLocation();
   const isAdmin = roles.includes("hq_admin");
 
-  // Only HQ Admin bypasses module restrictions; all other users must have explicit access.
   const canSee = (url: string) => {
     if (isAdmin) return true;
     const moduleKey = urlToModule[url];
-    if (!moduleKey) return false;
+    if (!moduleKey || moduleKey === "_admin_only") return false;
     if (!myPerms || myPerms.length === 0) return false;
-    return myPerms.some(p => p.module_key === moduleKey && p.access_level !== "no_access");
+    return myPerms.some((p) => p.module_key === moduleKey && p.access_level !== "no_access");
   };
 
   const isActive = (path: string) =>

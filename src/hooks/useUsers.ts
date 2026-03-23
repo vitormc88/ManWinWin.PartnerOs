@@ -111,7 +111,7 @@ export function useMyPermissions() {
 
   const query = useQuery({
     queryKey: ["my-permissions", authUserId],
-    enabled: !!authUserId,
+    enabled: !!authUserId && !authLoading,
     queryFn: async () => {
       if (!authUserId) return [];
       const { data, error } = await supabase
@@ -119,18 +119,21 @@ export function useMyPermissions() {
         .select("module_key, access_level")
         .eq("user_id", authUserId);
       if (error) throw error;
-      return data as ModulePermission[];
+      return (data ?? []) as ModulePermission[];
     },
-    staleTime: 30_000, // Keep fresh for 30s to avoid unnecessary refetches
+    staleTime: 30_000,
   });
+
+  const isResolved = authLoading ? false : !authUserId || query.status === "success" || query.isError;
 
   return useMemo(
     () => ({
       ...query,
-      data: query.data ?? [],
-      isLoading: authLoading || (!!authUserId && (query.isLoading || query.isFetching)),
+      data: isResolved ? (query.data ?? []) : undefined,
+      isLoading: !isResolved,
+      isResolved,
     }),
-    [authLoading, authUserId, query]
+    [isResolved, query]
   );
 }
 
