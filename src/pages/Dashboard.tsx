@@ -11,6 +11,7 @@ import { useRenewals, useNotifications } from "@/hooks/useDeals";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
+  const { isHQ, profile } = useAuth();
   const { data: partners = [] } = usePartners();
   const { data: clients = [] } = useClients();
   const { data: renewals = [] } = useRenewals();

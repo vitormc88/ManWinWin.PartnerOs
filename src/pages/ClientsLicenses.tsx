@@ -207,6 +207,7 @@ export default function ClientsLicenses() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Sector</Label><Input value={form.sector} onChange={e => setForm(f => ({...f, sector: e.target.value}))} /></div>
+              {isHQ ? (
               <div>
                 <Label>Linked Partner</Label>
                 <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({...f, partner_id: v === "none" ? "" : v}))}>
@@ -217,6 +218,12 @@ export default function ClientsLicenses() {
                   </SelectContent>
                 </Select>
               </div>
+              ) : (
+              <div>
+                <Label>Linked Partner</Label>
+                <Input value={partners.find(p => p.id === userPartnerId)?.company_name || "Your Partner"} disabled />
+              </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>License Type</Label><Input value={form.license_type} onChange={e => setForm(f => ({...f, license_type: e.target.value}))} placeholder="e.g. Business" /></div>
