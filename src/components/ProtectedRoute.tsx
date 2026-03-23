@@ -15,7 +15,7 @@ const routeModules: Array<{ prefix: string; moduleKey: string }> = [
   { prefix: "/training", moduleKey: "training" },
   { prefix: "/announcements", moduleKey: "announcements" },
   { prefix: "/community", moduleKey: "community" },
-  { prefix: "/settings", moduleKey: "settings" },
+  { prefix: "/settings", moduleKey: "_admin_only" },
   { prefix: "/analytics", moduleKey: "_admin_only" },
   { prefix: "/partners", moduleKey: "_admin_only" },
   { prefix: "/notifications", moduleKey: "_admin_only" },

@@ -98,10 +98,12 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isAdmin = roles.includes("hq_admin");
+  const isPartnerUser = profile?.is_hq !== true;
 
   const canSee = (url: string) => {
     if (isAdmin) return true;
     const moduleKey = urlToModule[url];
+    // HQ-only modules: always hidden for partner users
     if (!moduleKey || moduleKey === "_admin_only") return false;
     if (!myPerms || myPerms.length === 0) return false;
     return myPerms.some((p) => p.module_key === moduleKey && p.access_level !== "no_access");
@@ -197,18 +199,20 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild>
-              <NavLink
-                to="/settings"
-                className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-              >
-                <Settings className="h-[18px] w-[18px] shrink-0" />
-                {!collapsed && <span>Settings</span>}
-              </NavLink>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {!isPartnerUser && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive("/settings")}>
+                <NavLink
+                  to="/settings"
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <Settings className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && <span>Settings</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
         {!collapsed && (
           <div className="mt-2 flex items-center gap-2.5 px-3 py-2 rounded-md bg-sidebar-accent">
