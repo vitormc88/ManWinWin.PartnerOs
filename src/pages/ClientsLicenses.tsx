@@ -94,7 +94,7 @@ export default function ClientsLicenses() {
         short_name: form.short_name || null,
         country: form.country || null,
         sector: form.sector || null,
-        partner_id: form.partner_id || null,
+        partner_id: userPartnerId || form.partner_id || null,
         license_type: form.license_type || null,
         status: form.status,
       });
