@@ -1,4 +1,5 @@
 import { usePartners, useCreatePartner, useArchivePartner, useRestorePartner, type Partner } from "@/hooks/usePartners";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Search, Plus, Archive, RotateCcw, MoreHorizontal } from "lucide-react";
@@ -21,6 +22,7 @@ export default function Partners() {
   const createPartner = useCreatePartner();
   const archivePartner = useArchivePartner();
   const restorePartner = useRestorePartner();
+  const { isAdmin, isHQ, profile } = useAuth();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -61,10 +63,14 @@ export default function Partners() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
-            <Archive className="h-4 w-4 mr-1.5" /> {showArchived ? "Show Active" : "Show Archived"}
-          </Button>
-          <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Partner</Button>
+          {isAdmin && (
+            <>
+              <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
+                <Archive className="h-4 w-4 mr-1.5" /> {showArchived ? "Show Active" : "Show Archived"}
+              </Button>
+              <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Partner</Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -119,11 +125,11 @@ export default function Partners() {
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild><Link to={`/partners/${p.id}`}>View Details</Link></DropdownMenuItem>
-                        {p.status === "Archived" ? (
+                        {isAdmin && (p.status === "Archived" ? (
                           <DropdownMenuItem onClick={() => handleRestore(p.id, p.company_name)}><RotateCcw className="h-4 w-4 mr-2" /> Restore</DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem onClick={() => handleArchive(p.id, p.company_name)} className="text-destructive"><Archive className="h-4 w-4 mr-2" /> Archive</DropdownMenuItem>
-                        )}
+                        ))}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>

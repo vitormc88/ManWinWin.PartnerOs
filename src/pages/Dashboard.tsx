@@ -8,8 +8,10 @@ import { Link } from "react-router-dom";
 import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
 import { useRenewals, useNotifications } from "@/hooks/useDeals";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Dashboard() {
+  const { isHQ, profile } = useAuth();
   const { data: partners = [] } = usePartners();
   const { data: clients = [] } = useClients();
   const { data: renewals = [] } = useRenewals();
@@ -38,8 +40,12 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="animate-reveal-up">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Partner ecosystem overview · {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">
+          {isHQ ? "Dashboard" : `${partners[0]?.company_name || "Partner"} Dashboard`}
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          {isHQ ? "Partner ecosystem overview" : "Your partner overview"} · {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+        </p>
       </div>
 
       {(overdueRenewals.length > 0 || atRiskPartners.length > 0) && (
@@ -131,14 +137,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <RevenueChart />
-        </div>
-        <PartnerHealthList />
-      </div>
-
-      <RecentActivity />
+      {isHQ && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <RevenueChart />
+            </div>
+            <PartnerHealthList />
+          </div>
+          <RecentActivity />
+        </>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDeals } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,10 +43,12 @@ const defaultDealForm = {
 };
 
 export default function Pipeline() {
+  const { isHQ, profile } = useAuth();
+  const userPartnerId = !isHQ ? profile?.partner_id : null;
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ ...defaultDealForm });
+  const [form, setForm] = useState({ ...defaultDealForm, partner_id: userPartnerId || "" });
   const [creating, setCreating] = useState(false);
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
@@ -81,7 +84,7 @@ export default function Pipeline() {
     try {
       const { error } = await supabase.from("deals").insert({
         company_name: form.company_name,
-        partner_id: form.partner_id || null,
+        partner_id: userPartnerId || form.partner_id || null,
         country: form.country || null,
         industry: form.industry || null,
         stage: form.stage,
@@ -98,7 +101,7 @@ export default function Pipeline() {
       toast.success("Deal created successfully");
       queryClient.invalidateQueries({ queryKey: ["deals"] });
       setShowCreate(false);
-      setForm({ ...defaultDealForm });
+      setForm({ ...defaultDealForm, partner_id: userPartnerId || "" });
     } catch (e: any) {
       const msg = e?.message || "";
       if (msg.toLowerCase().includes("row-level security") || msg.toLowerCase().includes("permission denied")) {
@@ -228,6 +231,7 @@ export default function Pipeline() {
           <div className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Company Name *</Label><Input value={form.company_name} onChange={e => setForm(f => ({ ...f, company_name: e.target.value }))} /></div>
+              {isHQ ? (
               <div>
                 <Label>Partner</Label>
                 <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({ ...f, partner_id: v === "none" ? "" : v }))}>
@@ -238,6 +242,12 @@ export default function Pipeline() {
                   </SelectContent>
                 </Select>
               </div>
+              ) : (
+              <div>
+                <Label>Partner</Label>
+                <Input value={partners.find(p => p.id === userPartnerId)?.company_name || "Your Partner"} disabled />
+              </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Country</Label><Input value={form.country} onChange={e => setForm(f => ({ ...f, country: e.target.value }))} /></div>

@@ -104,8 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const isHQ = roles.some(r => ["hq_admin", "partner_manager", "hq_standard"].includes(r));
-  const isAdmin = roles.includes("hq_admin");
+  const isHQ = profile?.is_hq === true && roles.some(r => ["hq_admin", "hq_standard"].includes(r));
+  const isAdmin = roles.includes("hq_admin") && profile?.is_hq === true;
 
   const signOut = async () => {
     await supabase.auth.signOut();

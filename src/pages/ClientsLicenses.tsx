@@ -11,10 +11,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
 import { useClients, useCreateClient } from "@/hooks/useClients";
 import { usePartners } from "@/hooks/usePartners";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 export default function ClientsLicenses() {
   const navigate = useNavigate();
+  const { isHQ, isAdmin, profile } = useAuth();
+  const userPartnerId = !isHQ ? profile?.partner_id : null;
   const { data: clients = [], isLoading } = useClients();
   const { data: partners = [] } = usePartners();
   const createClient = useCreateClient();
@@ -91,7 +94,7 @@ export default function ClientsLicenses() {
         short_name: form.short_name || null,
         country: form.country || null,
         sector: form.sector || null,
-        partner_id: form.partner_id || null,
+        partner_id: userPartnerId || form.partner_id || null,
         license_type: form.license_type || null,
         status: form.status,
       });
@@ -204,6 +207,7 @@ export default function ClientsLicenses() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Sector</Label><Input value={form.sector} onChange={e => setForm(f => ({...f, sector: e.target.value}))} /></div>
+              {isHQ ? (
               <div>
                 <Label>Linked Partner</Label>
                 <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({...f, partner_id: v === "none" ? "" : v}))}>
@@ -214,6 +218,12 @@ export default function ClientsLicenses() {
                   </SelectContent>
                 </Select>
               </div>
+              ) : (
+              <div>
+                <Label>Linked Partner</Label>
+                <Input value={partners.find(p => p.id === userPartnerId)?.company_name || "Your Partner"} disabled />
+              </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>License Type</Label><Input value={form.license_type} onChange={e => setForm(f => ({...f, license_type: e.target.value}))} placeholder="e.g. Business" /></div>
