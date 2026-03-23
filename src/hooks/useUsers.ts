@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const mapUserError = (error: any, fallback: string) => {
   const message = error?.message || fallback;
@@ -105,20 +106,10 @@ export function useUserPermissions(userId: string | undefined) {
 }
 
 export function useMyPermissions() {
-  // We need a stable user id in the query key so permissions aren't shared across auth sessions
-  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const { user, isLoading: authLoading } = useAuth();
+  const authUserId = user?.id ?? null;
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setAuthUserId(user?.id ?? null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setAuthUserId(session?.user?.id ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  return useQuery({
+  const query = useQuery({
     queryKey: ["my-permissions", authUserId],
     enabled: !!authUserId,
     queryFn: async () => {
@@ -132,6 +123,15 @@ export function useMyPermissions() {
     },
     staleTime: 30_000, // Keep fresh for 30s to avoid unnecessary refetches
   });
+
+  return useMemo(
+    () => ({
+      ...query,
+      data: query.data ?? [],
+      isLoading: authLoading || (!!authUserId && (query.isLoading || query.isFetching)),
+    }),
+    [authLoading, authUserId, query]
+  );
 }
 
 export function useUpdateUser() {
