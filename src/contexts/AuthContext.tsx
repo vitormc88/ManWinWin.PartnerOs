@@ -113,6 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     setRoles([]);
+    // Clear all permission caches on logout so next login starts fresh
+    queryClient.removeQueries({ queryKey: ["my-permissions"] });
+    queryClient.removeQueries({ queryKey: ["user-permissions"] });
   };
 
   return (
