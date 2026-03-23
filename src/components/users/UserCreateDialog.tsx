@@ -15,7 +15,7 @@ const ROLES = [
   { value: "partner_manager", label: "Partner Manager" },
   { value: "partner_admin", label: "Partner Admin" },
   { value: "partner_sales", label: "Partner Sales" },
-  { value: "partner_readonly", label: "Partner Read Only" },
+  { value: "partner_restricted", label: "Partner Read Only" },
 ];
 
 export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {

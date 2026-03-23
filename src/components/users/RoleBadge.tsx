@@ -6,7 +6,7 @@ const ROLE_COLORS: Record<string, string> = {
   partner_manager: "bg-purple-500/10 text-purple-600 border-purple-500/20",
   partner_admin: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   partner_sales: "bg-green-500/10 text-green-600 border-green-500/20",
-  partner_readonly: "bg-muted text-muted-foreground border-border",
+  partner_restricted: "bg-muted text-muted-foreground border-border",
 };
 
 export function RoleBadge({ role }: { role: string }) {
