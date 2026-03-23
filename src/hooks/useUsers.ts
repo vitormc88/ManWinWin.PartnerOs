@@ -147,7 +147,7 @@ export function useUpdateUserRole() {
         if (insErr) throw insErr;
       }
 
-      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId).neq("role", role);
+      const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId).neq("role", role as any);
       if (delErr) throw delErr;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); toast.success("Role updated"); },
