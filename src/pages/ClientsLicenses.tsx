@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CountryCombobox } from "@/components/clients/CountryCombobox";
+import { SectorSelect } from "@/components/clients/SectorSelect";
+import { LicenseSelect } from "@/components/clients/LicenseSelect";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
@@ -203,10 +206,10 @@ export default function ClientsLicenses() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div><Label>Short Name</Label><Input value={form.short_name} onChange={e => setForm(f => ({...f, short_name: e.target.value}))} /></div>
-              <div><Label>Country</Label><Input value={form.country} onChange={e => setForm(f => ({...f, country: e.target.value}))} /></div>
+              <div><Label>Country</Label><CountryCombobox value={form.country} onChange={v => setForm(f => ({...f, country: v}))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Sector</Label><Input value={form.sector} onChange={e => setForm(f => ({...f, sector: e.target.value}))} /></div>
+              <div><Label>Sector</Label><SectorSelect value={form.sector} onChange={v => setForm(f => ({...f, sector: v}))} /></div>
               {isHQ ? (
               <div>
                 <Label>Linked Partner</Label>
@@ -226,7 +229,7 @@ export default function ClientsLicenses() {
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>License Type</Label><Input value={form.license_type} onChange={e => setForm(f => ({...f, license_type: e.target.value}))} placeholder="e.g. Business" /></div>
+              <div><Label>License</Label><LicenseSelect value={form.license_type} onChange={v => setForm(f => ({...f, license_type: v}))} /></div>
               <div>
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={v => setForm(f => ({...f, status: v}))}>
