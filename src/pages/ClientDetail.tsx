@@ -8,6 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CountryCombobox } from "@/components/clients/CountryCombobox";
+import { SectorSelect } from "@/components/clients/SectorSelect";
+import { LicenseSelect } from "@/components/clients/LicenseSelect";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -237,9 +240,9 @@ export default function ClientDetail() {
                     <EditField label="Address" value={clientForm.address} onChange={v => setClientForm(f => ({...f, address: v}))} />
                     <div className="grid grid-cols-2 gap-3">
                       <EditField label="City" value={clientForm.city} onChange={v => setClientForm(f => ({...f, city: v}))} />
-                      <EditField label="Country" value={clientForm.country} onChange={v => setClientForm(f => ({...f, country: v}))} />
+                      <div><Label className="text-xs">Country</Label><CountryCombobox value={clientForm.country} onChange={v => setClientForm(f => ({...f, country: v}))} /></div>
                     </div>
-                    <EditField label="Sector" value={clientForm.sector} onChange={v => setClientForm(f => ({...f, sector: v}))} />
+                    <div><Label className="text-xs">Sector</Label><SectorSelect value={clientForm.sector} onChange={v => setClientForm(f => ({...f, sector: v}))} /></div>
                     <div className="flex justify-end gap-2 pt-2">
                       <Button variant="outline" size="sm" onClick={() => setEditingClient(false)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
                       <Button size="sm" onClick={saveClient} disabled={updateClient.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save</Button>
