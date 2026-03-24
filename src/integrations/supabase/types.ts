@@ -697,9 +697,11 @@ export type Database = {
       deals: {
         Row: {
           aging_days: number | null
+          asset_range: string | null
           assigned_salesperson: string | null
           company_name: string
           contact_email: string | null
+          contact_person_name: string | null
           contact_phone: string | null
           country: string | null
           created_at: string
@@ -711,6 +713,7 @@ export type Database = {
           job_role: string | null
           last_activity_at: string | null
           lead_source: string | null
+          maintenance_team_size: string | null
           notes: string | null
           num_assets: number | null
           num_maintenance_team: number | null
@@ -726,9 +729,11 @@ export type Database = {
         }
         Insert: {
           aging_days?: number | null
+          asset_range?: string | null
           assigned_salesperson?: string | null
           company_name: string
           contact_email?: string | null
+          contact_person_name?: string | null
           contact_phone?: string | null
           country?: string | null
           created_at?: string
@@ -740,6 +745,7 @@ export type Database = {
           job_role?: string | null
           last_activity_at?: string | null
           lead_source?: string | null
+          maintenance_team_size?: string | null
           notes?: string | null
           num_assets?: number | null
           num_maintenance_team?: number | null
@@ -755,9 +761,11 @@ export type Database = {
         }
         Update: {
           aging_days?: number | null
+          asset_range?: string | null
           assigned_salesperson?: string | null
           company_name?: string
           contact_email?: string | null
+          contact_person_name?: string | null
           contact_phone?: string | null
           country?: string | null
           created_at?: string
@@ -769,6 +777,7 @@ export type Database = {
           job_role?: string | null
           last_activity_at?: string | null
           lead_source?: string | null
+          maintenance_team_size?: string | null
           notes?: string | null
           num_assets?: number | null
           num_maintenance_team?: number | null
