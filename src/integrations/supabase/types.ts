@@ -699,6 +699,8 @@ export type Database = {
           aging_days: number | null
           assigned_salesperson: string | null
           company_name: string
+          contact_email: string | null
+          contact_phone: string | null
           country: string | null
           created_at: string
           description: string | null
@@ -706,11 +708,16 @@ export type Database = {
           expected_value: number | null
           id: string
           industry: string | null
+          job_role: string | null
           last_activity_at: string | null
           lead_source: string | null
           notes: string | null
+          num_assets: number | null
+          num_maintenance_team: number | null
           partner_id: string | null
           probability: number | null
+          register_date: string | null
+          sector: string | null
           stage: string
           stage_entered_at: string | null
           status: string
@@ -721,6 +728,8 @@ export type Database = {
           aging_days?: number | null
           assigned_salesperson?: string | null
           company_name: string
+          contact_email?: string | null
+          contact_phone?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
@@ -728,11 +737,16 @@ export type Database = {
           expected_value?: number | null
           id?: string
           industry?: string | null
+          job_role?: string | null
           last_activity_at?: string | null
           lead_source?: string | null
           notes?: string | null
+          num_assets?: number | null
+          num_maintenance_team?: number | null
           partner_id?: string | null
           probability?: number | null
+          register_date?: string | null
+          sector?: string | null
           stage?: string
           stage_entered_at?: string | null
           status?: string
@@ -743,6 +757,8 @@ export type Database = {
           aging_days?: number | null
           assigned_salesperson?: string | null
           company_name?: string
+          contact_email?: string | null
+          contact_phone?: string | null
           country?: string | null
           created_at?: string
           description?: string | null
@@ -750,11 +766,16 @@ export type Database = {
           expected_value?: number | null
           id?: string
           industry?: string | null
+          job_role?: string | null
           last_activity_at?: string | null
           lead_source?: string | null
           notes?: string | null
+          num_assets?: number | null
+          num_maintenance_team?: number | null
           partner_id?: string | null
           probability?: number | null
+          register_date?: string | null
+          sector?: string | null
           stage?: string
           stage_entered_at?: string | null
           status?: string

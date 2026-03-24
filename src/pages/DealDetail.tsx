@@ -1,14 +1,23 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useDeal } from "@/hooks/useDeals";
+import { usePartners } from "@/hooks/usePartners";
 import { useDealContacts, useDealTasks, useDealActivities } from "@/hooks/useCommissions";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Building2, MapPin, User, Calendar, DollarSign, Phone, Mail, CheckCircle2, Circle, MessageSquare } from "lucide-react";
-
-const pipelineStages = [
-  { key: "Lead", label: "Lead" }, { key: "Meeting", label: "Meeting" }, { key: "Demo", label: "Demo" },
-  { key: "Follow-up", label: "Follow-up" }, { key: "Negotiation", label: "Negotiation" }, { key: "Won", label: "Won" },
-];
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Building2, MapPin, User, Calendar, DollarSign, Phone, Mail, CheckCircle2, Circle, MessageSquare, Plus, Pencil, Trash2, Save, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { CountryCombobox } from "@/components/clients/CountryCombobox";
+import { SectorSelect } from "@/components/clients/SectorSelect";
+import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } from "@/data/pipeline-stages";
 
 export default function DealDetail() {
   const { id } = useParams();
@@ -16,9 +25,154 @@ export default function DealDetail() {
   const { data: contacts = [] } = useDealContacts(id);
   const { data: tasks = [] } = useDealTasks(id);
   const { data: activities = [] } = useDealActivities(id);
+  const { data: partners = [] } = usePartners();
+  const queryClient = useQueryClient();
+
+  // Editing state
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState<any>({});
+
+  // Task add
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [taskForm, setTaskForm] = useState({ title: "", assigned_to: "", due_date: "", description: "" });
+  // Contact add
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [contactForm, setContactForm] = useState({ contact_name: "", role: "", email: "", phone: "", is_decision_maker: false });
+  // Activity add
+  const [showAddActivity, setShowAddActivity] = useState(false);
+  const [activityForm, setActivityForm] = useState({ activity_type: "note", subject: "", description: "", performed_by: "" });
 
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!deal) return <div className="p-8 text-center text-muted-foreground">Deal not found</div>;
+
+  const startEdit = () => {
+    setEditForm({
+      company_name: deal.company_name,
+      country: deal.country || "",
+      industry: deal.industry || "",
+      lead_source: deal.lead_source || "",
+      partner_id: deal.partner_id || "",
+      assigned_salesperson: deal.assigned_salesperson || "",
+      stage: deal.stage,
+      expected_value: deal.expected_value || 0,
+      probability: deal.probability || 0,
+      expected_close_date: deal.expected_close_date || "",
+      notes: deal.notes || "",
+      description: deal.description || "",
+      contact_email: (deal as any).contact_email || "",
+      contact_phone: (deal as any).contact_phone || "",
+      job_role: (deal as any).job_role || "",
+      sector: (deal as any).sector || "",
+      num_assets: (deal as any).num_assets || "",
+      num_maintenance_team: (deal as any).num_maintenance_team || "",
+    });
+    setEditing(true);
+  };
+
+  const saveEdit = async () => {
+    const stageChanged = editForm.stage !== deal.stage;
+    const updates: any = {
+      company_name: editForm.company_name,
+      country: editForm.country || null,
+      industry: editForm.industry || editForm.sector || null,
+      lead_source: editForm.lead_source || null,
+      partner_id: editForm.partner_id || null,
+      assigned_salesperson: editForm.assigned_salesperson || null,
+      stage: editForm.stage,
+      expected_value: parseFloat(editForm.expected_value) || 0,
+      probability: stageChanged ? getStageProbability(editForm.stage) : (parseInt(editForm.probability) || 0),
+      expected_close_date: editForm.expected_close_date || null,
+      notes: editForm.notes || null,
+      description: editForm.description || null,
+      status: editForm.stage === "Won" ? "Won" : editForm.stage === "Lost" ? "Lost" : "Open",
+      contact_email: editForm.contact_email || null,
+      contact_phone: editForm.contact_phone || null,
+      job_role: editForm.job_role || null,
+      sector: editForm.sector || null,
+      num_assets: editForm.num_assets ? parseInt(editForm.num_assets) : null,
+      num_maintenance_team: editForm.num_maintenance_team ? parseInt(editForm.num_maintenance_team) : null,
+    };
+    if (stageChanged) updates.stage_entered_at = new Date().toISOString();
+
+    const { error } = await supabase.from("deals").update(updates).eq("id", deal.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Lead updated");
+    queryClient.invalidateQueries({ queryKey: ["deal", id] });
+    queryClient.invalidateQueries({ queryKey: ["deals"] });
+    setEditing(false);
+  };
+
+  // Task actions
+  const addTask = async () => {
+    if (!taskForm.title) { toast.error("Title required"); return; }
+    const { error } = await supabase.from("deal_tasks").insert({
+      deal_id: deal.id,
+      title: taskForm.title,
+      assigned_to: taskForm.assigned_to || null,
+      due_date: taskForm.due_date || null,
+      description: taskForm.description || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Task added");
+    queryClient.invalidateQueries({ queryKey: ["deal_tasks", id] });
+    setShowAddTask(false);
+    setTaskForm({ title: "", assigned_to: "", due_date: "", description: "" });
+  };
+
+  const toggleTask = async (taskId: string, completed: boolean) => {
+    await supabase.from("deal_tasks").update({
+      is_completed: !completed,
+      completed_at: !completed ? new Date().toISOString() : null,
+    }).eq("id", taskId);
+    queryClient.invalidateQueries({ queryKey: ["deal_tasks", id] });
+  };
+
+  const deleteTask = async (taskId: string) => {
+    await supabase.from("deal_tasks").delete().eq("id", taskId);
+    queryClient.invalidateQueries({ queryKey: ["deal_tasks", id] });
+    toast.success("Task deleted");
+  };
+
+  // Contact actions
+  const addContact = async () => {
+    if (!contactForm.contact_name) { toast.error("Name required"); return; }
+    const { error } = await supabase.from("deal_contacts").insert({
+      deal_id: deal.id,
+      contact_name: contactForm.contact_name,
+      role: contactForm.role || null,
+      email: contactForm.email || null,
+      phone: contactForm.phone || null,
+      is_decision_maker: contactForm.is_decision_maker,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Contact added");
+    queryClient.invalidateQueries({ queryKey: ["deal_contacts", id] });
+    setShowAddContact(false);
+    setContactForm({ contact_name: "", role: "", email: "", phone: "", is_decision_maker: false });
+  };
+
+  const deleteContact = async (contactId: string) => {
+    await supabase.from("deal_contacts").delete().eq("id", contactId);
+    queryClient.invalidateQueries({ queryKey: ["deal_contacts", id] });
+    toast.success("Contact removed");
+  };
+
+  // Activity actions
+  const addActivity = async () => {
+    if (!activityForm.subject) { toast.error("Subject required"); return; }
+    const { error } = await supabase.from("deal_activities").insert({
+      deal_id: deal.id,
+      activity_type: activityForm.activity_type,
+      subject: activityForm.subject,
+      description: activityForm.description || null,
+      performed_by: activityForm.performed_by || null,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Activity logged");
+    queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
+    setShowAddActivity(false);
+    setActivityForm({ activity_type: "note", subject: "", description: "", performed_by: "" });
+  };
 
   const activityIcon = (type: string) => {
     if (type === "call") return <Phone className="h-3.5 w-3.5 text-blue-500" />;
@@ -27,8 +181,11 @@ export default function DealDetail() {
     return <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />;
   };
 
+  const stageIdx = PIPELINE_STAGES.findIndex(s => s.key === deal.stage);
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-center gap-3 animate-reveal-up">
         <Link to="/pipeline" className="h-8 w-8 rounded-lg border bg-card flex items-center justify-center hover:bg-secondary transition-colors">
           <ArrowLeft className="h-4 w-4" />
@@ -38,26 +195,23 @@ export default function DealDetail() {
             <h1 className="text-xl font-bold text-foreground tracking-tight truncate">{deal.company_name}</h1>
             <Badge variant={deal.status === "Won" ? "success" : deal.status === "Lost" ? "destructive" : "outline"}>{deal.stage}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">{deal.assigned_salesperson}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{deal.assigned_salesperson || "Unassigned"}</p>
         </div>
+        {!editing && <Button size="sm" variant="outline" onClick={startEdit}><Pencil className="h-3.5 w-3.5 mr-1.5" />Edit</Button>}
       </div>
 
+      {/* Stage progress */}
       <div className="bg-card rounded-xl border shadow-sm p-4 animate-reveal-up" style={{ animationDelay: "60ms" }}>
         <div className="flex items-center gap-1">
-          {pipelineStages.map((stage, i) => {
-            const stageIdx = pipelineStages.findIndex(s => s.key === deal.stage);
-            const thisIdx = pipelineStages.findIndex(s => s.key === stage.key);
-            const isActive = thisIdx <= stageIdx && deal.stage !== "Lost";
-            return (
-              <div key={stage.key} className="flex-1">
-                <div className={`h-2 rounded-full transition-colors ${isActive ? "bg-primary" : "bg-secondary"}`} />
-              </div>
-            );
+          {PIPELINE_STAGES.filter(s => s.key !== "Lost").map((stage) => {
+            const thisIdx = PIPELINE_STAGES.findIndex(s => s.key === stage.key);
+            const isActive = deal.stage !== "Lost" && thisIdx <= stageIdx;
+            return <div key={stage.key} className="flex-1"><div className={`h-2 rounded-full transition-colors ${isActive ? "bg-primary" : "bg-secondary"}`} /></div>;
           })}
         </div>
         <div className="flex justify-between mt-2">
-          {pipelineStages.map(stage => (
-            <span key={stage.key} className={`text-[10px] ${deal.stage === stage.key ? "text-primary font-semibold" : "text-muted-foreground"}`}>{stage.label}</span>
+          {PIPELINE_STAGES.filter(s => s.key !== "Lost").map(stage => (
+            <span key={stage.key} className={`text-[9px] ${deal.stage === stage.key ? "text-primary font-semibold" : "text-muted-foreground"}`}>{stage.label}</span>
           ))}
         </div>
       </div>
@@ -70,64 +224,156 @@ export default function DealDetail() {
           <TabsTrigger value="communication">Communication ({activities.length})</TabsTrigger>
         </TabsList>
 
+        {/* ───── Overview ───── */}
         <TabsContent value="overview" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {editing ? (
             <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-foreground">Deal Information</h3>
-              {[
-                { icon: DollarSign, label: "Expected Value", value: `€${(deal.expected_value || 0).toLocaleString()}` },
-                { icon: DollarSign, label: "Total Value", value: (deal.total_value || 0) > 0 ? `€${(deal.total_value || 0).toLocaleString()}` : "—" },
-                { icon: Calendar, label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—" },
-                { icon: Building2, label: "Industry", value: deal.industry || "—" },
-                { icon: MapPin, label: "Country", value: deal.country || "—" },
-                { icon: User, label: "Lead Source", value: deal.lead_source || "—" },
-              ].map(row => (
-                <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-dashed last:border-0">
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <row.icon className="h-3.5 w-3.5" />
-                    <span className="text-xs">{row.label}</span>
-                  </div>
-                  <span className="text-sm font-medium text-foreground tabular-nums">{row.value}</span>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground">Edit Lead</h3>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(false)}><X className="h-4 w-4 mr-1" />Cancel</Button>
+                  <Button size="sm" onClick={saveEdit}><Save className="h-4 w-4 mr-1" />Save</Button>
                 </div>
-              ))}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Name</Label><Input value={editForm.company_name} onChange={e => setEditForm((f: any) => ({ ...f, company_name: e.target.value }))} /></div>
+                <div><Label>Country</Label><CountryCombobox value={editForm.country} onChange={v => setEditForm((f: any) => ({ ...f, country: v }))} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Linked Partner</Label>
+                  <Select value={editForm.partner_id || "none"} onValueChange={v => setEditForm((f: any) => ({ ...f, partner_id: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Assigned To</Label><Input value={editForm.assigned_salesperson} onChange={e => setEditForm((f: any) => ({ ...f, assigned_salesperson: e.target.value }))} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Lead Source</Label>
+                  <Select value={editForm.lead_source || "none"} onValueChange={v => setEditForm((f: any) => ({ ...f, lead_source: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      <SelectItem value="Partner (Outbound)">Partner (Outbound)</SelectItem>
+                      <SelectItem value="HQ (Inbound)">HQ (Inbound)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Sector</Label><SectorSelect value={editForm.sector} onChange={v => setEditForm((f: any) => ({ ...f, sector: v }))} /></div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div><Label>Job Role</Label><Input value={editForm.job_role} onChange={e => setEditForm((f: any) => ({ ...f, job_role: e.target.value }))} /></div>
+                <div><Label>Email</Label><Input value={editForm.contact_email} onChange={e => setEditForm((f: any) => ({ ...f, contact_email: e.target.value }))} /></div>
+                <div><Label>Phone</Label><Input value={editForm.contact_phone} onChange={e => setEditForm((f: any) => ({ ...f, contact_phone: e.target.value }))} /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>No. of Assets</Label><Input type="number" value={editForm.num_assets} onChange={e => setEditForm((f: any) => ({ ...f, num_assets: e.target.value }))} /></div>
+                <div><Label>Maintenance Team</Label><Input type="number" value={editForm.num_maintenance_team} onChange={e => setEditForm((f: any) => ({ ...f, num_maintenance_team: e.target.value }))} /></div>
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Commercial Details (later stages)</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Stage</Label>
+                    <Select value={editForm.stage} onValueChange={v => setEditForm((f: any) => ({ ...f, stage: v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {PIPELINE_STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div><Label>Expected Close</Label><Input type="date" value={editForm.expected_close_date} onChange={e => setEditForm((f: any) => ({ ...f, expected_close_date: e.target.value }))} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div><Label>Expected Value (€)</Label><Input type="number" value={editForm.expected_value} onChange={e => setEditForm((f: any) => ({ ...f, expected_value: e.target.value }))} /></div>
+                  <div><Label>Probability (%)</Label><Input type="number" value={editForm.probability} onChange={e => setEditForm((f: any) => ({ ...f, probability: e.target.value }))} /></div>
+                </div>
+              </div>
+              <div><Label>Notes</Label><Textarea value={editForm.notes} onChange={e => setEditForm((f: any) => ({ ...f, notes: e.target.value }))} rows={3} /></div>
+              <div><Label>Description</Label><Textarea value={editForm.description} onChange={e => setEditForm((f: any) => ({ ...f, description: e.target.value }))} rows={2} /></div>
             </div>
-            <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-foreground">Pipeline Metrics</h3>
-              <div className="grid grid-cols-2 gap-3">
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">Lead Information</h3>
                 {[
-                  { label: "Probability", value: `${deal.probability || 0}%`, color: (deal.probability || 0) >= 60 ? "text-emerald-600" : "text-foreground" },
-                  { label: "Aging", value: `${deal.aging_days || 0} days`, color: (deal.aging_days || 0) > 45 ? "text-amber-600" : "text-foreground" },
-                  { label: "Weighted Value", value: `€${Math.round((deal.expected_value || 0) * (deal.probability || 0) / 100).toLocaleString()}`, color: "text-foreground" },
-                  { label: "Tasks", value: String(tasks.length), color: "text-foreground" },
-                ].map(m => (
-                  <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
-                    <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.value}</p>
-                    <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                  { icon: Building2, label: "Company", value: deal.company_name },
+                  { icon: MapPin, label: "Country", value: deal.country || "—" },
+                  { icon: User, label: "Assigned To", value: deal.assigned_salesperson || "—" },
+                  { icon: User, label: "Lead Source", value: deal.lead_source || "—" },
+                  { icon: Building2, label: "Sector", value: (deal as any).sector || deal.industry || "—" },
+                  { icon: Mail, label: "Email", value: (deal as any).contact_email || "—" },
+                  { icon: Phone, label: "Phone", value: (deal as any).contact_phone || "—" },
+                  { icon: User, label: "Job Role", value: (deal as any).job_role || "—" },
+                ].map(row => (
+                  <div key={row.label} className="flex items-center justify-between py-1.5 border-b border-dashed last:border-0">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <row.icon className="h-3.5 w-3.5" />
+                      <span className="text-xs">{row.label}</span>
+                    </div>
+                    <span className="text-sm font-medium text-foreground">{row.value}</span>
                   </div>
                 ))}
               </div>
-              {deal.description && (
-                <div className="mt-2">
-                  <p className="text-xs text-muted-foreground mb-1">Description</p>
-                  <p className="text-sm text-foreground">{deal.description}</p>
+              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+                <h3 className="text-sm font-semibold text-foreground">Pipeline Metrics</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "Stage Probability", value: `${getStageProbability(deal.stage)}%`, color: getStageProbability(deal.stage) >= 60 ? "text-emerald-600" : "text-foreground" },
+                    { label: "Expected Value", value: (deal.expected_value || 0) > 0 ? `€${(deal.expected_value || 0).toLocaleString()}` : "—", color: "text-foreground" },
+                    { label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
+                    { label: "Weighted Value", value: (deal.expected_value || 0) > 0 ? `€${Math.round((deal.expected_value || 0) * getStageProbability(deal.stage) / 100).toLocaleString()}` : "—", color: "text-foreground" },
+                    { label: "No. Assets", value: (deal as any).num_assets ? String((deal as any).num_assets) : "—", color: "text-foreground" },
+                    { label: "Maintenance Team", value: (deal as any).num_maintenance_team ? String((deal as any).num_maintenance_team) : "—", color: "text-foreground" },
+                  ].map(m => (
+                    <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
+                      <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.value}</p>
+                      <p className="text-[11px] text-muted-foreground">{m.label}</p>
+                    </div>
+                  ))}
                 </div>
-              )}
+                {deal.description && (
+                  <div className="mt-2">
+                    <p className="text-xs text-muted-foreground mb-1">Description</p>
+                    <p className="text-sm text-foreground">{deal.description}</p>
+                  </div>
+                )}
+                {deal.notes && (
+                  <div className="mt-2">
+                    <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                    <p className="text-sm text-foreground">{deal.notes}</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </TabsContent>
 
+        {/* ───── Tasks ───── */}
         <TabsContent value="tasks" className="mt-4">
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-4 border-b"><h3 className="text-sm font-semibold text-foreground">Tasks</h3></div>
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Tasks</h3>
+              <Button size="sm" variant="outline" onClick={() => setShowAddTask(true)}><Plus className="h-3.5 w-3.5 mr-1" />Add Task</Button>
+            </div>
             <div className="divide-y">
               {tasks.map(task => (
-                <div key={task.id} className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors">
-                  {task.is_completed ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> : <Circle className="h-4 w-4 text-muted-foreground shrink-0" />}
+                <div key={task.id} className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors group">
+                  <button onClick={() => toggleTask(task.id, !!task.is_completed)} className="shrink-0">
+                    {task.is_completed ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+                  </button>
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm ${task.is_completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{task.title}</p>
-                    <p className="text-[11px] text-muted-foreground">{task.assigned_to} · Due {task.due_date ? new Date(task.due_date).toLocaleDateString("en-GB") : "—"}</p>
+                    <p className="text-[11px] text-muted-foreground">{task.assigned_to || "Unassigned"} · Due {task.due_date ? new Date(task.due_date).toLocaleDateString("en-GB") : "—"}</p>
                   </div>
                   {!task.is_completed && task.due_date && new Date(task.due_date) < new Date() && <Badge variant="destructive" className="text-[10px]">Overdue</Badge>}
+                  <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               ))}
               {tasks.length === 0 && <div className="px-4 py-8 text-center text-sm text-muted-foreground">No tasks yet</div>}
@@ -135,12 +381,16 @@ export default function DealDetail() {
           </div>
         </TabsContent>
 
+        {/* ───── Contacts ───── */}
         <TabsContent value="contacts" className="mt-4">
           <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-4 border-b"><h3 className="text-sm font-semibold text-foreground">Contacts</h3></div>
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">Contacts</h3>
+              <Button size="sm" variant="outline" onClick={() => setShowAddContact(true)}><Plus className="h-3.5 w-3.5 mr-1" />Add Contact</Button>
+            </div>
             <div className="divide-y">
               {contacts.map(c => (
-                <div key={c.id} className="flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors">
+                <div key={c.id} className="flex items-center justify-between px-4 py-3 hover:bg-secondary/30 transition-colors group">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center text-xs font-semibold text-foreground shrink-0">
                       {c.contact_name.split(" ").map((n: string) => n[0]).join("")}
@@ -148,14 +398,17 @@ export default function DealDetail() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-foreground">{c.contact_name}</p>
-                        {c.is_decision_maker && <Badge variant="info" className="text-[10px]">Decision Maker</Badge>}
+                        {c.is_decision_maker && <Badge variant="secondary" className="text-[10px]">Decision Maker</Badge>}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{c.role}</p>
+                      <p className="text-[11px] text-muted-foreground">{c.role || "—"}</p>
                     </div>
                   </div>
-                  <div className="text-right text-[11px] text-muted-foreground">
-                    <p>{c.email}</p>
-                    <p>{c.phone}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right text-[11px] text-muted-foreground">
+                      <p>{c.email || "—"}</p>
+                      <p>{c.phone || "—"}</p>
+                    </div>
+                    <button onClick={() => deleteContact(c.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                   </div>
                 </div>
               ))}
@@ -164,9 +417,13 @@ export default function DealDetail() {
           </div>
         </TabsContent>
 
+        {/* ───── Communication ───── */}
         <TabsContent value="communication" className="mt-4">
           <div className="bg-card rounded-xl border shadow-sm p-4">
-            <h3 className="text-sm font-semibold text-foreground mb-4">Activity Timeline</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-foreground">Activity Timeline</h3>
+              <Button size="sm" variant="outline" onClick={() => setShowAddActivity(true)}><Plus className="h-3.5 w-3.5 mr-1" />Log Activity</Button>
+            </div>
             <div className="space-y-0">
               {activities.map((a, i) => (
                 <div key={a.id} className="flex gap-3">
@@ -181,7 +438,7 @@ export default function DealDetail() {
                       <p className="text-sm font-medium text-foreground">{a.subject}</p>
                       <Badge variant="outline" className="text-[10px] capitalize">{a.activity_type}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-1">{a.performed_by} · {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className="text-xs text-muted-foreground mb-1">{a.performed_by || "—"} · {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
                     <p className="text-sm text-foreground/80">{a.description}</p>
                   </div>
                 </div>
@@ -191,6 +448,80 @@ export default function DealDetail() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* ─── Add Task Dialog ─── */}
+      <Dialog open={showAddTask} onOpenChange={setShowAddTask}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Task</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div><Label>Title *</Label><Input value={taskForm.title} onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Assigned To</Label><Input value={taskForm.assigned_to} onChange={e => setTaskForm(f => ({ ...f, assigned_to: e.target.value }))} /></div>
+              <div><Label>Due Date</Label><Input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))} /></div>
+            </div>
+            <div><Label>Description</Label><Textarea value={taskForm.description} onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))} rows={2} /></div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAddTask(false)}>Cancel</Button>
+              <Button onClick={addTask}>Add Task</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Add Contact Dialog ─── */}
+      <Dialog open={showAddContact} onOpenChange={setShowAddContact}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Add Contact</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div><Label>Name *</Label><Input value={contactForm.contact_name} onChange={e => setContactForm(f => ({ ...f, contact_name: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Role</Label><Input value={contactForm.role} onChange={e => setContactForm(f => ({ ...f, role: e.target.value }))} /></div>
+              <div><Label>Email</Label><Input value={contactForm.email} onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Phone</Label><Input value={contactForm.phone} onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))} /></div>
+              <div className="flex items-center gap-2 pt-6">
+                <input type="checkbox" checked={contactForm.is_decision_maker} onChange={e => setContactForm(f => ({ ...f, is_decision_maker: e.target.checked }))} id="dm" className="rounded" />
+                <label htmlFor="dm" className="text-sm text-foreground">Decision Maker</label>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAddContact(false)}>Cancel</Button>
+              <Button onClick={addContact}>Add Contact</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Log Activity Dialog ─── */}
+      <Dialog open={showAddActivity} onOpenChange={setShowAddActivity}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Log Activity</DialogTitle></DialogHeader>
+          <div className="space-y-3 mt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Type</Label>
+                <Select value={activityForm.activity_type} onValueChange={v => setActivityForm(f => ({ ...f, activity_type: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="note">Note</SelectItem>
+                    <SelectItem value="call">Call</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
+                    <SelectItem value="meeting">Meeting</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label>Performed By</Label><Input value={activityForm.performed_by} onChange={e => setActivityForm(f => ({ ...f, performed_by: e.target.value }))} /></div>
+            </div>
+            <div><Label>Subject *</Label><Input value={activityForm.subject} onChange={e => setActivityForm(f => ({ ...f, subject: e.target.value }))} /></div>
+            <div><Label>Details</Label><Textarea value={activityForm.description} onChange={e => setActivityForm(f => ({ ...f, description: e.target.value }))} rows={3} /></div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAddActivity(false)}>Cancel</Button>
+              <Button onClick={addActivity}>Log Activity</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
