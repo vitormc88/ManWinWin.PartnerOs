@@ -7,6 +7,8 @@ import { format, isPast, isToday, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
 import { AddLeadTaskDialog } from "./AddLeadTaskDialog";
+import { EditLeadTaskDialog } from "./EditLeadTaskDialog";
+import { LeadTask } from "@/hooks/useLeadTasks";
 
 interface Props {
   leadId: string;
@@ -45,6 +47,7 @@ export function LeadTaskList({ leadId, leadCompanyName, linkedPartnerId }: Props
   const updateTask = useUpdateLeadTask();
   const deleteTask = useDeleteLeadTask();
   const [showAdd, setShowAdd] = useState(false);
+  const [editTask, setEditTask] = useState<LeadTask | null>(null);
 
   const handleToggleDone = (task: typeof tasks[0]) => {
     const newStatus = task.status === "Done" ? "To Do" : "Done";
@@ -134,6 +137,13 @@ export function LeadTaskList({ leadId, leadCompanyName, linkedPartnerId }: Props
         leadCompanyName={leadCompanyName}
         linkedPartnerId={linkedPartnerId}
       />
-    </div>
-  );
-}
+
+      {editTask && (
+        <EditLeadTaskDialog
+          open={!!editTask}
+          onOpenChange={(v) => { if (!v) setEditTask(null); }}
+          task={editTask}
+          leadCompanyName={leadCompanyName}
+          linkedPartnerId={linkedPartnerId}
+        />
+      )}

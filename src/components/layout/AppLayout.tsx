@@ -1,7 +1,8 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Outlet } from "react-router-dom";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppLayout() {
   return (
