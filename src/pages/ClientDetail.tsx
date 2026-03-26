@@ -1,18 +1,17 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Building2, Users, FileText, Eye, KeyRound, IdCard, Star, Pencil, Save, X, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Building2, FileText, KeyRound, Star, Pencil, Save, X, Plus, Trash2, Users, CalendarDays, Shield, Clock, CheckCircle2, AlertTriangle, XCircle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { LicenseSelect } from "@/components/clients/LicenseSelect";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   useClient, useUpdateClient, useArchiveClient,
@@ -23,9 +22,11 @@ import {
 } from "@/hooks/useClients";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
+import { differenceInDays, parseISO } from "date-fns";
 
+/* ─── helpers ─── */
 function FieldRow({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <div className="flex items-start gap-3 py-2 border-b border-border/40 last:border-0">
@@ -44,6 +45,46 @@ function EditField({ label, value, onChange, type = "text", placeholder }: { lab
   );
 }
 
+/* ─── renewal status logic ─── */
+function getRenewalInfo(endDate: string | null) {
+  if (!endDate) return { status: "unknown", label: "No Date", days: null, color: "bg-muted text-muted-foreground" };
+  const days = differenceInDays(parseISO(endDate), new Date());
+  if (days < 0) return { status: "expired", label: "Expired", days, color: "bg-destructive/10 text-destructive border-destructive/20" };
+  if (days <= 30) return { status: "due_soon", label: "Due Soon", days, color: "bg-orange-50 text-orange-700 border-orange-200" };
+  if (days <= 90) return { status: "upcoming", label: "Upcoming", days, color: "bg-blue-50 text-blue-700 border-blue-200" };
+  return { status: "normal", label: "Normal", days, color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+}
+
+const RenewalIcon = ({ status }: { status: string }) => {
+  switch (status) {
+    case "expired": return <XCircle className="h-4 w-4 text-destructive" />;
+    case "due_soon": return <AlertTriangle className="h-4 w-4 text-orange-600" />;
+    case "upcoming": return <Clock className="h-4 w-4 text-blue-600" />;
+    case "normal": return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+    default: return <Info className="h-4 w-4 text-muted-foreground" />;
+  }
+};
+
+/* ─── Professional level module presets ─── */
+const PROFESSIONAL_MODULES: Record<string, string[]> = {
+  "Professional 1": ["Maintenance Module"],
+  "Professional 2": ["Maintenance Module", "Stock Management", "Purchase Orders"],
+  "Professional 3": ["Maintenance Module", "Stock Management", "Purchase Orders", "Workflow", "SLA", "Advanced Reports", "Import Tool", "API"],
+};
+
+const ALL_MODULES = [
+  "Maintenance Module",
+  "Maintenance Requests",
+  "Stock Management",
+  "Purchase Orders",
+  "API",
+  "SLA",
+  "Workflow",
+  "Advanced Reports",
+  "Import Tool",
+];
+
+/* ─── main component ─── */
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -78,11 +119,21 @@ export default function ClientDetail() {
     enabled: licenses.length > 0,
   });
 
+  // Derived data
+  const primaryLicense = licenses[0] || null;
+  const primaryContract = contracts[0] || null;
+
+  const renewalEndDate = primaryContract?.contract_end_date || primaryLicense?.license_end_date || null;
+  const renewalInfo = useMemo(() => getRenewalInfo(renewalEndDate), [renewalEndDate]);
+
+  // Determine license category
+  const licenseType = client?.license_type || primaryLicense?.product || "";
+  const isProfessional = licenseType.startsWith("Professional");
+  const isBusiness = licenseType.startsWith("Business");
+
   // Edit states
   const [editingClient, setEditingClient] = useState(false);
-  const [editingIdent, setEditingIdent] = useState(false);
   const [clientForm, setClientForm] = useState<Record<string, any>>({});
-  const [identForm, setIdentForm] = useState<Record<string, any>>({});
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ contact_name: "", role_function: "", phone: "", mobile: "", email: "", notes: "" });
   const [showAddLicense, setShowAddLicense] = useState(false);
@@ -106,9 +157,17 @@ export default function ClientDetail() {
     </div>
   );
 
-  // Client info edit
+  /* ─── handlers ─── */
   const startEditClient = () => {
-    setClientForm({ commercial_name: client.commercial_name, short_name: client.short_name || "", client_code: client.client_code, phone: client.phone || "", email: client.email || "", website: client.website || "", address: client.address || "", city: client.city || "", country: client.country || "", sector: client.sector || "", status: client.status });
+    setClientForm({
+      commercial_name: client.commercial_name, short_name: client.short_name || "", client_code: client.client_code,
+      phone: client.phone || "", email: client.email || "", website: client.website || "",
+      address: client.address || "", city: client.city || "", country: client.country || "",
+      sector: client.sector || "", status: client.status, is_premium: client.is_premium,
+      cloud_onpremise: client.cloud_onpremise || "On-premise",
+      has_custom_reports: client.has_custom_reports, manager_owner: client.manager_owner || "",
+      account_manager: client.account_manager || "",
+    });
     setEditingClient(true);
   };
   const saveClient = async () => {
@@ -116,30 +175,17 @@ export default function ClientDetail() {
     catch (e: any) { toast.error(e?.message || "Failed to update"); }
   };
 
-  // Identification edit
-  const startEditIdent = () => {
-    setIdentForm({ manager_owner: client.manager_owner || "", account_manager: client.account_manager || "", installation_location: client.installation_location || "", first_installation_date: client.first_installation_date || "", first_installed_version: client.first_installed_version || "", current_version: client.current_version || "", award_reference: client.award_reference || "", cloud_onpremise: client.cloud_onpremise || "On-premise", is_premium: client.is_premium, has_custom_reports: client.has_custom_reports, has_custom_routine: client.has_custom_routine, is_inactive: client.is_inactive, auto_update: client.auto_update, observations: client.observations || "" });
-    setEditingIdent(true);
-  };
-  const saveIdent = async () => {
-    try { await updateClient.mutateAsync({ id: client.id, ...identForm }); toast.success("Identification updated"); setEditingIdent(false); }
-    catch (e: any) { toast.error(e?.message || "Failed to update"); }
-  };
-
-  // Add contact
   const handleAddContact = async () => {
     if (!contactForm.contact_name) { toast.error("Contact name required"); return; }
     try { await createContact.mutateAsync({ ...contactForm, client_id: client.id }); toast.success("Contact added"); setShowAddContact(false); setContactForm({ contact_name: "", role_function: "", phone: "", mobile: "", email: "", notes: "" }); }
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
-  // Add license
   const handleAddLicense = async () => {
     try { await createLicense.mutateAsync({ ...licenseForm, client_id: client.id }); toast.success("License created"); setShowAddLicense(false); setLicenseForm({}); }
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
-  // Edit license
   const startEditLicense = (lic: any) => {
     setLicEditForm({ product: lic.product || "", version: lic.version || "", database_type: lic.database_type || "", license_model: lic.license_model || "", periodicity: lic.periodicity || "", license_start_date: lic.license_start_date || "", license_end_date: lic.license_end_date || "", sat_active: lic.sat_active, sat_end_date: lic.sat_end_date || "", backoffice_users: lic.backoffice_users ?? 0, backoffice_employee_users: lic.backoffice_employee_users ?? 0, mobile_users: lic.mobile_users ?? 0, web_accesses: lic.web_accesses ?? 0, api_access: lic.api_access });
     setEditingLicenseId(lic.id);
@@ -150,13 +196,11 @@ export default function ClientDetail() {
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
-  // Add contract
   const handleAddContract = async () => {
     try { await createContract.mutateAsync({ ...contractFormData, client_id: client.id }); toast.success("Contract created"); setShowAddContract(false); setContractFormData({}); }
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
-  // Edit contract
   const startEditContract = (co: any) => {
     setConEditForm({ contract_start_date: co.contract_start_date || "", contract_end_date: co.contract_end_date || "", notice_period_days: co.notice_period_days ?? 30, contract_value: co.contract_value ?? 0, invoiced_value: co.invoiced_value ?? 0, hosting_value: co.hosting_value ?? 0, sat_value: co.sat_value ?? 0, mww_web_value: co.mww_web_value ?? 0, total_value: co.total_value ?? 0, num_installments: co.num_installments ?? 1, renewal_increase_pct: co.renewal_increase_pct ?? 0, currency: co.currency || "EUR", price_table_reference: co.price_table_reference || "", billing_notes: co.billing_notes || "", observations: co.observations || "" });
     setEditingContractId(co.id);
@@ -167,27 +211,30 @@ export default function ClientDetail() {
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
-  // Add note
   const handleAddNote = async () => {
     if (!newNote.trim()) { toast.error("Note content required"); return; }
     try { await createNote.mutateAsync({ client_id: client.id, content: newNote, note_type: newNoteType }); toast.success("Note added"); setNewNote(""); }
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
-  // Add credential
   const handleAddCred = async () => {
     try { await createCredential.mutateAsync({ ...credForm, client_id: client.id }); toast.success("Credential saved"); setShowAddCred(false); setCredForm({ system_url: "", username: "", login: "", password_secret: "", environment_type: "Production", admin_notes: "" }); }
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
-  // Archive
   const handleArchive = async () => {
     try { await archiveClient.mutateAsync(client.id); toast.success("Client archived"); navigate("/clients"); }
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
+  // Module helpers for licensing tab
+  const activeModuleNames = modules.filter(m => m.enabled).map(m => m.module_name);
+  const professionalLevel = isProfessional ? licenseType : null;
+  const presetModules = professionalLevel ? (PROFESSIONAL_MODULES[professionalLevel] || []) : [];
+
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
+      {/* Header */}
       <div className="animate-reveal-up flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate("/clients")} className="mt-0.5"><ArrowLeft className="h-4 w-4" /></Button>
@@ -197,7 +244,8 @@ export default function ClientDetail() {
               {client.is_premium && <Badge variant="outline" className="border-amber-300 text-amber-600 bg-amber-50 gap-1"><Star className="h-3 w-3" /> Premium</Badge>}
             </div>
             <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-              <span className="font-mono text-xs">{client.client_code}</span><span>•</span><span>{client.country}</span>
+              <span className="font-mono text-xs">{client.client_code}</span><span>•</span><span>{client.country || "—"}</span>
+              {client.sector && <><span>•</span><span>{client.sector}</span></>}
             </div>
           </div>
         </div>
@@ -209,29 +257,32 @@ export default function ClientDetail() {
         </div>
       </div>
 
-      <Tabs defaultValue="client" className="animate-reveal-up" style={{ animationDelay: "80ms" }}>
-        <TabsList className="grid w-full grid-cols-6 h-10">
-          <TabsTrigger value="client" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" /> Client</TabsTrigger>
-          <TabsTrigger value="identification" className="gap-1.5 text-xs"><IdCard className="h-3.5 w-3.5" /> Identification</TabsTrigger>
-          <TabsTrigger value="licensing" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Licensing</TabsTrigger>
+      {/* Tabs */}
+      <Tabs defaultValue="overview" className="animate-reveal-up" style={{ animationDelay: "80ms" }}>
+        <TabsList className="grid w-full grid-cols-5 h-10">
+          <TabsTrigger value="overview" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" /> Overview</TabsTrigger>
+          <TabsTrigger value="licensing" className="gap-1.5 text-xs"><Shield className="h-3.5 w-3.5" /> Licensing</TabsTrigger>
           <TabsTrigger value="contract" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Contract</TabsTrigger>
-          <TabsTrigger value="observations" className="gap-1.5 text-xs"><Eye className="h-3.5 w-3.5" /> Observations</TabsTrigger>
+          <TabsTrigger value="notes" className="gap-1.5 text-xs"><FileText className="h-3.5 w-3.5" /> Notes</TabsTrigger>
           <TabsTrigger value="credentials" className="gap-1.5 text-xs"><KeyRound className="h-3.5 w-3.5" /> Credentials</TabsTrigger>
         </TabsList>
 
-        {/* CLIENT TAB */}
-        <TabsContent value="client" className="space-y-5 mt-5">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card className="border-border/60 shadow-sm">
+        {/* ═══════════════════ OVERVIEW TAB ═══════════════════ */}
+        <TabsContent value="overview" className="space-y-5 mt-5">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+            {/* Client Info */}
+            <Card className="border-border/60 shadow-sm lg:col-span-2">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Company Information</CardTitle>
+                <CardTitle className="text-sm font-semibold">Client Information</CardTitle>
                 {!editingClient && <Button variant="ghost" size="sm" onClick={startEditClient}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>}
               </CardHeader>
               <CardContent>
                 {editingClient ? (
                   <div className="space-y-3">
-                    <EditField label="Commercial Name" value={clientForm.commercial_name} onChange={v => setClientForm(f => ({...f, commercial_name: v}))} />
-                    <EditField label="Short Name" value={clientForm.short_name} onChange={v => setClientForm(f => ({...f, short_name: v}))} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <EditField label="Commercial Name" value={clientForm.commercial_name} onChange={v => setClientForm(f => ({...f, commercial_name: v}))} />
+                      <EditField label="Short Name" value={clientForm.short_name} onChange={v => setClientForm(f => ({...f, short_name: v}))} />
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <EditField label="Phone" value={clientForm.phone} onChange={v => setClientForm(f => ({...f, phone: v}))} />
                       <EditField label="Email" value={clientForm.email} onChange={v => setClientForm(f => ({...f, email: v}))} />
@@ -242,222 +293,261 @@ export default function ClientDetail() {
                       <EditField label="City" value={clientForm.city} onChange={v => setClientForm(f => ({...f, city: v}))} />
                       <div><Label className="text-xs">Country</Label><CountryCombobox value={clientForm.country} onChange={v => setClientForm(f => ({...f, country: v}))} /></div>
                     </div>
-                    <div><Label className="text-xs">Sector</Label><SectorSelect value={clientForm.sector} onChange={v => setClientForm(f => ({...f, sector: v}))} /></div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div><Label className="text-xs">Sector</Label><SectorSelect value={clientForm.sector} onChange={v => setClientForm(f => ({...f, sector: v}))} /></div>
+                      <EditField label="Manager / Owner" value={clientForm.manager_owner} onChange={v => setClientForm(f => ({...f, manager_owner: v}))} />
+                    </div>
+                    <div className="flex items-center gap-4 pt-2">
+                      <div className="flex items-center gap-2"><Switch checked={clientForm.is_premium} onCheckedChange={v => setClientForm(f => ({...f, is_premium: v}))} /><Label className="text-xs">Premium</Label></div>
+                    </div>
                     <div className="flex justify-end gap-2 pt-2">
                       <Button variant="outline" size="sm" onClick={() => setEditingClient(false)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
                       <Button size="sm" onClick={saveClient} disabled={updateClient.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save</Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-0">
-                    <FieldRow label="Client Code" value={client.client_code} mono />
-                    <FieldRow label="Short Name" value={client.short_name} />
-                    <FieldRow label="Commercial Name" value={client.commercial_name} />
-                    <FieldRow label="Phone" value={client.phone} />
-                    <FieldRow label="Email" value={client.email} />
-                    <FieldRow label="Website" value={client.website} />
-                    <FieldRow label="Address" value={client.address} />
-                    <FieldRow label="City" value={client.city} />
-                    <FieldRow label="Country" value={client.country} />
-                    <FieldRow label="Sector" value={client.sector} />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Contacts */}
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Contacts ({contacts.length})</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => setShowAddContact(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
-              </CardHeader>
-              <CardContent>
-                {contacts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-6 text-center">No contacts. <button onClick={() => setShowAddContact(true)} className="text-primary hover:underline">Add first contact</button></p>
-                ) : (
-                  <div className="space-y-3">
-                    {contacts.map(ct => (
-                      <div key={ct.id} className="rounded-lg border border-border/60 p-3 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium text-sm">{ct.contact_name}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{ct.role_function}</span>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={async () => { try { await deleteContact.mutateAsync({ id: ct.id, clientId: client.id }); toast.success("Contact removed"); } catch { toast.error("Failed"); } }}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                          {ct.phone && <span>📞 {ct.phone}</span>}
-                          {ct.mobile && <span>📱 {ct.mobile}</span>}
-                          {ct.email && <span>✉️ {ct.email}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* IDENTIFICATION TAB */}
-        <TabsContent value="identification" className="mt-5">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Management</CardTitle>
-                {!editingIdent && <Button variant="ghost" size="sm" onClick={startEditIdent}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>}
-              </CardHeader>
-              <CardContent>
-                {editingIdent ? (
-                  <div className="space-y-3">
-                    <EditField label="Manager / Owner" value={identForm.manager_owner} onChange={v => setIdentForm(f => ({...f, manager_owner: v}))} />
-                    <EditField label="Account Manager" value={identForm.account_manager} onChange={v => setIdentForm(f => ({...f, account_manager: v}))} />
-                    <EditField label="Installation Location" value={identForm.installation_location} onChange={v => setIdentForm(f => ({...f, installation_location: v}))} />
-                    <EditField label="First Installation Date" value={identForm.first_installation_date} onChange={v => setIdentForm(f => ({...f, first_installation_date: v}))} type="date" />
-                    <EditField label="First Version" value={identForm.first_installed_version} onChange={v => setIdentForm(f => ({...f, first_installed_version: v}))} />
-                    <EditField label="Current Version" value={identForm.current_version} onChange={v => setIdentForm(f => ({...f, current_version: v}))} />
-                    <EditField label="Award / PO Reference" value={identForm.award_reference} onChange={v => setIdentForm(f => ({...f, award_reference: v}))} />
-                    <div><Label className="text-xs">Observations</Label><Textarea value={identForm.observations || ""} onChange={e => setIdentForm(f => ({...f, observations: e.target.value}))} rows={3} className="text-sm" /></div>
-                    <div className="flex justify-end gap-2 pt-2">
-                      <Button variant="outline" size="sm" onClick={() => setEditingIdent(false)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
-                      <Button size="sm" onClick={saveIdent} disabled={updateClient.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-0">
-                    <FieldRow label="Manager / Owner" value={client.manager_owner} />
-                    <FieldRow label="Account Manager" value={client.account_manager} />
-                    <FieldRow label="Installation Location" value={client.installation_location} />
-                    <FieldRow label="First Installation" value={client.first_installation_date} />
-                    <FieldRow label="First Version" value={client.first_installed_version} />
-                    <FieldRow label="Current Version" value={client.current_version} />
-                    <FieldRow label="Award / PO Reference" value={client.award_reference} mono />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-            <Card className="border-border/60 shadow-sm">
-              <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Flags & Settings</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {editingIdent ? (
-                  <>
-                    {[
-                      { label: "Premium Client", key: "is_premium" },
-                      { label: "Custom Reports", key: "has_custom_reports" },
-                      { label: "Custom Routine", key: "has_custom_routine" },
-                      { label: "Inactive", key: "is_inactive" },
-                      { label: "Auto Update", key: "auto_update" },
-                    ].map(flag => (
-                      <div key={flag.label} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
-                        <span className="text-sm text-foreground">{flag.label}</span>
-                        <Switch checked={identForm[flag.key]} onCheckedChange={v => setIdentForm(f => ({...f, [flag.key]: v}))} />
-                      </div>
-                    ))}
-                    <div><Label className="text-xs">Deployment</Label>
-                      <Select value={identForm.cloud_onpremise || "On-premise"} onValueChange={v => setIdentForm(f => ({...f, cloud_onpremise: v}))}>
-                        <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="On-premise">On-premise</SelectItem>
-                          <SelectItem value="Cloud">Cloud</SelectItem>
-                          <SelectItem value="SaaS">SaaS</SelectItem>
-                          <SelectItem value="Hybrid">Hybrid</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {[
-                      { label: "Premium Client", checked: client.is_premium },
-                      { label: "Custom Reports", checked: client.has_custom_reports },
-                      { label: "Custom Routine", checked: client.has_custom_routine },
-                      { label: "Inactive", checked: client.is_inactive },
-                      { label: "Auto Update", checked: client.auto_update },
-                    ].map(flag => (
-                      <div key={flag.label} className="flex items-center justify-between py-1.5 border-b border-border/40 last:border-0">
-                        <span className="text-sm text-foreground">{flag.label}</span>
-                        <Switch checked={flag.checked} disabled />
-                      </div>
-                    ))}
-                    <div className="pt-3"><span className="text-xs text-muted-foreground block mb-1">Deployment</span><Badge variant="secondary">{client.cloud_onpremise}</Badge></div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* LICENSING TAB */}
-        <TabsContent value="licensing" className="space-y-5 mt-5">
-          <div className="flex justify-end"><Button size="sm" onClick={() => { setLicenseForm({ product: "ManWinWin", version: "8.0", license_model: "Business", periodicity: "Annual" }); setShowAddLicense(true); }}><Plus className="h-4 w-4 mr-1.5" /> Add License</Button></div>
-          {licenses.length === 0 ? (
-            <Card className="border-border/60 shadow-sm"><CardContent className="py-12 text-center text-muted-foreground">No license records. <button onClick={() => setShowAddLicense(true)} className="text-primary hover:underline">Create first license</button></CardContent></Card>
-          ) : licenses.map(lic => (
-            <Card key={lic.id} className="border-border/60 shadow-sm">
-              <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">{lic.product} — {lic.license_model} <Badge variant="secondary" className="text-xs">{lic.version}</Badge></CardTitle>
-                {editingLicenseId === lic.id ? (
-                  <div className="flex gap-1">
-                    <Button variant="outline" size="sm" onClick={() => setEditingLicenseId(null)}><X className="h-3.5 w-3.5" /></Button>
-                    <Button size="sm" onClick={saveLicense} disabled={updateLicense.isPending}><Save className="h-3.5 w-3.5" /></Button>
-                  </div>
-                ) : (
-                  <Button variant="ghost" size="sm" onClick={() => startEditLicense(lic)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
-                )}
-              </CardHeader>
-              <CardContent>
-                {editingLicenseId === lic.id ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    <EditField label="Product" value={licEditForm.product} onChange={v => setLicEditForm(f => ({...f, product: v}))} />
-                    <EditField label="Version" value={licEditForm.version} onChange={v => setLicEditForm(f => ({...f, version: v}))} />
-                    <EditField label="Model" value={licEditForm.license_model} onChange={v => setLicEditForm(f => ({...f, license_model: v}))} />
-                    <EditField label="DB Type" value={licEditForm.database_type} onChange={v => setLicEditForm(f => ({...f, database_type: v}))} />
-                    <EditField label="Periodicity" value={licEditForm.periodicity} onChange={v => setLicEditForm(f => ({...f, periodicity: v}))} />
-                    <EditField label="License Start" value={licEditForm.license_start_date} onChange={v => setLicEditForm(f => ({...f, license_start_date: v}))} type="date" />
-                    <EditField label="License End" value={licEditForm.license_end_date} onChange={v => setLicEditForm(f => ({...f, license_end_date: v}))} type="date" />
-                    <EditField label="SAT End" value={licEditForm.sat_end_date} onChange={v => setLicEditForm(f => ({...f, sat_end_date: v}))} type="date" />
-                    <EditField label="BackOffice Users" value={String(licEditForm.backoffice_users)} onChange={v => setLicEditForm(f => ({...f, backoffice_users: parseInt(v)||0}))} type="number" />
-                    <EditField label="Mobile Users" value={String(licEditForm.mobile_users)} onChange={v => setLicEditForm(f => ({...f, mobile_users: parseInt(v)||0}))} type="number" />
-                    <EditField label="Web Accesses" value={String(licEditForm.web_accesses)} onChange={v => setLicEditForm(f => ({...f, web_accesses: parseInt(v)||0}))} type="number" />
-                    <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.sat_active} onCheckedChange={v => setLicEditForm(f => ({...f, sat_active: v}))} /><Label className="text-xs">SAT Active</Label></div>
-                    <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.api_access} onCheckedChange={v => setLicEditForm(f => ({...f, api_access: v}))} /><Label className="text-xs">API Access</Label></div>
-                  </div>
-                ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                     <div className="space-y-0">
-                      <FieldRow label="Database Type" value={lic.database_type} />
-                      <FieldRow label="License Start" value={lic.license_start_date} />
-                      <FieldRow label="License End" value={lic.license_end_date} />
-                      <FieldRow label="Model" value={lic.license_model} />
-                      <FieldRow label="Periodicity" value={lic.periodicity} />
+                      <FieldRow label="Client Code" value={client.client_code} mono />
+                      <FieldRow label="Commercial Name" value={client.commercial_name} />
+                      <FieldRow label="Short Name" value={client.short_name} />
+                      <FieldRow label="Phone" value={client.phone} />
+                      <FieldRow label="Email" value={client.email} />
+                      <FieldRow label="Website" value={client.website} />
                     </div>
                     <div className="space-y-0">
-                      <FieldRow label="SAT Active" value={lic.sat_active ? "Yes" : "No"} />
-                      <FieldRow label="SAT End Date" value={lic.sat_end_date} />
-                      <FieldRow label="BackOffice Users" value={lic.backoffice_users} />
-                      <FieldRow label="Mobile Users" value={lic.mobile_users} />
-                      <FieldRow label="Web Accesses" value={lic.web_accesses} />
-                      <FieldRow label="API Access" value={lic.api_access ? "Yes" : "No"} />
+                      <FieldRow label="Address" value={client.address} />
+                      <FieldRow label="City" value={client.city} />
+                      <FieldRow label="Country" value={client.country} />
+                      <FieldRow label="Sector" value={client.sector} />
+                      <FieldRow label="Partner" value={client.partner_id || "HQ Direct"} />
+                      <FieldRow label="Manager / Owner" value={client.manager_owner} />
                     </div>
-                  </div>
-                )}
-                {modules.filter(m => m.license_id === lic.id).length > 0 && (
-                  <div className="mt-4">
-                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Licensed Modules</h4>
-                    <Table>
-                      <TableHeader><TableRow className="bg-muted/30"><TableHead className="text-xs">Module</TableHead><TableHead className="text-xs">Enabled</TableHead><TableHead className="text-xs">Type</TableHead><TableHead className="text-xs">Period</TableHead></TableRow></TableHeader>
-                      <TableBody>{modules.filter(m => m.license_id === lic.id).map(mod => (<TableRow key={mod.id}><TableCell className="text-sm font-medium">{mod.module_name}</TableCell><TableCell><Switch checked={mod.enabled} disabled className="scale-75" /></TableCell><TableCell className="text-xs">{mod.license_type || "—"}</TableCell><TableCell className="text-xs">{mod.periodicity || "—"}</TableCell></TableRow>))}</TableBody>
-                    </Table>
                   </div>
                 )}
               </CardContent>
             </Card>
-          ))}
+
+            {/* Right column: License Summary + Renewal + Flags */}
+            <div className="space-y-5">
+              {/* License Summary */}
+              <Card className="border-border/60 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="h-4 w-4" /> License Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-muted-foreground">License Type</span>
+                    <Badge variant="outline" className="text-xs">{licenseType || "Not set"}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-muted-foreground">Deployment</span>
+                    <Badge variant="secondary" className="text-xs">{client.cloud_onpremise || "On-Premise"}</Badge>
+                  </div>
+                  <div className="border-t border-border/40 pt-2 mt-2">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Users</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-md bg-muted/50 p-2 text-center">
+                        <p className="text-lg font-bold text-foreground">{primaryLicense?.backoffice_users ?? (isBusiness ? 3 : 1)}</p>
+                        <p className="text-[10px] text-muted-foreground">BackOffice</p>
+                      </div>
+                      <div className="rounded-md bg-muted/50 p-2 text-center">
+                        <p className="text-lg font-bold text-foreground">{primaryLicense?.web_accesses ?? 1}</p>
+                        <p className="text-[10px] text-muted-foreground">Web</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Renewal Status */}
+              <Card className={`border shadow-sm ${renewalInfo.status === "expired" ? "border-destructive/30" : renewalInfo.status === "due_soon" ? "border-orange-300" : "border-border/60"}`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Renewal</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-muted-foreground">Start Date</span>
+                    <span className="text-sm">{primaryContract?.contract_start_date || primaryLicense?.license_start_date || "—"}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-muted-foreground">End Date</span>
+                    <span className="text-sm font-medium">{renewalEndDate || "—"}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-muted-foreground">Days Remaining</span>
+                    <span className="text-sm font-bold">{renewalInfo.days !== null ? (renewalInfo.days < 0 ? `${Math.abs(renewalInfo.days)} overdue` : renewalInfo.days) : "—"}</span>
+                  </div>
+                  <div className="pt-1">
+                    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium ${renewalInfo.color}`}>
+                      <RenewalIcon status={renewalInfo.status} />
+                      {renewalInfo.label}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Flags */}
+              <Card className="border-border/60 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Flags</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {[
+                    { label: "S&AT Active", value: primaryLicense?.sat_active ?? (licenseType === "Business UseIT"), note: licenseType === "Business UseIT" ? "Always active for UseIT" : undefined },
+                    { label: "Custom Reports", value: client.has_custom_reports },
+                    { label: "Premium", value: client.is_premium },
+                  ].map(flag => (
+                    <div key={flag.label} className="flex items-center justify-between py-1 border-b border-border/40 last:border-0">
+                      <div>
+                        <span className="text-sm text-foreground">{flag.label}</span>
+                        {flag.note && <p className="text-[10px] text-muted-foreground">{flag.note}</p>}
+                      </div>
+                      <Badge variant={flag.value ? "default" : "secondary"} className="text-[10px]">{flag.value ? "Yes" : "No"}</Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Contacts */}
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Contacts ({contacts.length})</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setShowAddContact(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
+            </CardHeader>
+            <CardContent>
+              {contacts.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">No contacts. <button onClick={() => setShowAddContact(true)} className="text-primary hover:underline">Add first contact</button></p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {contacts.map(ct => (
+                    <div key={ct.id} className="rounded-lg border border-border/60 p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">{ct.contact_name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{ct.role_function}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={async () => { try { await deleteContact.mutateAsync({ id: ct.id, clientId: client.id }); toast.success("Contact removed"); } catch { toast.error("Failed"); } }}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        {ct.phone && <span>📞 {ct.phone}</span>}
+                        {ct.mobile && <span>📱 {ct.mobile}</span>}
+                        {ct.email && <span>✉️ {ct.email}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
-        {/* CONTRACT TAB */}
+        {/* ═══════════════════ LICENSING TAB ═══════════════════ */}
+        <TabsContent value="licensing" className="space-y-5 mt-5">
+          {/* License Config */}
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-semibold">License Configuration</CardTitle>
+              {licenses.length === 0 && (
+                <Button size="sm" onClick={() => { setLicenseForm({ product: "ManWinWin", version: "8.0", license_model: isBusiness ? "Business" : "Professional", periodicity: "Annual" }); setShowAddLicense(true); }}><Plus className="h-4 w-4 mr-1.5" /> Add License</Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {licenses.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-8 text-center">No license records. <button onClick={() => setShowAddLicense(true)} className="text-primary hover:underline">Create first license</button></p>
+              ) : licenses.map(lic => (
+                <div key={lic.id} className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline">{lic.product || "ManWinWin"}</Badge>
+                      <Badge variant="secondary">{lic.license_model || "—"}</Badge>
+                      <Badge variant="secondary" className="text-xs">{lic.version || "—"}</Badge>
+                    </div>
+                    {editingLicenseId === lic.id ? (
+                      <div className="flex gap-1">
+                        <Button variant="outline" size="sm" onClick={() => setEditingLicenseId(null)}><X className="h-3.5 w-3.5" /></Button>
+                        <Button size="sm" onClick={saveLicense} disabled={updateLicense.isPending}><Save className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => startEditLicense(lic)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+                    )}
+                  </div>
+
+                  {editingLicenseId === lic.id ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      <EditField label="Product" value={licEditForm.product} onChange={v => setLicEditForm(f => ({...f, product: v}))} />
+                      <EditField label="Version" value={licEditForm.version} onChange={v => setLicEditForm(f => ({...f, version: v}))} />
+                      <EditField label="Model" value={licEditForm.license_model} onChange={v => setLicEditForm(f => ({...f, license_model: v}))} />
+                      <EditField label="DB Type" value={licEditForm.database_type} onChange={v => setLicEditForm(f => ({...f, database_type: v}))} />
+                      <EditField label="Periodicity" value={licEditForm.periodicity} onChange={v => setLicEditForm(f => ({...f, periodicity: v}))} />
+                      <EditField label="License Start" value={licEditForm.license_start_date} onChange={v => setLicEditForm(f => ({...f, license_start_date: v}))} type="date" />
+                      <EditField label="License End" value={licEditForm.license_end_date} onChange={v => setLicEditForm(f => ({...f, license_end_date: v}))} type="date" />
+                      <EditField label="BackOffice Users" value={String(licEditForm.backoffice_users)} onChange={v => setLicEditForm(f => ({...f, backoffice_users: parseInt(v)||0}))} type="number" />
+                      <EditField label="Web Accesses" value={String(licEditForm.web_accesses)} onChange={v => setLicEditForm(f => ({...f, web_accesses: parseInt(v)||0}))} type="number" />
+                      <EditField label="Mobile Users" value={String(licEditForm.mobile_users)} onChange={v => setLicEditForm(f => ({...f, mobile_users: parseInt(v)||0}))} type="number" />
+                      <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.sat_active} onCheckedChange={v => setLicEditForm(f => ({...f, sat_active: v}))} /><Label className="text-xs">SAT Active</Label></div>
+                      <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.api_access} onCheckedChange={v => setLicEditForm(f => ({...f, api_access: v}))} /><Label className="text-xs">API Access</Label></div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
+                      <div className="space-y-0">
+                        <FieldRow label="Database Type" value={lic.database_type} />
+                        <FieldRow label="License Start" value={lic.license_start_date} />
+                        <FieldRow label="License End" value={lic.license_end_date} />
+                        <FieldRow label="Model" value={lic.license_model} />
+                        <FieldRow label="Periodicity" value={lic.periodicity} />
+                      </div>
+                      <div className="space-y-0">
+                        <FieldRow label="SAT Active" value={lic.sat_active ? "Yes" : "No"} />
+                        <FieldRow label="SAT End Date" value={lic.sat_end_date} />
+                        <FieldRow label="BackOffice Users" value={lic.backoffice_users} />
+                        <FieldRow label="Web Accesses" value={lic.web_accesses} />
+                        <FieldRow label="Mobile Users" value={lic.mobile_users} />
+                        <FieldRow label="API Access" value={lic.api_access ? "Yes" : "No"} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Modules Checklist */}
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold">Modules</CardTitle>
+              {isProfessional && <p className="text-xs text-muted-foreground mt-1">Auto-filled based on {licenseType}. Maintenance Requests is an optional add-on.</p>}
+              {isBusiness && <p className="text-xs text-muted-foreground mt-1">Business licenses allow flexible module selection.</p>}
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {ALL_MODULES.map(mod => {
+                  const isActive = activeModuleNames.includes(mod) || presetModules.includes(mod);
+                  const isPreset = isProfessional && presetModules.includes(mod);
+                  const isOptionalAddon = mod === "Maintenance Requests";
+                  return (
+                    <div key={mod} className={`flex items-center gap-3 rounded-lg border p-3 ${isActive ? "border-primary/30 bg-primary/5" : "border-border/60"}`}>
+                      <Checkbox checked={isActive} disabled={isPreset && !isOptionalAddon} className="data-[state=checked]:bg-primary" />
+                      <div>
+                        <span className="text-sm font-medium">{mod}</span>
+                        {isPreset && <p className="text-[10px] text-muted-foreground">Included in {licenseType}</p>}
+                        {isOptionalAddon && <p className="text-[10px] text-muted-foreground">Optional add-on</p>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ═══════════════════ CONTRACT TAB ═══════════════════ */}
         <TabsContent value="contract" className="space-y-5 mt-5">
-          <div className="flex justify-end"><Button size="sm" onClick={() => { setContractFormData({ currency: "EUR", notice_period_days: 30 }); setShowAddContract(true); }}><Plus className="h-4 w-4 mr-1.5" /> Add Contract</Button></div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => { setContractFormData({ currency: "EUR", notice_period_days: 30 }); setShowAddContract(true); }}><Plus className="h-4 w-4 mr-1.5" /> Add Contract</Button>
+          </div>
           {contracts.length === 0 ? (
             <Card className="border-border/60 shadow-sm"><CardContent className="py-12 text-center text-muted-foreground">No contracts. <button onClick={() => setShowAddContract(true)} className="text-primary hover:underline">Create first contract</button></CardContent></Card>
           ) : contracts.map(co => (
@@ -518,13 +608,16 @@ export default function ClientDetail() {
           ))}
         </TabsContent>
 
-        {/* OBSERVATIONS TAB */}
-        <TabsContent value="observations" className="mt-5">
+        {/* ═══════════════════ NOTES TAB ═══════════════════ */}
+        <TabsContent value="notes" className="mt-5">
           <Card className="border-border/60 shadow-sm">
-            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Notes & Observations</CardTitle></CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Notes</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               {client.observations && (
-                <div className="rounded-lg bg-secondary/50 p-4"><p className="text-sm text-foreground">{client.observations}</p></div>
+                <div className="rounded-lg bg-secondary/50 p-4">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">Legacy Observations</p>
+                  <p className="text-sm text-foreground">{client.observations}</p>
+                </div>
               )}
               <div className="border rounded-lg p-4 space-y-3">
                 <div className="flex gap-2">
@@ -532,8 +625,9 @@ export default function ClientDetail() {
                     <SelectTrigger className="w-[140px] h-8"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                      <SelectItem value="technical">Technical</SelectItem>
                       <SelectItem value="support">Support</SelectItem>
-                      <SelectItem value="operational">Operational</SelectItem>
                       <SelectItem value="warning">Warning</SelectItem>
                     </SelectContent>
                   </Select>
@@ -544,14 +638,17 @@ export default function ClientDetail() {
                 </div>
               </div>
               {notes.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">No additional notes</p>
+                <p className="text-sm text-muted-foreground text-center py-4">No notes yet</p>
               ) : (
                 <div className="space-y-3">
                   {notes.map((n: any) => (
                     <div key={n.id} className="border rounded-lg p-3">
                       <div className="flex items-center justify-between mb-1">
-                        <Badge variant="outline" className="text-[10px]">{n.note_type}</Badge>
-                        <span className="text-[11px] text-muted-foreground">{new Date(n.created_at).toLocaleDateString()}</span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px]">{n.note_type}</Badge>
+                          {n.created_by && <span className="text-[10px] text-muted-foreground">by {n.created_by}</span>}
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">{new Date(n.created_at).toLocaleDateString()} {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       <p className="text-sm text-foreground">{n.content}</p>
                     </div>
@@ -562,7 +659,7 @@ export default function ClientDetail() {
           </Card>
         </TabsContent>
 
-        {/* CREDENTIALS TAB */}
+        {/* ═══════════════════ CREDENTIALS TAB ═══════════════════ */}
         <TabsContent value="credentials" className="mt-5">
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -590,7 +687,7 @@ export default function ClientDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* DIALOGS */}
+      {/* ═══════════════════ DIALOGS ═══════════════════ */}
       {/* Add Contact */}
       <Dialog open={showAddContact} onOpenChange={setShowAddContact}>
         <DialogContent className="max-w-md">
