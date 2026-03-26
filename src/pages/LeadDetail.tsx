@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { ConvertToOpportunityDialog } from "@/components/leads/ConvertToOpportunityDialog";
+import { LeadTaskList } from "@/components/leads/LeadTaskList";
 
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>();
