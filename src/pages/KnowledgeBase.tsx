@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCategories,
@@ -100,6 +100,9 @@ export default function KnowledgeBase() {
   const [showDocDialog, setShowDocDialog] = useState(false);
   const [editingDoc, setEditingDoc] = useState<any>(null);
   const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<any>(null);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
@@ -538,39 +541,107 @@ export default function KnowledgeBase() {
         categories={categories}
         onComplete={() => { setShowBulkDialog(false); }}
       />
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => { if (!open) closePreview(); }}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
+            <DialogTitle className="truncate pr-8">{previewDoc?.title || "Document Preview"}</DialogTitle>
+            <DialogDescription className="sr-only">Preview of the selected document</DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 relative">
+            {previewLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-sm text-muted-foreground">Loading preview…</div>
+              </div>
+            ) : previewBlobUrl ? (
+              <iframe
+                src={previewBlobUrl}
+                className="w-full h-full border-0"
+                title={previewDoc?.title || "Document Preview"}
+              />
+            ) : (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <p className="text-sm text-muted-foreground">Preview could not be loaded.</p>
+                <Button size="sm" variant="outline" onClick={() => previewDoc && handleDownloadDoc(previewDoc)}>
+                  <Download className="h-4 w-4 mr-2" /> Download instead
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="px-6 py-3 border-t shrink-0 flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => previewDoc && handleDownloadDoc(previewDoc)}>
+              <Download className="h-4 w-4 mr-2" /> Download
+            </Button>
+            <Button variant="ghost" size="sm" onClick={closePreview}>Close</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 
-  function handleOpenDoc(doc: any) {
+  async function handleOpenDoc(doc: any) {
     if (!doc.file_url) {
       console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
       toast({ title: "File unavailable", description: "This document has no file or link reference.", variant: "destructive" });
       return;
     }
-    // Use anchor click to avoid popup blockers
-    const a = document.createElement("a");
-    a.href = doc.file_url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const isLink = doc.file_type === "link";
+    if (isLink) {
+      window.open(doc.file_url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const isPdf = doc.file_type?.toLowerCase() === "pdf" || doc.file_url?.toLowerCase().endsWith(".pdf");
+    if (isPdf) {
+      setPreviewDoc(doc);
+      setPreviewLoading(true);
+      setPreviewBlobUrl(null);
+      try {
+        const res = await fetch(doc.file_url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        setPreviewBlobUrl(URL.createObjectURL(blob));
+      } catch (err) {
+        console.error("[KnowledgeBase] PDF fetch failed:", err);
+        toast({ title: "Preview unavailable", description: "Could not load preview. Try downloading instead.", variant: "destructive" });
+        setPreviewDoc(null);
+      } finally {
+        setPreviewLoading(false);
+      }
+      return;
+    }
+    // Non-PDF files: blob download
+    await handleDownloadDoc(doc);
   }
 
-  function handleDownloadDoc(doc: any) {
+  async function handleDownloadDoc(doc: any) {
     if (!doc.file_url) {
       console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
       toast({ title: "File unavailable", description: "This document has no file reference.", variant: "destructive" });
       return;
     }
-    const a = document.createElement("a");
-    a.href = doc.file_url;
-    a.download = doc.file_name || doc.title || "download";
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      const res = await fetch(doc.file_url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = doc.file_name || doc.title || "download";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+    } catch (err) {
+      console.error("[KnowledgeBase] Download failed:", err);
+      toast({ title: "Download failed", description: "This document could not be downloaded. Please try again.", variant: "destructive" });
+    }
+  }
+
+  function closePreview() {
+    if (previewBlobUrl) URL.revokeObjectURL(previewBlobUrl);
+    setPreviewDoc(null);
+    setPreviewBlobUrl(null);
   }
 
   function handleArchiveDoc(id: string) {
