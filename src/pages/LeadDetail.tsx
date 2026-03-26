@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Building2, Trash2, Save } from "lucide-react";
+import { ArrowLeft, Building2, Trash2, Save, ArrowRight, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
+import { ConvertToOpportunityDialog } from "@/components/leads/ConvertToOpportunityDialog";
 
 export default function LeadDetail() {
   const { id } = useParams<{ id: string }>();
