@@ -400,9 +400,19 @@ export default function KnowledgeBase() {
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleOpenDoc(doc)} title={isLink ? "Open link" : "Download"}>
-                              {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                            </Button>
+                            {doc.file_url ? (
+                              <Button
+                                variant="ghost" size="icon" className="h-7 w-7"
+                                onClick={() => isLink ? handleOpenDoc(doc) : handleDownloadDoc(doc)}
+                                title={isLink ? "Open link" : "Download file"}
+                              >
+                                {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="icon" className="h-7 w-7 opacity-40 cursor-not-allowed" title="File reference missing" disabled>
+                                <Download className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
                             {isAdmin && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
