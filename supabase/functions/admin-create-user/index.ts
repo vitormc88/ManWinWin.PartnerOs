@@ -67,13 +67,17 @@ Deno.serve(async (req) => {
     const callerClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    const { data: callerData, error: callerError } = await callerClient.auth.getUser();
-    if (callerError || !callerData.user) return Response.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    // Use getClaims for resilient JWT validation (doesn't depend on session state)
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) return Response.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+
+    const callerId = claimsData.claims.sub as string;
 
     const { data: roleRows, error: roleError } = await adminClient
       .from("user_roles")
       .select("role")
-      .eq("user_id", callerData.user.id)
+      .eq("user_id", callerId)
       .eq("role", "hq_admin");
 
     if (roleError || !roleRows?.length) return Response.json({ error: "Only HQ administrators can create users" }, { status: 403, headers: corsHeaders });
