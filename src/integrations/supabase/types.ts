@@ -923,6 +923,7 @@ export type Database = {
           routing_reason: string | null
           sector: string | null
           sharpspring_id: string | null
+          status: string
         }
         Insert: {
           asset_range?: string | null
@@ -943,6 +944,7 @@ export type Database = {
           routing_reason?: string | null
           sector?: string | null
           sharpspring_id?: string | null
+          status?: string
         }
         Update: {
           asset_range?: string | null
@@ -963,6 +965,7 @@ export type Database = {
           routing_reason?: string | null
           sector?: string | null
           sharpspring_id?: string | null
+          status?: string
         }
         Relationships: [
           {

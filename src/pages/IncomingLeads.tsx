@@ -1,28 +1,38 @@
 import { useState } from "react";
-import { useIncomingLeads, useUpdateIncomingLead, useDeleteIncomingLead, type IncomingLead } from "@/hooks/useIncomingLeads";
+import { useNavigate } from "react-router-dom";
+import { useIncomingLeads, type IncomingLead } from "@/hooks/useIncomingLeads";
 import { usePartners } from "@/hooks/usePartners";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Search, ExternalLink, UserCheck, Building2, Trash2, X } from "lucide-react";
+import { Search, ExternalLink, Building2 } from "lucide-react";
 import { format } from "date-fns";
-import { toast } from "sonner";
+
+const statusColor = (s: string) => {
+  switch (s) {
+    case "New": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+    case "Assigned": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+    case "In Review": return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+    case "Contacted": return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+    case "Qualified": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+    case "Rejected": return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+    default: return "bg-muted text-muted-foreground";
+  }
+};
 
 export default function IncomingLeads() {
   const { data: leads = [], isLoading } = useIncomingLeads();
   const { data: partners = [] } = usePartners();
-  const updateLead = useUpdateIncomingLead();
-  const deleteLead = useDeleteIncomingLead();
+  const { isHQ, isAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  const isHQUser = isHQ || isAdmin;
 
   const [search, setSearch] = useState("");
   const [filterOwner, setFilterOwner] = useState("all");
-  const [selectedLead, setSelectedLead] = useState<IncomingLead | null>(null);
-  const [reassignOpen, setReassignOpen] = useState(false);
-  const [reassignPartnerId, setReassignPartnerId] = useState<string>("");
+  const [filterPartner, setFilterPartner] = useState("all");
+  const [filterStatus, setFilterStatus] = useState("all");
 
   const activePartners = partners.filter(p => p.is_active);
 
@@ -30,52 +40,10 @@ export default function IncomingLeads() {
     const matchesSearch = !search || [lead.company_name, lead.contact_name, lead.email, lead.country]
       .filter(Boolean).some(v => v!.toLowerCase().includes(search.toLowerCase()));
     const matchesOwner = filterOwner === "all" || lead.lead_owner_type === filterOwner;
-    return matchesSearch && matchesOwner;
+    const matchesPartner = filterPartner === "all" || lead.linked_partner_id === filterPartner;
+    const matchesStatus = filterStatus === "all" || lead.status === filterStatus;
+    return matchesSearch && matchesOwner && matchesPartner && matchesStatus;
   });
-
-  const handleReassign = () => {
-    if (!selectedLead) return;
-    const partnerId = reassignPartnerId === "__hq__" ? null : reassignPartnerId || null;
-    const ownerType = partnerId ? "partner" : "HQ";
-    updateLead.mutate(
-      {
-        id: selectedLead.id,
-        linked_partner_id: partnerId,
-        lead_owner_type: ownerType,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Partner reassigned successfully");
-          setReassignOpen(false);
-          setSelectedLead(null);
-          setReassignPartnerId("");
-        },
-        onError: (e) => toast.error(e.message),
-      }
-    );
-  };
-
-  const handleDelete = (id: string) => {
-    deleteLead.mutate(id, {
-      onSuccess: () => {
-        toast.success("Lead deleted");
-        setSelectedLead(null);
-      },
-      onError: (e) => toast.error(e.message),
-    });
-  };
-
-  const PartnerBadge = ({ lead }: { lead: IncomingLead }) => {
-    if (lead.partners) {
-      return (
-        <Badge variant="info" className="gap-1">
-          <Building2 className="h-3 w-3" />
-          {lead.partners.company_name}
-        </Badge>
-      );
-    }
-    return <Badge variant="ghost">HQ</Badge>;
-  };
 
   if (isLoading) {
     return <div className="p-6 text-muted-foreground">Loading incoming leads…</div>;
@@ -84,9 +52,9 @@ export default function IncomingLeads() {
   return (
     <div className="space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Incoming Leads</h1>
+        <h1 className="text-2xl font-bold text-foreground">Leads</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          External leads ingested from SharpSpring and other sources.
+          Manage incoming leads from all sources.
         </p>
       </div>
 
@@ -95,20 +63,49 @@ export default function IncomingLeads() {
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search company, contact, email…"
+            placeholder="Search company, contact, email, country…"
             className="pl-9"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
+        {isHQUser && (
+          <Select value={filterPartner} onValueChange={setFilterPartner}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Partner" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Partners</SelectItem>
+              {activePartners
+                .sort((a, b) => a.company_name.localeCompare(b.company_name))
+                .map(p => (
+                  <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={filterOwner} onValueChange={setFilterOwner}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Owner type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All owners</SelectItem>
             <SelectItem value="HQ">HQ</SelectItem>
             <SelectItem value="partner">Partner</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="New">New</SelectItem>
+            <SelectItem value="Assigned">Assigned</SelectItem>
+            <SelectItem value="In Review">In Review</SelectItem>
+            <SelectItem value="Contacted">Contacted</SelectItem>
+            <SelectItem value="Qualified">Qualified</SelectItem>
+            <SelectItem value="Rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
         <span className="text-sm text-muted-foreground ml-auto">
@@ -127,7 +124,7 @@ export default function IncomingLeads() {
                 <th className="px-4 py-3 font-medium text-muted-foreground">Country</th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">Assigned Partner</th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">Owner</th>
-                <th className="px-4 py-3 font-medium text-muted-foreground">Source</th>
+                <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
                 <th className="px-4 py-3 font-medium text-muted-foreground">Created</th>
                 <th className="px-4 py-3 font-medium text-muted-foreground w-10"></th>
               </tr>
@@ -136,7 +133,7 @@ export default function IncomingLeads() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-12 text-muted-foreground">
-                    No incoming leads found.
+                    No leads found.
                   </td>
                 </tr>
               ) : (
@@ -144,7 +141,7 @@ export default function IncomingLeads() {
                   <tr
                     key={lead.id}
                     className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                    onClick={() => setSelectedLead(lead)}
+                    onClick={() => navigate(`/incoming-leads/${lead.id}`)}
                   >
                     <td className="px-4 py-3 font-medium text-foreground">
                       {lead.company_name || "—"}
@@ -156,13 +153,22 @@ export default function IncomingLeads() {
                       {lead.country || "—"}
                     </td>
                     <td className="px-4 py-3">
-                      <PartnerBadge lead={lead} />
+                      {lead.partners ? (
+                        <Badge variant="secondary" className="gap-1">
+                          <Building2 className="h-3 w-3" />
+                          {lead.partners.company_name}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">HQ</Badge>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {lead.lead_owner_type || "—"}
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {lead.lead_source || "—"}
+                    <td className="px-4 py-3">
+                      <Badge className={statusColor(lead.status || "New")}>
+                        {lead.status || "New"}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {format(new Date(lead.created_at), "dd MMM yyyy")}
@@ -177,156 +183,6 @@ export default function IncomingLeads() {
           </table>
         </div>
       </div>
-
-      {/* Detail Dialog */}
-      <Dialog open={!!selectedLead && !reassignOpen} onOpenChange={open => { if (!open) setSelectedLead(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Lead Detail
-              {selectedLead && <PartnerBadge lead={selectedLead} />}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedLead && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <Label className="text-muted-foreground text-xs">Company</Label>
-                  <p className="font-medium">{selectedLead.company_name || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Contact</Label>
-                  <p className="font-medium">{selectedLead.contact_name || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Email</Label>
-                  <p className="font-medium">{selectedLead.email || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Phone</Label>
-                  <p className="font-medium">{selectedLead.phone || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Country</Label>
-                  <p className="font-medium">{selectedLead.country || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Sector</Label>
-                  <p className="font-medium">{selectedLead.sector || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Job Role</Label>
-                  <p className="font-medium">{selectedLead.job_role || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Lead Source</Label>
-                  <p className="font-medium">{selectedLead.lead_source || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Asset Range</Label>
-                  <p className="font-medium">{selectedLead.asset_range || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Maintenance Team</Label>
-                  <p className="font-medium">{selectedLead.maintenance_team_size || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Owner Type</Label>
-                  <p className="font-medium">{selectedLead.lead_owner_type || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">SharpSpring ID</Label>
-                  <p className="font-medium">{selectedLead.sharpspring_id || "—"}</p>
-                </div>
-              </div>
-
-              {selectedLead.partners && (
-                <div className="rounded-md bg-muted/50 p-3">
-                  <Label className="text-muted-foreground text-xs">Assigned Partner Details</Label>
-                  <p className="font-medium">{selectedLead.partners.company_name}</p>
-                  {selectedLead.partners.country && (
-                    <p className="text-sm text-muted-foreground">{selectedLead.partners.country}</p>
-                  )}
-                </div>
-              )}
-
-              {selectedLead.notes && (
-                <div>
-                  <Label className="text-muted-foreground text-xs">Notes</Label>
-                  <p className="text-sm">{selectedLead.notes}</p>
-                </div>
-              )}
-
-              {selectedLead.routing_reason && (
-                <div>
-                  <Label className="text-muted-foreground text-xs">Routing Reason</Label>
-                  <p className="text-sm">{selectedLead.routing_reason}</p>
-                </div>
-              )}
-
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(selectedLead.id)}
-                  disabled={deleteLead.isPending}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" /> Delete
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setReassignPartnerId(selectedLead.linked_partner_id || "");
-                    setReassignOpen(true);
-                  }}
-                >
-                  <UserCheck className="h-4 w-4 mr-1" /> Reassign Partner
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Reassign Dialog */}
-      <Dialog open={reassignOpen} onOpenChange={open => { if (!open) setReassignOpen(false); }}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Reassign Partner</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Assigned Partner</Label>
-              <Select value={reassignPartnerId || "__hq__"} onValueChange={setReassignPartnerId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select partner…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__hq__">
-                    <span className="flex items-center gap-2">
-                      <Badge variant="ghost" className="text-xs">HQ</Badge>
-                      No partner (HQ owned)
-                    </span>
-                  </SelectItem>
-                  {activePartners
-                    .sort((a, b) => a.company_name.localeCompare(b.company_name))
-                    .map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.company_name} {p.country ? `(${p.country})` : ""}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setReassignOpen(false)}>Cancel</Button>
-              <Button onClick={handleReassign} disabled={updateLead.isPending}>
-                Save
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

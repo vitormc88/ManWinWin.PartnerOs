@@ -6,6 +6,17 @@ export type IncomingLead = Tables<"incoming_leads"> & {
   partners?: { id: string; company_name: string; country: string | null } | null;
 };
 
+export const LEAD_STATUSES = [
+  "New",
+  "Assigned",
+  "In Review",
+  "Contacted",
+  "Qualified",
+  "Rejected",
+] as const;
+
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
 export function useIncomingLeads() {
   return useQuery({
     queryKey: ["incoming_leads"],

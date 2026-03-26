@@ -26,6 +26,7 @@ import PartnerPerformance from "@/pages/PartnerPerformance";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import ComingSoon from "@/pages/ComingSoon";
 import IncomingLeads from "@/pages/IncomingLeads";
+import LeadDetail from "@/pages/LeadDetail";
 import UserManagement from "@/pages/UserManagement";
 import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="/deals/new" element={<ComingSoon />} />
               <Route path="/deal-registrations" element={<DealRegistrations />} />
               <Route path="/incoming-leads" element={<IncomingLeads />} />
+              <Route path="/incoming-leads/:id" element={<LeadDetail />} />
               <Route path="/commissions" element={<Commissions />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/certifications" element={<Certifications />} />
