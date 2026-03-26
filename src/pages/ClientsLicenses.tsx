@@ -91,22 +91,29 @@ export default function ClientsLicenses() {
   };
 
   const handleCreate = async () => {
-    if (!form.client_code || !form.commercial_name) { toast.error("Client code and commercial name are required"); return; }
+    if (!form.client_code.trim()) { toast.error("Client Code is required"); return; }
+    if (!form.commercial_name.trim()) { toast.error("Commercial Name is required"); return; }
+    if (!form.country) { toast.error("Country is required"); return; }
+    if (!form.sector) { toast.error("Sector is required"); return; }
     try {
+      const partnerId = userPartnerId || form.partner_id || null;
       await createClient.mutateAsync({
-        client_code: form.client_code,
-        commercial_name: form.commercial_name,
-        short_name: form.short_name || null,
+        client_code: form.client_code.trim(),
+        commercial_name: form.commercial_name.trim(),
+        short_name: form.short_name?.trim() || null,
         country: form.country || null,
         sector: form.sector || null,
-        partner_id: userPartnerId || form.partner_id || null,
+        partner_id: partnerId,
         license_type: form.license_type || null,
-        status: form.status,
+        status: form.status || "Active",
       });
       toast.success("Client created successfully");
       setShowCreate(false);
       setForm({ client_code: "", commercial_name: "", short_name: "", country: "", sector: "", partner_id: "", license_type: "", status: "Active" });
-    } catch (e: any) { toast.error(e?.message || "Failed to create client"); }
+    } catch (e: any) {
+      console.error("Client creation error:", e);
+      toast.error(e?.message || "Failed to create client");
+    }
   };
 
   return (

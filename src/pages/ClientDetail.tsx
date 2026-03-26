@@ -22,7 +22,7 @@ import {
 } from "@/hooks/useClients";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
 
@@ -36,11 +36,11 @@ function FieldRow({ label, value, mono }: { label: string; value: React.ReactNod
   );
 }
 
-function EditField({ label, value, onChange, type = "text", placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+function EditField({ label, value, onChange, type = "text", placeholder, disabled }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; disabled?: boolean }) {
   return (
     <div>
       <Label className="text-xs">{label}</Label>
-      <Input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="h-8 text-sm" />
+      <Input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="h-8 text-sm" disabled={disabled} />
     </div>
   );
 }
@@ -83,6 +83,26 @@ const ALL_MODULES = [
   "Advanced Reports",
   "Import Tool",
 ];
+
+const LICENSE_TYPE_OPTIONS = [
+  { value: "Business UseIT", label: "Business UseIT", category: "Business" },
+  { value: "Business KeepIT", label: "Business KeepIT", category: "Business" },
+  { value: "Professional 1", label: "Professional 1", category: "Professional" },
+  { value: "Professional 2", label: "Professional 2", category: "Professional" },
+  { value: "Professional 3", label: "Professional 3", category: "Professional" },
+];
+
+function getLicenseDefaults(licenseType: string) {
+  const isPro = licenseType.startsWith("Professional");
+  const isUseIT = licenseType === "Business UseIT";
+  return {
+    backoffice_users: isPro ? 1 : 3,
+    web_accesses: 1,
+    sat_active: isUseIT ? true : false,
+    api_access: licenseType === "Professional 3",
+    database_type: isPro ? "SaaS" : "On-Premise",
+  };
+}
 
 /* ─── main component ─── */
 export default function ClientDetail() {
@@ -164,7 +184,7 @@ export default function ClientDetail() {
       phone: client.phone || "", email: client.email || "", website: client.website || "",
       address: client.address || "", city: client.city || "", country: client.country || "",
       sector: client.sector || "", status: client.status, is_premium: client.is_premium,
-      cloud_onpremise: client.cloud_onpremise || "On-premise",
+      cloud_onpremise: client.cloud_onpremise || "On-Premise",
       has_custom_reports: client.has_custom_reports, manager_owner: client.manager_owner || "",
       account_manager: client.account_manager || "",
     });
@@ -182,18 +202,111 @@ export default function ClientDetail() {
   };
 
   const handleAddLicense = async () => {
-    try { await createLicense.mutateAsync({ ...licenseForm, client_id: client.id }); toast.success("License created"); setShowAddLicense(false); setLicenseForm({}); }
-    catch (e: any) { toast.error(e?.message || "Failed"); }
+    if (!licenseForm.product) { toast.error("Product is required"); return; }
+    try {
+      await createLicense.mutateAsync({
+        client_id: client.id,
+        product: licenseForm.product || null,
+        version: licenseForm.version || null,
+        license_model: licenseForm.license_model || null,
+        database_type: licenseForm.database_type || null,
+        periodicity: licenseForm.periodicity || null,
+        license_start_date: licenseForm.license_start_date || null,
+        license_end_date: licenseForm.license_end_date || null,
+        backoffice_users: licenseForm.backoffice_users ?? 0,
+        web_accesses: licenseForm.web_accesses ?? 0,
+        sat_active: licenseForm.sat_active ?? false,
+        api_access: licenseForm.api_access ?? false,
+      });
+      toast.success("License created");
+      setShowAddLicense(false);
+      setLicenseForm({});
+    } catch (e: any) { toast.error(e?.message || "Failed to create license"); }
+  };
+
+  const openAddLicenseWithDefaults = () => {
+    const lt = licenseType || "Business UseIT";
+    const defaults = getLicenseDefaults(lt);
+    setLicenseForm({
+      product: lt,
+      version: "8.0",
+      license_model: lt.startsWith("Professional") ? "Professional" : "Business",
+      periodicity: "Annual",
+      database_type: defaults.database_type,
+      backoffice_users: defaults.backoffice_users,
+      web_accesses: defaults.web_accesses,
+      sat_active: defaults.sat_active,
+      api_access: defaults.api_access,
+      license_start_date: "",
+      license_end_date: "",
+    });
+    setShowAddLicense(true);
   };
 
   const startEditLicense = (lic: any) => {
-    setLicEditForm({ product: lic.product || "", version: lic.version || "", database_type: lic.database_type || "", license_model: lic.license_model || "", periodicity: lic.periodicity || "", license_start_date: lic.license_start_date || "", license_end_date: lic.license_end_date || "", sat_active: lic.sat_active, sat_end_date: lic.sat_end_date || "", backoffice_users: lic.backoffice_users ?? 0, backoffice_employee_users: lic.backoffice_employee_users ?? 0, mobile_users: lic.mobile_users ?? 0, web_accesses: lic.web_accesses ?? 0, api_access: lic.api_access });
+    setLicEditForm({
+      product: lic.product || "",
+      version: lic.version || "",
+      database_type: lic.database_type || "",
+      license_model: lic.license_model || "",
+      periodicity: lic.periodicity || "",
+      license_start_date: lic.license_start_date || "",
+      license_end_date: lic.license_end_date || "",
+      sat_active: lic.sat_active,
+      sat_end_date: lic.sat_end_date || "",
+      backoffice_users: lic.backoffice_users ?? 0,
+      web_accesses: lic.web_accesses ?? 0,
+      api_access: lic.api_access,
+    });
     setEditingLicenseId(lic.id);
   };
+
+  const handleLicEditProductChange = (newProduct: string) => {
+    const defaults = getLicenseDefaults(newProduct);
+    const isPro = newProduct.startsWith("Professional");
+    setLicEditForm(f => ({
+      ...f,
+      product: newProduct,
+      license_model: isPro ? "Professional" : "Business",
+      database_type: defaults.database_type,
+      backoffice_users: defaults.backoffice_users,
+      web_accesses: defaults.web_accesses,
+      sat_active: defaults.sat_active,
+      api_access: defaults.api_access,
+    }));
+  };
+
+  const handleLicFormProductChange = (newProduct: string) => {
+    const defaults = getLicenseDefaults(newProduct);
+    const isPro = newProduct.startsWith("Professional");
+    setLicenseForm(f => ({
+      ...f,
+      product: newProduct,
+      license_model: isPro ? "Professional" : "Business",
+      database_type: defaults.database_type,
+      backoffice_users: defaults.backoffice_users,
+      web_accesses: defaults.web_accesses,
+      sat_active: defaults.sat_active,
+      api_access: defaults.api_access,
+    }));
+  };
+
   const saveLicense = async () => {
     if (!editingLicenseId) return;
-    try { await updateLicense.mutateAsync({ id: editingLicenseId, ...licEditForm }); toast.success("License updated"); setEditingLicenseId(null); }
-    catch (e: any) { toast.error(e?.message || "Failed"); }
+    try {
+      const { sat_end_date, ...rest } = licEditForm;
+      await updateLicense.mutateAsync({
+        id: editingLicenseId,
+        ...rest,
+        sat_end_date: sat_end_date || null,
+      });
+      // Also sync client license_type and deployment
+      if (licEditForm.product && licEditForm.product !== client.license_type) {
+        await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.database_type || client.cloud_onpremise });
+      }
+      toast.success("License updated");
+      setEditingLicenseId(null);
+    } catch (e: any) { toast.error(e?.message || "Failed to update license"); }
   };
 
   const handleAddContract = async () => {
@@ -231,6 +344,9 @@ export default function ClientDetail() {
   const activeModuleNames = modules.filter(m => m.enabled).map(m => m.module_name);
   const professionalLevel = isProfessional ? licenseType : null;
   const presetModules = professionalLevel ? (PROFESSIONAL_MODULES[professionalLevel] || []) : [];
+
+  // Deployment display for overview
+  const deploymentDisplay = primaryLicense?.database_type || client.cloud_onpremise || (isProfessional ? "SaaS" : "On-Premise");
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
@@ -330,7 +446,7 @@ export default function ClientDetail() {
 
             {/* Right column: License Summary + Renewal + Flags */}
             <div className="space-y-5">
-              {/* License Summary */}
+              {/* License Summary — synced from actual license data */}
               <Card className="border-border/60 shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="h-4 w-4" /> License Summary</CardTitle>
@@ -338,11 +454,11 @@ export default function ClientDetail() {
                 <CardContent className="space-y-2">
                   <div className="flex justify-between items-center py-1">
                     <span className="text-xs text-muted-foreground">License Type</span>
-                    <Badge variant="outline" className="text-xs">{licenseType || "Not set"}</Badge>
+                    <Badge variant="outline" className="text-xs">{primaryLicense?.product || licenseType || "Not set"}</Badge>
                   </div>
                   <div className="flex justify-between items-center py-1">
                     <span className="text-xs text-muted-foreground">Deployment</span>
-                    <Badge variant="secondary" className="text-xs">{client.cloud_onpremise || "On-Premise"}</Badge>
+                    <Badge variant="secondary" className="text-xs">{deploymentDisplay}</Badge>
                   </div>
                   <div className="border-t border-border/40 pt-2 mt-2">
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Users</p>
@@ -451,12 +567,12 @@ export default function ClientDetail() {
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">License Configuration</CardTitle>
               {licenses.length === 0 && (
-                <Button size="sm" onClick={() => { setLicenseForm({ product: "ManWinWin", version: "8.0", license_model: isBusiness ? "Business" : "Professional", periodicity: "Annual" }); setShowAddLicense(true); }}><Plus className="h-4 w-4 mr-1.5" /> Add License</Button>
+                <Button size="sm" onClick={openAddLicenseWithDefaults}><Plus className="h-4 w-4 mr-1.5" /> Add License</Button>
               )}
             </CardHeader>
             <CardContent>
               {licenses.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-8 text-center">No license records. <button onClick={() => setShowAddLicense(true)} className="text-primary hover:underline">Create first license</button></p>
+                <p className="text-sm text-muted-foreground py-8 text-center">No license records. <button onClick={openAddLicenseWithDefaults} className="text-primary hover:underline">Create first license</button></p>
               ) : licenses.map(lic => (
                 <div key={lic.id} className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -467,8 +583,8 @@ export default function ClientDetail() {
                     </div>
                     {editingLicenseId === lic.id ? (
                       <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => setEditingLicenseId(null)}><X className="h-3.5 w-3.5" /></Button>
-                        <Button size="sm" onClick={saveLicense} disabled={updateLicense.isPending}><Save className="h-3.5 w-3.5" /></Button>
+                        <Button variant="outline" size="sm" onClick={() => setEditingLicenseId(null)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
+                        <Button size="sm" onClick={saveLicense} disabled={updateLicense.isPending}><Save className="h-3.5 w-3.5 mr-1" /> Save</Button>
                       </div>
                     ) : (
                       <Button variant="ghost" size="sm" onClick={() => startEditLicense(lic)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
@@ -477,34 +593,65 @@ export default function ClientDetail() {
 
                   {editingLicenseId === lic.id ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      <EditField label="Product" value={licEditForm.product} onChange={v => setLicEditForm(f => ({...f, product: v}))} />
+                      <div>
+                        <Label className="text-xs">License Type</Label>
+                        <Select value={licEditForm.product} onValueChange={handleLicEditProductChange}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select license..." /></SelectTrigger>
+                          <SelectContent>
+                            {LICENSE_TYPE_OPTIONS.map(o => (
+                              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <EditField label="Version" value={licEditForm.version} onChange={v => setLicEditForm(f => ({...f, version: v}))} />
-                      <EditField label="Model" value={licEditForm.license_model} onChange={v => setLicEditForm(f => ({...f, license_model: v}))} />
-                      <EditField label="DB Type" value={licEditForm.database_type} onChange={v => setLicEditForm(f => ({...f, database_type: v}))} />
-                      <EditField label="Periodicity" value={licEditForm.periodicity} onChange={v => setLicEditForm(f => ({...f, periodicity: v}))} />
+                      <div>
+                        <Label className="text-xs">Deployment</Label>
+                        <Select
+                          value={licEditForm.database_type || "On-Premise"}
+                          onValueChange={v => setLicEditForm(f => ({...f, database_type: v}))}
+                          disabled={licEditForm.product?.startsWith("Professional")}
+                        >
+                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="SaaS">SaaS</SelectItem>
+                            <SelectItem value="On-Premise">On-Premise</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Periodicity</Label>
+                        <Select value={licEditForm.periodicity || "Annual"} onValueChange={v => setLicEditForm(f => ({...f, periodicity: v}))}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Monthly">Monthly</SelectItem>
+                            <SelectItem value="Quarterly">Quarterly</SelectItem>
+                            <SelectItem value="Annual">Annual</SelectItem>
+                            <SelectItem value="Perpetual">Perpetual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <EditField label="License Start" value={licEditForm.license_start_date} onChange={v => setLicEditForm(f => ({...f, license_start_date: v}))} type="date" />
                       <EditField label="License End" value={licEditForm.license_end_date} onChange={v => setLicEditForm(f => ({...f, license_end_date: v}))} type="date" />
                       <EditField label="BackOffice Users" value={String(licEditForm.backoffice_users)} onChange={v => setLicEditForm(f => ({...f, backoffice_users: parseInt(v)||0}))} type="number" />
                       <EditField label="Web Accesses" value={String(licEditForm.web_accesses)} onChange={v => setLicEditForm(f => ({...f, web_accesses: parseInt(v)||0}))} type="number" />
-                      <EditField label="Mobile Users" value={String(licEditForm.mobile_users)} onChange={v => setLicEditForm(f => ({...f, mobile_users: parseInt(v)||0}))} type="number" />
-                      <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.sat_active} onCheckedChange={v => setLicEditForm(f => ({...f, sat_active: v}))} /><Label className="text-xs">SAT Active</Label></div>
+                      <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.sat_active} onCheckedChange={v => setLicEditForm(f => ({...f, sat_active: v}))} /><Label className="text-xs">S&AT Active</Label></div>
                       <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.api_access} onCheckedChange={v => setLicEditForm(f => ({...f, api_access: v}))} /><Label className="text-xs">API Access</Label></div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                       <div className="space-y-0">
-                        <FieldRow label="Database Type" value={lic.database_type} />
+                        <FieldRow label="Deployment" value={lic.database_type} />
                         <FieldRow label="License Start" value={lic.license_start_date} />
                         <FieldRow label="License End" value={lic.license_end_date} />
                         <FieldRow label="Model" value={lic.license_model} />
                         <FieldRow label="Periodicity" value={lic.periodicity} />
                       </div>
                       <div className="space-y-0">
-                        <FieldRow label="SAT Active" value={lic.sat_active ? "Yes" : "No"} />
-                        <FieldRow label="SAT End Date" value={lic.sat_end_date} />
+                        <FieldRow label="S&AT Active" value={lic.sat_active ? "Yes" : "No"} />
+                        <FieldRow label="S&AT End Date" value={lic.sat_end_date} />
                         <FieldRow label="BackOffice Users" value={lic.backoffice_users} />
                         <FieldRow label="Web Accesses" value={lic.web_accesses} />
-                        <FieldRow label="Mobile Users" value={lic.mobile_users} />
                         <FieldRow label="API Access" value={lic.api_access ? "Yes" : "No"} />
                       </div>
                     </div>
@@ -712,21 +859,58 @@ export default function ClientDetail() {
           <DialogHeader><DialogTitle>Add License</DialogTitle></DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
-              <EditField label="Product" value={licenseForm.product || ""} onChange={v => setLicenseForm(f => ({...f, product: v}))} />
+              <div>
+                <Label className="text-xs">License Type *</Label>
+                <Select value={licenseForm.product || ""} onValueChange={handleLicFormProductChange}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select license type..." /></SelectTrigger>
+                  <SelectContent>
+                    {LICENSE_TYPE_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <EditField label="License Model" value={licenseForm.license_model || ""} onChange={v => setLicenseForm(f => ({...f, license_model: v}))} />
-              <EditField label="Periodicity" value={licenseForm.periodicity || ""} onChange={v => setLicenseForm(f => ({...f, periodicity: v}))} />
+              <div>
+                <Label className="text-xs">Deployment</Label>
+                <Select
+                  value={licenseForm.database_type || "On-Premise"}
+                  onValueChange={v => setLicenseForm(f => ({...f, database_type: v}))}
+                  disabled={licenseForm.product?.startsWith("Professional")}
+                >
+                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="SaaS">SaaS</SelectItem>
+                    <SelectItem value="On-Premise">On-Premise</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">Periodicity</Label>
+                <Select value={licenseForm.periodicity || "Annual"} onValueChange={v => setLicenseForm(f => ({...f, periodicity: v}))}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Monthly">Monthly</SelectItem>
+                    <SelectItem value="Quarterly">Quarterly</SelectItem>
+                    <SelectItem value="Annual">Annual</SelectItem>
+                    <SelectItem value="Perpetual">Perpetual</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <EditField label="Start Date" value={licenseForm.license_start_date || ""} onChange={v => setLicenseForm(f => ({...f, license_start_date: v}))} type="date" />
               <EditField label="End Date" value={licenseForm.license_end_date || ""} onChange={v => setLicenseForm(f => ({...f, license_end_date: v}))} type="date" />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <EditField label="BackOffice Users" value={String(licenseForm.backoffice_users || 0)} onChange={v => setLicenseForm(f => ({...f, backoffice_users: parseInt(v)||0}))} type="number" />
-              <EditField label="Mobile Users" value={String(licenseForm.mobile_users || 0)} onChange={v => setLicenseForm(f => ({...f, mobile_users: parseInt(v)||0}))} type="number" />
-              <EditField label="Web Accesses" value={String(licenseForm.web_accesses || 0)} onChange={v => setLicenseForm(f => ({...f, web_accesses: parseInt(v)||0}))} type="number" />
+            <div className="grid grid-cols-2 gap-3">
+              <EditField label="BackOffice Users" value={String(licenseForm.backoffice_users ?? 0)} onChange={v => setLicenseForm(f => ({...f, backoffice_users: parseInt(v)||0}))} type="number" />
+              <EditField label="Web Accesses" value={String(licenseForm.web_accesses ?? 0)} onChange={v => setLicenseForm(f => ({...f, web_accesses: parseInt(v)||0}))} type="number" />
+            </div>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2"><Switch checked={licenseForm.sat_active ?? false} onCheckedChange={v => setLicenseForm(f => ({...f, sat_active: v}))} /><Label className="text-xs">S&AT Active</Label></div>
+              <div className="flex items-center gap-2"><Switch checked={licenseForm.api_access ?? false} onCheckedChange={v => setLicenseForm(f => ({...f, api_access: v}))} /><Label className="text-xs">API Access</Label></div>
             </div>
             <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowAddLicense(false)}>Cancel</Button><Button onClick={handleAddLicense} disabled={createLicense.isPending}>{createLicense.isPending ? "Creating..." : "Create License"}</Button></div>
           </div>
