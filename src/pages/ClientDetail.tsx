@@ -20,9 +20,9 @@ import {
   useClientContracts, useCreateContract, useUpdateContract,
   useCreateNote, useCreateCredential,
 } from "@/hooks/useClients";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
 
@@ -65,7 +65,34 @@ const RenewalIcon = ({ status }: { status: string }) => {
   }
 };
 
-/* ─── Professional level module presets ─── */
+/* ─── License two-level model ─── */
+type LicenseFamily = "Business" | "Professional";
+
+const VARIANT_OPTIONS: Record<LicenseFamily, { value: string; label: string }[]> = {
+  Business: [
+    { value: "Business UseIT", label: "UseIT" },
+    { value: "Business KeepIT", label: "KeepIT" },
+  ],
+  Professional: [
+    { value: "Professional 1", label: "Professional 1" },
+    { value: "Professional 2", label: "Professional 2" },
+    { value: "Professional 3", label: "Professional 3" },
+  ],
+};
+
+function parseLicenseProduct(product: string | null | undefined): { family: LicenseFamily | ""; variant: string } {
+  if (!product) return { family: "", variant: "" };
+  if (product.startsWith("Business")) return { family: "Business", variant: product };
+  if (product.startsWith("Professional")) return { family: "Professional", variant: product };
+  return { family: "", variant: product };
+}
+
+function getVariantLabel(variant: string): string {
+  if (variant === "Business UseIT") return "UseIT";
+  if (variant === "Business KeepIT") return "KeepIT";
+  return variant; // Professional 1/2/3 stay as-is
+}
+
 const PROFESSIONAL_MODULES: Record<string, string[]> = {
   "Professional 1": ["Maintenance Module"],
   "Professional 2": ["Maintenance Module", "Stock Management", "Purchase Orders"],
@@ -84,22 +111,14 @@ const ALL_MODULES = [
   "Import Tool",
 ];
 
-const LICENSE_TYPE_OPTIONS = [
-  { value: "Business UseIT", label: "Business UseIT", category: "Business" },
-  { value: "Business KeepIT", label: "Business KeepIT", category: "Business" },
-  { value: "Professional 1", label: "Professional 1", category: "Professional" },
-  { value: "Professional 2", label: "Professional 2", category: "Professional" },
-  { value: "Professional 3", label: "Professional 3", category: "Professional" },
-];
-
-function getLicenseDefaults(licenseType: string) {
-  const isPro = licenseType.startsWith("Professional");
-  const isUseIT = licenseType === "Business UseIT";
+function getLicenseDefaults(variant: string) {
+  const isPro = variant.startsWith("Professional");
+  const isUseIT = variant === "Business UseIT";
   return {
     backoffice_users: isPro ? 1 : 3,
     web_accesses: 1,
-    sat_active: isUseIT ? true : false,
-    api_access: licenseType === "Professional 3",
+    sat_active: isUseIT,
+    api_access: variant === "Professional 3",
     database_type: isPro ? "SaaS" : "On-Premise",
   };
 }
@@ -108,6 +127,7 @@ function getLicenseDefaults(licenseType: string) {
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: client, isLoading } = useClient(id);
   const { data: contacts = [] } = useClientContacts(id);
   const { data: licenses = [] } = useClientLicenses(id);
@@ -142,14 +162,14 @@ export default function ClientDetail() {
   // Derived data
   const primaryLicense = licenses[0] || null;
   const primaryContract = contracts[0] || null;
-
   const renewalEndDate = primaryContract?.contract_end_date || primaryLicense?.license_end_date || null;
   const renewalInfo = useMemo(() => getRenewalInfo(renewalEndDate), [renewalEndDate]);
 
-  // Determine license category
-  const licenseType = client?.license_type || primaryLicense?.product || "";
-  const isProfessional = licenseType.startsWith("Professional");
-  const isBusiness = licenseType.startsWith("Business");
+  // Parsed license info
+  const licenseProduct = primaryLicense?.product || client?.license_type || "";
+  const { family: licenseFamily, variant: licenseVariant } = useMemo(() => parseLicenseProduct(licenseProduct), [licenseProduct]);
+  const isProfessional = licenseFamily === "Professional";
+  const isBusiness = licenseFamily === "Business";
 
   // Edit states
   const [editingClient, setEditingClient] = useState(false);
@@ -168,6 +188,10 @@ export default function ClientDetail() {
   const [newNoteType, setNewNoteType] = useState("general");
   const [showAddCred, setShowAddCred] = useState(false);
   const [credForm, setCredForm] = useState({ system_url: "", username: "", login: "", password_secret: "", environment_type: "Production", admin_notes: "" });
+
+  // Module editing state
+  const [editingModules, setEditingModules] = useState(false);
+  const [moduleEdits, setModuleEdits] = useState<Record<string, boolean>>({});
 
   if (isLoading) return <div className="max-w-4xl mx-auto py-20 text-center text-muted-foreground">Loading...</div>;
   if (!client) return (
@@ -201,8 +225,40 @@ export default function ClientDetail() {
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
+  // License family/variant helpers for forms
+  const handleFamilyChange = (family: LicenseFamily, formSetter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
+    const firstVariant = VARIANT_OPTIONS[family][0].value;
+    const defaults = getLicenseDefaults(firstVariant);
+    formSetter(f => ({
+      ...f,
+      _family: family,
+      product: firstVariant,
+      license_model: family,
+      database_type: defaults.database_type,
+      backoffice_users: defaults.backoffice_users,
+      web_accesses: defaults.web_accesses,
+      sat_active: defaults.sat_active,
+      api_access: defaults.api_access,
+    }));
+  };
+
+  const handleVariantChange = (variant: string, formSetter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
+    const defaults = getLicenseDefaults(variant);
+    const family = variant.startsWith("Professional") ? "Professional" : "Business";
+    formSetter(f => ({
+      ...f,
+      product: variant,
+      license_model: family,
+      database_type: defaults.database_type,
+      backoffice_users: defaults.backoffice_users,
+      web_accesses: defaults.web_accesses,
+      sat_active: defaults.sat_active,
+      api_access: defaults.api_access,
+    }));
+  };
+
   const handleAddLicense = async () => {
-    if (!licenseForm.product) { toast.error("Product is required"); return; }
+    if (!licenseForm.product) { toast.error("License variant is required"); return; }
     try {
       await createLicense.mutateAsync({
         client_id: client.id,
@@ -218,6 +274,8 @@ export default function ClientDetail() {
         sat_active: licenseForm.sat_active ?? false,
         api_access: licenseForm.api_access ?? false,
       });
+      // Sync client-level license_type
+      await updateClient.mutateAsync({ id: client.id, license_type: licenseForm.product, cloud_onpremise: licenseForm.database_type });
       toast.success("License created");
       setShowAddLicense(false);
       setLicenseForm({});
@@ -225,12 +283,14 @@ export default function ClientDetail() {
   };
 
   const openAddLicenseWithDefaults = () => {
-    const lt = licenseType || "Business UseIT";
-    const defaults = getLicenseDefaults(lt);
+    const family: LicenseFamily = "Business";
+    const variant = "Business UseIT";
+    const defaults = getLicenseDefaults(variant);
     setLicenseForm({
-      product: lt,
+      _family: family,
+      product: variant,
       version: "8.0",
-      license_model: lt.startsWith("Professional") ? "Professional" : "Business",
+      license_model: family,
       periodicity: "Annual",
       database_type: defaults.database_type,
       backoffice_users: defaults.backoffice_users,
@@ -244,7 +304,9 @@ export default function ClientDetail() {
   };
 
   const startEditLicense = (lic: any) => {
+    const { family } = parseLicenseProduct(lic.product);
     setLicEditForm({
+      _family: family,
       product: lic.product || "",
       version: lic.version || "",
       database_type: lic.database_type || "",
@@ -261,52 +323,57 @@ export default function ClientDetail() {
     setEditingLicenseId(lic.id);
   };
 
-  const handleLicEditProductChange = (newProduct: string) => {
-    const defaults = getLicenseDefaults(newProduct);
-    const isPro = newProduct.startsWith("Professional");
-    setLicEditForm(f => ({
-      ...f,
-      product: newProduct,
-      license_model: isPro ? "Professional" : "Business",
-      database_type: defaults.database_type,
-      backoffice_users: defaults.backoffice_users,
-      web_accesses: defaults.web_accesses,
-      sat_active: defaults.sat_active,
-      api_access: defaults.api_access,
-    }));
-  };
-
-  const handleLicFormProductChange = (newProduct: string) => {
-    const defaults = getLicenseDefaults(newProduct);
-    const isPro = newProduct.startsWith("Professional");
-    setLicenseForm(f => ({
-      ...f,
-      product: newProduct,
-      license_model: isPro ? "Professional" : "Business",
-      database_type: defaults.database_type,
-      backoffice_users: defaults.backoffice_users,
-      web_accesses: defaults.web_accesses,
-      sat_active: defaults.sat_active,
-      api_access: defaults.api_access,
-    }));
-  };
-
   const saveLicense = async () => {
     if (!editingLicenseId) return;
     try {
-      const { sat_end_date, ...rest } = licEditForm;
+      const { _family, sat_end_date, ...rest } = licEditForm;
       await updateLicense.mutateAsync({
         id: editingLicenseId,
         ...rest,
         sat_end_date: sat_end_date || null,
       });
-      // Also sync client license_type and deployment
-      if (licEditForm.product && licEditForm.product !== client.license_type) {
+      // Sync client license_type and deployment
+      if (licEditForm.product) {
         await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.database_type || client.cloud_onpremise });
       }
       toast.success("License updated");
       setEditingLicenseId(null);
     } catch (e: any) { toast.error(e?.message || "Failed to update license"); }
+  };
+
+  // Module save logic
+  const startEditModules = () => {
+    const current: Record<string, boolean> = {};
+    ALL_MODULES.forEach(mod => {
+      const isActiveInDB = modules.some(m => m.module_name === mod && m.enabled);
+      const isPreset = isProfessional && (PROFESSIONAL_MODULES[licenseVariant] || []).includes(mod);
+      current[mod] = isActiveInDB || isPreset;
+    });
+    setModuleEdits(current);
+    setEditingModules(true);
+  };
+
+  const saveModules = async () => {
+    if (!primaryLicense) return;
+    try {
+      // Upsert each module
+      for (const mod of ALL_MODULES) {
+        const existing = modules.find(m => m.module_name === mod && m.license_id === primaryLicense.id);
+        const enabled = moduleEdits[mod] ?? false;
+        if (existing) {
+          await supabase.from("licensed_modules").update({ enabled }).eq("id", existing.id);
+        } else {
+          await supabase.from("licensed_modules").insert({
+            license_id: primaryLicense.id,
+            module_name: mod,
+            enabled,
+          });
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["licensed_modules"] });
+      toast.success("Modules updated");
+      setEditingModules(false);
+    } catch (e: any) { toast.error(e?.message || "Failed to save modules"); }
   };
 
   const handleAddContract = async () => {
@@ -342,11 +409,42 @@ export default function ClientDetail() {
 
   // Module helpers for licensing tab
   const activeModuleNames = modules.filter(m => m.enabled).map(m => m.module_name);
-  const professionalLevel = isProfessional ? licenseType : null;
-  const presetModules = professionalLevel ? (PROFESSIONAL_MODULES[professionalLevel] || []) : [];
-
-  // Deployment display for overview
+  const presetModules = isProfessional ? (PROFESSIONAL_MODULES[licenseVariant] || []) : [];
   const deploymentDisplay = primaryLicense?.database_type || client.cloud_onpremise || (isProfessional ? "SaaS" : "On-Premise");
+
+  // License Family/Variant form rendering helper
+  const renderLicenseFamilyVariantFields = (form: Record<string, any>, setter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
+    const currentFamily = (form._family || "") as LicenseFamily | "";
+    return (
+      <>
+        <div>
+          <Label className="text-xs">License Family *</Label>
+          <Select value={currentFamily} onValueChange={(v) => handleFamilyChange(v as LicenseFamily, setter)}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select family..." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Business">Business</SelectItem>
+              <SelectItem value="Professional">Professional</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">License Variant *</Label>
+          <Select
+            value={form.product || ""}
+            onValueChange={(v) => handleVariantChange(v, setter)}
+            disabled={!currentFamily}
+          >
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select variant..." /></SelectTrigger>
+            <SelectContent>
+              {currentFamily && VARIANT_OPTIONS[currentFamily as LicenseFamily]?.map(o => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </>
+    );
+  };
 
   return (
     <div className="max-w-[1200px] mx-auto space-y-5">
@@ -446,15 +544,19 @@ export default function ClientDetail() {
 
             {/* Right column: License Summary + Renewal + Flags */}
             <div className="space-y-5">
-              {/* License Summary — synced from actual license data */}
+              {/* License Summary — two-level display */}
               <Card className="border-border/60 shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2"><Shield className="h-4 w-4" /> License Summary</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex justify-between items-center py-1">
-                    <span className="text-xs text-muted-foreground">License Type</span>
-                    <Badge variant="outline" className="text-xs">{primaryLicense?.product || licenseType || "Not set"}</Badge>
+                    <span className="text-xs text-muted-foreground">License Family</span>
+                    <Badge variant="outline" className="text-xs">{licenseFamily || "Not set"}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-xs text-muted-foreground">Variant</span>
+                    <Badge variant="secondary" className="text-xs">{licenseVariant ? getVariantLabel(licenseVariant) : "Not set"}</Badge>
                   </div>
                   <div className="flex justify-between items-center py-1">
                     <span className="text-xs text-muted-foreground">Deployment</span>
@@ -471,6 +573,16 @@ export default function ClientDetail() {
                         <p className="text-lg font-bold text-foreground">{primaryLicense?.web_accesses ?? 1}</p>
                         <p className="text-[10px] text-muted-foreground">Web</p>
                       </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-border/40 pt-2 mt-1 space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">S&AT Active</span>
+                      <Badge variant={primaryLicense?.sat_active ? "default" : "secondary"} className="text-[10px]">{primaryLicense?.sat_active ? "Yes" : "No"}</Badge>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-muted-foreground">API Access</span>
+                      <Badge variant={primaryLicense?.api_access ? "default" : "secondary"} className="text-[10px]">{primaryLicense?.api_access ? "Yes" : "No"}</Badge>
                     </div>
                   </div>
                 </CardContent>
@@ -510,7 +622,7 @@ export default function ClientDetail() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {[
-                    { label: "S&AT Active", value: primaryLicense?.sat_active ?? (licenseType === "Business UseIT"), note: licenseType === "Business UseIT" ? "Always active for UseIT" : undefined },
+                    { label: "S&AT Active", value: primaryLicense?.sat_active ?? (licenseVariant === "Business UseIT"), note: licenseVariant === "Business UseIT" ? "Always active for UseIT" : undefined },
                     { label: "Custom Reports", value: client.has_custom_reports },
                     { label: "Premium", value: client.is_premium },
                   ].map(flag => (
@@ -573,12 +685,14 @@ export default function ClientDetail() {
             <CardContent>
               {licenses.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">No license records. <button onClick={openAddLicenseWithDefaults} className="text-primary hover:underline">Create first license</button></p>
-              ) : licenses.map(lic => (
+              ) : licenses.map(lic => {
+                const { family: licFam, variant: licVar } = parseLicenseProduct(lic.product);
+                return (
                 <div key={lic.id} className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{lic.product || "ManWinWin"}</Badge>
-                      <Badge variant="secondary">{lic.license_model || "—"}</Badge>
+                      <Badge variant="outline">{licFam || "Unknown"}</Badge>
+                      <Badge variant="secondary">{licVar ? getVariantLabel(licVar) : "—"}</Badge>
                       <Badge variant="secondary" className="text-xs">{lic.version || "—"}</Badge>
                     </div>
                     {editingLicenseId === lic.id ? (
@@ -593,24 +707,14 @@ export default function ClientDetail() {
 
                   {editingLicenseId === lic.id ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      <div>
-                        <Label className="text-xs">License Type</Label>
-                        <Select value={licEditForm.product} onValueChange={handleLicEditProductChange}>
-                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select license..." /></SelectTrigger>
-                          <SelectContent>
-                            {LICENSE_TYPE_OPTIONS.map(o => (
-                              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {renderLicenseFamilyVariantFields(licEditForm, setLicEditForm)}
                       <EditField label="Version" value={licEditForm.version} onChange={v => setLicEditForm(f => ({...f, version: v}))} />
                       <div>
                         <Label className="text-xs">Deployment</Label>
                         <Select
                           value={licEditForm.database_type || "On-Premise"}
                           onValueChange={v => setLicEditForm(f => ({...f, database_type: v}))}
-                          disabled={licEditForm.product?.startsWith("Professional")}
+                          disabled={licEditForm._family === "Professional"}
                         >
                           <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                           <SelectContent>
@@ -641,13 +745,14 @@ export default function ClientDetail() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                       <div className="space-y-0">
+                        <FieldRow label="License Family" value={licFam} />
+                        <FieldRow label="Variant" value={licVar ? getVariantLabel(licVar) : "—"} />
                         <FieldRow label="Deployment" value={lic.database_type} />
                         <FieldRow label="License Start" value={lic.license_start_date} />
                         <FieldRow label="License End" value={lic.license_end_date} />
-                        <FieldRow label="Model" value={lic.license_model} />
-                        <FieldRow label="Periodicity" value={lic.periodicity} />
                       </div>
                       <div className="space-y-0">
+                        <FieldRow label="Periodicity" value={lic.periodicity} />
                         <FieldRow label="S&AT Active" value={lic.sat_active ? "Yes" : "No"} />
                         <FieldRow label="S&AT End Date" value={lic.sat_end_date} />
                         <FieldRow label="BackOffice Users" value={lic.backoffice_users} />
@@ -657,29 +762,64 @@ export default function ClientDetail() {
                     </div>
                   )}
                 </div>
-              ))}
+              )})}
             </CardContent>
           </Card>
 
-          {/* Modules Checklist */}
+          {/* Modules Checklist — now editable */}
           <Card className="border-border/60 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Modules</CardTitle>
-              {isProfessional && <p className="text-xs text-muted-foreground mt-1">Auto-filled based on {licenseType}. Maintenance Requests is an optional add-on.</p>}
-              {isBusiness && <p className="text-xs text-muted-foreground mt-1">Business licenses allow flexible module selection.</p>}
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-semibold">Modules</CardTitle>
+                {isProfessional && <p className="text-xs text-muted-foreground mt-1">Auto-filled based on {licenseVariant}. Maintenance Requests is an optional add-on.</p>}
+                {isBusiness && <p className="text-xs text-muted-foreground mt-1">Business licenses allow flexible module selection.</p>}
+              </div>
+              {primaryLicense && !editingModules && (
+                <Button variant="ghost" size="sm" onClick={startEditModules}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+              )}
+              {editingModules && (
+                <div className="flex gap-1">
+                  <Button variant="outline" size="sm" onClick={() => setEditingModules(false)}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
+                  <Button size="sm" onClick={saveModules}><Save className="h-3.5 w-3.5 mr-1" /> Save</Button>
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {ALL_MODULES.map(mod => {
-                  const isActive = activeModuleNames.includes(mod) || presetModules.includes(mod);
                   const isPreset = isProfessional && presetModules.includes(mod);
                   const isOptionalAddon = mod === "Maintenance Requests";
+
+                  if (editingModules) {
+                    // In edit mode
+                    const checked = moduleEdits[mod] ?? false;
+                    // For professional: preset modules are locked (shown checked), only optional addons and non-preset are editable
+                    const isLocked = isProfessional && isPreset && !isOptionalAddon;
+                    return (
+                      <div key={mod} className={`flex items-center gap-3 rounded-lg border p-3 ${checked ? "border-primary/30 bg-primary/5" : "border-border/60"}`}>
+                        <Checkbox
+                          checked={isLocked ? true : checked}
+                          disabled={isLocked}
+                          onCheckedChange={(v) => setModuleEdits(prev => ({ ...prev, [mod]: !!v }))}
+                          className="data-[state=checked]:bg-primary"
+                        />
+                        <div>
+                          <span className="text-sm font-medium">{mod}</span>
+                          {isLocked && <p className="text-[10px] text-muted-foreground">Included in {licenseVariant}</p>}
+                          {isOptionalAddon && <p className="text-[10px] text-muted-foreground">Optional add-on</p>}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // View mode
+                  const isActive = activeModuleNames.includes(mod) || isPreset;
                   return (
                     <div key={mod} className={`flex items-center gap-3 rounded-lg border p-3 ${isActive ? "border-primary/30 bg-primary/5" : "border-border/60"}`}>
-                      <Checkbox checked={isActive} disabled={isPreset && !isOptionalAddon} className="data-[state=checked]:bg-primary" />
+                      <Checkbox checked={isActive} disabled className="data-[state=checked]:bg-primary" />
                       <div>
                         <span className="text-sm font-medium">{mod}</span>
-                        {isPreset && <p className="text-[10px] text-muted-foreground">Included in {licenseType}</p>}
+                        {isPreset && <p className="text-[10px] text-muted-foreground">Included in {licenseVariant}</p>}
                         {isOptionalAddon && <p className="text-[10px] text-muted-foreground">Optional add-on</p>}
                       </div>
                     </div>
@@ -859,26 +999,16 @@ export default function ClientDetail() {
           <DialogHeader><DialogTitle>Add License</DialogTitle></DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">License Type *</Label>
-                <Select value={licenseForm.product || ""} onValueChange={handleLicFormProductChange}>
-                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select license type..." /></SelectTrigger>
-                  <SelectContent>
-                    {LICENSE_TYPE_OPTIONS.map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} />
+              {renderLicenseFamilyVariantFields(licenseForm, setLicenseForm)}
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} />
               <div>
                 <Label className="text-xs">Deployment</Label>
                 <Select
                   value={licenseForm.database_type || "On-Premise"}
                   onValueChange={v => setLicenseForm(f => ({...f, database_type: v}))}
-                  disabled={licenseForm.product?.startsWith("Professional")}
+                  disabled={licenseForm._family === "Professional"}
                 >
                   <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -887,6 +1017,8 @@ export default function ClientDetail() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Periodicity</Label>
                 <Select value={licenseForm.periodicity || "Annual"} onValueChange={v => setLicenseForm(f => ({...f, periodicity: v}))}>
@@ -899,6 +1031,7 @@ export default function ClientDetail() {
                   </SelectContent>
                 </Select>
               </div>
+              <div /> {/* spacer */}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <EditField label="Start Date" value={licenseForm.license_start_date || ""} onChange={v => setLicenseForm(f => ({...f, license_start_date: v}))} type="date" />
