@@ -265,12 +265,34 @@ export default function LeadDetail() {
         </CardContent>
       </Card>
 
+      {/* Conversion Status */}
+      {isConverted && (
+        <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+              <CheckCircle2 className="h-5 w-5" />
+              <span className="font-medium">Converted to Pipeline Opportunity</span>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => navigate(`/deals/${(lead as any).converted_to_deal_id}`)}>
+              <ArrowRight className="h-4 w-4 mr-1" />
+              View Opportunity
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={!dirty || updateLead.isPending}>
           <Save className="h-4 w-4 mr-1" />
           Save Changes
         </Button>
+        {canConvert && (
+          <Button variant="default" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowConvert(true)}>
+            <ArrowRight className="h-4 w-4 mr-1" />
+            Convert to Opportunity
+          </Button>
+        )}
         {isAdmin && (
           <Button variant="destructive" onClick={handleDelete} disabled={deleteLead.isPending}>
             <Trash2 className="h-4 w-4 mr-1" />
@@ -278,6 +300,15 @@ export default function LeadDetail() {
           </Button>
         )}
       </div>
+
+      {/* Convert Dialog */}
+      {lead && (
+        <ConvertToOpportunityDialog
+          open={showConvert}
+          onOpenChange={setShowConvert}
+          lead={lead}
+        />
+      )}
     </div>
   );
 }
