@@ -13,35 +13,40 @@ export default function ResetPassword() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setIsRecovery(true);
-        setChecking(false);
-      }
-    });
-
-    // Check hash for type=recovery or type=invite
+    // Check hash fragment for token type
     const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setIsRecovery(true);
-    }
-    if (hash.includes("type=invite")) {
-      setIsInvite(true);
-      setIsRecovery(true); // Treat invite like recovery (same password-set flow)
-    }
+    const hashParams = new URLSearchParams(hash.replace("#", ""));
+    const hashType = hashParams.get("type");
+    const accessToken = hashParams.get("access_token");
 
-    // Also check URL params (Supabase sometimes uses query params)
-    const params = new URLSearchParams(window.location.search);
-    const type = params.get("type");
-    if (type === "invite") {
+    // Check query params as fallback
+    const searchParams = new URLSearchParams(window.location.search);
+    const queryType = searchParams.get("type");
+
+    const type = hashType || queryType;
+
+    if (type === "invite" || type === "signup") {
       setIsInvite(true);
       setIsRecovery(true);
     }
     if (type === "recovery") {
       setIsRecovery(true);
     }
-    
-    const timer = setTimeout(() => setChecking(false), 2000);
+
+    // If we have an access_token in the hash, Supabase will auto-set the session
+    if (accessToken) {
+      setIsRecovery(true);
+    }
+
+    // Listen for auth state changes (Supabase auto-processes the token)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+        setIsRecovery(true);
+        setChecking(false);
+      }
+    });
+
+    const timer = setTimeout(() => setChecking(false), 3000);
 
     return () => {
       subscription.unsubscribe();
@@ -65,7 +70,7 @@ export default function ResetPassword() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
-      // Update invitation_status to active if this was an invite
+      // Update invitation_status to active
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
@@ -76,10 +81,10 @@ export default function ResetPassword() {
 
       toast.success(
         isInvite
-          ? "Password set successfully! Welcome to PartnerOS."
-          : "Password updated successfully. You can now sign in."
+          ? "Password set successfully! Welcome to ManWinWin PartnerOS."
+          : "Password updated successfully."
       );
-      setTimeout(() => navigate("/"), 2000);
+      setTimeout(() => navigate("/dashboard"), 1500);
     } catch (error: any) {
       toast.error(error.message || "Failed to update password");
     } finally {
@@ -104,7 +109,7 @@ export default function ResetPassword() {
           </div>
           <h1 className="text-xl font-bold text-foreground">Invalid or Expired Link</h1>
           <p className="text-sm text-muted-foreground">
-            This link is invalid or has expired. Please request a new one from your administrator.
+            This invitation link is invalid or has expired. Please contact your administrator to request a new invitation.
           </p>
           <button
             onClick={() => navigate("/auth")}
@@ -125,11 +130,11 @@ export default function ResetPassword() {
             <span className="text-primary-foreground font-bold text-lg">M</span>
           </div>
           <h1 className="text-xl font-bold text-foreground">
-            {isInvite ? "Welcome to PartnerOS" : "Set New Password"}
+            {isInvite ? "Welcome to ManWinWin PartnerOS" : "Set New Password"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {isInvite
-              ? "Set your password to activate your account"
+              ? "Set your password to activate your account and access the partner platform"
               : "Enter your new password below"}
           </p>
         </div>
@@ -166,7 +171,7 @@ export default function ResetPassword() {
             disabled={loading}
             className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {loading ? "Setting up..." : isInvite ? "Set Password & Activate" : "Update Password"}
+            {loading ? "Setting up..." : isInvite ? "Set Password & Access Platform" : "Update Password"}
           </button>
         </form>
       </div>
