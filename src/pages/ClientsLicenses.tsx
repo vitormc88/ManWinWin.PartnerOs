@@ -233,7 +233,7 @@ export default function ClientsLicenses() {
                   <TableCell className="text-xs text-muted-foreground">{c.sector}</TableCell>
                   <TableCell><Badge variant="secondary" className="text-xs font-normal">{getLicenseDisplay(c.license_type)}</Badge></TableCell>
                   <TableCell className="text-xs tabular-nums">{c.current_version}</TableCell>
-                  <TableCell><Badge variant={c.status === "Active" ? "default" : "secondary"}>{c.status}</Badge></TableCell>
+                  <TableCell><Badge variant={c.status === "Active" ? "success" : c.status === "Archived" ? "ghost" : "secondary"}>{c.status}</Badge></TableCell>
                 </TableRow>
               ))}
             </TableBody>
