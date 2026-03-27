@@ -207,7 +207,7 @@ export default function DealDetail() {
       <Tabs defaultValue="overview" className="animate-reveal-up" style={{ animationDelay: "120ms" }}>
         <TabsList className="w-full justify-start bg-secondary/50 rounded-lg">
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks ({tasks.length})</TabsTrigger>
+          <TabsTrigger value="tasks">Tasks ({dealTasks.length})</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
           <TabsTrigger value="communication">Communication ({activities.length})</TabsTrigger>
         </TabsList>
@@ -397,29 +397,11 @@ export default function DealDetail() {
 
         {/* ───── Tasks ───── */}
         <TabsContent value="tasks" className="mt-4">
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-4 border-b flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-foreground">Tasks</h3>
-              <Button size="sm" variant="outline" onClick={() => setShowAddTask(true)}><Plus className="h-3.5 w-3.5 mr-1" />Add Task</Button>
-            </div>
-            <div className="divide-y">
-              {tasks.map(task => (
-                <div key={task.id} className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors group">
-                  <button onClick={() => toggleTask(task.id, !!task.is_completed)} className="shrink-0">
-                    {task.is_completed ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${task.is_completed ? "line-through text-muted-foreground" : "text-foreground"}`}>{task.title}</p>
-                    <p className="text-[11px] text-muted-foreground">{task.assigned_to || "Unassigned"} · Due {task.due_date ? new Date(task.due_date).toLocaleDateString("en-GB") : "—"}</p>
-                  </div>
-                  {!task.is_completed && task.due_date && new Date(task.due_date) < new Date() && <Badge variant="destructive" className="text-[10px]">Overdue</Badge>}
-                  <button onClick={() => startEditTask(task)} className="text-muted-foreground transition-colors hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => deleteTask(task.id)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-                </div>
-              ))}
-              {tasks.length === 0 && <div className="px-4 py-8 text-center text-sm text-muted-foreground">No tasks yet</div>}
-            </div>
-          </div>
+          <DealTaskList
+            dealId={deal.id}
+            dealCompanyName={deal.company_name}
+            linkedPartnerId={deal.partner_id || null}
+          />
         </TabsContent>
 
         {/* ───── Contacts ───── */}
@@ -490,64 +472,6 @@ export default function DealDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* ─── Add Task Dialog ─── */}
-      <Dialog open={showAddTask} onOpenChange={setShowAddTask}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add Task</DialogTitle></DialogHeader>
-          <div className="space-y-3 mt-2">
-            <div><Label>Title *</Label><Input value={taskForm.title} onChange={e => setTaskForm(f => ({ ...f, title: e.target.value }))} /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Assigned To</Label>
-                <TaskAssigneeCombobox
-                  value={taskForm.assigned_to}
-                  onChange={(value) => setTaskForm(f => ({ ...f, assigned_to: value }))}
-                  partnerUsers={taskPartnerId ? partnerUsers : []}
-                  hqUsers={hqUsers}
-                />
-              </div>
-              <div><Label>Due Date</Label><Input type="date" value={taskForm.due_date} onChange={e => setTaskForm(f => ({ ...f, due_date: e.target.value }))} /></div>
-            </div>
-            <div><Label>Description</Label><Textarea value={taskForm.description} onChange={e => setTaskForm(f => ({ ...f, description: e.target.value }))} rows={2} /></div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowAddTask(false)}>Cancel</Button>
-              <Button onClick={addTask}>Add Task</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showEditTask} onOpenChange={setShowEditTask}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Edit Task</DialogTitle></DialogHeader>
-          {editingTask && (
-            <div className="space-y-3 mt-2">
-              <div><Label>Title *</Label><Input value={editingTask.title} onChange={e => setEditingTask((current: any) => ({ ...current, title: e.target.value }))} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>Assigned To</Label>
-                  <TaskAssigneeCombobox
-                    value={editingTask.assigned_to}
-                    onChange={(value) => setEditingTask((current: any) => ({ ...current, assigned_to: value }))}
-                    partnerUsers={taskPartnerId ? partnerUsers : []}
-                    hqUsers={hqUsers}
-                  />
-                </div>
-                <div><Label>Due Date</Label><Input type="date" value={editingTask.due_date || ""} onChange={e => setEditingTask((current: any) => ({ ...current, due_date: e.target.value }))} /></div>
-              </div>
-              <div><Label>Description</Label><Textarea value={editingTask.description || ""} onChange={e => setEditingTask((current: any) => ({ ...current, description: e.target.value }))} rows={2} /></div>
-              <div className="flex justify-between gap-2">
-                <Button variant="destructive" onClick={() => deleteTask(editingTask.id)}><Trash2 className="mr-1 h-3.5 w-3.5" />Delete</Button>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setShowEditTask(false)}>Cancel</Button>
-                  <Button onClick={saveTaskEdit}>Save</Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       {/* ─── Add Contact Dialog ─── */}
       <Dialog open={showAddContact} onOpenChange={setShowAddContact}>
         <DialogContent className="max-w-md">
@@ -603,76 +527,5 @@ export default function DealDetail() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-type AssignableUser = {
-  id: string;
-  full_name: string | null;
-  email: string | null;
-};
-
-function TaskAssigneeCombobox({
-  value,
-  onChange,
-  partnerUsers,
-  hqUsers,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  partnerUsers: AssignableUser[];
-  hqUsers: AssignableUser[];
-}) {
-  const [open, setOpen] = useState(false);
-  const selectedUser = [...partnerUsers, ...hqUsers].find((user) => user.id === value);
-
-  const renderGroup = (label: string, users: AssignableUser[]) => {
-    if (users.length === 0) return null;
-
-    return (
-      <CommandGroup heading={label}>
-        {users.map((user) => {
-          const displayName = user.full_name || user.email || "Unnamed";
-
-          return (
-            <CommandItem
-              key={user.id}
-              value={`${displayName} ${user.email || ""}`}
-              onSelect={() => {
-                onChange(user.id);
-                setOpen(false);
-              }}
-            >
-              <Check className={cn("mr-2 h-4 w-4", value === user.id ? "opacity-100" : "opacity-0")} />
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate">{displayName}</span>
-                {user.email && <span className="truncate text-xs text-muted-foreground">{user.email}</span>}
-              </div>
-            </CommandItem>
-          );
-        })}
-      </CommandGroup>
-    );
-  };
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className={cn("mt-1 w-full justify-between font-normal", !selectedUser && "text-muted-foreground")}>
-          {selectedUser ? selectedUser.full_name || selectedUser.email || "Unnamed" : "Select user..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[320px] p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search users..." />
-          <CommandList>
-            <CommandEmpty>No users found.</CommandEmpty>
-            {renderGroup("Partner Users", partnerUsers)}
-            {renderGroup("HQ Users", hqUsers)}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
   );
 }
