@@ -67,9 +67,6 @@ export default function DealDetail() {
   const [showAddActivity, setShowAddActivity] = useState(false);
   const [activityForm, setActivityForm] = useState({ activity_type: "note", subject: "", description: "", performed_by: "" });
 
-  if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
-  if (!deal) return <div className="p-8 text-center text-muted-foreground">Deal not found</div>;
-
   const startEdit = () => {
     setEditForm({
       company_name: deal.company_name,
@@ -255,6 +252,9 @@ export default function DealDetail() {
     if (type === "meeting") return <Calendar className="h-3.5 w-3.5 text-emerald-500" />;
     return <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />;
   };
+
+  if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  if (!deal) return <div className="p-8 text-center text-muted-foreground">Deal not found</div>;
 
   const stageIdx = PIPELINE_STAGES.findIndex(s => s.key === deal.stage);
 
