@@ -550,10 +550,11 @@ export default function ClientDetail() {
         </TabsList>
 
         {/* ═══════════════════ OVERVIEW TAB ═══════════════════ */}
-        <TabsContent value="overview" className="space-y-4 mt-4">
+        <TabsContent value="overview" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-            {/* Client Info */}
-            <Card className="border-border/60 shadow-sm lg:col-span-2">
+            {/* Left column: Client Info + Contacts */}
+            <div className="lg:col-span-2 space-y-4">
+            <Card className="border-border/60 shadow-sm">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-semibold">Client Information</CardTitle>
                 {!editingClient && <Button variant="ghost" size="sm" onClick={startEditClient}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>}
@@ -610,8 +611,41 @@ export default function ClientDetail() {
               </CardContent>
             </Card>
 
+          {/* Contacts */}
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Contacts ({contacts.length})</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setShowAddContact(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
+            </CardHeader>
+            <CardContent>
+              {contacts.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">No contacts. <button onClick={() => setShowAddContact(true)} className="text-primary hover:underline">Add first contact</button></p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {contacts.map(ct => (
+                    <div key={ct.id} className="rounded-lg border border-border/60 p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-sm">{ct.contact_name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">{ct.role_function}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={async () => { try { await deleteContact.mutateAsync({ id: ct.id, clientId: client.id }); toast.success("Contact removed"); } catch { toast.error("Failed"); } }}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        {ct.phone && <span>📞 {ct.phone}</span>}
+                        {ct.mobile && <span>📱 {ct.mobile}</span>}
+                        {ct.email && <span>✉️ {ct.email}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          </div>
+
             {/* Right column: License Summary + Renewal + Flags */}
-            <div className="space-y-5">
+            <div className="space-y-4">
               {/* License Summary */}
               <Card className="border-border/60 shadow-sm">
                 <CardHeader className="pb-2">
@@ -725,38 +759,6 @@ export default function ClientDetail() {
               </Card>
             </div>
           </div>
-
-          {/* Contacts */}
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="pb-3 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2"><Users className="h-4 w-4" /> Contacts ({contacts.length})</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setShowAddContact(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
-            </CardHeader>
-            <CardContent>
-              {contacts.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">No contacts. <button onClick={() => setShowAddContact(true)} className="text-primary hover:underline">Add first contact</button></p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {contacts.map(ct => (
-                    <div key={ct.id} className="rounded-lg border border-border/60 p-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-sm">{ct.contact_name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">{ct.role_function}</span>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={async () => { try { await deleteContact.mutateAsync({ id: ct.id, clientId: client.id }); toast.success("Contact removed"); } catch { toast.error("Failed"); } }}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        {ct.phone && <span>📞 {ct.phone}</span>}
-                        {ct.mobile && <span>📱 {ct.mobile}</span>}
-                        {ct.email && <span>✉️ {ct.email}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </TabsContent>
 
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}
