@@ -2,58 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 20% 10%;
+    /* ManWinWin Brand System */
+    --background: 210 14% 97%;
+    --foreground: 207 15% 26%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 207 15% 26%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
+    --popover-foreground: 207 15% 26%;
 
-    --primary: 174 62% 34%;
+    /* Primary: ManWinWin Red #F8223C */
+    --primary: 353 94% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 18% 94%;
-    --secondary-foreground: 220 20% 20%;
+    --secondary: 207 12% 94%;
+    --secondary-foreground: 207 15% 26%;
 
-    --muted: 210 16% 93%;
-    --muted-foreground: 220 10% 46%;
+    --muted: 207 10% 93%;
+    --muted-foreground: 207 16% 57%;
 
-    --accent: 174 50% 92%;
-    --accent-foreground: 174 62% 24%;
+    --accent: 353 90% 96%;
+    --accent-foreground: 353 94% 45%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 353 94% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 90%;
-    --input: 214 20% 90%;
-    --ring: 174 62% 34%;
+    --border: 207 16% 90%;
+    --input: 207 16% 90%;
+    --ring: 353 94% 55%;
 
     --radius: 0.5rem;
 
-    /* Custom tokens */
-    --success: 152 60% 40%;
+    /* Status colors (limited use) */
+    --success: 156 48% 60%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-    --info: 210 80% 52%;
+    --warning: 45 100% 73%;
+    --warning-foreground: 207 15% 26%;
+    --info: 215 72% 68%;
     --info-foreground: 0 0% 100%;
 
-    /* Sidebar */
-    --sidebar-background: 220 25% 11%;
-    --sidebar-foreground: 220 10% 70%;
-    --sidebar-primary: 174 62% 48%;
+    /* Sidebar: ManWinWin Dark #39444C */
+    --sidebar-background: 207 15% 26%;
+    --sidebar-foreground: 207 12% 78%;
+    --sidebar-primary: 353 94% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 16%;
-    --sidebar-accent-foreground: 210 15% 90%;
-    --sidebar-border: 220 18% 18%;
-    --sidebar-ring: 174 62% 48%;
-    --sidebar-muted: 220 15% 40%;
+    --sidebar-accent: 207 14% 32%;
+    --sidebar-accent-foreground: 210 12% 92%;
+    --sidebar-border: 207 12% 22%;
+    --sidebar-ring: 353 94% 55%;
+    --sidebar-muted: 207 16% 57%;
   }
 }
 
@@ -64,7 +66,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
 

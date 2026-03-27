@@ -130,7 +130,7 @@ export function AppSidebar() {
       <SidebarHeader className="px-3 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-sm shrink-0">
+            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
               M
             </div>
             {!collapsed && (
@@ -196,7 +196,7 @@ export function AppSidebar() {
         </SidebarMenu>
         {!collapsed && (
           <div className="mt-2 flex items-center gap-2.5 px-3 py-2 rounded-md bg-sidebar-accent">
-            <div className="h-7 w-7 rounded-full bg-sidebar-primary flex items-center justify-center text-[11px] font-semibold text-sidebar-primary-foreground shrink-0">
+            <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center text-[11px] font-semibold text-primary-foreground shrink-0">
               {(profile?.full_name || "U").slice(0, 2).toUpperCase()}
             </div>
             <div className="flex flex-col min-w-0 flex-1">
