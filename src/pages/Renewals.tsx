@@ -9,20 +9,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const statusColors: Record<string, string> = {
-  "Upcoming": "bg-blue-50 text-blue-700 border-blue-200",
-  "Due Soon": "bg-amber-50 text-amber-700 border-amber-200",
+  "Upcoming": "bg-info/10 text-info border-info/20",
+  "Due Soon": "bg-warning/15 text-warning-foreground border-warning/30",
   "In Negotiation": "bg-purple-50 text-purple-700 border-purple-200",
-  "Quoted": "bg-sky-50 text-sky-700 border-sky-200",
-  "Won": "bg-emerald-50 text-emerald-700 border-emerald-200",
-  "Lost": "bg-red-50 text-red-700 border-red-200",
-  "Expired": "bg-gray-100 text-gray-600 border-gray-200",
+  "Quoted": "bg-info/10 text-info border-info/20",
+  "Won": "bg-success/10 text-success border-success/20",
+  "Lost": "bg-destructive/10 text-destructive border-destructive/20",
+  "Expired": "bg-muted text-muted-foreground border-border",
 };
 
 const priorityColors: Record<string, string> = {
-  "Critical": "bg-red-100 text-red-800",
-  "High": "bg-orange-100 text-orange-800",
-  "Medium": "bg-yellow-100 text-yellow-800",
-  "Low": "bg-green-100 text-green-800",
+  "Critical": "bg-destructive/10 text-destructive",
+  "High": "bg-warning/15 text-warning-foreground",
+  "Medium": "bg-info/10 text-info",
+  "Low": "bg-success/10 text-success",
 };
 
 export default function Renewals() {

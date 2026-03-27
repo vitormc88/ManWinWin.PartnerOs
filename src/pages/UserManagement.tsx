@@ -16,14 +16,14 @@ import { toast } from "sonner";
 function StatusBadge({ status }: { status: string | null }) {
   if (status === "active") {
     return (
-      <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
+      <Badge variant="default" className="bg-success/10 text-success border-success/20">
         Active
       </Badge>
     );
   }
   if (status === "pending") {
     return (
-      <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+      <Badge variant="secondary" className="bg-warning/15 text-warning-foreground border-warning/30">
         Pending
       </Badge>
     );

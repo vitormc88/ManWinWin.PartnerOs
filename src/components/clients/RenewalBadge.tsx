@@ -2,18 +2,18 @@ import { type RenewalStatus, getRenewalLabel } from "@/data/clients-mock-data";
 import { cn } from "@/lib/utils";
 
 const statusStyles: Record<RenewalStatus, string> = {
-  green: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  yellow: "bg-amber-50 text-amber-700 border-amber-200",
-  orange: "bg-orange-50 text-orange-700 border-orange-200",
-  red: "bg-red-50 text-red-700 border-red-200",
+  green: "bg-success/10 text-success border-success/20",
+  yellow: "bg-warning/15 text-warning-foreground border-warning/30",
+  orange: "bg-warning/20 text-warning-foreground border-warning/40",
+  red: "bg-destructive/10 text-destructive border-destructive/20",
   grey: "bg-muted text-muted-foreground border-border",
 };
 
 const dotStyles: Record<RenewalStatus, string> = {
-  green: "bg-emerald-500",
-  yellow: "bg-amber-500",
-  orange: "bg-orange-500",
-  red: "bg-red-500",
+  green: "bg-success",
+  yellow: "bg-warning",
+  orange: "bg-warning",
+  red: "bg-destructive",
   grey: "bg-muted-foreground/50",
 };
 
