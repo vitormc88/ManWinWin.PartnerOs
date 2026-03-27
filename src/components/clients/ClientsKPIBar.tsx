@@ -22,13 +22,13 @@ export function ClientsKPIBar({ active, total, premium, totalValue, renewals30, 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
       {kpis.map((kpi) => (
-        <Card key={kpi.label} className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
+        <Card key={kpi.label} className="border shadow-md hover:shadow-lg transition-shadow">
           <CardContent className="p-4 flex items-start gap-3">
             <div className={`p-2 rounded-lg bg-muted/60 ${kpi.color}`}>
               <kpi.icon className="h-4 w-4" />
             </div>
             <div className="min-w-0">
-              <p className="text-lg font-semibold text-foreground tabular-nums leading-tight">{kpi.value}</p>
+              <p className="text-lg font-extrabold text-foreground tabular-nums leading-tight">{kpi.value}</p>
               <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{kpi.label}</p>
             </div>
           </CardContent>
