@@ -2,22 +2,15 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDeals } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
-import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { GripVertical, Search, TrendingUp, Target, AlertTriangle, Trophy, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { CountryCombobox } from "@/components/clients/CountryCombobox";
-import { SectorSelect } from "@/components/clients/SectorSelect";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
+import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
