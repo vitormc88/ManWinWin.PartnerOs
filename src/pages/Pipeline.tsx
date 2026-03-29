@@ -12,32 +12,6 @@ import { toast } from "sonner";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 
-const JOB_ROLE_OPTIONS = [
-  "Maintenance Manager",
-  "Plant Manager",
-  "General Manager",
-  "IT Manager",
-  "Unknown",
-];
-
-const ASSET_RANGE_OPTIONS = ["1–100", "101–250", "+250"];
-const TEAM_SIZE_OPTIONS = ["1–3", "4 or more", "Unknown"];
-
-const defaultLeadForm = {
-  contact_person_name: "",
-  company_name: "",
-  partner_id: "",
-  assigned_to: "",
-  country: "",
-  lead_source: "Partner (Outbound)",
-  contact_email: "",
-  contact_phone: "",
-  job_role: "",
-  sector: "",
-  asset_range: "",
-  maintenance_team_size: "",
-  notes: "",
-};
 
 export default function Pipeline() {
   const { isHQ, profile } = useAuth();
@@ -45,11 +19,8 @@ export default function Pipeline() {
   const [search, setSearch] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("all");
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ ...defaultLeadForm, partner_id: userPartnerId || "" });
-  const [creating, setCreating] = useState(false);
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
-  const { data: partnerUsers = [] } = usePartnerUsers(form.partner_id || null);
   const queryClient = useQueryClient();
 
   const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
