@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { DollarSign, Users, TrendingUp, Activity, AlertTriangle, RefreshCcw, ArrowRight, Clock, Plus } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
@@ -17,6 +18,12 @@ export default function Dashboard() {
   const { data: renewals = [] } = useRenewals();
   const { data: notifications = [] } = useNotifications();
 
+  const clientMap = useMemo(() => {
+    const m: Record<string, { client_code: string; commercial_name: string; short_name?: string | null }> = {};
+    clients.forEach(c => { m[c.id] = { client_code: c.client_code, commercial_name: c.commercial_name, short_name: c.short_name }; });
+    return m;
+  }, [clients]);
+
   const totalRevenue = partners.reduce((s, p) => s + (Number(p.total_revenue) || 0), 0);
   const totalPipeline = partners.reduce((s, p) => s + (Number(p.pipeline_value) || 0), 0);
   const activePartners = partners.filter((p) => p.status === "Active").length;
@@ -24,16 +31,25 @@ export default function Dashboard() {
   const premiumClients = clients.filter(c => c.is_premium).length;
 
   const now = new Date();
-  const urgentRenewals = renewals.filter(r => {
-    if (r.status === "Won" || r.status === "Lost") return false;
-    if (!r.renewal_date) return false;
-    const days = Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000);
-    return days <= 30;
-  });
-  const overdueRenewals = renewals.filter(r => {
-    if (!r.renewal_date) return false;
-    return new Date(r.renewal_date) < now && r.status !== "Won";
-  });
+
+  // Active (non-terminal) renewals with days calculated
+  const activeRenewals = useMemo(() => renewals
+    .filter((r: any) => r.status !== "Won" && r.status !== "Lost" && r.renewal_date)
+    .map((r: any) => ({
+      ...r,
+      _days: Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000),
+    })), [renewals, now]);
+
+  const urgentRenewals = activeRenewals.filter(r => r._days >= 0 && r._days <= 30);
+  const overdueRenewals = activeRenewals.filter(r => r._days < 0);
+
+  // Exclusive buckets
+  const bucket0_30 = activeRenewals.filter(r => r._days >= 0 && r._days <= 30);
+  const bucket31_60 = activeRenewals.filter(r => r._days >= 31 && r._days <= 60);
+  const bucket61_90 = activeRenewals.filter(r => r._days >= 61 && r._days <= 90);
+
+  const totalDueSoonValue = urgentRenewals.reduce((s: number, r: any) => s + (Number(r.estimated_value) || 0), 0);
+
   const atRiskPartners = partners.filter(p => (p.health_score ?? 50) < 40);
   const unreadNotifs = notifications.filter((n: any) => !n.is_read);
 
@@ -76,21 +92,28 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-reveal-up stagger-2">
         <div className="bg-card rounded-xl border shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground text-sm">Renewals Due Soon</h3>
+            <div>
+              <h3 className="font-semibold text-foreground text-sm">Renewals Due Soon</h3>
+              {totalDueSoonValue > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">Total: €{totalDueSoonValue.toLocaleString()}</p>
+              )}
+            </div>
             <Link to="/renewals" className="text-xs text-primary hover:underline">View all →</Link>
           </div>
           <div className="space-y-2.5">
-            {urgentRenewals.slice(0, 4).map(r => {
-              const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000) : 0;
+            {urgentRenewals.slice(0, 4).map((r: any) => {
+              const client = clientMap[r.client_id];
+              const label = client ? `${client.client_code} — ${client.short_name || client.commercial_name}` : r.client_id.slice(0, 8);
+              const value = Number(r.estimated_value) || 0;
               return (
                 <div key={r.id} className="flex items-center justify-between">
-                  <div className="min-w-0">
-                    <Link to={`/clients/${r.client_id}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate block">{r.client_id.slice(0, 8)}</Link>
-                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}</p>
+                  <div className="min-w-0 flex-1 mr-2">
+                    <Link to={`/clients/${r.client_id}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate block">{label}</Link>
+                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}{value > 0 ? ` · €${value.toLocaleString()}` : ""}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-xs tabular-nums font-semibold ${days < 0 ? "text-destructive" : "text-amber-600"}`}>
-                      {days < 0 ? `${Math.abs(days)}d ago` : `${days}d`}
+                    <span className={`text-xs tabular-nums font-semibold ${r._days < 0 ? "text-destructive" : "text-warning-foreground"}`}>
+                      {r._days < 0 ? `${Math.abs(r._days)}d ago` : `${r._days}d`}
                     </span>
                     <Badge variant="outline" className="text-[10px]">{r.renewal_type}</Badge>
                   </div>
@@ -107,9 +130,9 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: "Next 30 days", value: renewals.filter(r => { if (!r.renewal_date) return false; const d = Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000); return d >= 0 && d <= 30 && r.status !== "Won"; }).length, color: "text-amber-600" },
-              { label: "Next 60 days", value: renewals.filter(r => { if (!r.renewal_date) return false; const d = Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000); return d >= 0 && d <= 60 && r.status !== "Won"; }).length, color: "text-foreground" },
-              { label: "Next 90 days", value: renewals.filter(r => { if (!r.renewal_date) return false; const d = Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000); return d >= 0 && d <= 90 && r.status !== "Won"; }).length, color: "text-foreground" },
+              { label: "0–30 days", value: bucket0_30.length, color: "text-warning-foreground" },
+              { label: "31–60 days", value: bucket31_60.length, color: "text-foreground" },
+              { label: "61–90 days", value: bucket61_90.length, color: "text-foreground" },
               { label: "Overdue", value: overdueRenewals.length, color: "text-destructive" },
             ].map(item => (
               <div key={item.label} className="text-center p-2 rounded-lg bg-secondary/50">
