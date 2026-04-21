@@ -13,8 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Building2, MapPin, User, Calendar, DollarSign, Phone, Mail, MessageSquare, Plus, Pencil, Trash2, Save, X } from "lucide-react";
+import { ArrowLeft, Building2, MapPin, User, Calendar, DollarSign, Phone, Mail, MessageSquare, Plus, Pencil, Trash2, Save, X, FileText } from "lucide-react";
 import { DealTaskList } from "@/components/deals/DealTaskList";
+import { ProposalsTab } from "@/components/proposals/ProposalsTab";
+import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
+import { useLeadProposals } from "@/hooks/useProposals";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -40,7 +43,9 @@ export default function DealDetail() {
   const { data: dealTasks = [] } = useDealTasksEnhanced(id);
   const { data: activities = [] } = useDealActivities(id);
   const { data: partners = [] } = usePartners();
+  const { data: proposals = [] } = useLeadProposals(id);
   const queryClient = useQueryClient();
+  const [showCreateProposal, setShowCreateProposal] = useState(false);
 
   // Editing state
   const [editing, setEditing] = useState(false);
@@ -185,7 +190,16 @@ export default function DealDetail() {
             {deal.assigned_salesperson || "Unassigned"}
           </p>
         </div>
-        {!editing && <Button size="sm" variant="outline" onClick={startEdit}><Pencil className="h-3.5 w-3.5 mr-1.5" />Edit</Button>}
+        {!editing && (
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => setShowCreateProposal(true)}>
+              <FileText className="h-3.5 w-3.5 mr-1.5" />Generate Proposal
+            </Button>
+            <Button size="sm" variant="outline" onClick={startEdit}>
+              <Pencil className="h-3.5 w-3.5 mr-1.5" />Edit
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Stage progress */}
@@ -210,6 +224,7 @@ export default function DealDetail() {
           <TabsTrigger value="tasks">Tasks ({dealTasks.length})</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
           <TabsTrigger value="communication">Communication ({activities.length})</TabsTrigger>
+          <TabsTrigger value="proposals">Proposals ({proposals.length})</TabsTrigger>
         </TabsList>
 
         {/* ───── Overview ───── */}
@@ -470,7 +485,25 @@ export default function DealDetail() {
             </div>
           </div>
         </TabsContent>
+
+        {/* ───── Proposals ───── */}
+        <TabsContent value="proposals" className="mt-4">
+          <ProposalsTab
+            leadId={deal.id}
+            defaultClientName={deal.company_name}
+            defaultCountry={deal.country}
+          />
+        </TabsContent>
       </Tabs>
+
+      {/* ─── Generate Proposal Dialog (triggered by header button) ─── */}
+      <CreateProposalDialog
+        open={showCreateProposal}
+        onOpenChange={setShowCreateProposal}
+        leadId={deal.id}
+        defaultClientName={deal.company_name}
+        defaultCountry={deal.country}
+      />
 
       {/* ─── Add Contact Dialog ─── */}
       <Dialog open={showAddContact} onOpenChange={setShowAddContact}>

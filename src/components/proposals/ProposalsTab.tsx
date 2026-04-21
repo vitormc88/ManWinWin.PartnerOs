@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Trash2, Plus, FileX } from "lucide-react";
-import { useLeadProposals, useDeleteProposal } from "@/hooks/useProposals";
+import { FileText, Download, Trash2, Plus, FileX, Printer, Copy } from "lucide-react";
+import { useLeadProposals, useDeleteProposal, useDuplicateProposal } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
+import { printProposal } from "@/lib/proposal-print";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/proposal-i18n";
 import { toast } from "sonner";
@@ -26,9 +27,10 @@ const statusVariant = (s: string): any => {
 export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Props) {
   const { data: proposals = [], isLoading } = useLeadProposals(leadId);
   const del = useDeleteProposal();
+  const dup = useDuplicateProposal();
   const [showCreate, setShowCreate] = useState(false);
 
-  const reDownload = async (id: string) => {
+  const loadProposalAndItems = async (id: string) => {
     const { data: prop } = await supabase.from("proposals").select("*").eq("id", id).single();
     const { data: items } = await supabase
       .from("proposal_items")
@@ -37,9 +39,30 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
       .order("sort_order");
     if (!prop || !items) {
       toast.error("Could not load proposal");
-      return;
+      return null;
     }
-    await downloadProposalDocx(prop as any, items as any);
+    return { prop, items };
+  };
+
+  const reDownload = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    await downloadProposalDocx(res.prop as any, res.items as any);
+  };
+
+  const printPdf = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    printProposal(res.prop as any, res.items as any);
+  };
+
+  const duplicate = async (id: string) => {
+    try {
+      const created = await dup.mutateAsync(id);
+      toast.success(`Duplicated as v${created.version} (Draft)`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to duplicate");
+    }
   };
 
   return (
@@ -89,8 +112,20 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button size="sm" variant="ghost" onClick={() => reDownload(p.id)}>
+                    <Button size="sm" variant="ghost" onClick={() => printPdf(p.id)} title="Print / Save as PDF">
+                      <Printer className="h-3.5 w-3.5 mr-1" />PDF
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => reDownload(p.id)} title="Download DOCX">
                       <Download className="h-3.5 w-3.5 mr-1" />DOCX
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => duplicate(p.id)}
+                      disabled={dup.isPending}
+                      title="Duplicate as new version"
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-1" />Duplicate
                     </Button>
                     <Button
                       size="icon"
@@ -99,6 +134,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                         if (confirm("Delete this proposal?")) del.mutate(p.id);
                       }}
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      title="Delete"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
