@@ -27,9 +27,10 @@ const statusVariant = (s: string): any => {
 export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Props) {
   const { data: proposals = [], isLoading } = useLeadProposals(leadId);
   const del = useDeleteProposal();
+  const dup = useDuplicateProposal();
   const [showCreate, setShowCreate] = useState(false);
 
-  const reDownload = async (id: string) => {
+  const loadProposalAndItems = async (id: string) => {
     const { data: prop } = await supabase.from("proposals").select("*").eq("id", id).single();
     const { data: items } = await supabase
       .from("proposal_items")
@@ -38,9 +39,30 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
       .order("sort_order");
     if (!prop || !items) {
       toast.error("Could not load proposal");
-      return;
+      return null;
     }
-    await downloadProposalDocx(prop as any, items as any);
+    return { prop, items };
+  };
+
+  const reDownload = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    await downloadProposalDocx(res.prop as any, res.items as any);
+  };
+
+  const printPdf = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    printProposal(res.prop as any, res.items as any);
+  };
+
+  const duplicate = async (id: string) => {
+    try {
+      const created = await dup.mutateAsync(id);
+      toast.success(`Duplicated as v${created.version} (Draft)`);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to duplicate");
+    }
   };
 
   return (
