@@ -112,8 +112,20 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button size="sm" variant="ghost" onClick={() => reDownload(p.id)}>
+                    <Button size="sm" variant="ghost" onClick={() => printPdf(p.id)} title="Print / Save as PDF">
+                      <Printer className="h-3.5 w-3.5 mr-1" />PDF
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => reDownload(p.id)} title="Download DOCX">
                       <Download className="h-3.5 w-3.5 mr-1" />DOCX
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => duplicate(p.id)}
+                      disabled={dup.isPending}
+                      title="Duplicate as new version"
+                    >
+                      <Copy className="h-3.5 w-3.5 mr-1" />Duplicate
                     </Button>
                     <Button
                       size="icon"
@@ -122,6 +134,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                         if (confirm("Delete this proposal?")) del.mutate(p.id);
                       }}
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      title="Delete"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
