@@ -1715,6 +1715,48 @@ export type Database = {
           },
         ]
       }
+      pricing_rules: {
+        Row: {
+          active: boolean
+          category: string
+          code: string
+          created_at: string
+          currency: string
+          id: string
+          label: string
+          notes: string | null
+          unit_price: number
+          unit_type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          category?: string
+          code: string
+          created_at?: string
+          currency?: string
+          id?: string
+          label: string
+          notes?: string | null
+          unit_price?: number
+          unit_type?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          code?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          label?: string
+          notes?: string | null
+          unit_price?: number
+          unit_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1770,6 +1812,220 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_items: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          frequency: string
+          id: string
+          is_override: boolean
+          is_recurring: boolean
+          item_code: string | null
+          item_name: string
+          proposal_id: string
+          qty: number
+          sort_order: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          frequency?: string
+          id?: string
+          is_override?: boolean
+          is_recurring?: boolean
+          item_code?: string | null
+          item_name: string
+          proposal_id: string
+          qty?: number
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          frequency?: string
+          id?: string
+          is_override?: boolean
+          is_recurring?: boolean
+          item_code?: string | null
+          item_name?: string
+          proposal_id?: string
+          qty?: number
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_items_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_templates: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          language: string
+          notes_template: string | null
+          payment_terms: string | null
+          template_file: string | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          language?: string
+          notes_template?: string | null
+          payment_terms?: string | null
+          template_file?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          language?: string
+          notes_template?: string | null
+          payment_terms?: string | null
+          template_file?: string | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      proposals: {
+        Row: {
+          backoffice_work_hours: number | null
+          client_name: string
+          country: string | null
+          created_at: string
+          created_by: string | null
+          discount_amount: number | null
+          discount_pct: number | null
+          docx_url: string | null
+          generated_at: string | null
+          hosting: string
+          id: string
+          implementation_type: string | null
+          include_requests_module: boolean
+          language: string
+          lead_id: string
+          notes: string | null
+          parent_proposal_id: string | null
+          payment_terms: string | null
+          pdf_url: string | null
+          per_diem: number | null
+          plan: number
+          project_name: string | null
+          proposal_date: string
+          service_days: number | null
+          service_hours: number | null
+          services_subtotal: number | null
+          software_subtotal: number | null
+          status: string
+          total_recurring: number | null
+          total_year_1: number | null
+          updated_at: string
+          validity_days: number
+          version: number
+          web_users: number
+        }
+        Insert: {
+          backoffice_work_hours?: number | null
+          client_name: string
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number | null
+          discount_pct?: number | null
+          docx_url?: string | null
+          generated_at?: string | null
+          hosting?: string
+          id?: string
+          implementation_type?: string | null
+          include_requests_module?: boolean
+          language?: string
+          lead_id: string
+          notes?: string | null
+          parent_proposal_id?: string | null
+          payment_terms?: string | null
+          pdf_url?: string | null
+          per_diem?: number | null
+          plan?: number
+          project_name?: string | null
+          proposal_date?: string
+          service_days?: number | null
+          service_hours?: number | null
+          services_subtotal?: number | null
+          software_subtotal?: number | null
+          status?: string
+          total_recurring?: number | null
+          total_year_1?: number | null
+          updated_at?: string
+          validity_days?: number
+          version?: number
+          web_users?: number
+        }
+        Update: {
+          backoffice_work_hours?: number | null
+          client_name?: string
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          discount_amount?: number | null
+          discount_pct?: number | null
+          docx_url?: string | null
+          generated_at?: string | null
+          hosting?: string
+          id?: string
+          implementation_type?: string | null
+          include_requests_module?: boolean
+          language?: string
+          lead_id?: string
+          notes?: string | null
+          parent_proposal_id?: string | null
+          payment_terms?: string | null
+          pdf_url?: string | null
+          per_diem?: number | null
+          plan?: number
+          project_name?: string | null
+          proposal_date?: string
+          service_days?: number | null
+          service_hours?: number | null
+          services_subtotal?: number | null
+          software_subtotal?: number | null
+          status?: string
+          total_recurring?: number | null
+          total_year_1?: number | null
+          updated_at?: string
+          validity_days?: number
+          version?: number
+          web_users?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposals_parent_proposal_id_fkey"
+            columns: ["parent_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
             referencedColumns: ["id"]
           },
         ]
