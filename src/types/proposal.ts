@@ -50,6 +50,9 @@ export interface ProposalItem {
   total: number;
   discount_type?: ProposalLineDiscountType;
   discount_value?: number;
+  gross_total?: number;
+  discount_amount?: number;
+  net_total?: number;
   is_override: boolean;
   is_recurring: boolean;
   sort_order: number;
