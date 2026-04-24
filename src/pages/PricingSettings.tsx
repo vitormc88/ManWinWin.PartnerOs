@@ -84,9 +84,9 @@ export default function PricingSettings() {
   };
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Pricing Rules</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Settings → Pricing Rules</h1>
         <p className="text-sm text-muted-foreground">
           Manage the catalog used by the Proposal Generator. Changes affect future generated proposals only.
         </p>
