@@ -289,8 +289,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       <SelectItem value="EN">English</SelectItem>
                       <SelectItem value="PT">Portuguese</SelectItem>
                       <SelectItem value="ES">Spanish</SelectItem>
+                      <SelectItem value="RO">Romanian (preview)</SelectItem>
+                      <SelectItem value="TH">Thai (preview)</SelectItem>
                     </SelectContent>
                   </Select>
+                  {(language === "RO" || language === "TH") && (
+                    <p className="text-[11px] text-amber-600 mt-1">
+                      Translation incomplete — missing labels will fall back to English.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <Label>Plan</Label>
@@ -389,10 +396,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   <Select value={implType} onValueChange={(v) => setImplType(v as ImplementationType)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Online">Online (default)</SelectItem>
-                      <SelectItem value="Onsite">Onsite</SelectItem>
+                      <SelectItem value="Online">Online Implementation (default)</SelectItem>
                       <SelectItem value="Light Implementation">Light Implementation</SelectItem>
-                      <SelectItem value="RCI Professional">RCI Professional</SelectItem>
+                      <SelectItem value="Onsite">Onsite</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -404,8 +410,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
               </div>
               {implType === "Onsite" && (
                 <div>
-                  <Label>Onsite per diem (€)</Label>
-                  <Input type="number" value={perDiem} onChange={(e) => setPerDiem(Number(e.target.value) || 0)} />
+                  <Label>Onsite days</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={onsiteDays}
+                    onChange={(e) => setOnsiteDays(Math.max(0, Number(e.target.value) || 0))}
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Daily rate is taken from the active onsite pricing rule.
+                  </p>
                 </div>
               )}
               <div className="bg-secondary/30 border rounded-lg p-3">
