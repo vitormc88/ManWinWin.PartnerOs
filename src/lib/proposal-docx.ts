@@ -18,6 +18,7 @@ import {
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 import { computeTotals } from "@/lib/proposal-engine";
+import { getCommercialIncludes, getCommercialItemLabel, getInvestmentSummary } from "@/lib/proposal-commercial";
 import { t, formatEuro } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
 
@@ -174,8 +175,9 @@ export async function generateProposalDocx(
 ): Promise<Blob> {
   const lang = proposal.language;
   const s = t(lang);
-  const totals = computeTotals(items, proposal.discount_pct || 0);
+  const totals = computeTotals(items, proposal.discount_pct || 0, proposal.discount_scope || "none");
   const logoBytes = await loadLogo();
+  const investment = getInvestmentSummary(proposal, items, totals);
 
   const dateStr = new Date(proposal.proposal_date)
     .toLocaleDateString("en-GB")
