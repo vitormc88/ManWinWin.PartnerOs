@@ -15,6 +15,7 @@ import { usePricingRules } from "@/hooks/useProposals";
 import {
   buildDefaultItems,
   computeTotals,
+  enrichProposalItem,
   recomputeItemTotal,
   PLAN_INCLUDES,
   getItemBaseTotal,
@@ -30,7 +31,6 @@ import type {
   ImplementationType,
   ProposalHosting,
   Proposal,
-  ProposalDiscountScope,
   ProposalLineDiscountType,
 } from "@/types/proposal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -111,7 +111,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
     setPaymentTerms(editingProposal.payment_terms || standardPaymentTerms(editingProposal.language));
     setNotes(editingProposal.notes || "");
-    if (editingProposal.items?.length) setItems(editingProposal.items);
+    if (editingProposal.items?.length) {
+      setItems(editingProposal.items);
+      const planItem = editingProposal.items.find((item) => item.item_code === `plan_${editingProposal.plan}_annual`);
+      const requestsItem = editingProposal.items.find((item) => item.item_code === "requests_module");
+      const webItem = editingProposal.items.find((item) => item.item_code === "web_user");
+      setPlanDiscountPct(planItem?.discount_type === "percent" ? Number(planItem.discount_value || 0) : 0);
+      setRequestsDiscountPct(requestsItem?.discount_type === "percent" ? Number(requestsItem.discount_value || 0) : 0);
+      setWebUsersDiscountPct(webItem?.discount_type === "percent" ? Number(webItem.discount_value || 0) : 0);
+    }
   }, [open, editingProposal]);
 
   // Default payment terms in selected language
@@ -135,6 +143,40 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       }),
     );
   }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
+
+  useEffect(() => {
+    setItems((prev) =>
+      prev.map((item) => {
+        let discountValue = 0;
+        let discountType: ProposalLineDiscountType = "none";
+
+        if (item.item_code === `plan_${plan}_annual` && planDiscountPct > 0) {
+          discountType = "percent";
+          discountValue = planDiscountPct;
+        } else if (item.item_code === "requests_module" && requestsDiscountPct > 0) {
+          discountType = "percent";
+          discountValue = requestsDiscountPct;
+        } else if (item.item_code === "web_user" && webUsersDiscountPct > 0) {
+          discountType = "percent";
+          discountValue = webUsersDiscountPct;
+        } else if (
+          (item.item_code === `plan_${plan}_annual` || item.item_code === "requests_module" || item.item_code === "web_user") &&
+          item.discount_type === "percent"
+        ) {
+          discountType = "none";
+          discountValue = 0;
+        } else {
+          return item;
+        }
+
+        if ((item.discount_type || "none") === discountType && Number(item.discount_value || 0) === discountValue) {
+          return item;
+        }
+
+        return { ...item, discount_type: discountType, discount_value: discountValue, is_override: true };
+      }),
+    );
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct]);
 
   const totals = useMemo(
     () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),
