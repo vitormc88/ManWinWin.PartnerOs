@@ -1860,6 +1860,8 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          discount_type: string
+          discount_value: number
           frequency: string
           id: string
           is_override: boolean
@@ -1876,6 +1878,8 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          discount_type?: string
+          discount_value?: number
           frequency?: string
           id?: string
           is_override?: boolean
@@ -1892,6 +1896,8 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          discount_type?: string
+          discount_value?: number
           frequency?: string
           id?: string
           is_override?: boolean
