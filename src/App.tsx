@@ -29,6 +29,7 @@ import IncomingLeads from "@/pages/IncomingLeads";
 import LeadDetail from "@/pages/LeadDetail";
 import UserManagement from "@/pages/UserManagement";
 import ResetPassword from "@/pages/ResetPassword";
+import PricingSettings from "@/pages/PricingSettings";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
