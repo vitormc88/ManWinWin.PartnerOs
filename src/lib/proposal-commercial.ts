@@ -1,0 +1,125 @@
+import type { Proposal, ProposalItem, ProposalDiscountScope, ProposalLanguage, ProposalPlan } from "@/types/proposal";
+import type { ProposalTotals } from "@/lib/proposal-engine";
+import { formatEuro, frequencyLabel, t } from "@/lib/proposal-i18n";
+
+type LocalizedSet = Record<"EN" | "PT" | "ES", string>;
+
+const shortLabels = {
+  maintenanceModule: { EN: "Maintenance & Costs Module", PT: "Módulo de Manutenção & Custos", ES: "Módulo de Mantenimiento y Costos" },
+  stockModule: { EN: "Stock Management Module", PT: "Módulo de Gestão de Stocks", ES: "Módulo de Gestión de Stock" },
+  purchaseOrdersModule: { EN: "Purchase Orders Module", PT: "Módulo de Ordens de Compra", ES: "Módulo de Órdenes de Compra" },
+  pluginImportTool: { EN: "Import Tool Plugin", PT: "Plugin Import Tool", ES: "Plugin Import Tool" },
+  pluginWorkflow: { EN: "Workflow Email Notifications Plugin", PT: "Plugin Workflow / Notificações por e-mail", ES: "Plugin Workflow / Notificaciones por e-mail" },
+  pluginAdvancedReports: { EN: "Advanced Reports Plugin", PT: "Plugin Relatórios Avançados", ES: "Plugin Informes Avanzados" },
+  pluginSLA: { EN: "SLA Plugin", PT: "Plugin SLA", ES: "Plugin SLA" },
+  apiManwinwin: { EN: "API ManWinWin", PT: "API ManWinWin", ES: "API ManWinWin" },
+  backofficeAccess: { EN: "1 BackOffice access", PT: "1 acesso BackOffice", ES: "1 acceso BackOffice" },
+  webAccess: { EN: "1 Web/Mobile access", PT: "1 acesso Web/Mobile", ES: "1 acceso Web/Mobile" },
+  requestsModule: { EN: "Maintenance Requests Module", PT: "Módulo de Pedidos de Manutenção", ES: "Módulo de Solicitudes de Mantenimiento" },
+  additionalWebUsers: { EN: "Additional Web/Mobile users", PT: "Utilizadores Web/Mobile adicionais", ES: "Usuarios Web/Mobile adicionales" },
+  softwareSubtotal: { EN: "Software subtotal", PT: "Subtotal software", ES: "Subtotal software" },
+  servicesSubtotal: { EN: "Services subtotal", PT: "Subtotal serviços", ES: "Subtotal servicios" },
+} satisfies Record<string, LocalizedSet>;
+
+function pick(lang: ProposalLanguage, labels: LocalizedSet) {
+  return labels[(lang === "PT" || lang === "ES" ? lang : "EN") as "EN" | "PT" | "ES"];
+}
+
+export function getCommercialIncludes(plan: ProposalPlan, language: ProposalLanguage, includeRequests: boolean, webUsers: number) {
+  const list = [
+    pick(language, shortLabels.maintenanceModule),
+    ...(plan >= 2 ? [pick(language, shortLabels.stockModule), pick(language, shortLabels.purchaseOrdersModule)] : []),
+    ...(plan === 3
+      ? [
+          pick(language, shortLabels.pluginImportTool),
+          pick(language, shortLabels.pluginWorkflow),
+          pick(language, shortLabels.pluginAdvancedReports),
+          pick(language, shortLabels.pluginSLA),
+          pick(language, shortLabels.apiManwinwin),
+        ]
+      : []),
+    pick(language, shortLabels.backofficeAccess),
+    pick(language, shortLabels.webAccess),
+    ...(includeRequests ? [pick(language, shortLabels.requestsModule)] : []),
+    ...(webUsers > 0 ? [`${pick(language, shortLabels.additionalWebUsers)}: ${webUsers}`] : []),
+  ];
+
+  const optional = includeRequests ? [] : [pick(language, shortLabels.requestsModule)];
+  return { included: list, optional };
+}
+
+export function getCommercialItemLabel(item: ProposalItem, proposal: Proposal) {
+  const lang = proposal.language;
+  switch (item.item_code) {
+    case "plan_1_annual":
+    case "plan_2_annual":
+    case "plan_3_annual":
+      return `ManWinWin Professional — Plan ${proposal.plan} annual license`;
+    case "requests_module":
+      return pick(lang, shortLabels.requestsModule);
+    case "web_user":
+      return `ManWinWin WEB / Mobility additional accesses (×${item.qty})`;
+    case "impl_online_p1":
+    case "impl_online_p2":
+    case "impl_online_p3":
+      return `Online Implementation — Plan ${proposal.plan}`;
+    case "impl_light_p1":
+    case "impl_light_p2":
+    case "impl_light_p3":
+      return `Light Implementation — Plan ${proposal.plan}`;
+    case "impl_requests":
+      return "Maintenance Requests Implementation";
+    case "onsite_per_diem":
+      return `Onsite implementation days (×${item.qty})`;
+    default:
+      return item.item_name;
+  }
+}
+
+export function getCommercialRows(items: ProposalItem[], proposal: Proposal) {
+  const software = items.filter((item) => item.category === "software" || item.category === "addon");
+  const services = items.filter((item) => item.category === "service" || (item.category === "custom" && !item.is_recurring));
+  const recurring = items.filter((item) => item.is_recurring);
+
+  return {
+    software,
+    services,
+    recurring,
+    softwareLines: software.map((item) => ({
+      label: getCommercialItemLabel(item, proposal),
+      value: formatEuro(item.total, proposal.language),
+      suffix: item.is_recurring ? frequencyLabel("yearly", proposal.language) : frequencyLabel(item.frequency, proposal.language),
+    })),
+    serviceLines: services.map((item) => ({
+      label: getCommercialItemLabel(item, proposal),
+      value: formatEuro(item.total, proposal.language),
+      suffix: item.frequency === "one-time" ? "" : frequencyLabel(item.frequency, proposal.language),
+    })),
+    recurringLines: recurring.map((item) => ({
+      label: getCommercialItemLabel(item, proposal),
+      value: formatEuro(item.total, proposal.language),
+      suffix: frequencyLabel("yearly", proposal.language),
+    })),
+  };
+}
+
+export function getDiscountLabel(scope: ProposalDiscountScope, pct: number, language: ProposalLanguage) {
+  const s = t(language);
+  if (scope === "services") return s.servicesDiscountLabel(pct);
+  if (scope === "software") return s.softwareDiscountLabel(pct);
+  if (scope === "total") return s.totalDiscountLabel(pct);
+  return s.noDiscount;
+}
+
+export function getInvestmentSummary(proposal: Proposal, items: ProposalItem[], totals: ProposalTotals) {
+  const lang = proposal.language;
+  const rows = getCommercialRows(items, proposal);
+  return {
+    softwareLines: rows.softwareLines,
+    serviceLines: rows.serviceLines,
+    recurringLines: rows.recurringLines,
+    softwareSubtotalLabel: pick(lang, shortLabels.softwareSubtotal),
+    servicesSubtotalLabel: pick(lang, shortLabels.servicesSubtotal),
+    discountLabel: getDiscountLabel(totals.discountScope, proposal.discount_pct || 0, lang),
+  };
+}
