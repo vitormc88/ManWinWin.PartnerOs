@@ -457,17 +457,15 @@ export async function generateProposalDocx(
 
   /* ----------------------- investment summary table -------------------- */
 
-  const recurringItems = items.filter((i) => i.is_recurring);
-  const oneTimeItems = items.filter((i) => !i.is_recurring);
+  const recurringItems = investment.recurringLines;
 
-  // Year 1: software (recurring) → services (one-time) → discount
-  const y1SoftwareRows = recurringItems.map((i) => ({
-    label: i.item_name,
-    value: formatEuro(i.total, lang),
+  const y1SoftwareRows = investment.softwareLines.map((i) => ({
+    label: i.label,
+    value: `${i.value}${i.suffix ? ` ${i.suffix}` : ""}`,
   }));
-  const y1ServiceRows = oneTimeItems.map((i) => ({
-    label: i.item_name,
-    value: formatEuro(i.total, lang),
+  const y1ServiceRows = investment.serviceLines.map((i) => ({
+    label: i.label,
+    value: `${i.value}${i.suffix ? ` ${i.suffix}` : ""}`,
   }));
 
   const tableRows: TableRow[] = [];
@@ -555,7 +553,7 @@ export async function generateProposalDocx(
   }
   if (totals.discountAmount > 0) {
     pushY1Row([
-      cell(`${s.discount} (${proposal.discount_pct}%)`, { italic: true }),
+      cell(investment.discountLabel, { italic: true }),
       cell(`- ${formatEuro(totals.discountAmount, lang)}`, {
         align: AlignmentType.RIGHT,
         italic: true,
@@ -613,8 +611,8 @@ export async function generateProposalDocx(
 
   recurringItems.forEach((r) =>
     pushY2Row([
-      cell(r.item_name),
-      cell(formatEuro(r.total, lang), { align: AlignmentType.RIGHT }),
+      cell(r.label),
+      cell(`${r.value}${r.suffix ? ` ${r.suffix}` : ""}`, { align: AlignmentType.RIGHT }),
     ]),
   );
   pushY2Row([
