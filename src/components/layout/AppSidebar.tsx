@@ -179,6 +179,20 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
+          {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={isActive("/settings/pricing")}>
+                <NavLink
+                  to="/settings/pricing"
+                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <Tag className="h-[18px] w-[18px] shrink-0" />
+                  {!collapsed && <span>Pricing Rules</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           {canSee("/settings") && (
             <SidebarMenuItem>
               <SidebarMenuButton asChild isActive={isActive("/settings")}>
