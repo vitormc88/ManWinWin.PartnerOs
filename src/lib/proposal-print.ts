@@ -25,8 +25,6 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 
   const row = (it: ProposalItem) => {
     const sectionPct = it.is_recurring ? Number(proposal.software_discount_pct || 0) : Number(proposal.services_discount_pct || 0);
-    const base = Number(it.total) || 0;
-    const discount = Math.max(0, base - (it.is_recurring ? totals.recurringLines?.find?.(() => false) : 0));
     return `
     <tr>
       <td>${esc(getCommercialItemLabel(it, proposal))}</td>
