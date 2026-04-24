@@ -19,7 +19,7 @@ import {
   PLAN_INCLUDES,
   FREQUENCY_LABEL,
 } from "@/lib/proposal-engine";
-import { t, formatEuro } from "@/lib/proposal-i18n";
+import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import type {
   ProposalLanguage,
@@ -65,13 +65,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
 
   // Step 3
   const [implType, setImplType] = useState<ImplementationType>("Online");
-  const [perDiem, setPerDiem] = useState(0);
+  const [onsiteDays, setOnsiteDays] = useState(0);
   const [discountPct, setDiscountPct] = useState(0);
 
   // Step 4
-  const [paymentTerms, setPaymentTerms] = useState(
-    "50% invoice on the date of award, payment in full. 50% invoice on the date of installation, payment within 30 days.",
-  );
+  const [paymentTerms, setPaymentTerms] = useState("");
   const [notes, setNotes] = useState("");
 
   // Items (editable)
@@ -85,6 +83,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     }
   }, [open, defaultClientName, defaultCountry]);
 
+  // Default payment terms in selected language
+  useEffect(() => {
+    setPaymentTerms(standardPaymentTerms(language));
+  }, [language]);
+
   // Auto-rebuild items whenever plan/services/options change
   useEffect(() => {
     if (rules.length === 0) return;
@@ -95,10 +98,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         implementationType: implType,
         includeRequestsModule: includeRequests,
         webUsers,
-        perDiem,
+        onsiteDays,
+        language,
       }),
     );
-  }, [rules, plan, implType, includeRequests, webUsers, perDiem]);
+  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
 
   const totals = useMemo(() => computeTotals(items, discountPct), [items, discountPct]);
   const i18n = t(language);
@@ -157,7 +161,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         payment_terms: paymentTerms,
         notes: notes || null,
         implementation_type: implType,
-        per_diem: perDiem,
+        per_diem: 0,
         discount_pct: discountPct,
         include_requests_module: includeRequests,
         web_users: webUsers,

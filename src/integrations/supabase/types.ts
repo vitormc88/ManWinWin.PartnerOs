@@ -1718,39 +1718,78 @@ export type Database = {
       pricing_rules: {
         Row: {
           active: boolean
+          applicable_plan: string | null
+          applies_to_license_total: boolean
+          billing_frequency: string | null
+          can_override: boolean
           category: string
           code: string
           created_at: string
           currency: string
+          description: string | null
           id: string
+          included_by_default: boolean
           label: string
+          license_model: string | null
           notes: string | null
+          optional: boolean
+          product_family: string
+          region: string
+          sort_order: number
+          support_calculation_type: string | null
+          support_percentage: number | null
           unit_price: number
           unit_type: string
           updated_at: string
         }
         Insert: {
           active?: boolean
+          applicable_plan?: string | null
+          applies_to_license_total?: boolean
+          billing_frequency?: string | null
+          can_override?: boolean
           category?: string
           code: string
           created_at?: string
           currency?: string
+          description?: string | null
           id?: string
+          included_by_default?: boolean
           label: string
+          license_model?: string | null
           notes?: string | null
+          optional?: boolean
+          product_family?: string
+          region?: string
+          sort_order?: number
+          support_calculation_type?: string | null
+          support_percentage?: number | null
           unit_price?: number
           unit_type?: string
           updated_at?: string
         }
         Update: {
           active?: boolean
+          applicable_plan?: string | null
+          applies_to_license_total?: boolean
+          billing_frequency?: string | null
+          can_override?: boolean
           category?: string
           code?: string
           created_at?: string
           currency?: string
+          description?: string | null
           id?: string
+          included_by_default?: boolean
           label?: string
+          license_model?: string | null
           notes?: string | null
+          optional?: boolean
+          product_family?: string
+          region?: string
+          sort_order?: number
+          support_calculation_type?: string | null
+          support_percentage?: number | null
           unit_price?: number
           unit_type?: string
           updated_at?: string

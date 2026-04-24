@@ -1,8 +1,12 @@
-export type ProposalLanguage = "EN" | "PT" | "ES";
+export type ProposalLanguage = "EN" | "PT" | "ES" | "RO" | "TH";
 export type ProposalPlan = 1 | 2 | 3;
 export type ProposalStatus = "Draft" | "Ready" | "Sent" | "Won" | "Lost";
 export type ProposalHosting = "SaaS" | "On-Premise";
-export type ImplementationType = "Online" | "Onsite" | "RCI Professional" | "Light Implementation";
+/**
+ * Implementation flavours. "RCI Professional" is reserved for Business proposals
+ * (not exposed in the Professional UI yet).
+ */
+export type ImplementationType = "Online" | "Onsite" | "Light Implementation" | "RCI Professional";
 export type ItemCategory = "software" | "service" | "addon" | "custom";
 export type ItemFrequency = "monthly" | "yearly" | "one-time" | "per-user-month" | "per-hour";
 

@@ -4,6 +4,7 @@ interface Strings {
   investmentProposal: string;
   forImplementation: string;
   professional: string;
+  /** "ManWinWin Professional annual license — Plan X with:" */
   annualLicenseDescription: (plan: number) => string;
   with: string;
   backofficeAccess: string;
@@ -11,6 +12,14 @@ interface Strings {
   includes: string;
   optionalNotIncluded: string;
   maintenanceModule: string;
+  stockModule: string;
+  purchaseOrdersModule: string;
+  pluginsLabel: string;
+  pluginImportTool: string;
+  pluginWorkflow: string;
+  pluginAdvancedReports: string;
+  pluginSLA: string;
+  apiManwinwin: string;
   requestsModuleDesc: string;
   webAdditionalDesc: string;
   annualLicenseHeading: (plan: number, hosting: string) => string;
@@ -35,6 +44,7 @@ interface Strings {
   workRequestsModule: string;
   perYear: string;
   perUserMonth: string;
+  /** "BILLING AND PAYMENT CONDITIONS" */
   billingHeader: string;
   standardTerms: string;
   paymentLine1: string;
@@ -51,15 +61,32 @@ interface Strings {
   restricted: string;
   assumingSameYear1: string;
   perDiem: string;
+  onsiteDays: string;
   discount: string;
   notes: string;
+  /** Table column labels (PDF) */
+  colItem: string;
+  colQty: string;
+  colUnit: string;
+  colTotal: string;
+  colFrequency: string;
+  /** Misc */
+  client: string;
+  date: string;
+  project: string;
+  validity: string;
+  country: string;
+  versionLabel: string;
+  daysWord: string;
+  /** Language fallback warning */
+  langFallbackWarning: (target: string) => string;
 }
 
 const EN: Strings = {
   investmentProposal: "Investment Proposal",
   forImplementation: "FOR THE IMPLEMENTATION PROJECT OF THE MANWINWIN MAINTENANCE SOFTWARE",
   professional: "ManWinWin Professional",
-  annualLicenseDescription: (plan) => `ManWinWin Professional annual license ${plan} with:`,
+  annualLicenseDescription: (plan) => `ManWinWin Professional annual license — Plan ${plan} with:`,
   with: "with",
   backofficeAccess: "1 (one) BackOffice access (simultaneous – allows multiple users)",
   webAccess: "1 (one) ManWinWin WEB / Mobility access (possibility to add more)",
@@ -67,6 +94,14 @@ const EN: Strings = {
   optionalNotIncluded: "Optional (Not Included):",
   maintenanceModule:
     "Maintenance & Costs Module, which will allow you to manage assets, work orders, costs, KPIs and reports in an integrated multilingual interface.",
+  stockModule: "Stock Management Module — full inventory control linked to maintenance.",
+  purchaseOrdersModule: "Purchase Orders Module — request, approve and track purchasing.",
+  pluginsLabel: "Plugins:",
+  pluginImportTool: "Import Tool — bulk data import.",
+  pluginWorkflow: "Workflow Email Notifications — automated alerts.",
+  pluginAdvancedReports: "Advanced Reports — extended reporting library.",
+  pluginSLA: "SLA — service-level agreement tracking.",
+  apiManwinwin: "API ManWinWin — REST API for integrations.",
   requestsModuleDesc:
     "Maintenance Requests Module, which will allow you to centralize all requests and connect directly with the maintenance team.",
   webAdditionalDesc:
@@ -128,21 +163,44 @@ const EN: Strings = {
   restricted: "Restricted",
   assumingSameYear1: "* Assuming same configuration of year 1",
   perDiem: "Onsite per diem",
+  onsiteDays: "Onsite days",
   discount: "Discount",
   notes: "Notes",
+  colItem: "Item",
+  colQty: "Qty",
+  colUnit: "Unit price",
+  colTotal: "Total",
+  colFrequency: "Frequency",
+  client: "Client",
+  date: "Date",
+  project: "Project",
+  validity: "Validity",
+  country: "Country",
+  versionLabel: "Version",
+  daysWord: "days",
+  langFallbackWarning: (target) =>
+    `Translations for ${target} are not available yet — proposal will be generated in English.`,
 };
 
 const PT: Strings = {
   ...EN,
   investmentProposal: "Proposta de Investimento",
   forImplementation: "PARA O PROJETO DE IMPLEMENTAÇÃO DO SOFTWARE DE MANUTENÇÃO MANWINWIN",
-  annualLicenseDescription: (plan) => `Licença anual ManWinWin Professional ${plan} com:`,
+  annualLicenseDescription: (plan) => `Licença anual ManWinWin Professional — Plano ${plan} com:`,
   backofficeAccess: "1 (um) acesso BackOffice (simultâneo – permite múltiplos utilizadores)",
   webAccess: "1 (um) acesso ManWinWin WEB / Mobility (possibilidade de adicionar mais)",
   includes: "Inclui",
   optionalNotIncluded: "Opcional (Não Incluído):",
   maintenanceModule:
     "Módulo de Manutenção & Custos, que permite gerir ativos, ordens de trabalho, custos, KPIs e relatórios numa interface multilingue integrada.",
+  stockModule: "Módulo de Gestão de Stocks — controlo de inventário ligado à manutenção.",
+  purchaseOrdersModule: "Módulo de Ordens de Compra — pedir, aprovar e rastrear compras.",
+  pluginsLabel: "Plugins:",
+  pluginImportTool: "Import Tool — importação de dados em massa.",
+  pluginWorkflow: "Workflow / Notificações por e-mail — alertas automáticos.",
+  pluginAdvancedReports: "Relatórios Avançados — biblioteca alargada de relatórios.",
+  pluginSLA: "SLA — gestão de acordos de nível de serviço.",
+  apiManwinwin: "API ManWinWin — API REST para integrações.",
   requestsModuleDesc:
     "Módulo de Pedidos de Manutenção, que permite centralizar todos os pedidos e ligar diretamente à equipa de manutenção.",
   webAdditionalDesc:
@@ -170,14 +228,15 @@ const PT: Strings = {
   workRequestsModule: "Módulo de Pedidos de Trabalho",
   perYear: "por ano",
   perUserMonth: "€ / utilizador / mês",
-  billingHeader: "CONDIÇÕES DE FACTURAÇÃO E PAGAMENTO",
-  standardTerms: "Termos e condições padrão da ManWinWin:",
-  paymentLine1: "50% de fatura na data de adjudicação¹, pagamento integral",
-  paymentLine2: "50% de fatura na data de instalação², pagamento a 30 dias",
-  footnote1: "¹ O início do projeto de implementação está dependente do pagamento da primeira fatura.",
-  footnote2: "² A data de instalação é a data a partir da qual o software fica disponível para acesso por login.",
+  billingHeader: "CONDIÇÕES DE FATURAÇÃO E PAGAMENTO",
+  standardTerms: "Condições standard ManWinWin:",
+  paymentLine1: "Fatura de 50%, na data de adjudicação¹, pagamento a pronto",
+  paymentLine2: "Fatura de 50%, na data de instalação², pagamento a 30 dias",
+  footnote1: "¹ O arranque do projeto de implementação está dependente do pagamento da primeira fatura.",
+  footnote2:
+    "² Por data de instalação entende-se, data a partir da qual, o software fica disponível para acesso por parte dos utilizadores mediante login.",
   otherInfo: "OUTRAS INFORMAÇÕES RELEVANTES",
-  vatNote: "IVA à taxa legal em vigor é adicionado aos valores apresentados",
+  vatNote: "Aos valores apresentados acresce IVA à taxa legal em vigor",
   validityNote: (d) => `Esta proposta é válida por ${d} (${d}) dias`,
   saasFeatures: "Características da solução ManWinWin SaaS",
   saasFeaturesList: [
@@ -203,21 +262,44 @@ const PT: Strings = {
   restricted: "Restrito",
   assumingSameYear1: "* Assumindo a mesma configuração do ano 1",
   perDiem: "Per diem presencial",
+  onsiteDays: "Dias presenciais",
   discount: "Desconto",
   notes: "Notas",
+  colItem: "Item",
+  colQty: "Qtd",
+  colUnit: "Preço unitário",
+  colTotal: "Total",
+  colFrequency: "Periodicidade",
+  client: "Cliente",
+  date: "Data",
+  project: "Projeto",
+  validity: "Validade",
+  country: "País",
+  versionLabel: "Versão",
+  daysWord: "dias",
+  langFallbackWarning: (target) =>
+    `Traduções para ${target} ainda não estão disponíveis — a proposta será gerada em inglês.`,
 };
 
 const ES: Strings = {
   ...EN,
   investmentProposal: "Propuesta de Inversión",
   forImplementation: "PARA EL PROYECTO DE IMPLEMENTACIÓN DEL SOFTWARE DE MANTENIMIENTO MANWINWIN",
-  annualLicenseDescription: (plan) => `Licencia anual ManWinWin Professional ${plan} con:`,
+  annualLicenseDescription: (plan) => `Licencia anual ManWinWin Professional — Plan ${plan} con:`,
   backofficeAccess: "1 (uno) acceso BackOffice (simultáneo – permite múltiples usuarios)",
   webAccess: "1 (uno) acceso ManWinWin WEB / Mobility (posibilidad de añadir más)",
   includes: "Incluye",
   optionalNotIncluded: "Opcional (No Incluido):",
   maintenanceModule:
     "Módulo de Mantenimiento y Costos, que le permitirá gestionar activos, órdenes de trabajo, costos, KPIs e informes en una interfaz multilingüe integrada.",
+  stockModule: "Módulo de Gestión de Stock — control de inventario integrado con mantenimiento.",
+  purchaseOrdersModule: "Módulo de Órdenes de Compra — solicitar, aprobar y rastrear compras.",
+  pluginsLabel: "Plugins:",
+  pluginImportTool: "Import Tool — importación masiva de datos.",
+  pluginWorkflow: "Workflow / Notificaciones por e-mail — alertas automáticas.",
+  pluginAdvancedReports: "Informes avanzados — biblioteca ampliada de informes.",
+  pluginSLA: "SLA — gestión de acuerdos de nivel de servicio.",
+  apiManwinwin: "API ManWinWin — API REST para integraciones.",
   requestsModuleDesc:
     "Módulo de Solicitudes de Mantenimiento, que le permitirá centralizar todas las solicitudes y conectar directamente con el equipo de mantenimiento.",
   webAdditionalDesc:
@@ -247,14 +329,14 @@ const ES: Strings = {
   perYear: "por año",
   perUserMonth: "€ / usuario / mes",
   billingHeader: "CONDICIONES DE FACTURACIÓN Y PAGO",
-  standardTerms: "Términos y condiciones estándar de ManWinWin:",
-  paymentLine1: "50% factura en la fecha de adjudicación¹, pago íntegro",
-  paymentLine2: "50% factura en la fecha de instalación², pago a 30 días",
+  standardTerms: "Condiciones estándar ManWinWin:",
+  paymentLine1: "Factura del 50% en la fecha de adjudicación¹, pago al contado",
+  paymentLine2: "Factura del 50% en la fecha de instalación², pago a 30 días",
   footnote1: "¹ El inicio del proyecto de implementación depende del pago de la primera factura.",
   footnote2:
-    "² La fecha de instalación es la fecha a partir de la cual el software está disponible para acceso de usuarios mediante login.",
+    "² Por fecha de instalación se entiende la fecha a partir de la cual el software está disponible para que los usuarios puedan acceder mediante inicio de sesión.",
   otherInfo: "OTRA INFORMACIÓN RELEVANTE",
-  vatNote: "IVA a la tasa legal vigente se añade a los valores presentados",
+  vatNote: "A los valores presentados se añade el IVA a la tasa legal vigente",
   validityNote: (d) => `Esta propuesta es válida por ${d} (${d}) días`,
   saasFeatures: "Características de la solución ManWinWin SaaS",
   saasFeaturesList: [
@@ -280,14 +362,36 @@ const ES: Strings = {
   restricted: "Restringido",
   assumingSameYear1: "* Asumiendo la misma configuración del año 1",
   perDiem: "Per diem presencial",
+  onsiteDays: "Días presenciales",
   discount: "Descuento",
   notes: "Notas",
+  colItem: "Ítem",
+  colQty: "Cant.",
+  colUnit: "Precio unitario",
+  colTotal: "Total",
+  colFrequency: "Periodicidad",
+  client: "Cliente",
+  date: "Fecha",
+  project: "Proyecto",
+  validity: "Validez",
+  country: "País",
+  versionLabel: "Versión",
+  daysWord: "días",
+  langFallbackWarning: (target) =>
+    `Las traducciones para ${target} aún no están disponibles — la propuesta se generará en inglés.`,
 };
 
-const STRINGS: Record<ProposalLanguage, Strings> = { EN, PT, ES };
+/** Active language tables. RO / TH intentionally omitted → fall back to EN until translated. */
+const STRINGS: Partial<Record<ProposalLanguage, Strings>> = { EN, PT, ES };
 
+/** Returns translation strings, falling back to EN for unknown languages. */
 export function t(lang: ProposalLanguage): Strings {
   return STRINGS[lang] || EN;
+}
+
+/** True if the language has a full translation table; false → EN fallback. */
+export function isLanguageSupported(lang: string): boolean {
+  return lang in STRINGS;
 }
 
 export function formatEuro(value: number, lang: ProposalLanguage = "EN"): string {
@@ -297,4 +401,29 @@ export function formatEuro(value: number, lang: ProposalLanguage = "EN"): string
     maximumFractionDigits: 0,
   }).format(Math.round(value));
   return `${formatted} €`;
+}
+
+/** Frequency label per language. */
+export function frequencyLabel(freq: string, lang: ProposalLanguage = "EN"): string {
+  const map: Record<string, Partial<Record<ProposalLanguage, string>>> = {
+    yearly: { EN: "/ year", PT: "/ ano", ES: "/ año" },
+    monthly: { EN: "/ month", PT: "/ mês", ES: "/ mes" },
+    "one-time": { EN: "one-time", PT: "única", ES: "única" },
+    "per-user-month": { EN: "/ user / month", PT: "/ utilizador / mês", ES: "/ usuario / mes" },
+    "per-hour": { EN: "/ hour", PT: "/ hora", ES: "/ hora" },
+  };
+  return map[freq]?.[lang] ?? map[freq]?.EN ?? freq;
+}
+
+/** Default standard payment terms text used when user hasn't customised it. */
+export function standardPaymentTerms(lang: ProposalLanguage): string {
+  const s = t(lang);
+  return [
+    s.standardTerms,
+    `• ${s.paymentLine1}`,
+    `• ${s.paymentLine2}`,
+    "",
+    s.footnote1,
+    s.footnote2,
+  ].join("\n");
 }

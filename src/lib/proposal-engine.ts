@@ -4,21 +4,56 @@ import type {
   ProposalPlan,
   ImplementationType,
   ItemFrequency,
+  ProposalLanguage,
 } from "@/types/proposal";
+import { t } from "@/lib/proposal-i18n";
 
-/** Plan → which Maintenance modules are included */
+/**
+ * Plan → human-readable list of included items. Used for the Plan description block.
+ * Each entry is shown verbatim under "Includes:" in the proposal.
+ */
+export function planIncludesLabels(plan: ProposalPlan, lang: ProposalLanguage = "EN"): string[] {
+  const s = t(lang);
+  const base = [s.maintenanceModule];
+  if (plan === 1) {
+    return [...base, s.backofficeAccess, s.webAccess];
+  }
+  if (plan === 2) {
+    return [...base, s.stockModule, s.purchaseOrdersModule, s.backofficeAccess, s.webAccess];
+  }
+  return [
+    ...base,
+    s.stockModule,
+    s.purchaseOrdersModule,
+    `${s.pluginsLabel}`,
+    `  · ${s.pluginImportTool}`,
+    `  · ${s.pluginWorkflow}`,
+    `  · ${s.pluginAdvancedReports}`,
+    `  · ${s.pluginSLA}`,
+    s.apiManwinwin,
+    s.backofficeAccess,
+    s.webAccess,
+  ];
+}
+
+/** Short module-name list used in Step "Software" badges. */
 export const PLAN_INCLUDES: Record<ProposalPlan, string[]> = {
-  1: ["Maintenance & Costs Module"],
-  2: ["Maintenance & Costs Module", "Stock Management Module", "Purchase Orders Module"],
+  1: ["Maintenance & Costs Module", "1 BackOffice access", "1 Web/Mobile access"],
+  2: [
+    "Maintenance & Costs Module",
+    "Stock Management Module",
+    "Purchase Orders Module",
+    "1 BackOffice access",
+    "1 Web/Mobile access",
+  ],
   3: [
     "Maintenance & Costs Module",
     "Stock Management Module",
     "Purchase Orders Module",
-    "Plugin: Workflow",
-    "Plugin: Advanced Reports",
-    "Plugin: Import Tool",
-    "Plugin: SLA",
+    "Plugins (Import / Workflow / Adv. Reports / SLA)",
     "API ManWinWin",
+    "1 BackOffice access",
+    "1 Web/Mobile access",
   ],
 };
 
@@ -36,15 +71,11 @@ export function findRule(rules: PricingRule[], code: string): PricingRule | unde
 export function yearlyEquivalent(unitPrice: number, qty: number, freq: ItemFrequency): number {
   switch (freq) {
     case "monthly":
-      return unitPrice * qty * 12;
     case "per-user-month":
       return unitPrice * qty * 12;
     case "yearly":
-      return unitPrice * qty;
     case "one-time":
-      return unitPrice * qty;
     case "per-hour":
-      return unitPrice * qty;
     default:
       return unitPrice * qty;
   }
@@ -56,18 +87,29 @@ interface BuildItemsArgs {
   implementationType: ImplementationType;
   includeRequestsModule: boolean;
   webUsers: number;
-  perDiem: number;
+  /** Number of onsite days (only used when implementationType === "Onsite"). */
+  onsiteDays?: number;
+  /** Per-diem rate. Defaults to the pricing_rules.onsite_per_diem unit_price. */
+  perDiem?: number;
+  /** Language drives item descriptions. */
+  language?: ProposalLanguage;
 }
 
-/** Build the default editable item list from current plan + service config. */
+/**
+ * Build the default editable item list from current plan + service config.
+ * Each item description is detailed enough to be shown verbatim in DOCX/PDF.
+ */
 export function buildDefaultItems({
   rules,
   plan,
   implementationType,
   includeRequestsModule,
   webUsers,
+  onsiteDays = 0,
   perDiem,
+  language = "EN",
 }: BuildItemsArgs): ProposalItem[] {
+  const s = t(language);
   const items: ProposalItem[] = [];
   let order = 0;
 
@@ -77,8 +119,8 @@ export function buildDefaultItems({
     items.push({
       category: "software",
       item_code: license.code,
-      item_name: license.label,
-      description: PLAN_INCLUDES[plan].join(", "),
+      item_name: `ManWinWin Professional — Plan ${plan} (annual license)`,
+      description: planIncludesLabels(plan, language).join(" • "),
       qty: 1,
       unit_price: license.unit_price,
       frequency: "yearly",
@@ -96,8 +138,8 @@ export function buildDefaultItems({
       items.push({
         category: "addon",
         item_code: r.code,
-        item_name: r.label,
-        description: r.notes,
+        item_name: "Maintenance Requests Module",
+        description: s.requestsModuleDesc,
         qty: 1,
         unit_price: r.unit_price,
         frequency: "yearly",
@@ -116,7 +158,7 @@ export function buildDefaultItems({
       items.push({
         category: "addon",
         item_code: w.code,
-        item_name: `${w.label} (x${webUsers})`,
+        item_name: `ManWinWin WEB / Mobility additional accesses (×${webUsers})`,
         description: `${webUsers} additional WEB / Mobility access(es) at ${w.unit_price} € / user / month`,
         qty: webUsers,
         unit_price: w.unit_price,
@@ -134,30 +176,30 @@ export function buildDefaultItems({
   let implLabel = "";
   if (implementationType === "Online") {
     implCode = `impl_online_p${plan}`;
-    implLabel = `Online Implementation - Plan ${plan}`;
+    implLabel = `Online Implementation — Plan ${plan}`;
   } else if (implementationType === "Light Implementation") {
     implCode = `impl_light_p${plan}`;
-    implLabel = `Online Light Implementation - Plan ${plan}`;
+    implLabel = `Online Light Implementation — Plan ${plan}`;
+  } else if (implementationType === "Onsite") {
+    implCode = `impl_online_p${plan}`;
+    implLabel = `Onsite Implementation — Plan ${plan}`;
   } else if (implementationType === "RCI Professional") {
     implCode = "rci_professional";
     implLabel = "RCI Professional";
-  } else if (implementationType === "Onsite") {
-    implCode = `impl_online_p${plan}`;
-    implLabel = `Onsite Implementation - Plan ${plan}`;
   }
 
   if (implCode) {
-    const s = findRule(rules, implCode);
-    if (s) {
+    const sv = findRule(rules, implCode);
+    if (sv) {
       items.push({
         category: "service",
-        item_code: s.code,
+        item_code: sv.code,
         item_name: implLabel,
-        description: s.notes,
+        description: sv.notes,
         qty: 1,
-        unit_price: s.unit_price,
+        unit_price: sv.unit_price,
         frequency: "one-time",
-        total: s.unit_price,
+        total: sv.unit_price,
         is_override: false,
         is_recurring: false,
         sort_order: order++,
@@ -172,7 +214,7 @@ export function buildDefaultItems({
       items.push({
         category: "service",
         item_code: r.code,
-        item_name: r.label,
+        item_name: "Maintenance Requests Implementation",
         description: r.notes,
         qty: 1,
         unit_price: r.unit_price,
@@ -185,21 +227,25 @@ export function buildDefaultItems({
     }
   }
 
-  // 6. Per diem (onsite scenarios)
-  if (implementationType === "Onsite" && perDiem > 0) {
-    items.push({
-      category: "service",
-      item_code: "onsite_per_diem",
-      item_name: "Onsite per diem",
-      description: "Travel + accommodation per diem",
-      qty: 1,
-      unit_price: perDiem,
-      frequency: "one-time",
-      total: perDiem,
-      is_override: false,
-      is_recurring: false,
-      sort_order: order++,
-    });
+  // 6. Onsite days × per-diem (Professional uses days; perDiem is the unit price)
+  if (implementationType === "Onsite" && onsiteDays > 0) {
+    const pdRule = findRule(rules, "onsite_per_diem");
+    const unit = perDiem && perDiem > 0 ? perDiem : pdRule?.unit_price ?? 0;
+    if (unit > 0) {
+      items.push({
+        category: "service",
+        item_code: "onsite_per_diem",
+        item_name: `Onsite days (×${onsiteDays})`,
+        description: `Travel + accommodation per diem · ${unit} € × ${onsiteDays} day(s)`,
+        qty: onsiteDays,
+        unit_price: unit,
+        frequency: "one-time",
+        total: unit * onsiteDays,
+        is_override: false,
+        is_recurring: false,
+        sort_order: order++,
+      });
+    }
   }
 
   return items;
@@ -223,20 +269,19 @@ export function computeTotals(items: ProposalItem[], discountPct: number): Propo
   let oneTime = 0;
 
   for (const item of items) {
-    const t = item.total ?? yearlyEquivalent(item.unit_price, item.qty, item.frequency);
+    const tot = item.total ?? yearlyEquivalent(item.unit_price, item.qty, item.frequency);
     if (item.category === "software" || item.category === "addon") {
-      softwareSubtotal += t;
+      softwareSubtotal += tot;
     } else {
-      servicesSubtotal += t;
+      servicesSubtotal += tot;
     }
-    if (item.is_recurring) recurringYearly += t;
-    else oneTime += t;
+    if (item.is_recurring) recurringYearly += tot;
+    else oneTime += tot;
   }
 
   const subtotal = softwareSubtotal + servicesSubtotal;
   const discountAmount = subtotal * (discountPct / 100);
   const totalYear1 = subtotal - discountAmount;
-  // Recurring after year 1: only the recurring lines (no one-time, no discount typically)
   const totalRecurring = recurringYearly;
 
   return {
