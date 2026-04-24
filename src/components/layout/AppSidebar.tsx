@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyPermissions } from "@/hooks/useUsers";
-import { LogOut, UserCog, Tag } from "lucide-react";
+import { LogOut, UserCog } from "lucide-react";
 import {
   LayoutDashboard,
   Users,
@@ -175,20 +175,6 @@ export function AppSidebar() {
                 >
                   <UserCog className="h-[18px] w-[18px] shrink-0" />
                   {!collapsed && <span>User Management</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          )}
-          {isAdmin && (
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isActive("/settings/pricing")}>
-                <NavLink
-                  to="/settings/pricing"
-                  className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                >
-                  <Tag className="h-[18px] w-[18px] shrink-0" />
-                  {!collapsed && <span>Pricing Rules</span>}
                 </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
