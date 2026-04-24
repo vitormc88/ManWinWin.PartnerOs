@@ -78,8 +78,8 @@ export function getCommercialItemLabel(item: ProposalItem, proposal: Proposal) {
 }
 
 export function getCommercialRows(items: ProposalItem[], proposal: Proposal) {
-  const softwarePct = proposal.discount_scope === "software" ? Number(proposal.discount_pct || 0) : 0;
-  const servicesPct = proposal.discount_scope === "services" ? Number(proposal.discount_pct || 0) : 0;
+  const softwarePct = Number(proposal.software_discount_pct || (proposal.discount_scope === "software" ? proposal.discount_pct : 0) || 0);
+  const servicesPct = Number(proposal.services_discount_pct || (proposal.discount_scope === "services" ? proposal.discount_pct : 0) || 0);
   const software = items.filter((item) => item.category === "software" || item.category === "addon");
   const services = items.filter((item) => item.category === "service" || (item.category === "custom" && !item.is_recurring));
   const recurring = items.filter((item) => item.is_recurring);
