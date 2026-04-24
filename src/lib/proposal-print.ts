@@ -1,5 +1,8 @@
 import type { Proposal, ProposalItem } from "@/types/proposal";
 import { formatEuro, t } from "./proposal-i18n";
+import { computeTotals } from "./proposal-engine";
+import { getCommercialIncludes, getCommercialItemLabel, getInvestmentSummary } from "./proposal-commercial";
+import logoUrl from "@/assets/manwinwin-logo.png";
 
 /**
  * Open a print-friendly window with the proposal rendered as HTML.
@@ -8,21 +11,23 @@ import { formatEuro, t } from "./proposal-i18n";
 export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   const lang = proposal.language as any;
   const s = t(lang);
+  const totals = computeTotals(items, proposal.discount_pct || 0, proposal.discount_scope || "none");
+  const investment = getInvestmentSummary(proposal, items, totals);
+  const includes = getCommercialIncludes(proposal.plan, proposal.language, proposal.include_requests_module, proposal.web_users);
   const win = window.open("", "_blank", "width=900,height=1200");
   if (!win) return;
 
-  const software = items.filter((i) => i.category === "software");
-  const services = items.filter((i) => i.category === "service");
-  const custom = items.filter((i) => i.category === "custom");
-
   const row = (it: ProposalItem) => `
     <tr>
-      <td>${esc(it.item_name)}${it.description ? `<br/><span class="muted">${esc(it.description)}</span>` : ""}</td>
+      <td>${esc(getCommercialItemLabel(it, proposal))}</td>
       <td class="num">${it.qty}</td>
       <td class="num">${formatEuro(Number(it.unit_price) || 0, lang)}</td>
       <td class="num">${formatEuro(Number(it.total) || 0, lang)}</td>
       <td>${esc(it.frequency)}</td>
     </tr>`;
+
+  const software = items.filter((i) => i.category === "software" || i.category === "addon");
+  const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
 
   const section = (title: string, list: ProposalItem[]) =>
     list.length === 0
@@ -45,7 +50,8 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
   body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.45; }
-  .cover { padding: 40px 0 24px; border-bottom: 4px solid #c00; margin-bottom: 24px; }
+  .cover { padding: 24px 0 20px; border-bottom: 3px solid #c00; margin-bottom: 24px; }
+  .logo { max-width: 280px; height: auto; display:block; margin: 0 auto 20px; }
   .cover h1 { font-size: 24pt; margin: 0 0 6px; color: #1a1a1a; }
   .cover .sub { color: #666; font-size: 12pt; }
   .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin: 16px 0 24px; font-size: 10.5pt; }
@@ -60,6 +66,10 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   .summary { margin-top: 18px; border: 1px solid #ddd; border-radius: 4px; padding: 12px 16px; background: #fafafa; }
   .summary .row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11pt; }
   .summary .total { font-weight: 700; font-size: 13pt; color: #c00; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 6px; }
+  .includes { margin: 12px 0 18px; }
+  .includes ul { margin: 8px 0 0 18px; padding: 0; }
+  .includes li { margin: 3px 0; }
+  .subsection { font-size: 11pt; font-weight: 700; margin: 16px 0 6px; color: #333; }
   .terms { margin-top: 24px; font-size: 10pt; }
   .terms p { margin: 6px 0; }
   .footer { margin-top: 40px; text-align: center; color: #999; font-size: 9pt; }
@@ -71,10 +81,17 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   <button class="noprint" onclick="window.print()">🖨️ Print / Save as PDF</button>
 
   <div class="cover">
+    <img class="logo" src="${logoUrl}" alt="ManWinWin logo" />
     <div class="restricted">${esc(s.restricted)}</div>
     <h1>${esc(s.investmentProposal)}</h1>
     <div class="sub">${esc(s.professional)} — Plan ${proposal.plan} (${esc(proposal.hosting)})</div>
     <div class="muted" style="margin-top:6px">${esc(s.forImplementation)}</div>
+  </div>
+
+  <div class="includes">
+    <h2>${esc(s.includes)}</h2>
+    <ul>${includes.included.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>
+    ${includes.optional.length ? `<div class="subsection">${esc(s.optionalNotIncluded)}</div><ul>${includes.optional.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : ""}
   </div>
 
   <div class="meta">
@@ -88,14 +105,22 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 
   ${section(s.software, software)}
   ${section(s.services, services)}
-  ${custom.length ? section("Additional Items", custom) : ""}
+  ${section(s.software, software)}
+  ${section(s.services, services)}
 
   <div class="summary">
-    <div class="row"><span>${esc(s.software)}</span><span>${formatEuro(Number(proposal.software_subtotal) || 0, lang)}</span></div>
-    <div class="row"><span>${esc(s.services)}</span><span>${formatEuro(Number(proposal.services_subtotal) || 0, lang)}</span></div>
-    ${Number(proposal.discount_amount) > 0 ? `<div class="row"><span>${esc(s.discount)} (${proposal.discount_pct}%)</span><span>− ${formatEuro(Number(proposal.discount_amount) || 0, lang)}</span></div>` : ""}
-    <div class="row total"><span>${esc(s.year1)}</span><span>${formatEuro(Number(proposal.total_year_1) || 0, lang)}</span></div>
-    <div class="row"><span>${esc(s.year2Onwards)}</span><span>${formatEuro(Number(proposal.total_recurring) || 0, lang)} / ${esc(s.perYear)}</span></div>
+    <div class="subsection">${esc(s.year1)}</div>
+    <div class="subsection">${esc(s.software)}</div>
+    ${investment.softwareLines.map((line) => `<div class="row"><span>${esc(line.label)}</span><span>${esc(line.value)}${line.suffix ? ` ${esc(line.suffix)}` : ""}</span></div>`).join("")}
+    <div class="row"><span>${esc(investment.softwareSubtotalLabel)}</span><span>${formatEuro(totals.softwareSubtotal, lang)}</span></div>
+    <div class="subsection">${esc(s.services)}</div>
+    ${investment.serviceLines.map((line) => `<div class="row"><span>${esc(line.label)}</span><span>${esc(line.value)}${line.suffix ? ` ${esc(line.suffix)}` : ""}</span></div>`).join("")}
+    <div class="row"><span>${esc(investment.servicesSubtotalLabel)}</span><span>${formatEuro(totals.servicesSubtotal, lang)}</span></div>
+    ${totals.discountAmount > 0 ? `<div class="row"><span>${esc(investment.discountLabel)}</span><span>− ${formatEuro(totals.discountAmount, lang)}</span></div>` : ""}
+    <div class="row total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
+    <div class="subsection">${esc(s.year2Onwards)}</div>
+    ${investment.recurringLines.map((line) => `<div class="row"><span>${esc(line.label)}</span><span>${esc(line.value)}${line.suffix ? ` ${esc(line.suffix)}` : ""}</span></div>`).join("")}
+    <div class="row total"><span>${esc(s.totalPerYear)}</span><span>${formatEuro(totals.totalRecurring, lang)} / ${esc(s.perYear)}</span></div>
   </div>
 
   <div class="terms">
