@@ -1984,7 +1984,9 @@ export type Database = {
           proposal_date: string
           service_days: number | null
           service_hours: number | null
+          services_discount_pct: number
           services_subtotal: number | null
+          software_discount_pct: number
           software_subtotal: number | null
           status: string
           total_recurring: number | null
@@ -2021,7 +2023,9 @@ export type Database = {
           proposal_date?: string
           service_days?: number | null
           service_hours?: number | null
+          services_discount_pct?: number
           services_subtotal?: number | null
+          software_discount_pct?: number
           software_subtotal?: number | null
           status?: string
           total_recurring?: number | null
@@ -2058,7 +2062,9 @@ export type Database = {
           proposal_date?: string
           service_days?: number | null
           service_hours?: number | null
+          services_discount_pct?: number
           services_subtotal?: number | null
+          software_discount_pct?: number
           software_subtotal?: number | null
           status?: string
           total_recurring?: number | null
