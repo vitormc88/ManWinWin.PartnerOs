@@ -171,6 +171,12 @@ export default function DealDetail() {
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!deal) return <div className="p-8 text-center text-muted-foreground">Deal not found</div>;
 
+  const latestProposal = [...proposals]
+    .filter((proposal) => proposal.status !== "Lost")
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+  const expectedValue = latestProposal?.total_year_1 ?? deal.expected_value ?? 0;
+  const weightedValue = expectedValue > 0 ? Math.round((expectedValue * getStageProbability(deal.stage)) / 100) : 0;
+
   const stageIdx = PIPELINE_STAGES.findIndex(s => s.key === deal.stage);
 
   return (
@@ -383,9 +389,9 @@ export default function DealDetail() {
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: "Stage Probability", value: `${getStageProbability(deal.stage)}%`, color: getStageProbability(deal.stage) >= 60 ? "text-emerald-600" : "text-foreground" },
-                    { label: "Expected Value", value: (deal.expected_value || 0) > 0 ? `€${(deal.expected_value || 0).toLocaleString()}` : "—", color: "text-foreground" },
+                    { label: "Expected Value", value: expectedValue > 0 ? `€${expectedValue.toLocaleString()}` : "—", color: "text-foreground" },
                     { label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
-                    { label: "Weighted Value", value: (deal.expected_value || 0) > 0 ? `€${Math.round((deal.expected_value || 0) * getStageProbability(deal.stage) / 100).toLocaleString()}` : "—", color: "text-foreground" },
+                    { label: "Weighted Value", value: weightedValue > 0 ? `€${weightedValue.toLocaleString()}` : "—", color: "text-foreground" },
                   ].map(m => (
                     <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
                       <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.value}</p>
