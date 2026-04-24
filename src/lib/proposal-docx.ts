@@ -17,7 +17,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
-import { computeTotals, enrichProposalItem } from "@/lib/proposal-engine";
+import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getSectionDiscountSummary } from "@/lib/proposal-engine";
 import { getCommercialIncludes, getCommercialItemLabel, getInvestmentSummary } from "@/lib/proposal-commercial";
 import { t, formatEuro } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
@@ -182,6 +182,8 @@ export async function generateProposalDocx(
   );
   const logoBytes = await loadLogo();
   const investment = getInvestmentSummary(proposal, items, totals);
+  const softwareDiscountSummary = getSectionDiscountSummary(items, "software", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+  const servicesDiscountSummary = getSectionDiscountSummary(items, "services", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
 
   const dateStr = new Date(proposal.proposal_date)
     .toLocaleDateString("en-GB")
@@ -388,6 +390,7 @@ export async function generateProposalDocx(
 
   const renderLineItem = (rawItem: ProposalItem) => {
     const i = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+    const effectiveDiscount = getItemEffectiveDiscount(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
     const freqSuffix = i.is_recurring ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}` : "";
     const paragraphs: Paragraph[] = [
       new Paragraph({
@@ -407,9 +410,9 @@ export async function generateProposalDocx(
             size: 22,
             font: "Calibri",
           }),
-          ...(i.discount_amount
+          ...(effectiveDiscount.amount
             ? [
-                new TextRun({ text: ` · discount ${i.discount_type === "percent" ? `${Number(i.discount_value || 0)}% ` : ""}(-${formatEuro(i.discount_amount || 0, lang)})`, color: RED, size: 20, font: "Calibri" }),
+                new TextRun({ text: ` · discount ${effectiveDiscount.source === "section" ? `${s.sectionDiscountLabel(effectiveDiscount.value)} ` : effectiveDiscount.type === "percent" ? `${Number(effectiveDiscount.value || 0)}% ` : ""}(-${formatEuro(effectiveDiscount.amount || 0, lang)})`, color: RED, size: 20, font: "Calibri" }),
                 new TextRun({ text: ` · net ${formatEuro(i.net_total || 0, lang)}${freqSuffix}`, bold: true, color: DARK, size: 22, font: "Calibri" }),
               ]
             : [new TextRun({ text: ` · net ${formatEuro(i.net_total || 0, lang)}${freqSuffix}`, bold: true, color: DARK, size: 22, font: "Calibri" })]),
@@ -541,7 +544,7 @@ export async function generateProposalDocx(
   if (totals.discountAmount > 0) {
     if (totals.softwareDiscountAmount > 0) {
       pushY1Row([
-        cell(s.softwareDiscountLabel(Number(proposal.software_discount_pct || 0)), { italic: true }),
+        cell(softwareDiscountSummary.mode === "uniform-section" ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0)) : s.softwareDiscountsTotalLabel, { italic: true }),
         cell(`- ${formatEuro(totals.softwareDiscountAmount, lang)}`, {
           align: AlignmentType.RIGHT,
           italic: true,
@@ -550,7 +553,7 @@ export async function generateProposalDocx(
     }
     if (totals.servicesDiscountAmount > 0) {
       pushY1Row([
-        cell(s.servicesDiscountLabel(Number(proposal.services_discount_pct || 0)), { italic: true }),
+        cell(servicesDiscountSummary.mode === "uniform-section" ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0)) : s.servicesDiscountsTotalLabel, { italic: true }),
         cell(`- ${formatEuro(totals.servicesDiscountAmount, lang)}`, {
           align: AlignmentType.RIGHT,
           italic: true,
