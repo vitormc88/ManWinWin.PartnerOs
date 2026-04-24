@@ -15,6 +15,7 @@ import { usePricingRules } from "@/hooks/useProposals";
 import {
   buildDefaultItems,
   computeTotals,
+  enrichProposalItem,
   recomputeItemTotal,
   PLAN_INCLUDES,
   getItemBaseTotal,
@@ -30,7 +31,6 @@ import type {
   ImplementationType,
   ProposalHosting,
   Proposal,
-  ProposalDiscountScope,
   ProposalLineDiscountType,
 } from "@/types/proposal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -71,10 +71,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   // Step 3
   const [implType, setImplType] = useState<ImplementationType>("Online");
   const [onsiteDays, setOnsiteDays] = useState(0);
-  const [discountPct, setDiscountPct] = useState(0);
-  const [discountScope, setDiscountScope] = useState<ProposalDiscountScope>("none");
   const [softwareDiscountPct, setSoftwareDiscountPct] = useState(0);
   const [servicesDiscountPct, setServicesDiscountPct] = useState(0);
+  const [planDiscountPct, setPlanDiscountPct] = useState(0);
+  const [requestsDiscountPct, setRequestsDiscountPct] = useState(0);
+  const [webUsersDiscountPct, setWebUsersDiscountPct] = useState(0);
 
   // Step 4
   const [paymentTerms, setPaymentTerms] = useState("");
@@ -106,13 +107,19 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     setWebUsers(editingProposal.web_users);
     setImplType(editingProposal.implementation_type);
     setOnsiteDays(Number(editingProposal.service_days || 0));
-    setDiscountPct(Number(editingProposal.discount_pct || 0));
-    setDiscountScope((editingProposal.discount_scope || "none") as ProposalDiscountScope);
     setSoftwareDiscountPct(Number(editingProposal.software_discount_pct || 0));
     setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
     setPaymentTerms(editingProposal.payment_terms || standardPaymentTerms(editingProposal.language));
     setNotes(editingProposal.notes || "");
-    if (editingProposal.items?.length) setItems(editingProposal.items);
+    if (editingProposal.items?.length) {
+      setItems(editingProposal.items);
+      const planItem = editingProposal.items.find((item) => item.item_code === `plan_${editingProposal.plan}_annual`);
+      const requestsItem = editingProposal.items.find((item) => item.item_code === "requests_module");
+      const webItem = editingProposal.items.find((item) => item.item_code === "web_user");
+      setPlanDiscountPct(planItem?.discount_type === "percent" ? Number(planItem.discount_value || 0) : 0);
+      setRequestsDiscountPct(requestsItem?.discount_type === "percent" ? Number(requestsItem.discount_value || 0) : 0);
+      setWebUsersDiscountPct(webItem?.discount_type === "percent" ? Number(webItem.discount_value || 0) : 0);
+    }
   }, [open, editingProposal]);
 
   // Default payment terms in selected language
@@ -137,19 +144,49 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     );
   }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language]);
 
+  useEffect(() => {
+    setItems((prev) =>
+      prev.map((item) => {
+        let discountValue = 0;
+        let discountType: ProposalLineDiscountType = "none";
+
+        if (item.item_code === `plan_${plan}_annual` && planDiscountPct > 0) {
+          discountType = "percent";
+          discountValue = planDiscountPct;
+        } else if (item.item_code === "requests_module" && requestsDiscountPct > 0) {
+          discountType = "percent";
+          discountValue = requestsDiscountPct;
+        } else if (item.item_code === "web_user" && webUsersDiscountPct > 0) {
+          discountType = "percent";
+          discountValue = webUsersDiscountPct;
+        } else if (
+          (item.item_code === `plan_${plan}_annual` || item.item_code === "requests_module" || item.item_code === "web_user") &&
+          item.discount_type === "percent"
+        ) {
+          discountType = "none";
+          discountValue = 0;
+        } else {
+          return item;
+        }
+
+        if ((item.discount_type || "none") === discountType && Number(item.discount_value || 0) === discountValue) {
+          return item;
+        }
+
+        return { ...item, discount_type: discountType, discount_value: discountValue, is_override: true };
+      }),
+    );
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct]);
+
   const totals = useMemo(
-    () => computeTotals(items, discountPct, discountScope, softwareDiscountPct, servicesDiscountPct),
-    [items, discountPct, discountScope, softwareDiscountPct, servicesDiscountPct],
+    () => computeTotals(items, softwareDiscountPct, servicesDiscountPct),
+    [items, softwareDiscountPct, servicesDiscountPct],
+  );
+  const previewItems = useMemo(
+    () => items.map((item) => enrichProposalItem(item, softwareDiscountPct, servicesDiscountPct)),
+    [items, softwareDiscountPct, servicesDiscountPct],
   );
   const i18n = t(language);
-  const discountLabel =
-    discountScope === "services"
-      ? i18n.servicesDiscountLabel(discountPct)
-      : discountScope === "software"
-      ? i18n.softwareDiscountLabel(discountPct)
-      : discountScope === "total"
-      ? i18n.totalDiscountLabel(discountPct)
-      : i18n.noDiscount;
 
   const updateItem = (idx: number, patch: Partial<ProposalItem>) => {
     setItems((prev) => {
@@ -177,6 +214,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         unit_price: 0,
         frequency: "one-time",
         total: 0,
+        discount_type: "none",
+        discount_value: 0,
         is_override: true,
         is_recurring: false,
         sort_order: prev.length,
@@ -206,8 +245,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         notes: notes || null,
         implementation_type: implType,
         per_diem: 0,
-        discount_pct: discountPct,
-        discount_scope: discountScope,
+        discount_pct: 0,
+        discount_scope: "none",
         software_discount_pct: softwareDiscountPct,
         services_discount_pct: servicesDiscountPct,
         include_requests_module: includeRequests,
@@ -241,9 +280,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         qty: it.qty,
         unit_price: it.unit_price,
         frequency: it.frequency,
-        total: getItemBaseTotal(it),
+        total: it.gross_total ?? getItemBaseTotal(it),
         discount_type: it.discount_type || "none",
         discount_value: Number(it.discount_value || 0),
+        gross_total: Number(it.gross_total ?? getItemBaseTotal(it)),
+        discount_amount: Number(it.discount_amount || 0),
+        net_total: Number(it.net_total ?? getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct)),
         is_override: it.is_override,
         is_recurring: it.is_recurring,
         sort_order: idx,
@@ -443,20 +485,21 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 </div>
               </div>
               <div className="bg-card border rounded-lg p-3">
-                <Label className="text-xs">Software discount %</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={softwareDiscountPct}
-                  onChange={(e) => {
-                    const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                    setSoftwareDiscountPct(value);
-                    setDiscountScope(value > 0 ? "software" : servicesDiscountPct > 0 ? "services" : "none");
-                    setDiscountPct(value > 0 ? value : servicesDiscountPct);
-                  }}
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">Applies only to recurring software/add-on items.</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label className="text-xs">Professional plan discount %</Label>
+                    <Input type="number" min={0} max={100} value={planDiscountPct} onChange={(e) => setPlanDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Requests Module discount %</Label>
+                    <Input type="number" min={0} max={100} value={requestsDiscountPct} onChange={(e) => setRequestsDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Web/Mobile users discount %</Label>
+                    <Input type="number" min={0} max={100} value={webUsersDiscountPct} onChange={(e) => setWebUsersDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  </div>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">Each software line can be discounted independently; recurring totals use the discounted net values.</p>
               </div>
               <p className="text-xs text-muted-foreground">
                 Backoffice users: <strong>1 included</strong> (additional not allowed by ManWinWin policy).
@@ -482,12 +525,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 <div>
                   <Label>Services discount %</Label>
                   <Input type="number" min={0} max={100} value={servicesDiscountPct}
-                    onChange={(e) => {
-                      const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                      setServicesDiscountPct(value);
-                      setDiscountScope(value > 0 ? "services" : softwareDiscountPct > 0 ? "software" : "none");
-                      setDiscountPct(value > 0 ? value : softwareDiscountPct);
-                    }} />
+                    onChange={(e) => setServicesDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
                 </div>
               </div>
               {implType === "Onsite" && (
@@ -537,7 +575,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   </Button>
                 </div>
                 <div className="divide-y">
-                  {items.map((it, idx) => (
+                  {previewItems.map((it, idx) => (
                     <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
                       <div className="col-span-3">
                         <Label className="text-[10px]">Item</Label>
@@ -578,11 +616,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                         </div>
                       </div>
                       <div className="col-span-1 text-right">
+                        <Label className="text-[10px]">Gross</Label>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{formatPrice(it.gross_total || 0)}</p>
+                      </div>
+                      <div className="col-span-1 text-right">
+                        <Label className="text-[10px]">Discount</Label>
+                        <p className="text-sm font-medium text-foreground tabular-nums">{it.discount_amount ? `-${formatPrice(it.discount_amount)}` : "—"}</p>
+                      </div>
+                      <div className="col-span-1 text-right">
                         <Label className="text-[10px]">Net</Label>
-                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(getItemNetTotal(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct))}</p>
-                        {getItemDiscountAmount(it, it.is_recurring ? softwareDiscountPct : servicesDiscountPct) > 0 && (
-                          <p className="text-[10px] text-muted-foreground line-through">{formatPrice(getItemBaseTotal(it))}</p>
-                        )}
+                        <p className="text-sm font-semibold text-foreground tabular-nums">{formatPrice(it.net_total || 0)}</p>
                       </div>
                       <div className="col-span-1 flex justify-end">
                         <Button size="icon" variant="ghost" onClick={() => removeItem(idx)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
@@ -598,14 +641,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
               {/* Totals */}
               <div className="bg-card border rounded-lg p-4 grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software subtotal</span><span className="font-medium">{formatPrice(totals.softwareSubtotal)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services subtotal</span><span className="font-medium">{formatPrice(totals.servicesSubtotal)}</span></div>
-                  {totals.softwareDiscountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-foreground"><span>{i18n.softwareDiscountLabel(softwareDiscountPct)}</span><span>-{formatPrice(totals.softwareDiscountAmount)}</span></div>
-                  )}
-                  {totals.servicesDiscountAmount > 0 && (
-                    <div className="flex justify-between text-sm text-foreground"><span>{i18n.servicesDiscountLabel(servicesDiscountPct)}</span><span>-{formatPrice(totals.servicesDiscountAmount)}</span></div>
-                  )}
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software gross subtotal</span><span className="font-medium">{formatPrice(totals.softwareGrossSubtotal)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software discount total</span><span className="font-medium">{totals.softwareDiscountAmount ? `-${formatPrice(totals.softwareDiscountAmount)}` : "—"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Software net subtotal</span><span className="font-medium">{formatPrice(totals.softwareSubtotal)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services gross subtotal</span><span className="font-medium">{formatPrice(totals.servicesGrossSubtotal)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services discount total</span><span className="font-medium">{totals.servicesDiscountAmount ? `-${formatPrice(totals.servicesDiscountAmount)}` : "—"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Services net subtotal</span><span className="font-medium">{formatPrice(totals.servicesSubtotal)}</span></div>
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between text-base font-bold"><span>{i18n.year1}</span><span className="text-primary">{formatPrice(totals.totalYear1)}</span></div>

@@ -1,7 +1,7 @@
 import type { Proposal, ProposalItem, ProposalDiscountScope, ProposalLanguage, ProposalPlan } from "@/types/proposal";
 import type { ProposalTotals } from "@/lib/proposal-engine";
 import { formatEuro, frequencyLabel, t } from "@/lib/proposal-i18n";
-import { getItemBaseTotal, getItemDiscountAmount, getItemNetTotal } from "@/lib/proposal-engine";
+import { enrichProposalItem, getItemBaseTotal, getItemDiscountAmount, getItemNetTotal, hasItemOwnDiscount } from "@/lib/proposal-engine";
 
 type LocalizedSet = Record<"EN" | "PT" | "ES", string>;
 
@@ -78,21 +78,22 @@ export function getCommercialItemLabel(item: ProposalItem, proposal: Proposal) {
 }
 
 export function getCommercialRows(items: ProposalItem[], proposal: Proposal) {
-  const softwarePct = Number(proposal.software_discount_pct || (proposal.discount_scope === "software" ? proposal.discount_pct : 0) || 0);
-  const servicesPct = Number(proposal.services_discount_pct || (proposal.discount_scope === "services" ? proposal.discount_pct : 0) || 0);
+  const softwarePct = Number(proposal.software_discount_pct || 0);
+  const servicesPct = Number(proposal.services_discount_pct || 0);
   const software = items.filter((item) => item.category === "software" || item.category === "addon");
   const services = items.filter((item) => item.category === "service" || (item.category === "custom" && !item.is_recurring));
   const recurring = items.filter((item) => item.is_recurring);
 
   const toRow = (item: ProposalItem) => {
+    const enriched = enrichProposalItem(item, softwarePct, servicesPct);
     const sectionPct = item.is_recurring ? softwarePct : servicesPct;
-    const base = getItemBaseTotal(item);
-    const discount = getItemDiscountAmount(item, sectionPct);
-    const net = getItemNetTotal(item, sectionPct);
+    const base = enriched.gross_total || getItemBaseTotal(item);
+    const discount = enriched.discount_amount || getItemDiscountAmount(item, sectionPct);
+    const net = enriched.net_total || getItemNetTotal(item, sectionPct);
     const hasDiscount = discount > 0;
 
     return {
-      item,
+      item: enriched,
       label: getCommercialItemLabel(item, proposal),
       value: formatEuro(net, proposal.language),
       baseValue: formatEuro(base, proposal.language),
@@ -100,7 +101,7 @@ export function getCommercialRows(items: ProposalItem[], proposal: Proposal) {
       hasDiscount,
       suffix: item.is_recurring ? frequencyLabel("yearly", proposal.language) : frequencyLabel(item.frequency, proposal.language),
       discountLabel:
-        item.discount_type && item.discount_type !== "none"
+        hasItemOwnDiscount(enriched)
           ? `${getCommercialItemLabel(item, proposal)} discount`
           : item.is_recurring
           ? t(proposal.language).softwareDiscountLabel(sectionPct)
@@ -135,6 +136,6 @@ export function getInvestmentSummary(proposal: Proposal, items: ProposalItem[], 
     recurringLines: rows.recurringLines,
     softwareSubtotalLabel: pick(lang, shortLabels.softwareSubtotal),
     servicesSubtotalLabel: pick(lang, shortLabels.servicesSubtotal),
-    discountLabel: getDiscountLabel(totals.discountScope, proposal.discount_pct || 0, lang),
+    discountLabel: totals.servicesDiscountAmount > 0 ? t(lang).servicesDiscountLabel(Number(proposal.services_discount_pct || 0)) : t(lang).softwareDiscountLabel(Number(proposal.software_discount_pct || 0)),
   };
 }

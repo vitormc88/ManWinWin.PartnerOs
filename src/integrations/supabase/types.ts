@@ -1860,14 +1860,17 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          discount_amount: number
           discount_type: string
           discount_value: number
           frequency: string
+          gross_total: number
           id: string
           is_override: boolean
           is_recurring: boolean
           item_code: string | null
           item_name: string
+          net_total: number
           proposal_id: string
           qty: number
           sort_order: number
@@ -1878,14 +1881,17 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          discount_amount?: number
           discount_type?: string
           discount_value?: number
           frequency?: string
+          gross_total?: number
           id?: string
           is_override?: boolean
           is_recurring?: boolean
           item_code?: string | null
           item_name: string
+          net_total?: number
           proposal_id: string
           qty?: number
           sort_order?: number
@@ -1896,14 +1902,17 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          discount_amount?: number
           discount_type?: string
           discount_value?: number
           frequency?: string
+          gross_total?: number
           id?: string
           is_override?: boolean
           is_recurring?: boolean
           item_code?: string | null
           item_name?: string
+          net_total?: number
           proposal_id?: string
           qty?: number
           sort_order?: number

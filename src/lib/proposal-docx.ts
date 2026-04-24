@@ -17,7 +17,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
-import { computeTotals } from "@/lib/proposal-engine";
+import { computeTotals, enrichProposalItem } from "@/lib/proposal-engine";
 import { getCommercialIncludes, getCommercialItemLabel, getInvestmentSummary } from "@/lib/proposal-commercial";
 import { t, formatEuro } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
@@ -177,8 +177,6 @@ export async function generateProposalDocx(
   const s = t(lang);
   const totals = computeTotals(
     items,
-    proposal.discount_pct || 0,
-    proposal.discount_scope || "none",
     proposal.software_discount_pct || 0,
     proposal.services_discount_pct || 0,
   );
@@ -388,7 +386,8 @@ export async function generateProposalDocx(
   const serviceItems = items.filter((i) => i.category === "service");
   const customItems = items.filter((i) => i.category === "custom");
 
-  const renderLineItem = (i: ProposalItem) => {
+  const renderLineItem = (rawItem: ProposalItem) => {
+    const i = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
     const freqSuffix = i.is_recurring ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}` : "";
     const paragraphs: Paragraph[] = [
       new Paragraph({
@@ -402,12 +401,18 @@ export async function generateProposalDocx(
             font: "Calibri",
           }),
           new TextRun({
-            text: formatEuro(i.total, lang) + freqSuffix,
+            text: `${formatEuro(i.gross_total || 0, lang)} gross${freqSuffix}`,
             bold: true,
             color: DARK,
             size: 22,
             font: "Calibri",
           }),
+          ...(i.discount_amount
+            ? [
+                new TextRun({ text: ` · discount ${i.discount_type === "percent" ? `${Number(i.discount_value || 0)}% ` : ""}(-${formatEuro(i.discount_amount || 0, lang)})`, color: RED, size: 20, font: "Calibri" }),
+                new TextRun({ text: ` · net ${formatEuro(i.net_total || 0, lang)}${freqSuffix}`, bold: true, color: DARK, size: 22, font: "Calibri" }),
+              ]
+            : [new TextRun({ text: ` · net ${formatEuro(i.net_total || 0, lang)}${freqSuffix}`, bold: true, color: DARK, size: 22, font: "Calibri" })]),
         ],
       }),
     ];
@@ -534,13 +539,24 @@ export async function generateProposalDocx(
     );
   }
   if (totals.discountAmount > 0) {
-    pushY1Row([
-      cell(investment.discountLabel, { italic: true }),
-      cell(`- ${formatEuro(totals.discountAmount, lang)}`, {
-        align: AlignmentType.RIGHT,
-        italic: true,
-      }),
-    ]);
+    if (totals.softwareDiscountAmount > 0) {
+      pushY1Row([
+        cell(s.softwareDiscountLabel(Number(proposal.software_discount_pct || 0)), { italic: true }),
+        cell(`- ${formatEuro(totals.softwareDiscountAmount, lang)}`, {
+          align: AlignmentType.RIGHT,
+          italic: true,
+        }),
+      ]);
+    }
+    if (totals.servicesDiscountAmount > 0) {
+      pushY1Row([
+        cell(s.servicesDiscountLabel(Number(proposal.services_discount_pct || 0)), { italic: true }),
+        cell(`- ${formatEuro(totals.servicesDiscountAmount, lang)}`, {
+          align: AlignmentType.RIGHT,
+          italic: true,
+        }),
+      ]);
+    }
   }
   pushY1Row([
     cell(s.totalOfYear, { bold: true, bg: GREY_BG }),
