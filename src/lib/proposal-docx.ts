@@ -418,7 +418,8 @@ export async function generateProposalDocx(
     return baseLabel + (it.qty > 1 && !labelHasQty ? `  (×${it.qty})` : "");
   };
 
-  const frequencyText = (rawItem: ProposalItem) => (rawItem.is_recurring ? s.perYear : "one-time");
+  const frequencyText = (rawItem: ProposalItem) =>
+    rawItem.is_recurring ? i18nFrequencyLabel("yearly", lang) : i18nFrequencyLabel(rawItem.frequency || "one-time", lang);
 
   // --- Detailed rows (with discount columns) ---
   const detailHeaderRow = (sectionLabel: string) =>
