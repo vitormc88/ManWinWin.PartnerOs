@@ -1857,6 +1857,7 @@ export type Database = {
       }
       proposal_items: {
         Row: {
+          apply_discount_to_renewal: boolean
           category: string
           created_at: string
           description: string | null
@@ -1878,6 +1879,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          apply_discount_to_renewal?: boolean
           category?: string
           created_at?: string
           description?: string | null
@@ -1899,6 +1901,7 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          apply_discount_to_renewal?: boolean
           category?: string
           created_at?: string
           description?: string | null
