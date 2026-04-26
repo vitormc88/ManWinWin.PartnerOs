@@ -181,7 +181,6 @@ export async function generateProposalDocx(
     proposal.services_discount_pct || 0,
   );
   const logoBytes = await loadLogo();
-  const investment = getInvestmentSummary(proposal, items, totals);
   const softwareDiscountSummary = getSectionDiscountSummary(items, "software", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
   const servicesDiscountSummary = getSectionDiscountSummary(items, "services", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
 
