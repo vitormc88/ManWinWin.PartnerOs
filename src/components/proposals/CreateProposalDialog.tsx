@@ -518,13 +518,23 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       <Switch checked={planDiscountRenews} onCheckedChange={setPlanDiscountRenews} disabled={planDiscountPct <= 0} />
                     </div>
                   </div>
-                  <div>
+                  <div className={!includeRequests ? "opacity-50 pointer-events-none" : ""}>
                     <Label className="text-xs">Requests Module discount %</Label>
-                    <Input type="number" min={0} max={100} value={requestsDiscountPct} onChange={(e) => setRequestsDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={includeRequests ? requestsDiscountPct : 0}
+                      onChange={(e) => setRequestsDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                      disabled={!includeRequests}
+                    />
                     <div className="flex items-center justify-between mt-2">
                       <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
-                      <Switch checked={requestsDiscountRenews} onCheckedChange={setRequestsDiscountRenews} disabled={requestsDiscountPct <= 0} />
+                      <Switch checked={requestsDiscountRenews} onCheckedChange={setRequestsDiscountRenews} disabled={!includeRequests || requestsDiscountPct <= 0} />
                     </div>
+                    {!includeRequests && (
+                      <p className="text-[10px] text-muted-foreground mt-1 italic">Enable Requests Module to set a discount.</p>
+                    )}
                   </div>
                   <div>
                     <Label className="text-xs">Web/Mobile users discount %</Label>
