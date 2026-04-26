@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/proposal-i18n";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { CreateProposalDialog } from "./CreateProposalDialog";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 
