@@ -55,12 +55,8 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
         .from("proposals")
         .update({ status: "Ready", generated_at: new Date().toISOString() })
         .eq("id", prop.id);
-      // refresh list
-      // (handled by react-query invalidation triggered elsewhere; do a manual refetch)
-      const { data: refreshed } = await supabase.from("proposals").select("*").eq("id", prop.id).maybeSingle();
-      return refreshed;
+      qc.invalidateQueries({ queryKey: ["proposals"] });
     }
-    return prop;
   };
 
   const reDownload = async (id: string) => {
