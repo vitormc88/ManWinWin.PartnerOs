@@ -504,11 +504,11 @@ export function formatEuro(value: number, lang: ProposalLanguage = "EN"): string
 /** Frequency label per language. */
 export function frequencyLabel(freq: string, lang: ProposalLanguage = "EN"): string {
   const map: Record<string, Partial<Record<ProposalLanguage, string>>> = {
-    yearly: { EN: "/ year", PT: "/ ano", ES: "/ año" },
-    monthly: { EN: "/ month", PT: "/ mês", ES: "/ mes" },
-    "one-time": { EN: "one-time", PT: "única", ES: "única" },
-    "per-user-month": { EN: "/ user / month", PT: "/ utilizador / mês", ES: "/ usuario / mes" },
-    "per-hour": { EN: "/ hour", PT: "/ hora", ES: "/ hora" },
+    yearly: { EN: "yearly", PT: "por ano", ES: "por año" },
+    monthly: { EN: "monthly", PT: "por mês", ES: "por mes" },
+    "one-time": { EN: "one-time", PT: "único", ES: "único" },
+    "per-user-month": { EN: "per-user-month", PT: "por utilizador/mês", ES: "por usuario/mes" },
+    "per-hour": { EN: "per-hour", PT: "por hora", ES: "por hora" },
   };
   return map[freq]?.[lang] ?? map[freq]?.EN ?? freq;
 }
