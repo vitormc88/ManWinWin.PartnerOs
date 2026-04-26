@@ -34,9 +34,12 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 
   const lineRow = (rawItem: ProposalItem) => {
     const it = enrichProposalItem(rawItem, softwarePct, servicesPct);
+    const baseLabel = getCommercialItemLabel(it, proposal);
+    const labelHasQty = /\(×\d+\)/.test(baseLabel);
+    const qtySuffix = it.qty > 1 && !labelHasQty ? ` <span class="muted">×${it.qty}</span>` : "";
     return `
     <tr>
-      <td>${esc(getCommercialItemLabel(it, proposal))}${it.qty > 1 ? ` <span class="muted">×${it.qty}</span>` : ""}</td>
+      <td>${esc(baseLabel)}${qtySuffix}</td>
       <td class="num">${formatEuro(Number(it.gross_total) || 0, lang)}</td>
       <td class="num discount">${discountCellLabel(rawItem)}</td>
       <td class="num strong">${formatEuro(Number(it.net_total) || 0, lang)}</td>
