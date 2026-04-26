@@ -699,13 +699,20 @@ export async function generateProposalDocx(
           ...softwareBlock,
           ...servicesBlock,
           sectionHeading(s.investmentInProject),
+          p(s.year1, { bold: true, size: 24, color: RED, spacing: { before: 120, after: 100 } }),
           investmentTable,
-          p(s.assumingSameYear1, {
-            italic: true,
-            size: 18,
-            color: MUTED,
-            spacing: { before: 120, after: 80 },
-          }),
+          ...(recurringItems.length > 0
+            ? [
+                p(s.year2Onwards, { bold: true, size: 24, color: RED, spacing: { before: 240, after: 100 } }),
+                renewalTable,
+                p(s.assumingSameYear1, {
+                  italic: true,
+                  size: 18,
+                  color: MUTED,
+                  spacing: { before: 120, after: 80 },
+                }),
+              ]
+            : []),
           ...(totals.recurringDiscountAmount === 0 && totals.discountAmount > 0
             ? [p(s.discountsYear1OnlyNote, { italic: true, size: 18, color: MUTED, spacing: { after: 240 } })]
             : []),
