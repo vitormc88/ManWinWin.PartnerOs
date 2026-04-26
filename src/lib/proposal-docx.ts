@@ -747,7 +747,8 @@ export async function generateProposalDocx(
           ...planDesc,
           sectionHeading(s.investmentInProject),
           p(s.year1, { bold: true, size: 24, color: RED, spacing: { before: 120, after: 100 } }),
-          investmentTable,
+          ...sectionTables.flatMap((tbl) => [tbl, p("", { spacing: { after: 80 } })]),
+          totalBar,
           ...(recurringItems.length > 0
             ? [
                 renewalTable,
