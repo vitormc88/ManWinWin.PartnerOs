@@ -84,6 +84,10 @@ interface Strings {
   colFrequency: string;
   colGross: string;
   colNet: string;
+  /** Subtotal label builders */
+  grossSubtotal: (sectionTitle: string) => string;
+  netSubtotal: (sectionTitle: string) => string;
+  sectionSubtotal: (sectionTitle: string) => string;
   /** Commercial item labels */
   planAnnualLicense: (plan: number) => string;
   onlineImplementationLabel: (plan: number) => string;
