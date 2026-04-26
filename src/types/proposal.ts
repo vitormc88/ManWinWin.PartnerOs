@@ -53,6 +53,11 @@ export interface ProposalItem {
   gross_total?: number;
   discount_amount?: number;
   net_total?: number;
+  /**
+   * If true and the item is recurring, the discount also applies to Year 2+.
+   * Default false: discounts apply to Year 1 only.
+   */
+  apply_discount_to_renewal?: boolean;
   is_override: boolean;
   is_recurring: boolean;
   sort_order: number;
