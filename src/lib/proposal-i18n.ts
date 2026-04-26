@@ -90,6 +90,10 @@ interface Strings {
   country: string;
   versionLabel: string;
   daysWord: string;
+  /** Renewal-related labels */
+  renewalValue: string;
+  renewalDiscountApplied: string;
+  discountsYear1OnlyNote: string;
   /** Language fallback warning */
   langFallbackWarning: (target: string) => string;
 }
@@ -202,6 +206,9 @@ const EN: Strings = {
   country: "Country",
   versionLabel: "Version",
   daysWord: "days",
+  renewalValue: "Renewal",
+  renewalDiscountApplied: "Renewal discount applied",
+  discountsYear1OnlyNote: "Discounts shown are applied to Year 1 only unless otherwise stated.",
   langFallbackWarning: (target) =>
     `Translations for ${target} are not available yet — proposal will be generated in English.`,
 };
@@ -313,6 +320,9 @@ const PT: Strings = {
   country: "País",
   versionLabel: "Versão",
   daysWord: "dias",
+  renewalValue: "Renovação",
+  renewalDiscountApplied: "Desconto de renovação aplicado",
+  discountsYear1OnlyNote: "Os descontos apresentados aplicam-se apenas ao Ano 1, salvo indicação em contrário.",
   langFallbackWarning: (target) =>
     `Traduções para ${target} ainda não estão disponíveis — a proposta será gerada em inglês.`,
 };
@@ -425,6 +435,9 @@ const ES: Strings = {
   country: "País",
   versionLabel: "Versión",
   daysWord: "días",
+  renewalValue: "Renovación",
+  renewalDiscountApplied: "Descuento de renovación aplicado",
+  discountsYear1OnlyNote: "Los descuentos mostrados se aplican solo al Año 1, salvo indicación en contrario.",
   langFallbackWarning: (target) =>
     `Las traducciones para ${target} aún no están disponibles — la propuesta se generará en inglés.`,
 };
