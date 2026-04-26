@@ -1,7 +1,7 @@
 import type { Proposal, ProposalItem, ProposalDiscountScope, ProposalLanguage, ProposalPlan } from "@/types/proposal";
 import type { ProposalTotals } from "@/lib/proposal-engine";
 import { formatEuro, frequencyLabel, t } from "@/lib/proposal-i18n";
-import { enrichProposalItem, getItemBaseTotal, getItemDiscountAmount, getItemNetTotal, hasItemOwnDiscount } from "@/lib/proposal-engine";
+import { enrichProposalItem, getItemBaseTotal, getItemDiscountAmount, getItemNetTotal, getItemRenewalValue, hasItemOwnDiscount } from "@/lib/proposal-engine";
 
 type LocalizedSet = Record<"EN" | "PT" | "ES", string>;
 
@@ -109,6 +109,22 @@ export function getCommercialRows(items: ProposalItem[], proposal: Proposal) {
     };
   };
 
+  /** Recurring rows for Year 2+ display: value uses renewal logic. */
+  const toRenewalRow = (item: ProposalItem) => {
+    const enriched = enrichProposalItem(item, softwarePct, servicesPct);
+    const renewal = getItemRenewalValue(item, softwarePct, servicesPct);
+    const gross = enriched.gross_total || getItemBaseTotal(item);
+    const discounted = Boolean(item.apply_discount_to_renewal) && renewal < gross;
+    return {
+      item: enriched,
+      label: getCommercialItemLabel(item, proposal),
+      value: formatEuro(renewal, proposal.language),
+      grossValue: formatEuro(gross, proposal.language),
+      discounted,
+      suffix: frequencyLabel("yearly", proposal.language),
+    };
+  };
+
   return {
     software,
     services,
@@ -116,6 +132,7 @@ export function getCommercialRows(items: ProposalItem[], proposal: Proposal) {
     softwareLines: software.map(toRow),
     serviceLines: services.map(toRow),
     recurringLines: recurring.map(toRow),
+    renewalLines: recurring.map(toRenewalRow),
   };
 }
 
@@ -134,6 +151,7 @@ export function getInvestmentSummary(proposal: Proposal, items: ProposalItem[], 
     softwareLines: rows.softwareLines,
     serviceLines: rows.serviceLines,
     recurringLines: rows.recurringLines,
+    renewalLines: rows.renewalLines,
     softwareSubtotalLabel: pick(lang, shortLabels.softwareSubtotal),
     servicesSubtotalLabel: pick(lang, shortLabels.servicesSubtotal),
     discountLabel: totals.servicesDiscountAmount > 0 ? t(lang).servicesDiscountLabel(Number(proposal.services_discount_pct || 0)) : t(lang).softwareDiscountLabel(Number(proposal.software_discount_pct || 0)),
