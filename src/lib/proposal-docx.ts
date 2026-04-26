@@ -380,69 +380,15 @@ export async function generateProposalDocx(
   }
 
   /* ----------------------- detailed line items ------------------------- */
+  // Note: detailed line items are rendered inside the Investment Summary table
+  // below (Year 1 / Year 2+). We intentionally do NOT render bullet-list
+  // duplicates of Software / Services here to avoid repeating section labels.
 
   const softwareItems = items.filter(
     (i) => i.category === "software" || i.category === "addon",
   );
   const serviceItems = items.filter((i) => i.category === "service");
   const customItems = items.filter((i) => i.category === "custom");
-
-  const renderLineItem = (rawItem: ProposalItem) => {
-    const i = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
-    const effectiveDiscount = getItemEffectiveDiscount(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
-    const freqSuffix = i.is_recurring ? ` / ${s.perYear.replace(/^per /, "").replace(/^por /, "")}` : "";
-    const paragraphs: Paragraph[] = [
-      new Paragraph({
-        spacing: { after: 40 },
-        indent: { left: 360 },
-        children: [
-          new TextRun({
-            text: `•  ${getCommercialItemLabel(i, proposal)}: `,
-            color: DARK,
-            size: 22,
-            font: "Calibri",
-          }),
-          new TextRun({
-            text: `${formatEuro(i.gross_total || 0, lang)} gross${freqSuffix}`,
-            bold: true,
-            color: DARK,
-            size: 22,
-            font: "Calibri",
-          }),
-          ...(effectiveDiscount.amount
-            ? [
-                new TextRun({ text: ` · discount ${effectiveDiscount.source === "section" ? `${s.sectionDiscountLabel(effectiveDiscount.value)} ` : effectiveDiscount.type === "percent" ? `${Number(effectiveDiscount.value || 0)}% ` : ""}(-${formatEuro(effectiveDiscount.amount || 0, lang)})`, color: RED, size: 20, font: "Calibri" }),
-                new TextRun({ text: ` · net ${formatEuro(i.net_total || 0, lang)}${freqSuffix}`, bold: true, color: DARK, size: 22, font: "Calibri" }),
-              ]
-            : [new TextRun({ text: ` · net ${formatEuro(i.net_total || 0, lang)}${freqSuffix}`, bold: true, color: DARK, size: 22, font: "Calibri" })]),
-        ],
-      }),
-    ];
-    return paragraphs;
-  };
-
-  const softwareBlock: Paragraph[] = [];
-  if (softwareItems.length > 0) {
-    softwareBlock.push(
-      sectionHeading(s.software),
-      ...softwareItems.flatMap(renderLineItem),
-      new Paragraph({
-        spacing: { before: 80, after: 80 },
-        indent: { left: 360 },
-        children: [
-          new TextRun({ text: s.satIncluded, italics: true, color: MUTED, size: 18, font: "Calibri" }),
-        ],
-      }),
-    );
-  }
-
-  const servicesBlock: Paragraph[] = [];
-  if (serviceItems.length > 0) {
-    servicesBlock.push(sectionHeading(s.services), ...serviceItems.flatMap(renderLineItem));
-  }
-  if (customItems.length > 0) {
-    servicesBlock.push(...customItems.flatMap(renderLineItem));
-  }
 
   /* ----------------------- investment summary table -------------------- */
 
