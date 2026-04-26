@@ -178,30 +178,24 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 
   <div class="year-bar"><span class="label">${esc(s.year1)}</span><span class="bar"></span></div>
 
-  ${detailedTable(s.software, software)}
-  ${detailedTable(s.services, services)}
+  ${sectionBlock(
+    s.software,
+    software,
+    totals.softwareGrossSubtotal,
+    softwareUniformLabel,
+    totals.softwareDiscountAmount,
+    totals.softwareSubtotal,
+  )}
+  ${sectionBlock(
+    s.services,
+    services,
+    totals.servicesGrossSubtotal,
+    servicesUniformLabel,
+    totals.servicesDiscountAmount,
+    totals.servicesSubtotal,
+  )}
 
-  <div class="summary">
-    ${software.length > 0 ? summarySection(
-      s.software,
-      `${s.software} gross subtotal`,
-      totals.softwareGrossSubtotal,
-      softwareUniformLabel,
-      totals.softwareDiscountAmount,
-      `${s.software} net subtotal`,
-      totals.softwareSubtotal,
-    ) : ""}
-    ${services.length > 0 ? summarySection(
-      s.services,
-      `${s.services} gross subtotal`,
-      totals.servicesGrossSubtotal,
-      servicesUniformLabel,
-      totals.servicesDiscountAmount,
-      `${s.services} net subtotal`,
-      totals.servicesSubtotal,
-    ) : ""}
-    <div class="year-total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
-  </div>
+  <div class="year-total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
 
   ${recurring.length > 0 ? `
     <div class="year-bar"><span class="label">${esc(s.year2Onwards)}</span><span class="bar"></span></div>
