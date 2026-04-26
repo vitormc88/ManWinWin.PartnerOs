@@ -77,6 +77,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const [planDiscountPct, setPlanDiscountPct] = useState(0);
   const [requestsDiscountPct, setRequestsDiscountPct] = useState(0);
   const [webUsersDiscountPct, setWebUsersDiscountPct] = useState(0);
+  // Renewal toggles (default OFF — discounts apply to Year 1 only)
+  const [planDiscountRenews, setPlanDiscountRenews] = useState(false);
+  const [requestsDiscountRenews, setRequestsDiscountRenews] = useState(false);
+  const [webUsersDiscountRenews, setWebUsersDiscountRenews] = useState(false);
 
   // Step 4
   const [paymentTerms, setPaymentTerms] = useState("");
