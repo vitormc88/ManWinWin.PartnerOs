@@ -37,8 +37,8 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   };
 
   const frequencyLabel = (rawItem: ProposalItem) => {
-    if (!rawItem.is_recurring) return "one-time";
-    return s.perYear;
+    if (!rawItem.is_recurring) return i18nFrequencyLabel(rawItem.frequency || "one-time", lang);
+    return i18nFrequencyLabel("yearly", lang);
   };
 
   const discountCellLabel = (rawItem: ProposalItem) => {
