@@ -726,7 +726,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                 </div>
                 <div className="space-y-1">
                   <div className="flex justify-between text-base font-bold"><span>{i18n.year1}</span><span className="text-primary">{formatPrice(totals.totalYear1)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">{i18n.year2Onwards}</span><span className="font-medium">{formatPrice(totals.totalRecurring)} {i18n.perYear}</span></div>
+                  <div className="border-t mt-2 pt-2 space-y-1">
+                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Recurring gross (Y2+)</span><span className="font-medium">{formatPrice(totals.recurringGrossYearly)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Renewal discounts (Y2+)</span><span className="font-medium">{totals.recurringDiscountAmount ? `-${formatPrice(totals.recurringDiscountAmount)}` : "—"}</span></div>
+                    <div className="flex justify-between text-sm font-semibold"><span>{i18n.year2Onwards}</span><span className="text-primary">{formatPrice(totals.totalRecurring)} {i18n.perYear}</span></div>
+                  </div>
+                  {totals.recurringDiscountAmount === 0 && totals.discountAmount > 0 && (
+                    <p className="text-[10px] text-muted-foreground italic mt-2">
+                      Discounts apply to Year 1 only. Toggle "Apply discount to renewals" on a recurring line to also discount Year 2+.
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
