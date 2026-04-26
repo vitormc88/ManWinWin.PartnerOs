@@ -82,6 +82,20 @@ interface Strings {
   colUnit: string;
   colTotal: string;
   colFrequency: string;
+  colGross: string;
+  colNet: string;
+  /** Subtotal label builders */
+  grossSubtotal: (sectionTitle: string) => string;
+  netSubtotal: (sectionTitle: string) => string;
+  sectionSubtotal: (sectionTitle: string) => string;
+  /** Commercial item labels */
+  planAnnualLicense: (plan: number) => string;
+  onlineImplementationLabel: (plan: number) => string;
+  lightImplementationLabel: (plan: number) => string;
+  requestsImplementationLabel: string;
+  requestsModuleShort: string;
+  webUsersAdditionalLabel: (qty: number) => string;
+  onsiteDaysLabel: (qty: number) => string;
   /** Misc */
   client: string;
   date: string;
@@ -199,6 +213,18 @@ const EN: Strings = {
   colUnit: "Unit price",
   colTotal: "Total",
   colFrequency: "Frequency",
+  colGross: "Gross",
+  colNet: "Net",
+  grossSubtotal: (title) => `${title} gross subtotal`,
+  netSubtotal: (title) => `${title} net subtotal`,
+  sectionSubtotal: (title) => `${title} subtotal`,
+  planAnnualLicense: (plan) => `ManWinWin Professional — Plan ${plan} annual license`,
+  onlineImplementationLabel: (plan) => `Online Implementation — Plan ${plan}`,
+  lightImplementationLabel: (plan) => `Light Implementation — Plan ${plan}`,
+  requestsImplementationLabel: "Maintenance Requests Implementation",
+  requestsModuleShort: "Maintenance Requests Module",
+  webUsersAdditionalLabel: (qty) => `ManWinWin WEB / Mobility additional accesses (×${qty})`,
+  onsiteDaysLabel: (qty) => `Onsite implementation days (×${qty})`,
   client: "Client",
   date: "Date",
   project: "Project",
@@ -313,6 +339,18 @@ const PT: Strings = {
   colUnit: "Preço unitário",
   colTotal: "Total",
   colFrequency: "Periodicidade",
+  colGross: "Bruto",
+  colNet: "Líquido",
+  grossSubtotal: (title) => `Subtotal bruto ${title.toLowerCase()}`,
+  netSubtotal: (title) => `Subtotal líquido ${title.toLowerCase()}`,
+  sectionSubtotal: (title) => `Subtotal ${title.toLowerCase()}`,
+  planAnnualLicense: (plan) => `Licença anual — Plano ${plan}`,
+  onlineImplementationLabel: (plan) => `Implementação Online — Plano ${plan}`,
+  lightImplementationLabel: (plan) => `Implementação Light — Plano ${plan}`,
+  requestsImplementationLabel: "Implementação do Módulo de Pedidos de Manutenção",
+  requestsModuleShort: "Módulo de Pedidos de Manutenção",
+  webUsersAdditionalLabel: (qty) => `Utilizadores Web/Mobile adicionais (×${qty})`,
+  onsiteDaysLabel: (qty) => `Dias de implementação presencial (×${qty})`,
   client: "Cliente",
   date: "Data",
   project: "Projeto",
@@ -428,6 +466,18 @@ const ES: Strings = {
   colUnit: "Precio unitario",
   colTotal: "Total",
   colFrequency: "Periodicidad",
+  colGross: "Bruto",
+  colNet: "Neto",
+  grossSubtotal: (title) => `Subtotal bruto ${title.toLowerCase()}`,
+  netSubtotal: (title) => `Subtotal neto ${title.toLowerCase()}`,
+  sectionSubtotal: (title) => `Subtotal ${title.toLowerCase()}`,
+  planAnnualLicense: (plan) => `Licencia anual — Plan ${plan}`,
+  onlineImplementationLabel: (plan) => `Implementación Online — Plan ${plan}`,
+  lightImplementationLabel: (plan) => `Implementación Light — Plan ${plan}`,
+  requestsImplementationLabel: "Implementación del Módulo de Solicitudes de Mantenimiento",
+  requestsModuleShort: "Módulo de Solicitudes de Mantenimiento",
+  webUsersAdditionalLabel: (qty) => `Usuarios Web/Mobile adicionales (×${qty})`,
+  onsiteDaysLabel: (qty) => `Días de implementación presencial (×${qty})`,
   client: "Cliente",
   date: "Fecha",
   project: "Proyecto",
@@ -467,11 +517,11 @@ export function formatEuro(value: number, lang: ProposalLanguage = "EN"): string
 /** Frequency label per language. */
 export function frequencyLabel(freq: string, lang: ProposalLanguage = "EN"): string {
   const map: Record<string, Partial<Record<ProposalLanguage, string>>> = {
-    yearly: { EN: "/ year", PT: "/ ano", ES: "/ año" },
-    monthly: { EN: "/ month", PT: "/ mês", ES: "/ mes" },
-    "one-time": { EN: "one-time", PT: "única", ES: "única" },
-    "per-user-month": { EN: "/ user / month", PT: "/ utilizador / mês", ES: "/ usuario / mes" },
-    "per-hour": { EN: "/ hour", PT: "/ hora", ES: "/ hora" },
+    yearly: { EN: "yearly", PT: "por ano", ES: "por año" },
+    monthly: { EN: "monthly", PT: "por mês", ES: "por mes" },
+    "one-time": { EN: "one-time", PT: "único", ES: "único" },
+    "per-user-month": { EN: "per-user-month", PT: "por utilizador/mês", ES: "por usuario/mes" },
+    "per-hour": { EN: "per-hour", PT: "por hora", ES: "por hora" },
   };
   return map[freq]?.[lang] ?? map[freq]?.EN ?? freq;
 }

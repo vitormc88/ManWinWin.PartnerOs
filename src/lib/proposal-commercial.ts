@@ -51,27 +51,28 @@ export function getCommercialIncludes(plan: ProposalPlan, language: ProposalLang
 
 export function getCommercialItemLabel(item: ProposalItem, proposal: Proposal) {
   const lang = proposal.language;
+  const s = t(lang);
   switch (item.item_code) {
     case "plan_1_annual":
     case "plan_2_annual":
     case "plan_3_annual":
-      return `ManWinWin Professional — Plan ${proposal.plan} annual license`;
+      return s.planAnnualLicense(proposal.plan);
     case "requests_module":
-      return pick(lang, shortLabels.requestsModule);
+      return s.requestsModuleShort;
     case "web_user":
-      return `ManWinWin WEB / Mobility additional accesses (×${item.qty})`;
+      return s.webUsersAdditionalLabel(item.qty);
     case "impl_online_p1":
     case "impl_online_p2":
     case "impl_online_p3":
-      return `Online Implementation — Plan ${proposal.plan}`;
+      return s.onlineImplementationLabel(proposal.plan);
     case "impl_light_p1":
     case "impl_light_p2":
     case "impl_light_p3":
-      return `Light Implementation — Plan ${proposal.plan}`;
+      return s.lightImplementationLabel(proposal.plan);
     case "impl_requests":
-      return "Maintenance Requests Implementation";
+      return s.requestsImplementationLabel;
     case "onsite_per_diem":
-      return `Onsite implementation days (×${item.qty})`;
+      return s.onsiteDaysLabel(item.qty);
     default:
       return item.item_name;
   }

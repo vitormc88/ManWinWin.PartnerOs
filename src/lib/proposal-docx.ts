@@ -19,7 +19,7 @@ import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRenewalValue, getSectionDiscountSummary } from "@/lib/proposal-engine";
 import { getCommercialIncludes, getCommercialItemLabel } from "@/lib/proposal-commercial";
-import { t, formatEuro } from "@/lib/proposal-i18n";
+import { t, formatEuro, frequencyLabel as i18nFrequencyLabel } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
 
 const RED = "E01F2C";
@@ -418,7 +418,8 @@ export async function generateProposalDocx(
     return baseLabel + (it.qty > 1 && !labelHasQty ? `  (×${it.qty})` : "");
   };
 
-  const frequencyText = (rawItem: ProposalItem) => (rawItem.is_recurring ? s.perYear : "one-time");
+  const frequencyText = (rawItem: ProposalItem) =>
+    rawItem.is_recurring ? i18nFrequencyLabel("yearly", lang) : i18nFrequencyLabel(rawItem.frequency || "one-time", lang);
 
   // --- Detailed rows (with discount columns) ---
   const detailHeaderRow = (sectionLabel: string) =>
@@ -426,9 +427,9 @@ export async function generateProposalDocx(
       tableHeader: true,
       children: [
         cell(sectionLabel, { bold: true, bg: RED, color: "FFFFFF", width: COL_ITEM }),
-        cell("Gross", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
-        cell("Discount", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
-        cell("Net", { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell(s.colGross, { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell(s.discount, { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
+        cell(s.colNet, { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: COL_NUM_3 }),
       ],
     });
 
@@ -556,11 +557,11 @@ export async function generateProposalDocx(
     if (showDiscountColumns) {
       const rows: TableRow[] = [detailHeaderRow(title)];
       list.forEach((it) => rows.push(detailLineRow(it)));
-      rows.push(wideSubtotalRow(`${title} gross subtotal`, formatEuro(grossAmount, lang)));
+      rows.push(wideSubtotalRow(s.grossSubtotal(title), formatEuro(grossAmount, lang)));
       if (discountAmount > 0) {
         rows.push(wideSubtotalRow(discountLabel, `- ${formatEuro(discountAmount, lang)}`, { discount: true }));
       }
-      rows.push(wideSubtotalRow(`${title} net subtotal`, formatEuro(netAmount, lang), { strong: true }));
+      rows.push(wideSubtotalRow(s.netSubtotal(title), formatEuro(netAmount, lang), { strong: true }));
       return new Table({
         width: { size: TABLE_WIDTH, type: WidthType.DXA },
         columnWidths: [COL_ITEM, COL_NUM_3, COL_NUM_3, COL_NUM_3],
@@ -570,7 +571,7 @@ export async function generateProposalDocx(
 
     const rows: TableRow[] = [simpleHeaderRow(title)];
     list.forEach((it) => rows.push(simpleLineRow(it)));
-    rows.push(simpleSubtotalRow(`${title} subtotal`, formatEuro(grossAmount, lang)));
+    rows.push(simpleSubtotalRow(s.sectionSubtotal(title), formatEuro(grossAmount, lang)));
     return new Table({
       width: { size: SIMPLE_TABLE_WIDTH, type: WidthType.DXA },
       columnWidths: [SIMPLE_COL_ITEM, SIMPLE_COL_TOTAL, SIMPLE_COL_FREQ],

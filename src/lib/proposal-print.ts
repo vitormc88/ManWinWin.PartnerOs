@@ -1,5 +1,5 @@
 import type { Proposal, ProposalItem } from "@/types/proposal";
-import { formatEuro, t } from "./proposal-i18n";
+import { formatEuro, frequencyLabel as i18nFrequencyLabel, t } from "./proposal-i18n";
 import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRenewalValue, getSectionDiscountSummary } from "./proposal-engine";
 import { getCommercialIncludes, getCommercialItemLabel } from "./proposal-commercial";
 import logoUrl from "@/assets/manwinwin-logo.png";
@@ -37,8 +37,8 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   };
 
   const frequencyLabel = (rawItem: ProposalItem) => {
-    if (!rawItem.is_recurring) return "one-time";
-    return s.perYear;
+    if (!rawItem.is_recurring) return i18nFrequencyLabel(rawItem.frequency || "one-time", lang);
+    return i18nFrequencyLabel("yearly", lang);
   };
 
   const discountCellLabel = (rawItem: ProposalItem) => {
@@ -119,13 +119,13 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
       <h2>${esc(title)}</h2>
       <table class="lines">
         <thead>
-          <tr><th>Item</th><th class="num">Gross</th><th class="num">Discount</th><th class="num">Net</th></tr>
+          <tr><th>${esc(s.colItem)}</th><th class="num">${esc(s.colGross)}</th><th class="num">${esc(s.discount)}</th><th class="num">${esc(s.colNet)}</th></tr>
         </thead>
         <tbody>
           ${list.map(detailedLineRow).join("")}
-          <tr class="subtotal-row"><td colspan="3">${esc(title)} gross subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
+          <tr class="subtotal-row"><td colspan="3">${esc(s.grossSubtotal(title))}</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
           ${discountAmount > 0 ? `<tr class="subtotal-row discount-row"><td colspan="3">${esc(discountLabel)}</td><td class="num">− ${formatEuro(discountAmount, lang)}</td></tr>` : ""}
-          <tr class="subtotal-row strong"><td colspan="3">${esc(title)} net subtotal</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
+          <tr class="subtotal-row strong"><td colspan="3">${esc(s.netSubtotal(title))}</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
         </tbody>
       </table>`;
     }
@@ -135,11 +135,11 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
       <h2>${esc(title)}</h2>
       <table class="lines">
         <thead>
-          <tr><th>Item</th><th class="num">Total</th><th>Frequency</th></tr>
+          <tr><th>${esc(s.colItem)}</th><th class="num">${esc(s.colTotal)}</th><th>${esc(s.colFrequency)}</th></tr>
         </thead>
         <tbody>
           ${list.map(simpleLineRow).join("")}
-          <tr class="subtotal-row strong"><td colspan="2">${esc(title)} subtotal</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
+          <tr class="subtotal-row strong"><td colspan="2">${esc(s.sectionSubtotal(title))}</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
         </tbody>
       </table>`;
   };
