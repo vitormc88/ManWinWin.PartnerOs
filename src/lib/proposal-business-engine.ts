@@ -6,6 +6,36 @@
  */
 import type { PricingRule, ProposalDeployment, ProposalLicenseModel } from "@/types/proposal";
 
+export type OnsiteRegion = "Portugal" | "International" | "Western Europe";
+
+/** Onsite day rates per region (MVP — embedded constants). */
+export const ONSITE_RATES: Record<OnsiteRegion, { client: number; backoffice: number }> = {
+  Portugal: { client: 695, backoffice: 530 },
+  International: { client: 840, backoffice: 530 },
+  "Western Europe": { client: 1080, backoffice: 790 },
+};
+
+export interface BusinessDiscounts {
+  /** % discount applied to all license/module/plugin/additional BackOffice items. */
+  softwarePct: number;
+  /** % discount applied only to additional Web/Mobile users. */
+  webUsersPct: number;
+  /** Whether Web/Mobile users discount also applies to renewals (Year 2+). */
+  webUsersRenews: boolean;
+  /** % discount applied to API line. Optional separate channel. */
+  apiPct: number;
+  /** % discount applied to all service lines. */
+  servicesPct: number;
+}
+
+export const DEFAULT_BUSINESS_DISCOUNTS: BusinessDiscounts = {
+  softwarePct: 0,
+  webUsersPct: 0,
+  webUsersRenews: false,
+  apiPct: 0,
+  servicesPct: 0,
+};
+
 export interface BusinessConfig {
   /** Required maintenance module is always ON. */
   includeRequests: boolean;
@@ -23,6 +53,8 @@ export interface BusinessConfig {
   deployment: ProposalDeployment;
   /** Implementation services configuration. */
   implementation: BusinessImplementationConfig;
+  /** Optional discounts (default 0). */
+  discounts: BusinessDiscounts;
 }
 
 export interface BusinessImplementationConfig {
@@ -33,7 +65,7 @@ export interface BusinessImplementationConfig {
   /** Onsite-only fields. */
   onsiteClientDays?: number;
   onsiteBackofficeDays?: number;
-  onsiteRegion?: string;
+  onsiteRegion?: OnsiteRegion;
 }
 
 export interface BusinessLineItem {
@@ -43,10 +75,18 @@ export interface BusinessLineItem {
   /** Raw unit price from pricing rule. */
   unitPrice: number;
   qty: number;
-  /** Yearly amount (for recurring) or one-time amount. */
+  /** Gross yearly amount (for recurring) or gross one-time amount, before discount. */
   amount: number;
+  /** Discount % applied to this line (0 if none). */
+  discountPct: number;
+  /** Discount monetary amount (gross × pct). */
+  discountAmount: number;
+  /** Net amount after discount. */
+  netAmount: number;
   /** Whether this line recurs in Year 2+. */
   recurring: boolean;
+  /** Whether the discount also applies to Year 2+ renewals (web users). */
+  discountAppliesToRenewal: boolean;
   /** Frequency descriptor for display. */
   frequency: "one-time" | "yearly" | "per-user-month";
 }
@@ -58,14 +98,16 @@ export interface BusinessOptionTotals {
   hosting: BusinessLineItem[];
   sat: BusinessLineItem | null;
   services: BusinessLineItem[];
-  /** License subtotal used for S&AT calculation. */
+  /** License gross subtotal (used for S&AT calculation, before discounts). */
   licenseSubtotal: number;
-  /** Year 1 = software (one-time for keepit OR yearly for useit) + sat + api + hosting + services */
+  /** Year 1 = software net + api net + hosting + sat + services net */
   totalYear1: number;
-  /** Year 2+ recurring total. */
+  /** Year 2+ recurring net total. */
   totalYear2Plus: number;
   /** 5-year cumulative total: Y1 + 4 × Y2+. */
   totalFiveYears: number;
+  /** Convenience flag: true if any line has a discount > 0. */
+  hasDiscounts: boolean;
 }
 
 export interface BusinessEngineOutput {
@@ -89,6 +131,8 @@ const buildLine = (
   category: BusinessLineItem["category"],
   recurring: boolean,
   amountOverride?: number,
+  discountPct = 0,
+  discountAppliesToRenewal = false,
 ): BusinessLineItem | null => {
   if (!rule || qty <= 0) return null;
   const isPerUserMonth =
@@ -100,6 +144,9 @@ const buildLine = (
     ? "yearly"
     : "one-time";
   const amount = amountOverride !== undefined ? amountOverride : yearlyFromUnit(rule, qty);
+  const pct = Math.max(0, Math.min(100, discountPct || 0));
+  const discountAmount = +(amount * (pct / 100)).toFixed(2);
+  const netAmount = +(amount - discountAmount).toFixed(2);
   return {
     code: rule.code,
     label: rule.label,
@@ -107,7 +154,11 @@ const buildLine = (
     unitPrice: rule.unit_price,
     qty,
     amount,
+    discountPct: pct,
+    discountAmount,
+    netAmount,
     recurring,
+    discountAppliesToRenewal: pct > 0 && discountAppliesToRenewal,
     frequency,
   };
 };
@@ -126,64 +177,79 @@ export function computeBusinessOption(
   // For KeepIT, modules are one-time (not recurring).
   // For UseIT, modules are yearly (recurring).
   const modulesRecurring = !isKeepIt;
+  const discounts = cfg.discounts || DEFAULT_BUSINESS_DISCOUNTS;
+  const swPct = discounts.softwarePct || 0;
 
   const software: BusinessLineItem[] = [];
 
   // Maintenance module — always required
   const mainModule = findBusinessRule(rules, `${prefix}MAINTENANCE_MODULE`);
   if (!mainModule) return null;
-  software.push(buildLine(mainModule, 1, "module", modulesRecurring)!);
+  software.push(buildLine(mainModule, 1, "module", modulesRecurring, undefined, swPct)!);
 
   if (cfg.includeRequests) {
     const r = findBusinessRule(rules, `${prefix}REQUESTS_MODULE`);
-    if (r) software.push(buildLine(r, 1, "module", modulesRecurring)!);
+    if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
   }
   if (cfg.includeStock) {
     const r = findBusinessRule(rules, `${prefix}STOCK_MODULE`);
-    if (r) software.push(buildLine(r, 1, "module", modulesRecurring)!);
+    if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
   }
   if (cfg.includePurchase) {
     const r = findBusinessRule(rules, `${prefix}PURCHASE_MODULE`);
-    if (r) software.push(buildLine(r, 1, "module", modulesRecurring)!);
+    if (r) software.push(buildLine(r, 1, "module", modulesRecurring, undefined, swPct)!);
   }
   if (cfg.pluginImport) {
     const r = findBusinessRule(rules, `${prefix}PLUGIN_IMPORT`);
-    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring)!);
+    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
   }
   if (cfg.pluginWorkflow) {
     const r = findBusinessRule(rules, `${prefix}PLUGIN_WORKFLOW`);
-    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring)!);
+    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
   }
   if (cfg.pluginAdvancedReports) {
     const r = findBusinessRule(rules, `${prefix}PLUGIN_ADVANCED_REPORTS`);
-    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring)!);
+    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
   }
   if (cfg.pluginSLA) {
     const r = findBusinessRule(rules, `${prefix}PLUGIN_SLA`);
-    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring)!);
+    if (r) software.push(buildLine(r, 1, "plugin", modulesRecurring, undefined, swPct)!);
   }
 
   if (cfg.additionalBackoffice > 0) {
     const r = findBusinessRule(rules, `${prefix}ADDITIONAL_BACKOFFICE`);
-    if (r) software.push(buildLine(r, cfg.additionalBackoffice, "backoffice_user", modulesRecurring)!);
+    if (r) software.push(buildLine(r, cfg.additionalBackoffice, "backoffice_user", modulesRecurring, undefined, swPct)!);
   }
 
   // Web/Mobile users — always recurring (per-user-month -> yearly *12)
+  // Use webUsersPct discount (separate channel) and respect renewal toggle.
   if (cfg.additionalWebUsers > 0) {
     const w = findBusinessRule(rules, "BUS_WEB_MOBILE_USER");
-    if (w) software.push(buildLine(w, cfg.additionalWebUsers, "web_user", true)!);
+    if (w)
+      software.push(
+        buildLine(
+          w,
+          cfg.additionalWebUsers,
+          "web_user",
+          true,
+          undefined,
+          discounts.webUsersPct || 0,
+          discounts.webUsersRenews,
+        )!,
+      );
   }
 
+  // S&AT base = sum of GROSS license amounts (S&AT is NEVER discounted).
   const licenseSubtotal = software.reduce((s, l) => s + l.amount, 0);
 
   // API
   let api: BusinessLineItem | null = null;
   if (cfg.api) {
     const r = findBusinessRule(rules, "BUS_API");
-    if (r) api = buildLine(r, 1, "api", true);
+    if (r) api = buildLine(r, 1, "api", true, undefined, discounts.apiPct || 0, true);
   }
 
-  // SaaS hosting
+  // SaaS hosting — never discounted
   const hosting: BusinessLineItem[] = [];
   if (cfg.deployment === "saas") {
     const base = findBusinessRule(rules, "BUS_SAAS_HOSTING_BASE");
@@ -194,13 +260,13 @@ export function computeBusinessOption(
     }
   }
 
-  // S&AT
+  // S&AT — calculated from the GROSS license subtotal (no discount on S&AT).
   let sat: BusinessLineItem | null = null;
   const satRule = findBusinessRule(rules, isKeepIt ? "BUS_KEEPIT_SAT" : "BUS_USEIT_SAT");
   if (satRule) {
     if (isKeepIt) {
       const pct = Number(satRule.support_percentage || 0) / 100;
-      const amount = licenseSubtotal * pct;
+      const amount = +(licenseSubtotal * pct).toFixed(2);
       sat = buildLine(satRule, 1, "support", true, amount);
     } else {
       // included = 0
@@ -208,79 +274,138 @@ export function computeBusinessOption(
     }
   }
 
-  // Services (one-time)
+  // Services
   const services: BusinessLineItem[] = [];
+  const svcPct = discounts.servicesPct || 0;
   if (cfg.implementation.type === "RCI Business") {
     const baseRci = findBusinessRule(rules, "BUS_RCI_BASE");
-    if (baseRci) services.push(buildLine(baseRci, 1, "service", false)!);
+    if (baseRci) services.push(buildLine(baseRci, 1, "service", false, undefined, svcPct)!);
     if (cfg.includeStock) {
       const r = findBusinessRule(rules, "BUS_RCI_STOCK");
-      if (r) services.push(buildLine(r, 1, "service", false)!);
+      if (r) services.push(buildLine(r, 1, "service", false, undefined, svcPct)!);
     }
     if (cfg.includeRequests) {
       const r = findBusinessRule(rules, "BUS_RCI_REQUESTS");
-      if (r) services.push(buildLine(r, 1, "service", false)!);
+      if (r) services.push(buildLine(r, 1, "service", false, undefined, svcPct)!);
     }
     if (cfg.includePurchase) {
       const r = findBusinessRule(rules, "BUS_RCI_PURCHASING");
-      if (r) services.push(buildLine(r, 1, "service", false)!);
+      if (r) services.push(buildLine(r, 1, "service", false, undefined, svcPct)!);
     }
     if (cfg.additionalWebUsers > 0) {
       const r = findBusinessRule(rules, "BUS_RCI_WEB");
-      if (r) services.push(buildLine(r, 1, "service", false)!);
+      if (r) services.push(buildLine(r, 1, "service", false, undefined, svcPct)!);
     }
     if (cfg.pluginWorkflow) {
       const r = findBusinessRule(rules, "BUS_RCI_PLUGIN_WORKFLOW");
-      if (r) services.push(buildLine(r, 1, "service", false)!);
+      if (r) services.push(buildLine(r, 1, "service", false, undefined, svcPct)!);
     }
     if (cfg.pluginImport) {
       const r = findBusinessRule(rules, "BUS_RCI_PLUGIN_IMPORT");
-      if (r) services.push(buildLine(r, 1, "service", false)!);
+      if (r) services.push(buildLine(r, 1, "service", false, undefined, svcPct)!);
     }
     if (cfg.pluginSLA) {
       const r = findBusinessRule(rules, "BUS_RCI_PLUGIN_SLA");
-      if (r) services.push(buildLine(r, 1, "service", false)!);
+      if (r) services.push(buildLine(r, 1, "service", false, undefined, svcPct)!);
     }
     if (cfg.pluginAdvancedReports) {
       const r = findBusinessRule(rules, "BUS_RCI_PLUGIN_ADVANCED_REPORTS");
-      if (r) services.push(buildLine(r, 1, "service", false)!);
+      if (r) services.push(buildLine(r, 1, "service", false, undefined, svcPct)!);
     }
     if (cfg.implementation.liveSessions > 0) {
       const r = findBusinessRule(rules, "BUS_RCI_LIVE_SESSION");
-      if (r) services.push(buildLine(r, cfg.implementation.liveSessions, "service", false)!);
+      if (r) services.push(buildLine(r, cfg.implementation.liveSessions, "service", false, undefined, svcPct)!);
+    }
+  } else if (cfg.implementation.type === "Onsite") {
+    const region = (cfg.implementation.onsiteRegion || "Portugal") as OnsiteRegion;
+    const rates = ONSITE_RATES[region] || ONSITE_RATES.Portugal;
+    const cd = Math.max(0, cfg.implementation.onsiteClientDays || 0);
+    const bd = Math.max(0, cfg.implementation.onsiteBackofficeDays || 0);
+    if (cd > 0) {
+      const gross = cd * rates.client;
+      const discAmount = +(gross * (svcPct / 100)).toFixed(2);
+      services.push({
+        code: `onsite_client_${region}`,
+        label: `Onsite — Client days (${region})`,
+        category: "service",
+        unitPrice: rates.client,
+        qty: cd,
+        amount: gross,
+        discountPct: svcPct,
+        discountAmount: discAmount,
+        netAmount: +(gross - discAmount).toFixed(2),
+        recurring: false,
+        discountAppliesToRenewal: false,
+        frequency: "one-time",
+      });
+    }
+    if (bd > 0) {
+      const gross = bd * rates.backoffice;
+      const discAmount = +(gross * (svcPct / 100)).toFixed(2);
+      services.push({
+        code: `onsite_backoffice_${region}`,
+        label: `Onsite — BackOffice days (${region})`,
+        category: "service",
+        unitPrice: rates.backoffice,
+        qty: bd,
+        amount: gross,
+        discountPct: svcPct,
+        discountAmount: discAmount,
+        netAmount: +(gross - discAmount).toFixed(2),
+        recurring: false,
+        discountAppliesToRenewal: false,
+        frequency: "one-time",
+      });
     }
   }
 
-  // Custom services lines
+  // Custom services lines (apply services discount %)
   for (const cs of cfg.implementation.customServices || []) {
     if (cs.price > 0) {
+      const gross = cs.price;
+      const discAmount = +(gross * (svcPct / 100)).toFixed(2);
       services.push({
         code: "custom",
         label: cs.label || "Custom service",
         category: "service",
         unitPrice: cs.price,
         qty: 1,
-        amount: cs.price,
+        amount: gross,
+        discountPct: svcPct,
+        discountAmount: discAmount,
+        netAmount: +(gross - discAmount).toFixed(2),
         recurring: false,
+        discountAppliesToRenewal: false,
         frequency: "one-time",
       });
     }
   }
 
-  // Year 1 = software (sum) + api + hosting + sat + services
-  const softwareTotal = software.reduce((s, l) => s + l.amount, 0);
-  const apiAmount = api?.amount || 0;
-  const hostingAmount = hosting.reduce((s, l) => s + l.amount, 0);
-  const satAmount = sat?.amount || 0;
-  const servicesTotal = services.reduce((s, l) => s + l.amount, 0);
+  // ---- Totals (use NET amounts) ----
+  const softwareNet = software.reduce((s, l) => s + l.netAmount, 0);
+  const apiNet = api?.netAmount || 0;
+  const hostingNet = hosting.reduce((s, l) => s + l.netAmount, 0);
+  const satNet = sat?.netAmount || 0;
+  const servicesNet = services.reduce((s, l) => s + l.netAmount, 0);
 
-  const totalYear1 = softwareTotal + apiAmount + hostingAmount + satAmount + servicesTotal;
+  const totalYear1 = +(softwareNet + apiNet + hostingNet + satNet + servicesNet).toFixed(2);
 
-  // Year 2+ = recurring software + api + hosting + sat
-  const recurringSoftware = software.filter((l) => l.recurring).reduce((s, l) => s + l.amount, 0);
-  const totalYear2Plus = recurringSoftware + apiAmount + hostingAmount + satAmount;
+  // Year 2+ recurring software:
+  // - Web users (per-user-month) recur with discount only if discountAppliesToRenewal.
+  // - Other recurring software (UseIT modules/plugins) recur GROSS (no renewal discount in MVP).
+  const recurringSoftware = software
+    .filter((l) => l.recurring)
+    .reduce((s, l) => s + (l.discountAppliesToRenewal ? l.netAmount : l.amount), 0);
+  // API: if discount renews, use net; else gross. (We default API renewal = true above.)
+  const apiRecurring = api ? (api.discountAppliesToRenewal ? api.netAmount : api.amount) : 0;
+  const totalYear2Plus = +(recurringSoftware + apiRecurring + hostingNet + satNet).toFixed(2);
 
-  const totalFiveYears = totalYear1 + totalYear2Plus * 4;
+  const totalFiveYears = +(totalYear1 + totalYear2Plus * 4).toFixed(2);
+
+  const hasDiscounts =
+    software.some((l) => l.discountAmount > 0) ||
+    (api?.discountAmount || 0) > 0 ||
+    services.some((l) => l.discountAmount > 0);
 
   return {
     model,
@@ -293,6 +418,7 @@ export function computeBusinessOption(
     totalYear1,
     totalYear2Plus,
     totalFiveYears,
+    hasDiscounts,
   };
 }
 
@@ -326,6 +452,7 @@ export const DEFAULT_BUSINESS_CONFIG: BusinessConfig = {
     customServices: [],
     onsiteClientDays: 0,
     onsiteBackofficeDays: 0,
-    onsiteRegion: "",
+    onsiteRegion: "Portugal",
   },
+  discounts: { ...DEFAULT_BUSINESS_DISCOUNTS },
 };
