@@ -165,12 +165,16 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   table.lines { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 10pt; }
   table.lines th, table.lines td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
   table.lines th { background: #f6f6f6; font-weight: 600; font-size: 9.5pt; color: #333; }
+  /* Prevent the browser from auto-repeating the table header row before subtotal-only rows on a new page. */
+  table.lines thead { display: table-row-group; }
   td.num, th.num { text-align: right; white-space: nowrap; }
   td.freq { color: #555; font-size: 9.5pt; white-space: nowrap; }
   td.discount { color: #c00; font-size: 9.5pt; }
   td.discount .discount-amount { font-weight: 600; }
   td.strong { font-weight: 600; }
-  table.lines tbody tr.subtotal-row td { background: #fafafa; font-size: 10pt; padding: 6px 8px; border-top: 1px solid #e5e5e5; border-bottom: none; color: #333; page-break-inside: avoid; }
+  /* Keep subtotal rows visually attached to the table they summarize. */
+  table.lines tbody tr.subtotal-row { page-break-inside: avoid; break-inside: avoid; page-break-before: avoid; break-before: avoid; }
+  table.lines tbody tr.subtotal-row td { background: #fafafa; font-size: 10pt; padding: 6px 8px; border-top: 1px solid #e5e5e5; border-bottom: none; color: #333; }
   table.lines tbody tr.subtotal-row td:first-child { text-align: right; }
   table.lines tbody tr.subtotal-row.discount-row td { color: #c00; }
   table.lines tbody tr.subtotal-row.strong td { font-weight: 700; border-top: 1px solid #ccc; }
