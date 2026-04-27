@@ -292,7 +292,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         };
       }),
     );
-  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews]);
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews, isBusiness]);
+
+  // ----- Business totals (in-memory only; not stored in proposal_items) -----
+  const businessResult = useMemo(() => {
+    if (!isBusiness) return null;
+    const models: ProposalLicenseModel[] =
+      proposalMode === "keepit_only"
+        ? ["keepit"]
+        : proposalMode === "useit_only"
+        ? ["useit"]
+        : ["keepit", "useit"];
+    return computeBusinessOptions(rules, businessConfig, models);
+  }, [isBusiness, rules, businessConfig, proposalMode]);
+
+  /** Pick the "headline" option for KPI/expected-value purposes (KeepIT preferred). */
+  const businessHeadline = useMemo(() => {
+    if (!businessResult) return null;
+    return businessResult.keepit || businessResult.useit;
+  }, [businessResult]);
 
   // We materialize Services discount % onto each service line (above), so we
   // pass 0 here to avoid double-applying. Software section discount has been
