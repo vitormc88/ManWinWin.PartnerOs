@@ -432,34 +432,68 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         if (deleteItemsError) throw deleteItemsError;
       }
 
-      // Insert items
-      const itemRows = items.map((it, idx) => {
-        const enriched = enrichProposalItem(it, 0, 0);
-        return {
-        proposal_id: prop.id,
-        category: it.category,
-        item_code: it.item_code,
-        item_name: it.item_name,
-        description: it.description,
-        qty: it.qty,
-        unit_price: it.unit_price,
-        frequency: it.frequency,
-        total: enriched.gross_total ?? getItemBaseTotal(it),
-        discount_type: it.discount_type || "none",
-        discount_value: Number(it.discount_value || 0),
-        gross_total: Number(enriched.gross_total ?? getItemBaseTotal(it)),
-        discount_amount: Number(enriched.discount_amount || 0),
-        net_total: Number(enriched.net_total ?? getItemNetTotal(it, 0)),
-        is_override: it.is_override,
-        is_recurring: it.is_recurring,
-        apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
-        sort_order: idx,
-      }});
+      // Build item rows. For Business, snapshot the headline option's lines so
+      // the proposal carries a persisted breakdown for the Proposals tab.
+      let itemRows: any[] = [];
+      if (isBusiness && businessHeadline) {
+        const lines = [
+          ...businessHeadline.software,
+          ...(businessHeadline.api ? [businessHeadline.api] : []),
+          ...businessHeadline.hosting,
+          ...(businessHeadline.sat ? [businessHeadline.sat] : []),
+          ...businessHeadline.services,
+        ];
+        itemRows = lines.map((l, idx) => ({
+          proposal_id: prop.id,
+          category: l.category === "service" ? "service" : l.category === "module" || l.category === "plugin" ? "software" : "addon",
+          item_code: l.code,
+          item_name: l.label,
+          description: null,
+          qty: l.qty,
+          unit_price: l.unitPrice,
+          frequency: l.frequency,
+          total: l.amount,
+          discount_type: "none",
+          discount_value: 0,
+          gross_total: l.amount,
+          discount_amount: 0,
+          net_total: l.amount,
+          is_override: false,
+          is_recurring: l.recurring,
+          apply_discount_to_renewal: false,
+          sort_order: idx,
+        }));
+      } else {
+        itemRows = items.map((it, idx) => {
+          const enriched = enrichProposalItem(it, 0, 0);
+          return {
+            proposal_id: prop.id,
+            category: it.category,
+            item_code: it.item_code,
+            item_name: it.item_name,
+            description: it.description,
+            qty: it.qty,
+            unit_price: it.unit_price,
+            frequency: it.frequency,
+            total: enriched.gross_total ?? getItemBaseTotal(it),
+            discount_type: it.discount_type || "none",
+            discount_value: Number(it.discount_value || 0),
+            gross_total: Number(enriched.gross_total ?? getItemBaseTotal(it)),
+            discount_amount: Number(enriched.discount_amount || 0),
+            net_total: Number(enriched.net_total ?? getItemNetTotal(it, 0)),
+            is_override: it.is_override,
+            is_recurring: it.is_recurring,
+            apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
+            sort_order: idx,
+          };
+        });
+      }
       if (itemRows.length > 0) {
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;
       }
-      await supabase.from("deals").update({ expected_value: totals.totalYear1 }).eq("id", leadId);
+      const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
+      await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", leadId);
       qc.invalidateQueries({ queryKey: ["proposals"] });
       qc.invalidateQueries({ queryKey: ["deal", leadId] });
       qc.invalidateQueries({ queryKey: ["deals"] });
