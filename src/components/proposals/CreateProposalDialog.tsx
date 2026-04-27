@@ -843,7 +843,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           )}
 
           {/* STEP 4: Preview */}
-          {step === 4 && (
+          {step === 4 && isBusiness && (
+            <BusinessPreviewStep
+              rules={rules}
+              language={language}
+              config={businessConfig}
+              onChange={setBusinessConfig}
+              proposalMode={proposalMode}
+            />
+          )}
+          {step === 4 && !isBusiness && (
             <div className="space-y-4">
               <div className="border rounded-lg overflow-hidden">
                 <div className="px-3 py-2 bg-secondary/50 flex items-center justify-between">
