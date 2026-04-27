@@ -688,7 +688,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           )}
 
           {/* STEP 1: Software */}
-          {step === 1 && (
+          {step === 1 && isBusiness && (
+            <BusinessSoftwareStep
+              rules={rules}
+              language={language}
+              config={businessConfig}
+              onChange={setBusinessConfig}
+              proposalMode={proposalMode}
+            />
+          )}
+          {step === 1 && !isBusiness && (
             <div className="space-y-4">
               <div className="bg-secondary/40 border rounded-lg p-4">
                 <h4 className="text-sm font-semibold text-foreground mb-2">Plan {plan} — auto-included modules</h4>
