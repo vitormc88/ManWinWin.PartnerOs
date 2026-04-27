@@ -113,7 +113,21 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
           </div>
         ) : (
           <div className="divide-y">
-            {proposals.map((p) => (
+            {proposals.map((p) => {
+              const isBusiness = (p as any).product_family === "Business";
+              const proposalMode: string | null = (p as any).proposal_mode || null;
+              const licenseModel: string | null = (p as any).license_model || null;
+              const deployment: string | null = (p as any).deployment || null;
+              const modeLabel = isBusiness
+                ? proposalMode === "compare_keepit_useit"
+                  ? "Compare KeepIT vs UseIT"
+                  : proposalMode === "keepit_only" || licenseModel === "keepit"
+                  ? "KeepIT"
+                  : proposalMode === "useit_only" || licenseModel === "useit"
+                  ? "UseIT"
+                  : null
+                : null;
+              return (
               <div key={p.id} className="px-4 py-3 hover:bg-secondary/30 transition-colors group">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -123,11 +137,20 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-medium text-foreground truncate">
-                          {p.client_name} — Plan {p.plan} ({p.hosting})
+                          {p.client_name}
+                          {isBusiness
+                            ? ` — Business (${deployment === "on_premise" ? "On-Premise" : "SaaS"})`
+                            : ` — Plan ${p.plan} (${p.hosting})`}
                         </p>
                         <Badge variant={statusVariant(p.status)} className="text-[10px]">{p.status}</Badge>
                         <Badge variant="outline" className="text-[10px]">v{p.version}</Badge>
                         <Badge variant="outline" className="text-[10px]">{p.language}</Badge>
+                        {isBusiness && (
+                          <Badge variant="secondary" className="text-[10px]">Business</Badge>
+                        )}
+                        {modeLabel && (
+                          <Badge variant="outline" className="text-[10px]">{modeLabel}</Badge>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {new Date(p.created_at).toLocaleDateString("en-GB")} · Year 1:{" "}
@@ -137,12 +160,21 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button size="sm" variant="ghost" onClick={() => printPdf(p.id)} title="Print / Save as PDF">
-                      <Printer className="h-3.5 w-3.5 mr-1" />PDF
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => reDownload(p.id)} title="Download DOCX">
-                      <Download className="h-3.5 w-3.5 mr-1" />DOCX
-                    </Button>
+                    {!isBusiness && (
+                      <>
+                        <Button size="sm" variant="ghost" onClick={() => printPdf(p.id)} title="Print / Save as PDF">
+                          <Printer className="h-3.5 w-3.5 mr-1" />PDF
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => reDownload(p.id)} title="Download DOCX">
+                          <Download className="h-3.5 w-3.5 mr-1" />DOCX
+                        </Button>
+                      </>
+                    )}
+                    {isBusiness && (
+                      <span className="text-[10px] text-muted-foreground italic px-2">
+                        Document export coming soon
+                      </span>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => editProposal(p.id)} title="Edit proposal">
                       <Pencil className="h-3.5 w-3.5 mr-1" />Edit
                     </Button>
@@ -169,7 +201,8 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
