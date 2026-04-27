@@ -125,7 +125,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     setStep(0);
     setLanguage(editingProposal.language);
     setPlan(editingProposal.plan);
-    setHosting("SaaS"); // Professional plans are SaaS-only (Business not yet implemented)
+    const fam: ProposalProductFamily = (editingProposal.product_family as any) || "Professional";
+    setProductFamily(fam);
+    if (fam === "Business") {
+      setProposalMode((editingProposal.proposal_mode as ProposalMode) || "compare_keepit_useit");
+      setDeployment((editingProposal.deployment as ProposalDeployment) || "saas");
+      setHosting(editingProposal.deployment === "on_premise" ? "On-Premise" : "SaaS");
+    } else {
+      setHosting("SaaS"); // Professional plans are SaaS-only
+    }
     setClientName(editingProposal.client_name);
     setProjectName(editingProposal.project_name || "Maintenance Software Implementation");
     setProposalDate(editingProposal.proposal_date);
