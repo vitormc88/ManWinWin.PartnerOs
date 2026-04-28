@@ -256,6 +256,24 @@ export function computeBusinessOption(
       );
   }
 
+  // API
+  let api: BusinessLineItem | null = null;
+  if (cfg.api) {
+    const r = findBusinessRule(rules, "BUS_API");
+    if (r) api = buildLine(r, 1, "api", true, undefined, discounts.apiPct || 0, true);
+  }
+
+  // SaaS hosting — never discounted
+  const hosting: BusinessLineItem[] = [];
+  if (cfg.deployment === "saas") {
+    const base = findBusinessRule(rules, "BUS_SAAS_HOSTING_BASE");
+    if (base) hosting.push(buildLine(base, 1, "hosting", true)!);
+    if (cfg.additionalBackoffice > 0) {
+      const ext = findBusinessRule(rules, "BUS_SAAS_HOSTING_ADDITIONAL_BACKOFFICE");
+      if (ext) hosting.push(buildLine(ext, cfg.additionalBackoffice, "hosting", true)!);
+    }
+  }
+
   // S&AT base (KeepIT only):
   // Sum of GROSS amounts for modules + plugins + additional BackOffice users.
   // EXCLUDES additional Web/Mobile users, API, hosting and services.
