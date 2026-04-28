@@ -453,6 +453,7 @@ export function computeBusinessOption(
     sat,
     services,
     licenseSubtotal,
+    satBreakdown,
     totalYear1,
     totalYear2Plus,
     totalFiveYears,
