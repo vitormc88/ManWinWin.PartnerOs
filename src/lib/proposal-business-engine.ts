@@ -537,6 +537,7 @@ export function computeBusinessOption(
     services,
     licenseSubtotal,
     satBreakdown,
+    useItDerivation,
     totalYear1,
     totalYear2Plus,
     totalFiveYears,
