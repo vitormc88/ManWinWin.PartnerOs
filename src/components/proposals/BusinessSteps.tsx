@@ -591,9 +591,22 @@ function CalculationBreakdown({
   fmt: (n: number) => string;
 }) {
   const isKeepIt = data.model === "keepit";
-  const softwareGross = data.software.reduce((s, l) => s + l.amount, 0);
-  const softwareDiscounts = data.software.reduce((s, l) => s + l.discountAmount, 0);
-  const softwareNet = data.software.reduce((s, l) => s + l.netAmount, 0);
+
+  // Split software lines: base license (modules/plugins/BackOffice or UseIT derived) vs additional Web/Mobile users.
+  const baseLicenseLines = data.software.filter((l) => l.category !== "web_user");
+  const webUserLines = data.software.filter((l) => l.category === "web_user");
+
+  const baseGross = baseLicenseLines.reduce((s, l) => s + l.amount, 0);
+  const baseDisc = baseLicenseLines.reduce((s, l) => s + l.discountAmount, 0);
+  const baseNet = baseLicenseLines.reduce((s, l) => s + l.netAmount, 0);
+  const baseDiscPct = baseLicenseLines.find((l) => l.discountPct > 0)?.discountPct || 0;
+
+  const webGross = webUserLines.reduce((s, l) => s + l.amount, 0);
+  const webDisc = webUserLines.reduce((s, l) => s + l.discountAmount, 0);
+  const webNet = webUserLines.reduce((s, l) => s + l.netAmount, 0);
+  const webDiscPct = webUserLines.find((l) => l.discountPct > 0)?.discountPct || 0;
+  const webDiscRenewal = webUserLines.some((l) => l.discountAppliesToRenewal);
+
   const apiGross = data.api?.amount || 0;
   const apiDisc = data.api?.discountAmount || 0;
   const apiNet = data.api?.netAmount || 0;
@@ -604,7 +617,6 @@ function CalculationBreakdown({
   const servicesDisc = data.services.reduce((s, l) => s + l.discountAmount, 0);
   const servicesNet = data.services.reduce((s, l) => s + l.netAmount, 0);
   const satAmount = data.sat?.netAmount || 0;
-  const satRule = isKeepIt && data.sat ? data.sat : null;
 
   const recurringSoftware = data.software
     .filter((l) => l.recurring)
@@ -624,26 +636,27 @@ function CalculationBreakdown({
         Calculation breakdown (audit)
       </summary>
       <div className="mt-2 space-y-3 bg-secondary/30 rounded p-2">
-        <div className="space-y-0.5">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground">License</p>
-          {data.software.map((l) => (
-            <Row
-              key={`brk-${l.code}-${l.label}`}
-              label={`  ${l.label}${l.qty > 1 ? ` ×${l.qty}` : ""}`}
-              value={fmt(l.amount)}
-            />
-          ))}
-          <Row label="License gross subtotal" value={fmt(softwareGross)} bold />
-          <Row label="– Software discounts" value={`-${fmt(softwareDiscounts)}`} />
-          <Row label={isKeepIt ? "License net subtotal" : "Annual license net subtotal"} value={fmt(softwareNet)} bold />
-        </div>
+        {/* === KeepIT: license + S&AT === */}
+        {isKeepIt && (
+          <>
+            <div className="space-y-0.5">
+              <p className="text-[10px] uppercase font-bold text-muted-foreground">License</p>
+              {baseLicenseLines.map((l) => (
+                <Row
+                  key={`brk-${l.code}-${l.label}`}
+                  label={`  ${l.label}${l.qty > 1 ? ` ×${l.qty}` : ""}`}
+                  value={fmt(l.amount)}
+                />
+              ))}
+              <Row label="License gross subtotal (modules + plugins + add. BackOffice)" value={fmt(baseGross)} bold />
+              <Row label={`– Software discount${baseDiscPct > 0 ? ` (${baseDiscPct}%)` : ""}`} value={`-${fmt(baseDisc)}`} />
+              <Row label="License net subtotal" value={fmt(baseNet)} bold />
+            </div>
 
-        <div className="space-y-0.5">
-          <p className="text-[10px] uppercase font-bold text-muted-foreground">S&AT</p>
-          {isKeepIt ? (
-            <>
+            <div className="space-y-0.5">
+              <p className="text-[10px] uppercase font-bold text-muted-foreground">S&AT</p>
               <Row
-                label="License base for S&AT (modules + plugins + add. BackOffice)"
+                label="License base for S&AT (gross modules + plugins + add. BackOffice)"
                 value={fmt(data.satBreakdown.satBase)}
               />
               <Row
@@ -652,49 +665,78 @@ function CalculationBreakdown({
               />
               <Row label="+ Pre-contracted S&AT day" value={fmt(data.satBreakdown.baseSatDay)} />
               <Row label="+ Default included Web/Mobile user" value={fmt(data.satBreakdown.baseDefaultWeb)} />
-              <Row label="Total S&AT" value={fmt(satAmount)} bold />
+              <Row label="Total S&AT (not discounted)" value={fmt(satAmount)} bold />
               <p className="text-[10px] italic text-muted-foreground pt-1">
                 Note: additional Web/Mobile users, API, hosting and services are NOT part of the
-                S&AT base.
+                S&AT base. S&AT is computed from the gross license base (no software discount).
               </p>
-            </>
-          ) : data.useItDerivation ? (
-            <>
-              <p className="text-[10px] uppercase font-bold text-muted-foreground mt-1">
-                UseIT annual software/license base
-              </p>
-              <Row
-                label="KeepIT license base (modules + plugins + add. BackOffice)"
-                value={fmt(data.useItDerivation.keepitLicenseBase)}
-              />
-              <Row
-                label={`${data.useItDerivation.factorPct}% × KeepIT license base`}
-                value={fmt(data.useItDerivation.factorAmount)}
-              />
-              <Row
-                label="+ Included pre-contracted S&AT day"
-                value={fmt(data.useItDerivation.baseSatDay)}
-              />
-              <Row
-                label="+ Included default Web/Mobile user"
-                value={fmt(data.useItDerivation.baseDefaultWeb)}
-              />
-              <Row
-                label="UseIT annual software/license base"
-                value={fmt(data.useItDerivation.annualBase)}
-                bold
-              />
-              <Row label="S&AT line" value="included in UseIT subscription" />
-              <p className="text-[10px] italic text-muted-foreground pt-1">
-                The 490 € S&AT day and 240 € default Web/Mobile user are already inside the
-                derived annual base — they are NOT shown as separate customer-facing lines.
-                Additional Web/Mobile users, API, hosting and services remain separate.
-              </p>
-            </>
-          ) : (
-            <Row label="S&AT" value="included" />
-          )}
-        </div>
+            </div>
+          </>
+        )}
+
+        {/* === UseIT: derived annual software/license base === */}
+        {!isKeepIt && data.useItDerivation && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground">
+              UseIT annual software/license base
+            </p>
+            <Row
+              label="KeepIT license base (modules + plugins + add. BackOffice)"
+              value={fmt(data.useItDerivation.keepitLicenseBase)}
+            />
+            <Row label={`${data.useItDerivation.factorPct}% factor`} value={`${data.useItDerivation.factorPct}%`} />
+            <Row
+              label={`${data.useItDerivation.factorPct}% amount`}
+              value={fmt(data.useItDerivation.factorAmount)}
+            />
+            <Row
+              label="+ Included pre-contracted S&AT day"
+              value={fmt(data.useItDerivation.baseSatDay)}
+            />
+            <Row
+              label="+ Included default Web/Mobile user"
+              value={fmt(data.useItDerivation.baseDefaultWeb)}
+            />
+            <Row
+              label="Gross UseIT annual software/license base"
+              value={fmt(data.useItDerivation.annualBase)}
+              bold
+            />
+            <Row label={`– Software discount${baseDiscPct > 0 ? ` (${baseDiscPct}%)` : ""}`} value={`-${fmt(baseDisc)}`} />
+            <Row label="Net UseIT annual software/license base" value={fmt(baseNet)} bold />
+            <Row label="S&AT line" value="included in UseIT subscription (not discounted)" />
+            <p className="text-[10px] italic text-muted-foreground pt-1">
+              The 490 € S&AT day and 240 € default Web/Mobile user are already inside the
+              derived annual base — they are NOT shown as separate customer-facing lines.
+            </p>
+          </div>
+        )}
+
+        {/* === Additional Web/Mobile users (separate from software discount) === */}
+        {webUserLines.length > 0 && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground">
+              Additional Web/Mobile users
+            </p>
+            <Row label="Quantity" value={`×${webUserLines.reduce((s, l) => s + l.qty, 0)}`} />
+            <Row label="Gross (qty × 240 €/year)" value={fmt(webGross)} />
+            <Row
+              label={`– Web/Mobile discount${webDiscPct > 0 ? ` (${webDiscPct}%)` : ""}`}
+              value={`-${fmt(webDisc)}`}
+            />
+            <Row label="Net (Year 1)" value={fmt(webNet)} bold />
+            <Row
+              label="Renewal behavior"
+              value={
+                webDiscPct === 0
+                  ? "no discount"
+                  : webDiscRenewal
+                  ? "discount applies to renewals"
+                  : "discount Year 1 only — gross from Year 2+"
+              }
+            />
+          </div>
+        )}
 
         {data.api && (
           <div className="space-y-0.5">
