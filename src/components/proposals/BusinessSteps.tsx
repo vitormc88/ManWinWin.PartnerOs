@@ -443,6 +443,43 @@ export function BusinessPreviewStep({
           ),
         )}
       </div>
+
+      {isCompare && result.keepit && result.useit && (
+        <FiveYearDelta keepit={result.keepit} useit={result.useit} fmt={fmt} />
+      )}
+    </div>
+  );
+}
+
+function FiveYearDelta({
+  keepit,
+  useit,
+  fmt,
+}: {
+  keepit: BusinessOptionTotals;
+  useit: BusinessOptionTotals;
+  fmt: (n: number) => string;
+}) {
+  const diff = +(keepit.totalFiveYears - useit.totalFiveYears).toFixed(2);
+  const absDiff = Math.abs(diff);
+  const ok = absDiff <= 1;
+  return (
+    <div className="border rounded-lg p-3 bg-secondary/30 text-xs space-y-1">
+      <p className="font-semibold text-foreground">5-year verification (KeepIT vs UseIT)</p>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">KeepIT 5-year total</span>
+        <span className="tabular-nums">{fmt(keepit.totalFiveYears)}</span>
+      </div>
+      <div className="flex justify-between">
+        <span className="text-muted-foreground">UseIT 5-year total</span>
+        <span className="tabular-nums">{fmt(useit.totalFiveYears)}</span>
+      </div>
+      <div className="flex justify-between font-semibold">
+        <span>Difference (KeepIT − UseIT)</span>
+        <span className={`tabular-nums ${ok ? "text-emerald-700" : "text-amber-700"}`}>
+          {fmt(diff)} — {ok ? "OK (within 1 €)" : "Check pricing"}
+        </span>
+      </div>
     </div>
   );
 }
