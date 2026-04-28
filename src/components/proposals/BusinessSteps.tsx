@@ -463,6 +463,12 @@ function FiveYearDelta({
   const diff = +(keepit.totalFiveYears - useit.totalFiveYears).toFixed(2);
   const absDiff = Math.abs(diff);
   const ok = absDiff <= 1;
+  const hasDiscounts = keepit.hasDiscounts || useit.hasDiscounts;
+  const label = ok
+    ? "OK (within 1 €)"
+    : hasDiscounts
+    ? "Check pricing / discounts"
+    : "Check pricing";
   return (
     <div className="border rounded-lg p-3 bg-secondary/30 text-xs space-y-1">
       <p className="font-semibold text-foreground">5-year verification (KeepIT vs UseIT)</p>
@@ -477,9 +483,14 @@ function FiveYearDelta({
       <div className="flex justify-between font-semibold">
         <span>Difference (KeepIT − UseIT)</span>
         <span className={`tabular-nums ${ok ? "text-emerald-700" : "text-amber-700"}`}>
-          {fmt(diff)} — {ok ? "OK (within 1 €)" : "Check pricing"}
+          {fmt(diff)} — {label}
         </span>
       </div>
+      {hasDiscounts && (
+        <p className="text-[10px] italic text-muted-foreground pt-1">
+          Discounts can affect the 5-year equivalence check.
+        </p>
+      )}
     </div>
   );
 }
