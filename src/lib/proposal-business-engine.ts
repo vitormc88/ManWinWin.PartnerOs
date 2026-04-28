@@ -99,10 +99,26 @@ export interface BusinessSatBreakdown {
   satPct: number;
   /** KeepIT only: 17% × satBase. */
   satPercentageAmount: number;
-  /** Pre-contracted S&AT day (490 €) — KeepIT only, explicit. */
+  /** Pre-contracted S&AT day (490 €) — included in S&AT (KeepIT) or in derived UseIT base. */
   baseSatDay: number;
-  /** Default included Web/Mobile user (240 €) — KeepIT only, explicit. */
+  /** Default included Web/Mobile user (240 €) — included in S&AT (KeepIT) or in derived UseIT base. */
   baseDefaultWeb: number;
+}
+
+/** Detailed UseIT derivation breakdown (for audit). */
+export interface UseItDerivation {
+  /** KeepIT license base (modules + plugins + additional BackOffice, gross). */
+  keepitLicenseBase: number;
+  /** UseIT factor in %, e.g. 37. */
+  factorPct: number;
+  /** factorPct × keepitLicenseBase. */
+  factorAmount: number;
+  /** Pre-contracted S&AT day (490 €) included in the derived base. */
+  baseSatDay: number;
+  /** Default Web/Mobile user (240 €) included in the derived base. */
+  baseDefaultWeb: number;
+  /** UseIT annual software/license base = factorAmount + baseSatDay + baseDefaultWeb. */
+  annualBase: number;
 }
 
 export interface BusinessOptionTotals {
