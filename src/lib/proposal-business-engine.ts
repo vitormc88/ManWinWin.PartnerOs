@@ -91,6 +91,20 @@ export interface BusinessLineItem {
   frequency: "one-time" | "yearly" | "per-user-month";
 }
 
+export interface BusinessSatBreakdown {
+  /** KeepIT only: gross license base used for the 17% S&AT calculation
+   * (modules + plugins + additional BackOffice — EXCLUDES web users, API, hosting, services). */
+  satBase: number;
+  /** KeepIT only: S&AT percentage (e.g. 17). */
+  satPct: number;
+  /** KeepIT only: 17% × satBase. */
+  satPercentageAmount: number;
+  /** Pre-contracted S&AT day (490 €) — KeepIT only, explicit. */
+  baseSatDay: number;
+  /** Default included Web/Mobile user (240 €) — KeepIT only, explicit. */
+  baseDefaultWeb: number;
+}
+
 export interface BusinessOptionTotals {
   model: ProposalLicenseModel;
   software: BusinessLineItem[];
@@ -98,8 +112,11 @@ export interface BusinessOptionTotals {
   hosting: BusinessLineItem[];
   sat: BusinessLineItem | null;
   services: BusinessLineItem[];
-  /** License gross subtotal (used for S&AT calculation, before discounts). */
+  /** License gross subtotal used for KeepIT S&AT (modules + plugins + additional BackOffice).
+   *  Excludes additional Web/Mobile users, API, hosting, services. */
   licenseSubtotal: number;
+  /** Detailed S&AT breakdown for audit transparency. */
+  satBreakdown: BusinessSatBreakdown;
   /** Year 1 = software net + api net + hosting + sat + services net */
   totalYear1: number;
   /** Year 2+ recurring net total. */
