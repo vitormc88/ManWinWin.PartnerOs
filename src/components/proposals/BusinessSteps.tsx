@@ -443,23 +443,6 @@ export function BusinessPreviewStep({
           ),
         )}
       </div>
-
-      {isCompare && result.keepit && result.useit && (
-        <div className="bg-card border rounded-lg p-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs uppercase text-muted-foreground tracking-wide">5-year total — KeepIT</p>
-            <p className="text-2xl font-bold text-primary tabular-nums">{fmt(result.keepit.totalFiveYears)}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-muted-foreground tracking-wide">5-year total — UseIT</p>
-            <p className="text-2xl font-bold text-primary tabular-nums">{fmt(result.useit.totalFiveYears)}</p>
-          </div>
-          <p className="col-span-2 text-[11px] text-muted-foreground italic">
-            Validation check — with equivalent configuration, KeepIT generally becomes more
-            economically advantageous around year 5.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
