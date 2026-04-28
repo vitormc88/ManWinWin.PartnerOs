@@ -624,7 +624,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                       </Select>
                     </div>
                     <div>
-                      <Label>Deployment</Label>
+                      <Label>Hosting</Label>
                       <Select value={deployment} onValueChange={(v) => setDeployment(v as ProposalDeployment)}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>

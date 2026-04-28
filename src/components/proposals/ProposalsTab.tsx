@@ -101,7 +101,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Proposals ({proposals.length})</h3>
-          <p className="text-xs text-muted-foreground">ManWinWin Professional commercial proposals</p>
+          <p className="text-xs text-muted-foreground">Commercial proposals</p>
         </div>
         <Button size="sm" onClick={() => setShowCreate(true)}>
           <Plus className="h-3.5 w-3.5 mr-1.5" />Generate Proposal
@@ -185,24 +185,26 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                           {new Date(p.created_at).toLocaleDateString("en-GB")}
                           {proposalMode === "compare_keepit_useit" ? (
                             <>
-                              {" · "}KeepIT Y1: <strong>{formatEuro(bizTotals.keepitY1 || 0, p.language as any)}</strong>
-                              {" · "}Y2+: {formatEuro(bizTotals.keepitY2 || 0, p.language as any)}
-                              {" · "}UseIT Y1: <strong>{formatEuro(bizTotals.useitY1 || 0, p.language as any)}</strong>
-                              {" · "}Y2+: {formatEuro(bizTotals.useitY2 || 0, p.language as any)}
+                              {" · "}KeepIT — Year 1:{" "}
+                              <strong>{formatEuro(bizTotals.keepitY1 || 0, p.language as any)}</strong>
+                              {" · "}Year 2+: {formatEuro(bizTotals.keepitY2 || 0, p.language as any)}/year
+                              {" · "}UseIT — Year 1:{" "}
+                              <strong>{formatEuro(bizTotals.useitY1 || 0, p.language as any)}</strong>
+                              {" · "}Year 2+: {formatEuro(bizTotals.useitY2 || 0, p.language as any)}/year
                             </>
                           ) : (
                             <>
                               {" · "}Year 1:{" "}
                               <strong>{formatEuro(Number(p.total_year_1) || 0, p.language as any)}</strong>
-                              {" · "}Year 2+: {formatEuro(Number(p.total_recurring) || 0, p.language as any)} / yr
+                              {" · "}Year 2+: {formatEuro(Number(p.total_recurring) || 0, p.language as any)}/year
                             </>
                           )}
                         </p>
                       ) : (
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           {new Date(p.created_at).toLocaleDateString("en-GB")} · Year 1:{" "}
-                          <strong>{formatEuro(Number(p.total_year_1) || 0, p.language as any)}</strong> · Recurring:{" "}
-                          {formatEuro(Number(p.total_recurring) || 0, p.language as any)} / yr
+                          <strong>{formatEuro(Number(p.total_year_1) || 0, p.language as any)}</strong> · Year 2+:{" "}
+                          {formatEuro(Number(p.total_recurring) || 0, p.language as any)}/year
                         </p>
                       )}
                     </div>

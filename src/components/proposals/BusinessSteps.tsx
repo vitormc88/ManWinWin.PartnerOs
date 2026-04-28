@@ -119,7 +119,7 @@ export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
             }
           />
           <p className="text-[11px] text-muted-foreground mt-1">
-            Beyond the 3 included. Triggers extra SaaS hosting if deployment = SaaS.
+            Beyond the 3 included. Triggers extra SaaS hosting if hosting = SaaS.
           </p>
         </div>
         <div className="bg-card border rounded-lg p-3">
@@ -419,7 +419,7 @@ export function BusinessPreviewStep({
       <div className="flex items-center gap-2 flex-wrap">
         <Badge variant="secondary">Business</Badge>
         <Badge variant="outline">
-          Deployment: {config.deployment === "saas" ? "SaaS" : "On-Premise"}
+          Hosting: {config.deployment === "saas" ? "SaaS" : "On-Premise"}
         </Badge>
         <Badge variant="outline">
           Mode: {proposalMode === "compare_keepit_useit" ? "Compare KeepIT vs UseIT" : proposalMode === "keepit_only" ? "KeepIT only" : "UseIT only"}
@@ -548,8 +548,133 @@ function OptionCard({
             <span className="tabular-nums">{fmt(data.totalFiveYears)}</span>
           </div>
         </div>
+
+        <CalculationBreakdown data={data} fmt={fmt} />
       </div>
     </div>
+  );
+}
+
+function CalculationBreakdown({
+  data,
+  fmt,
+}: {
+  data: BusinessOptionTotals;
+  fmt: (n: number) => string;
+}) {
+  const isKeepIt = data.model === "keepit";
+  const softwareGross = data.software.reduce((s, l) => s + l.amount, 0);
+  const softwareDiscounts = data.software.reduce((s, l) => s + l.discountAmount, 0);
+  const softwareNet = data.software.reduce((s, l) => s + l.netAmount, 0);
+  const apiGross = data.api?.amount || 0;
+  const apiDisc = data.api?.discountAmount || 0;
+  const apiNet = data.api?.netAmount || 0;
+  const hostingBase = data.hosting.find((l) => l.code === "BUS_SAAS_HOSTING_BASE");
+  const hostingExtra = data.hosting.find((l) => l.code === "BUS_SAAS_HOSTING_ADDITIONAL_BACKOFFICE");
+  const hostingTotal = data.hosting.reduce((s, l) => s + l.netAmount, 0);
+  const servicesGross = data.services.reduce((s, l) => s + l.amount, 0);
+  const servicesDisc = data.services.reduce((s, l) => s + l.discountAmount, 0);
+  const servicesNet = data.services.reduce((s, l) => s + l.netAmount, 0);
+  const satAmount = data.sat?.netAmount || 0;
+  const satRule = isKeepIt && data.sat ? data.sat : null;
+
+  const recurringSoftware = data.software
+    .filter((l) => l.recurring)
+    .reduce((s, l) => s + (l.discountAppliesToRenewal ? l.netAmount : l.amount), 0);
+  const apiRecurring = data.api ? (data.api.discountAppliesToRenewal ? apiNet : apiGross) : 0;
+
+  const Row = ({ label, value, bold }: { label: string; value: string; bold?: boolean }) => (
+    <div className={`flex justify-between text-[11px] ${bold ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+      <span>{label}</span>
+      <span className="tabular-nums">{value}</span>
+    </div>
+  );
+
+  return (
+    <details className="border-t pt-2 mt-2 group">
+      <summary className="cursor-pointer text-[11px] font-semibold text-primary select-none hover:underline">
+        Calculation breakdown (audit)
+      </summary>
+      <div className="mt-2 space-y-3 bg-secondary/30 rounded p-2">
+        <div className="space-y-0.5">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground">License</p>
+          {data.software.map((l) => (
+            <Row
+              key={`brk-${l.code}-${l.label}`}
+              label={`  ${l.label}${l.qty > 1 ? ` ×${l.qty}` : ""}`}
+              value={fmt(l.amount)}
+            />
+          ))}
+          <Row label="License gross subtotal" value={fmt(softwareGross)} bold />
+          <Row label="– Software discounts" value={`-${fmt(softwareDiscounts)}`} />
+          <Row label={isKeepIt ? "License net subtotal" : "Annual license net subtotal"} value={fmt(softwareNet)} bold />
+        </div>
+
+        <div className="space-y-0.5">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground">S&AT</p>
+          {isKeepIt ? (
+            <>
+              <Row label="S&AT base = License gross subtotal" value={fmt(data.licenseSubtotal)} />
+              <Row
+                label={`S&AT % = ${satRule ? Math.round((satAmount / Math.max(1, data.licenseSubtotal)) * 10000) / 100 : 0}%`}
+                value=""
+              />
+              <Row label="S&AT amount" value={fmt(satAmount)} bold />
+            </>
+          ) : (
+            <Row label="S&AT" value="included in UseIT subscription" />
+          )}
+        </div>
+
+        {data.api && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground">API</p>
+            <Row label="API gross" value={fmt(apiGross)} />
+            <Row label="API discount" value={apiDisc > 0 ? `-${fmt(apiDisc)} (${data.api.discountPct}%)` : "—"} />
+            <Row label="API net" value={fmt(apiNet)} bold />
+          </div>
+        )}
+
+        {data.hosting.length > 0 && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground">SaaS Hosting</p>
+            <Row label="Hosting base" value={fmt(hostingBase?.netAmount || 0)} />
+            <Row
+              label={`Hosting additional BackOffice${hostingExtra ? ` ×${hostingExtra.qty}` : ""}`}
+              value={fmt(hostingExtra?.netAmount || 0)}
+            />
+            <Row label="Hosting total" value={fmt(hostingTotal)} bold />
+          </div>
+        )}
+
+        {data.services.length > 0 && (
+          <div className="space-y-0.5">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground">Services</p>
+            <Row label="Services gross subtotal" value={fmt(servicesGross)} />
+            <Row label="– Services discounts" value={`-${fmt(servicesDisc)}`} />
+            <Row label="Services net subtotal" value={fmt(servicesNet)} bold />
+          </div>
+        )}
+
+        <div className="space-y-0.5 border-t pt-2">
+          <p className="text-[10px] uppercase font-bold text-muted-foreground">Totals</p>
+          <Row
+            label="Year 1 = Software net + API net + Hosting + S&AT + Services net"
+            value={fmt(data.totalYear1)}
+            bold
+          />
+          <Row
+            label="Year 2+ = Recurring software + API recurring + Hosting + S&AT"
+            value={fmt(data.totalYear2Plus)}
+            bold
+          />
+          <Row label="  Recurring software portion" value={fmt(recurringSoftware)} />
+          <Row label="  API recurring portion" value={fmt(apiRecurring)} />
+          <Row label="5-year license = Y1 + 4 × Y2+" value={fmt(data.totalFiveYears)} bold />
+          <Row label="5-year project total = same (services are one-time, included in Y1)" value={fmt(data.totalFiveYears)} />
+        </div>
+      </div>
+    </details>
   );
 }
 
