@@ -544,10 +544,6 @@ function OptionCard({
             <span className="text-muted-foreground">Year 2+ per year</span>
             <span className="font-semibold tabular-nums">{fmt(data.totalYear2Plus)}</span>
           </div>
-          <div className="flex justify-between text-[11px] text-muted-foreground">
-            <span>5-year cumulative</span>
-            <span className="tabular-nums">{fmt(data.totalFiveYears)}</span>
-          </div>
         </div>
 
         <CalculationBreakdown data={data} fmt={fmt} />
