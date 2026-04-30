@@ -305,6 +305,12 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                     )}
                     {isBusiness && (
                       <>
+                        <Button size="sm" variant="ghost" onClick={() => printBusinessPdfFor(p.id)} title="Print / Save as PDF">
+                          <Printer className="h-3.5 w-3.5 mr-1" />PDF
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => downloadBusinessDocxFor(p.id)} title="Download DOCX">
+                          <Download className="h-3.5 w-3.5 mr-1" />DOCX
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -313,9 +319,6 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                         >
                           <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />Excel
                         </Button>
-                        <span className="text-[10px] text-muted-foreground italic px-2">
-                          DOCX/PDF coming soon
-                        </span>
                       </>
                     )}
                     <Button size="sm" variant="ghost" onClick={() => editProposal(p.id)} title="Edit proposal">
