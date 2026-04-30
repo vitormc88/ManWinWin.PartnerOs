@@ -216,15 +216,29 @@ function softwareDescription(
   if (!cfg.pluginSLA) optional.push(s.pluginSLA);
   if (!cfg.api) optional.push(s.apiManwinwin);
   if (optional.length > 0) {
-    out.push(subHeading(s.optionalNotIncluded));
+    out.push(
+      new Paragraph({
+        spacing: { before: 200, after: 60 },
+        children: [
+          new TextRun({
+            text: s.optionalNotIncludedFull,
+            bold: true,
+            italics: true,
+            color: SUBTLE,
+            size: 20,
+            font: "Calibri",
+          }),
+        ],
+      }),
+    );
     optional.forEach((l) =>
       out.push(
         new Paragraph({
           spacing: { after: 40 },
           indent: { left: 360, hanging: 200 },
           children: [
-            new TextRun({ text: "•  ", color: SUBTLE, size: 20, font: "Calibri" }),
-            new TextRun({ text: l, color: SUBTLE, size: 20, italics: true, font: "Calibri" }),
+            new TextRun({ text: "•  ", color: SUBTLE, size: 18, font: "Calibri" }),
+            new TextRun({ text: l, color: SUBTLE, size: 18, italics: true, font: "Calibri" }),
           ],
         }),
       ),
@@ -298,6 +312,11 @@ function servicesSection(
       : s.customServicesTitle;
   out.push(subHeading(title));
 
+  const grossSvc = primary.services.reduce((a, l) => a + l.amount, 0);
+  const discSvc = primary.services.reduce((a, l) => a + l.discountAmount, 0);
+  const netSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
+  const hasDisc = discSvc > 0;
+
   if (implType === "Onsite") {
     out.push(bullet(`${s.region}: ${cfg.implementation.onsiteRegion || "Portugal"}`));
     const region = cfg.implementation.onsiteRegion || "Portugal";
@@ -307,15 +326,24 @@ function servicesSection(
     if (cd > 0) out.push(bullet(`${s.clientDays}: ${cd} × ${fmt(lang, rates.client)} = ${fmt(lang, cd * rates.client)}`));
     if (bd > 0)
       out.push(bullet(`${s.backofficeDays}: ${bd} × ${fmt(lang, rates.backoffice)} = ${fmt(lang, bd * rates.backoffice)}`));
-    const totalSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
-    out.push(bullet(`${s.totalOnsite}: ${fmt(lang, totalSvc)}`));
+    if (hasDisc) {
+      out.push(bullet(`${s.servicesGrossTotal}: ${fmt(lang, grossSvc)}`));
+      out.push(p(`${s.servicesDiscount}: -${fmt(lang, discSvc)}`, { color: RED, indent: { left: 360 }, spacing: { after: 60 } }));
+    }
+    out.push(p(`${s.totalOnsite}: ${fmt(lang, netSvc)}`, { bold: true, indent: { left: 360 }, spacing: { after: 60 } }));
     out.push(p(s.travelNote, { italic: true, color: SUBTLE, size: 20, spacing: { before: 100 } }));
   } else {
     primary.services.forEach((l) => {
-      out.push(bullet(`${l.label} — ${fmt(lang, l.netAmount)}`));
+      out.push(bullet(`${l.label} — ${fmt(lang, l.amount)}`));
     });
     if (primary.services.length === 0) {
       out.push(p("—", { color: SUBTLE }));
+    } else {
+      if (hasDisc) {
+        out.push(bullet(`${s.servicesGrossTotal}: ${fmt(lang, grossSvc)}`));
+        out.push(p(`${s.servicesDiscount}: -${fmt(lang, discSvc)}`, { color: RED, indent: { left: 360 }, spacing: { after: 60 } }));
+      }
+      out.push(p(`${s.servicesNetTotal}: ${fmt(lang, netSvc)}`, { bold: true, indent: { left: 360 }, spacing: { after: 60 } }));
     }
   }
   return out;
@@ -358,7 +386,7 @@ function investmentSummaryTable(
     isTotal: boolean | undefined,
   ): TableCell => {
     if (val === null || val === undefined) {
-      return cell("", { width: valCol, align: AlignmentType.RIGHT });
+      return cell("", { width: valCol, align: AlignmentType.RIGHT, bg: isTotal ? RED : undefined });
     }
     if (asIncluded) {
       return cell(s.satIncludedShort, {
@@ -373,8 +401,8 @@ function investmentSummaryTable(
       width: valCol,
       align: AlignmentType.RIGHT,
       bold: isTotal,
-      color: isDiscount ? RED : DARK,
-      bg: isTotal ? GREY_BG : undefined,
+      color: isTotal ? "FFFFFF" : isDiscount ? RED : DARK,
+      bg: isTotal ? RED : undefined,
     });
   };
 
@@ -382,19 +410,20 @@ function investmentSummaryTable(
   rows.forEach((r) => {
     if (r.isHeader) {
       const headCells: TableCell[] = [
-        cell(r.label, { bold: true, bg: GREY_BG, width: itemCol }),
+        cell(r.label, { bold: true, bg: DARK, color: "FFFFFF", width: itemCol }),
       ];
-      if (showKeepit) headCells.push(cell("", { bg: GREY_BG, width: valCol }));
-      if (showUseit) headCells.push(cell("", { bg: GREY_BG, width: valCol }));
+      if (showKeepit) headCells.push(cell("", { bg: DARK, width: valCol }));
+      if (showUseit) headCells.push(cell("", { bg: DARK, width: valCol }));
       trs.push(new TableRow({ children: headCells }));
       return;
     }
     const labelCell = cell(r.label, {
       bold: r.isTotal,
-      bg: r.isTotal ? GREY_BG : undefined,
+      bg: r.isTotal ? RED : undefined,
       width: itemCol,
       indentLeft: r.indent ? r.indent * 220 : 0,
-      color: r.isDiscount ? RED : DARK,
+      color: r.isTotal ? "FFFFFF" : r.isDiscount ? RED : DARK,
+      italic: r.isDiscount,
     });
     const cells: TableCell[] = [labelCell];
     if (showKeepit)
@@ -461,36 +490,42 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   const dateStr = formatDateLocale(proposal.proposal_date, lang);
 
   const headerChildren: Paragraph[] = [];
+  if (logoBytes) {
+    headerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.LEFT,
+        children: [
+          new ImageRun({
+            type: "png",
+            data: logoBytes,
+            transformation: { width: 90, height: 28 },
+            altText: { title: "ManWinWin", description: "ManWinWin Software", name: "logo" },
+          }),
+        ],
+      }),
+    );
+  }
   headerChildren.push(
     new Paragraph({
-      alignment: AlignmentType.LEFT,
-      spacing: { after: 80 },
+      alignment: AlignmentType.RIGHT,
       children: [
         new TextRun({
-          text: `${s.client}: ${proposal.client_name}`,
+          text: `${proposal.client_name} | ${proposal.project_name || s.businessSubtitle}`,
+          bold: true,
           color: DARK,
           size: 18,
           font: "Calibri",
         }),
-        new TextRun({
-          text: `   |   ${s.project}: ${proposal.project_name || "—"}`,
-          color: SUBTLE,
-          size: 18,
-          font: "Calibri",
-        }),
-        new TextRun({
-          text: `   |   ${s.date}: ${dateStr}`,
-          color: SUBTLE,
-          size: 18,
-          font: "Calibri",
-        }),
-        new TextRun({
-          text: `   |   ${s.restricted}`,
-          bold: true,
-          color: RED,
-          size: 18,
-          font: "Calibri",
-        }),
+      ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [new TextRun({ text: dateStr, color: SUBTLE, size: 18, font: "Calibri" })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [
+        new TextRun({ text: s.restricted, bold: true, color: RED, size: 18, font: "Calibri" }),
       ],
     }),
   );
@@ -498,6 +533,9 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   const footerChildren: Paragraph[] = [
     new Paragraph({
       alignment: AlignmentType.CENTER,
+      border: {
+        top: { style: BorderStyle.SINGLE, size: 6, color: RED, space: 4 },
+      },
       children: [
         new TextRun({
           text: s.footerLine,
@@ -511,68 +549,84 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
 
   const body: (Paragraph | Table)[] = [];
 
+  // ---- Cover (mirrors Professional layout) ----
+  body.push(
+    new Paragraph({ spacing: { before: 1400 }, children: [new TextRun({ text: "" })] }),
+  );
+
   if (logoBytes) {
     body.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 600, after: 200 },
+        spacing: { after: 800 },
         children: [
           new ImageRun({
             type: "png",
             data: logoBytes,
-            transformation: { width: 220, height: 80 },
-            altText: { title: "ManWinWin", description: "Logo", name: "ManWinWin" },
+            transformation: { width: 360, height: 110 },
+            altText: { title: "ManWinWin", description: "ManWinWin Software", name: "logo" },
           }),
         ],
       }),
     );
+  } else {
+    body.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "MANWINWIN", bold: true, color: RED, size: 64, font: "Calibri" })],
+      }),
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 800 },
+        children: [new TextRun({ text: "S O F T W A R E", color: DARK, size: 22, font: "Calibri" })],
+      }),
+    );
   }
+
   body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 800, after: 200 },
+      spacing: { before: 400, after: 200 },
       children: [
         new TextRun({
           text: s.investmentProposal,
           bold: true,
+          color: RED,
           size: 56,
-          color: DARK,
           font: "Calibri",
         }),
       ],
     }),
-  );
-  body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { after: 600 },
       children: [
-        new TextRun({ text: s.businessSubtitle, bold: true, size: 32, color: RED, font: "Calibri" }),
+        new TextRun({ text: "ManWinWin ", bold: true, color: DARK, size: 32, font: "Calibri" }),
+        new TextRun({ text: "Business", bold: true, color: RED, size: 32, font: "Calibri" }),
       ],
     }),
-  );
-  body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 80 },
+      spacing: { before: 1200 },
       children: [
-        new TextRun({ text: proposal.client_name, bold: true, size: 32, color: DARK, font: "Calibri" }),
+        new TextRun({
+          text: proposal.client_name.toUpperCase(),
+          bold: true,
+          color: DARK,
+          size: 28,
+          font: "Calibri",
+        }),
       ],
     }),
-  );
-  body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 80 },
       children: [new TextRun({ text: dateStr, color: SUBTLE, size: 22, font: "Calibri" })],
     }),
-  );
-  body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 400 },
       children: [
-        new TextRun({ text: s.restricted, bold: true, color: RED, size: 20, font: "Calibri" }),
+        new TextRun({ text: s.restricted, bold: true, color: RED, size: 18, font: "Calibri" }),
       ],
     }),
   );
@@ -583,7 +637,7 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   body.push(p(s.forImplementation(proposal.client_name), { bold: true, size: 22 }));
   body.push(p(s.businessSubtitle, { bold: true, size: 22, color: RED, spacing: { before: 80, after: 120 } }));
 
-  body.push(sectionHeading(s.softwareDescription));
+  body.push(sectionHeading(s.softwareConfigHeading));
   softwareDescription(cfg, s).forEach((par) => body.push(par));
 
   body.push(sectionHeading(s.optionsTitle));

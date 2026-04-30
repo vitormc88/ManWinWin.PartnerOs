@@ -162,6 +162,10 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
     const implType = cfg.implementation.type;
     const title =
       implType === "RCI Business" ? s.rciTitle : implType === "Onsite" ? s.onsiteTitle : s.customServicesTitle;
+    const grossSvc = primary.services.reduce((a, l) => a + l.amount, 0);
+    const discSvc = primary.services.reduce((a, l) => a + l.discountAmount, 0);
+    const netSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
+    const hasDisc = discSvc > 0;
     const parts: string[] = [`<h3>${esc(title)}</h3><ul>`];
     if (implType === "Onsite") {
       const region = cfg.implementation.onsiteRegion || "Portugal";
@@ -173,14 +177,24 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
         parts.push(`<li>${esc(s.clientDays)}: ${cd} × ${esc(fmt(rates.client))} = <strong>${esc(fmt(cd * rates.client))}</strong></li>`);
       if (bd > 0)
         parts.push(`<li>${esc(s.backofficeDays)}: ${bd} × ${esc(fmt(rates.backoffice))} = <strong>${esc(fmt(bd * rates.backoffice))}</strong></li>`);
-      const totalSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
-      parts.push(`<li>${esc(s.totalOnsite)}: <strong>${esc(fmt(totalSvc))}</strong></li>`);
+      if (hasDisc) {
+        parts.push(`<li>${esc(s.servicesGrossTotal)}: ${esc(fmt(grossSvc))}</li>`);
+        parts.push(`<li class="disc">${esc(s.servicesDiscount)}: -${esc(fmt(discSvc))}</li>`);
+      }
+      parts.push(`<li><strong>${esc(s.totalOnsite)}: ${esc(fmt(netSvc))}</strong></li>`);
       parts.push(`</ul><p class="muted small">${esc(s.travelNote)}</p>`);
       return parts.join("");
     }
     primary.services.forEach((l) => {
-      parts.push(`<li>${esc(l.label)} — <strong>${esc(fmt(l.netAmount))}</strong></li>`);
+      parts.push(`<li>${esc(l.label)} — ${esc(fmt(l.amount))}</li>`);
     });
+    if (primary.services.length > 0) {
+      if (hasDisc) {
+        parts.push(`<li>${esc(s.servicesGrossTotal)}: ${esc(fmt(grossSvc))}</li>`);
+        parts.push(`<li class="disc">${esc(s.servicesDiscount)}: -${esc(fmt(discSvc))}</li>`);
+      }
+      parts.push(`<li><strong>${esc(s.servicesNetTotal)}: ${esc(fmt(netSvc))}</strong></li>`);
+    }
     parts.push(`</ul>`);
     return parts.join("");
   })();
@@ -193,13 +207,15 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
   body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.45; }
-  .cover { min-height: 240mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px; page-break-after: always; }
-  .cover img { max-width: 240px; height: auto; }
-  .cover h1 { font-size: 30pt; margin: 14px 0 4px; color:#1a1a1a; }
-  .cover .sub { color:#c00; font-weight: 700; font-size: 14pt; }
-  .cover .client { font-size: 18pt; font-weight: 700; margin-top: 18px; }
-  .cover .meta { color: #555; font-size: 11pt; }
-  .cover .restricted { color:#c00; font-weight: 700; font-size: 10pt; letter-spacing: 1px; text-transform: uppercase; margin-top: 18px; }
+  .cover { min-height: 240mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px; page-break-after: always; }
+  .cover img { max-width: 320px; height: auto; margin-bottom: 18px; }
+  .cover h1 { font-size: 36pt; margin: 8px 0 4px; color:#c00; font-weight: 700; letter-spacing: .5px; }
+  .cover .sub { font-size: 18pt; font-weight: 700; margin-bottom: 24px; }
+  .cover .sub .red { color:#c00; }
+  .cover .sub .dark { color:#2C3E50; }
+  .cover .client { font-size: 18pt; font-weight: 700; margin-top: 32px; color:#2C3E50; letter-spacing: .5px; text-transform: uppercase; }
+  .cover .meta { color: #555; font-size: 11pt; margin-top: 6px; }
+  .cover .restricted { color:#c00; font-weight: 700; font-size: 9.5pt; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 28px; }
   .header { display:flex; justify-content:space-between; gap:12px; padding-bottom:6px; border-bottom: 2px solid #c00; margin-bottom: 14px; font-size: 9pt; color:#555; }
   .header .restricted { color:#c00; font-weight: 700; }
   h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 22px 0 10px; }
@@ -211,9 +227,10 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
   table.summary thead th { background:#c00; color:#fff; text-align:left; font-weight: 700; }
   table.summary thead th.num { text-align:right; }
   table.summary td.num, table.summary th.num { text-align:right; white-space: nowrap; }
-  table.summary tr.header-row td { background:#fafafa; padding: 8px; }
-  table.summary tr.total-row td { background:#f5f5f5; font-weight: 700; border-top: 1px solid #ccc; }
-  table.summary td.disc, table.summary tr td.disc { color:#c00; }
+  table.summary tr.header-row td { background:#2C3E50; color:#fff; padding: 8px; font-size: 10.5pt; letter-spacing: .5px; }
+  table.summary tr.total-row td { background:#c00; color:#fff; font-weight: 700; border-top: 1px solid #c00; }
+  table.summary tr.total-row td.disc, table.summary tr.total-row td.num.disc { color:#fff; }
+  table.summary td.disc, table.summary tr td.disc { color:#c00; font-style: italic; }
   table.summary td.included { font-style: italic; color:#666; }
   .muted { color: #666; }
   .small { font-size: 9.5pt; }
@@ -228,7 +245,7 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
 <div class="cover">
   <img src="${logoUrl}" alt="ManWinWin" />
   <h1>${esc(s.investmentProposal)}</h1>
-  <div class="sub">${esc(s.businessSubtitle)}</div>
+  <div class="sub"><span class="dark">ManWinWin</span> <span class="red">Business</span></div>
   <div class="client">${esc(proposal.client_name)}</div>
   <div class="meta">${esc(fmtDate(proposal.proposal_date, lang))}</div>
   <div class="restricted">${esc(s.restricted)}</div>
@@ -243,13 +260,13 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
 <p><strong>${esc(s.forImplementation(proposal.client_name))}</strong></p>
 <p style="color:#c00;font-weight:700">${esc(s.businessSubtitle)}</p>
 
-<h2>${esc(s.softwareDescription)}</h2>
+<h2>${esc(s.softwareConfigHeading)}</h2>
 <ul>${swDescItems.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 <p><strong>${esc(s.modulesIncludedHeading)}</strong></p>
 <ul>${modules.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 ${plugins.length ? `<p><strong>${esc(s.pluginsIncludedHeading)}</strong></p><ul>${plugins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 ${cfg.api ? `<ul><li>${esc(s.apiManwinwin)}</li></ul>` : ""}
-${optional.length ? `<p class="muted small"><strong>${esc(s.optionalNotIncluded)}</strong></p><ul class="muted small">${optional.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+${optional.length ? `<p class="muted small" style="font-style:italic;margin-top:14px"><strong>${esc(s.optionalNotIncludedFull)}</strong></p><ul class="muted small" style="font-style:italic">${optional.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 
 <h2>${esc(s.optionsTitle)}</h2>
 ${optionsHtml}
