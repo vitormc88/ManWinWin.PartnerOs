@@ -162,6 +162,10 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
     const implType = cfg.implementation.type;
     const title =
       implType === "RCI Business" ? s.rciTitle : implType === "Onsite" ? s.onsiteTitle : s.customServicesTitle;
+    const grossSvc = primary.services.reduce((a, l) => a + l.amount, 0);
+    const discSvc = primary.services.reduce((a, l) => a + l.discountAmount, 0);
+    const netSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
+    const hasDisc = discSvc > 0;
     const parts: string[] = [`<h3>${esc(title)}</h3><ul>`];
     if (implType === "Onsite") {
       const region = cfg.implementation.onsiteRegion || "Portugal";
@@ -173,14 +177,24 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
         parts.push(`<li>${esc(s.clientDays)}: ${cd} × ${esc(fmt(rates.client))} = <strong>${esc(fmt(cd * rates.client))}</strong></li>`);
       if (bd > 0)
         parts.push(`<li>${esc(s.backofficeDays)}: ${bd} × ${esc(fmt(rates.backoffice))} = <strong>${esc(fmt(bd * rates.backoffice))}</strong></li>`);
-      const totalSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
-      parts.push(`<li>${esc(s.totalOnsite)}: <strong>${esc(fmt(totalSvc))}</strong></li>`);
+      if (hasDisc) {
+        parts.push(`<li>${esc(s.servicesGrossTotal)}: ${esc(fmt(grossSvc))}</li>`);
+        parts.push(`<li class="disc">${esc(s.servicesDiscount)}: -${esc(fmt(discSvc))}</li>`);
+      }
+      parts.push(`<li><strong>${esc(s.totalOnsite)}: ${esc(fmt(netSvc))}</strong></li>`);
       parts.push(`</ul><p class="muted small">${esc(s.travelNote)}</p>`);
       return parts.join("");
     }
     primary.services.forEach((l) => {
-      parts.push(`<li>${esc(l.label)} — <strong>${esc(fmt(l.netAmount))}</strong></li>`);
+      parts.push(`<li>${esc(l.label)} — ${esc(fmt(l.amount))}</li>`);
     });
+    if (primary.services.length > 0) {
+      if (hasDisc) {
+        parts.push(`<li>${esc(s.servicesGrossTotal)}: ${esc(fmt(grossSvc))}</li>`);
+        parts.push(`<li class="disc">${esc(s.servicesDiscount)}: -${esc(fmt(discSvc))}</li>`);
+      }
+      parts.push(`<li><strong>${esc(s.servicesNetTotal)}: ${esc(fmt(netSvc))}</strong></li>`);
+    }
     parts.push(`</ul>`);
     return parts.join("");
   })();
