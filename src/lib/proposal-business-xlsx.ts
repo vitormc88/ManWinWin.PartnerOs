@@ -316,6 +316,142 @@ const buildAuditBlock = (model: "KeepIT" | "UseIT", t: BusinessOptionTotals): Sh
   for (let y = 2; y <= 5; y++) rows.push([`  Year ${y}`, fmtEur(t.totalYear2Plus)]);
   rows.push(["  5-year total", "", fmtEur(t.totalFiveYears)]);
   rows.push([]);
+
+  // ---------------- Calculation Trace ----------------
+  rows.push([`${model.toUpperCase()} — Calculation Trace`]);
+  rows.push(["Readable formulas using the actual values from this proposal."]);
+  rows.push([]);
+
+  const n = (x: number) =>
+    (Math.round(x * 100) / 100).toLocaleString("en-GB", {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+
+  // Discount traces (only if any line has a discount)
+  const swDiscLines = t.software.filter((l) => l.category !== "web_user" && l.discountPct > 0);
+  const webLine = t.software.find((l) => l.category === "web_user");
+  const showDisc =
+    swDiscLines.length > 0 ||
+    (webLine && webLine.discountPct > 0) ||
+    (t.api && t.api.discountPct > 0) ||
+    t.services.some((s) => s.discountPct > 0);
+
+  if (showDisc) {
+    rows.push(["Discounts"]);
+    if (swDiscLines.length > 0) {
+      const gross = swDiscLines.reduce((s, l) => s + l.amount, 0);
+      const disc = swDiscLines.reduce((s, l) => s + l.discountAmount, 0);
+      const pct = swDiscLines[0].discountPct;
+      rows.push([`  Software discount = License gross × ${pct}%`]);
+      rows.push([`  Software discount = ${n(gross)} × ${pct}% = ${n(disc)}`]);
+      rows.push([`  Applies to renewals: No (Year 1 only)`]);
+    }
+    if (webLine && webLine.discountPct > 0) {
+      rows.push([`  Web/Mobile discount = Web gross × ${webLine.discountPct}%`]);
+      rows.push([
+        `  Web/Mobile discount = ${n(webLine.amount)} × ${webLine.discountPct}% = ${n(webLine.discountAmount)}`,
+      ]);
+      rows.push([
+        `  Applies to renewals: ${webLine.discountAppliesToRenewal ? "Yes (Year 2+)" : "No (Year 1 only)"}`,
+      ]);
+    }
+    if (t.api && t.api.discountPct > 0) {
+      rows.push([`  API discount = API gross × ${t.api.discountPct}%`]);
+      rows.push([
+        `  API discount = ${n(t.api.amount)} × ${t.api.discountPct}% = ${n(t.api.discountAmount)}`,
+      ]);
+      rows.push([`  Applies to renewals: No (Year 1 only)`]);
+    }
+    const svcDiscLines = t.services.filter((s) => s.discountPct > 0);
+    if (svcDiscLines.length > 0) {
+      const gross = svcDiscLines.reduce((s, l) => s + l.amount, 0);
+      const disc = svcDiscLines.reduce((s, l) => s + l.discountAmount, 0);
+      const pct = svcDiscLines[0].discountPct;
+      rows.push([`  Services discount = Services gross × ${pct}%`]);
+      rows.push([`  Services discount = ${n(gross)} × ${pct}% = ${n(disc)}`]);
+      rows.push([`  Applies to renewals: N/A (services are one-time)`]);
+    }
+    rows.push([]);
+  }
+
+  // Helpers for component values
+  const swNet = t.software.filter((l) => l.category !== "web_user").reduce((s, l) => s + l.netAmount, 0);
+  const webNet = webLine?.netAmount || 0;
+  const webRecurring = webLine
+    ? webLine.discountAppliesToRenewal
+      ? webLine.netAmount
+      : webLine.amount
+    : 0;
+  const apiNet = t.api?.netAmount || 0;
+  const apiRecurring = t.api ? (t.api.discountAppliesToRenewal ? t.api.netAmount : t.api.amount) : 0;
+  const hostNet = t.hosting.reduce((s, l) => s + l.netAmount, 0);
+  const satNet = t.sat?.netAmount || 0;
+  const svcNetTrace = t.services.reduce((s, l) => s + l.netAmount, 0);
+
+  if (model === "KeepIT") {
+    const sb = t.satBreakdown;
+    rows.push(["KeepIT S&AT"]);
+    rows.push([`  S&AT = License base × ${sb.satPct}% + Pre-contracted S&AT day + Default Web/Mobile user`]);
+    rows.push([
+      `  S&AT = ${n(sb.satBase)} × ${sb.satPct}% + ${n(sb.baseSatDay)} + ${n(sb.baseDefaultWeb)} = ${n(satNet)}`,
+    ]);
+    rows.push([]);
+    rows.push(["KeepIT Year 1"]);
+    rows.push([`  Year 1 = License net + Web users net + API net + Hosting + S&AT + Services net`]);
+    rows.push([
+      `  Year 1 = ${n(swNet)} + ${n(webNet)} + ${n(apiNet)} + ${n(hostNet)} + ${n(satNet)} + ${n(svcNetTrace)} = ${n(t.totalYear1)}`,
+    ]);
+    rows.push([]);
+    rows.push(["KeepIT Year 2+"]);
+    rows.push([`  Year 2+ = Web users recurring + API recurring + Hosting + S&AT`]);
+    rows.push([
+      `  Year 2+ = ${n(webRecurring)} + ${n(apiRecurring)} + ${n(hostNet)} + ${n(satNet)} = ${n(t.totalYear2Plus)}`,
+    ]);
+    rows.push([]);
+    rows.push(["KeepIT 5-year"]);
+    rows.push([`  5-year total = Year 1 + 4 × Year 2+`]);
+    rows.push([
+      `  5-year total = ${n(t.totalYear1)} + 4 × ${n(t.totalYear2Plus)} = ${n(t.totalFiveYears)}`,
+    ]);
+  } else {
+    const d = t.useItDerivation;
+    const annualLine = t.software.find((l) => l.code === "BUS_USEIT_ANNUAL_LICENSE");
+    const annualNet = annualLine?.netAmount || 0;
+    const annualRecurring = annualLine
+      ? annualLine.discountAppliesToRenewal
+        ? annualLine.netAmount
+        : annualLine.amount
+      : 0;
+    if (d) {
+      rows.push(["UseIT annual base"]);
+      rows.push([
+        `  UseIT annual base = KeepIT license base × ${d.factorPct}% + Pre-contracted S&AT day + Default Web/Mobile user`,
+      ]);
+      rows.push([
+        `  UseIT annual base = ${n(d.keepitLicenseBase)} × ${d.factorPct}% + ${n(d.baseSatDay)} + ${n(d.baseDefaultWeb)} = ${n(d.annualBase)}`,
+      ]);
+      rows.push([]);
+    }
+    rows.push(["UseIT Year 1"]);
+    rows.push([`  Year 1 = Annual license net + Web users net + API net + Hosting + Services net`]);
+    rows.push([
+      `  Year 1 = ${n(annualNet)} + ${n(webNet)} + ${n(apiNet)} + ${n(hostNet)} + ${n(svcNetTrace)} = ${n(t.totalYear1)}`,
+    ]);
+    rows.push([]);
+    rows.push(["UseIT Year 2+"]);
+    rows.push([`  Year 2+ = Annual license recurring + Web users recurring + API recurring + Hosting`]);
+    rows.push([
+      `  Year 2+ = ${n(annualRecurring)} + ${n(webRecurring)} + ${n(apiRecurring)} + ${n(hostNet)} = ${n(t.totalYear2Plus)}`,
+    ]);
+    rows.push([]);
+    rows.push(["UseIT 5-year"]);
+    rows.push([`  5-year total = Year 1 + 4 × Year 2+`]);
+    rows.push([
+      `  5-year total = ${n(t.totalYear1)} + 4 × ${n(t.totalYear2Plus)} = ${n(t.totalFiveYears)}`,
+    ]);
+  }
+  rows.push([]);
   return rows;
 };
 
