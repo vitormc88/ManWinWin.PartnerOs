@@ -616,6 +616,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     }
   };
 
+  const formatPrice = (n: number) => formatEuro(n, language);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
