@@ -245,7 +245,7 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
 <div class="cover">
   <img src="${logoUrl}" alt="ManWinWin" />
   <h1>${esc(s.investmentProposal)}</h1>
-  <div class="sub">${esc(s.businessSubtitle)}</div>
+  <div class="sub"><span class="dark">ManWinWin</span> <span class="red">Business</span></div>
   <div class="client">${esc(proposal.client_name)}</div>
   <div class="meta">${esc(fmtDate(proposal.proposal_date, lang))}</div>
   <div class="restricted">${esc(s.restricted)}</div>
