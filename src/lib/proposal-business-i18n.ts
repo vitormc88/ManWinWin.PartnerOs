@@ -144,6 +144,10 @@ const EN: BusinessStrings = {
     `FOR THE IMPLEMENTATION PROJECT OF THE MANWINWIN MAINTENANCE SOFTWARE AT ${client}`,
 
   softwareDescription: "Software",
+  softwareConfigHeading: "Software — ManWinWin Business configuration",
+  optionalNotIncludedFull: "Optional modules/plugins not included in this proposal",
+  servicesGrossTotal: "Services gross total",
+  servicesNetTotal: "Total implementation services",
   optionsTitle: "Commercial Licensing Options",
   servicesTitle: "Services",
   investmentSummaryTitle: "Investment Summary",
@@ -284,6 +288,10 @@ const PT: BusinessStrings = {
     `PARA O PROJETO DE IMPLEMENTAÇÃO DO SOFTWARE DE MANUTENÇÃO MANWINWIN NA ${client}`,
 
   softwareDescription: "Software",
+  softwareConfigHeading: "Software — configuração ManWinWin Business",
+  optionalNotIncludedFull: "Módulos/plugins opcionais não incluídos nesta proposta",
+  servicesGrossTotal: "Total bruto de serviços",
+  servicesNetTotal: "Total de serviços de implementação",
   optionsTitle: "Opções Comerciais de Licenciamento",
   servicesTitle: "Serviços",
   investmentSummaryTitle: "Resumo do Investimento",
@@ -423,6 +431,10 @@ const ES: BusinessStrings = {
     `PARA EL PROYECTO DE IMPLEMENTACIÓN DEL SOFTWARE DE MANTENIMIENTO MANWINWIN EN ${client}`,
 
   softwareDescription: "Software",
+  softwareConfigHeading: "Software — configuración ManWinWin Business",
+  optionalNotIncludedFull: "Módulos/plugins opcionales no incluidos en esta propuesta",
+  servicesGrossTotal: "Total bruto de servicios",
+  servicesNetTotal: "Total de servicios de implementación",
   optionsTitle: "Opciones Comerciales de Licenciamiento",
   servicesTitle: "Servicios",
   investmentSummaryTitle: "Resumen de la Inversión",
