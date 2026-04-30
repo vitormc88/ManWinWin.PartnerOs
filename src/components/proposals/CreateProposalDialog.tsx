@@ -25,6 +25,7 @@ import {
 } from "@/lib/proposal-engine";
 import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
+import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import type {
   ProposalLanguage,
   ProposalPlan,
@@ -1039,13 +1040,29 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-3 max-w-md mx-auto">
                     <p className="text-xs text-amber-900 dark:text-amber-200">
-                      <strong>Business document export coming soon.</strong> The proposal will be saved
-                      with its full breakdown and totals, but DOCX/PDF generation is not enabled yet for
-                      Business proposals.
+                      <strong>Business DOCX/PDF export is coming soon.</strong> Excel export is
+                      available for validation.
                     </p>
                   </div>
                   <div className="flex justify-center gap-2">
                     <Button onClick={handleSaveDraft} disabled={saving}>Save proposal</Button>
+                    <Button
+                      variant="outline"
+                      disabled={saving}
+                      onClick={async () => {
+                        const prop = await persistProposal("Draft");
+                        if (!prop) return;
+                        try {
+                          downloadBusinessXlsx({ proposal: prop, cfg: businessConfig, rules });
+                          toast.success("Excel exported");
+                          onOpenChange(false);
+                        } catch (e: any) {
+                          toast.error("Excel export failed: " + (e?.message || ""));
+                        }
+                      }}
+                    >
+                      <Download className="h-4 w-4 mr-2" />Export Excel
+                    </Button>
                   </div>
                 </>
               ) : (

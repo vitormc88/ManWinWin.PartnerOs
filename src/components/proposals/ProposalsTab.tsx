@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil } from "lucide-react";
+import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil, FileSpreadsheet } from "lucide-react";
 import { useLeadProposals, useDeleteProposal, useDuplicateProposal, usePricingRules } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
+import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { printProposal } from "@/lib/proposal-print";
 import { supabase } from "@/integrations/supabase/client";
 import { formatEuro } from "@/lib/proposal-i18n";
@@ -94,6 +95,28 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     const res = await loadProposalAndItems(id);
     if (!res) return;
     setEditingProposal({ ...(res.prop as Proposal), items: res.items as ProposalItem[] });
+  };
+
+  const exportBusinessExcel = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    const cfgRaw = (res.prop as any).business_config;
+    if (!cfgRaw) {
+      toast.error("This proposal has no Business configuration");
+      return;
+    }
+    const cfg: BusinessConfig = {
+      ...DEFAULT_BUSINESS_CONFIG,
+      ...cfgRaw,
+      implementation: { ...DEFAULT_BUSINESS_CONFIG.implementation, ...(cfgRaw.implementation || {}) },
+      discounts: { ...DEFAULT_BUSINESS_CONFIG.discounts, ...(cfgRaw.discounts || {}) },
+    };
+    try {
+      downloadBusinessXlsx({ proposal: res.prop as Proposal, cfg, rules });
+      toast.success("Excel exported");
+    } catch (e: any) {
+      toast.error("Excel export failed: " + (e?.message || ""));
+    }
   };
 
   return (
@@ -221,9 +244,19 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                       </>
                     )}
                     {isBusiness && (
-                      <span className="text-[10px] text-muted-foreground italic px-2">
-                        Document export coming soon
-                      </span>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => exportBusinessExcel(p.id)}
+                          title="Export Excel"
+                        >
+                          <FileSpreadsheet className="h-3.5 w-3.5 mr-1" />Excel
+                        </Button>
+                        <span className="text-[10px] text-muted-foreground italic px-2">
+                          DOCX/PDF coming soon
+                        </span>
+                      </>
                     )}
                     <Button size="sm" variant="ghost" onClick={() => editProposal(p.id)} title="Edit proposal">
                       <Pencil className="h-3.5 w-3.5 mr-1" />Edit
