@@ -97,6 +97,28 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     setEditingProposal({ ...(res.prop as Proposal), items: res.items as ProposalItem[] });
   };
 
+  const exportBusinessExcel = async (id: string) => {
+    const res = await loadProposalAndItems(id);
+    if (!res) return;
+    const cfgRaw = (res.prop as any).business_config;
+    if (!cfgRaw) {
+      toast.error("This proposal has no Business configuration");
+      return;
+    }
+    const cfg: BusinessConfig = {
+      ...DEFAULT_BUSINESS_CONFIG,
+      ...cfgRaw,
+      implementation: { ...DEFAULT_BUSINESS_CONFIG.implementation, ...(cfgRaw.implementation || {}) },
+      discounts: { ...DEFAULT_BUSINESS_CONFIG.discounts, ...(cfgRaw.discounts || {}) },
+    };
+    try {
+      downloadBusinessXlsx({ proposal: res.prop as Proposal, cfg, rules });
+      toast.success("Excel exported");
+    } catch (e: any) {
+      toast.error("Excel export failed: " + (e?.message || ""));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
