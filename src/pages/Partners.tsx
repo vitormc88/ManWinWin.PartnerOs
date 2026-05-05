@@ -76,7 +76,7 @@ export default function Partners() {
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between animate-reveal-up">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Partner CRM</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Partner Management</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {partners.filter(p => p.status === "Active").length} active · {partners.filter(p => p.status === "Archived").length} archived
           </p>
