@@ -3,14 +3,34 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 export type Partner = Tables<"partners">;
+export type PartnershipLevel = Tables<"partnership_levels">;
 
 const mapError = (error: unknown, action: string) => {
   const msg = error instanceof Error ? error.message : "";
+  if (msg.toLowerCase().includes("already exists") || msg.toLowerCase().includes("duplicate key")) {
+    return new Error("A partner with this company name already exists.");
+  }
   if (msg.toLowerCase().includes("row-level security") || msg.toLowerCase().includes("permission denied")) {
     return new Error(`You do not have permission to ${action}. This action is restricted to HQ administrators.`);
   }
   return error instanceof Error ? error : new Error(`Failed to ${action}`);
 };
+
+export function usePartnershipLevels() {
+  return useQuery({
+    queryKey: ["partnership-levels"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("partnership_levels")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+
+      if (error) throw error;
+      return data as PartnershipLevel[];
+    },
+  });
+}
 
 export function usePartners(filters?: { status?: string; country?: string }) {
   return useQuery({
