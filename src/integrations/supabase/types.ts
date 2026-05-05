@@ -1327,9 +1327,13 @@ export type Database = {
           awarded_at: string | null
           certification_level: number
           certification_name: string
+          certification_type: string | null
           created_at: string
           expires_at: string | null
+          expiry_date: string | null
+          file_url: string | null
           id: string
+          issue_date: string | null
           partner_id: string
           score: number | null
           status: string
@@ -1340,9 +1344,13 @@ export type Database = {
           awarded_at?: string | null
           certification_level?: number
           certification_name: string
+          certification_type?: string | null
           created_at?: string
           expires_at?: string | null
+          expiry_date?: string | null
+          file_url?: string | null
           id?: string
+          issue_date?: string | null
           partner_id: string
           score?: number | null
           status?: string
@@ -1353,9 +1361,13 @@ export type Database = {
           awarded_at?: string | null
           certification_level?: number
           certification_name?: string
+          certification_type?: string | null
           created_at?: string
           expires_at?: string | null
+          expiry_date?: string | null
+          file_url?: string | null
           id?: string
+          issue_date?: string | null
           partner_id?: string
           score?: number | null
           status?: string
@@ -1453,6 +1465,48 @@ export type Database = {
           target_value?: number
         }
         Relationships: []
+      }
+      partner_notes: {
+        Row: {
+          author_id: string | null
+          author_name: string | null
+          content: string
+          created_at: string
+          id: string
+          partner_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          author_name?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          partner_id: string
+        }
+        Update: {
+          author_id?: string | null
+          author_name?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          partner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_notes_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_notes_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partner_onboarding: {
         Row: {
@@ -1579,6 +1633,7 @@ export type Database = {
       }
       partners: {
         Row: {
+          account_owner_id: string | null
           alert_notice_days: number | null
           assigned_manager_id: string | null
           company_name: string
@@ -1588,7 +1643,10 @@ export type Database = {
           health_score: number | null
           id: string
           is_active: boolean | null
+          last_meeting_date: string | null
           legal_name: string | null
+          meeting_cadence: string | null
+          next_meeting_date: string | null
           notes: string | null
           number_of_clients: number | null
           onboarding_status: string | null
@@ -1607,9 +1665,12 @@ export type Database = {
           total_revenue: number | null
           updated_at: string | null
           updated_by: string | null
+          uses_manwinwin_database: boolean | null
+          uses_own_database: boolean | null
           website: string | null
         }
         Insert: {
+          account_owner_id?: string | null
           alert_notice_days?: number | null
           assigned_manager_id?: string | null
           company_name: string
@@ -1619,7 +1680,10 @@ export type Database = {
           health_score?: number | null
           id?: string
           is_active?: boolean | null
+          last_meeting_date?: string | null
           legal_name?: string | null
+          meeting_cadence?: string | null
+          next_meeting_date?: string | null
           notes?: string | null
           number_of_clients?: number | null
           onboarding_status?: string | null
@@ -1638,9 +1702,12 @@ export type Database = {
           total_revenue?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          uses_manwinwin_database?: boolean | null
+          uses_own_database?: boolean | null
           website?: string | null
         }
         Update: {
+          account_owner_id?: string | null
           alert_notice_days?: number | null
           assigned_manager_id?: string | null
           company_name?: string
@@ -1650,7 +1717,10 @@ export type Database = {
           health_score?: number | null
           id?: string
           is_active?: boolean | null
+          last_meeting_date?: string | null
           legal_name?: string | null
+          meeting_cadence?: string | null
+          next_meeting_date?: string | null
           notes?: string | null
           number_of_clients?: number | null
           onboarding_status?: string | null
@@ -1669,6 +1739,8 @@ export type Database = {
           total_revenue?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          uses_manwinwin_database?: boolean | null
+          uses_own_database?: boolean | null
           website?: string | null
         }
         Relationships: []
