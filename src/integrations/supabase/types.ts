@@ -2467,6 +2467,10 @@ export type Database = {
       can_view_client: { Args: { _client_id: string }; Returns: boolean }
       can_view_deal: { Args: { _deal_id: string }; Returns: boolean }
       can_view_partner: { Args: { _partner_id: string }; Returns: boolean }
+      generate_partner_code: {
+        Args: { _company_name: string; _country_code: string }
+        Returns: string
+      }
       get_user_partner_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
