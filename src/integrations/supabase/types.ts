@@ -56,6 +56,13 @@ export type Database = {
             foreignKeyName: "announcements_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "announcements_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -910,6 +917,13 @@ export type Database = {
             foreignKeyName: "documents_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "documents_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -989,6 +1003,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "deals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incoming_leads_linked_partner_id_fkey"
+            columns: ["linked_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
           },
           {
             foreignKeyName: "incoming_leads_linked_partner_id_fkey"
@@ -1880,6 +1901,13 @@ export type Database = {
             foreignKeyName: "profiles_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -2457,7 +2485,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      partner_metrics: {
+        Row: {
+          clients: number | null
+          health_score: number | null
+          partner_id: string | null
+          pipeline: number | null
+          revenue: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       active_hq_admin_count: { Args: never; Returns: number }

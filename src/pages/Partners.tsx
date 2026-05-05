@@ -14,6 +14,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "sonner";
 import { CountryCodeCombobox } from "@/components/partners/CountryCodeCombobox";
 import { usePartnershipLevels } from "@/hooks/usePartners";
+import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
+import { COUNTRY_NAME_BY_CODE } from "@/data/iso-countries";
 
 const statusVariant: Record<string, "success" | "secondary" | "warning" | "destructive"> = {
   Active: "success", Inactive: "secondary", Negotiation: "warning", Archived: "secondary",
@@ -21,6 +23,7 @@ const statusVariant: Record<string, "success" | "secondary" | "warning" | "destr
 
 export default function Partners() {
   const { data: partners = [], isLoading } = usePartners();
+  const { data: metrics = {} } = usePartnerMetrics();
   const createPartner = useCreatePartner();
   const archivePartner = useArchivePartner();
   const restorePartner = useRestorePartner();
@@ -118,24 +121,31 @@ export default function Partners() {
                 <tr><td colSpan={9} className="px-5 py-8 text-center text-muted-foreground">Loading partners...</td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={9} className="px-5 py-8 text-center text-muted-foreground">{showArchived ? "No archived partners." : "No partners found."} <button onClick={() => setShowCreate(true)} className="text-primary hover:underline">Create partner</button></td></tr>
-              ) : filtered.map(p => (
+              ) : filtered.map(p => {
+                const m = metrics[p.id];
+                const revenue = m?.revenue ?? 0;
+                const pipeline = m?.pipeline ?? 0;
+                const clients = m?.clients ?? 0;
+                const health = m?.health_score ?? 0;
+                const countryName = p.country ? (COUNTRY_NAME_BY_CODE[p.country] ?? p.country) : "";
+                return (
                 <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="px-5 py-3">
                     <Link to={`/partners/${p.id}`} className="font-medium text-foreground hover:text-primary transition-colors">{p.company_name}</Link>
                     <p className="text-[11px] text-muted-foreground">{p.partner_code}</p>
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground">{p.country}</td>
+                  <td className="px-5 py-3 text-muted-foreground">{countryName}</td>
                   <td className="px-5 py-3"><Badge variant="outline" className="text-xs font-normal">{p.partnership_level}</Badge></td>
                   <td className="px-5 py-3"><Badge variant={statusVariant[p.status || "Active"] || "secondary"}>{p.status}</Badge></td>
-                  <td className="px-5 py-3 text-right tabular-nums font-medium text-foreground">€{Number(p.total_revenue || 0).toLocaleString()}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">€{Number(p.pipeline_value || 0).toLocaleString()}</td>
+                  <td className="px-5 py-3 text-right tabular-nums font-medium text-foreground">€{revenue.toLocaleString()}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">€{pipeline.toLocaleString()}</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: (p.health_score ?? 50) >= 80 ? "hsl(var(--success))" : (p.health_score ?? 50) >= 60 ? "hsl(var(--info))" : (p.health_score ?? 50) >= 40 ? "hsl(var(--warning))" : "hsl(var(--destructive))" }} />
-                      <span className="text-xs">{p.health_score ?? 50}</span>
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: health >= 80 ? "hsl(var(--success))" : health >= 60 ? "hsl(var(--info))" : health >= 40 ? "hsl(var(--warning))" : "hsl(var(--destructive))" }} />
+                      <span className="text-xs">{health}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground tabular-nums">{p.number_of_clients ?? 0}</td>
+                  <td className="px-5 py-3 text-muted-foreground tabular-nums">{clients}</td>
                   <td className="px-5 py-3 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -150,7 +160,8 @@ export default function Partners() {
                     </DropdownMenu>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
