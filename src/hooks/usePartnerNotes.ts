@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export type PartnerNoteType = "Meeting" | "Internal Note" | "Follow-up";
+
 export interface PartnerNote {
   id: string;
   partner_id: string;
@@ -8,6 +10,8 @@ export interface PartnerNote {
   author_id: string | null;
   author_name: string | null;
   created_at: string;
+  note_type: PartnerNoteType;
+  next_actions: string | null;
 }
 
 export function usePartnerNotes(partnerId: string | undefined) {
