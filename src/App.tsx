@@ -31,6 +31,7 @@ import UserManagement from "@/pages/UserManagement";
 import ResetPassword from "@/pages/ResetPassword";
 import PricingSettings from "@/pages/PricingSettings";
 import Settings, { SettingsComingSoon } from "@/pages/Settings";
+import RolesPermissions from "@/pages/RolesPermissions";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => (
               <Route path="/announcements" element={<ComingSoon />} />
               <Route path="/settings" element={<Settings />}>
                 <Route path="general" element={<SettingsComingSoon title="General Settings" />} />
+                <Route path="roles" element={<RolesPermissions />} />
                 <Route path="pricing" element={<PricingSettings />} />
                 <Route path="proposals" element={<SettingsComingSoon title="Proposal Settings" />} />
               </Route>

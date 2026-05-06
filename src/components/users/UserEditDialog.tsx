@@ -9,17 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Shield } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Shield, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { ROLE_OPTIONS, roleType } from "@/lib/permissions";
+import { useEffectivePermissions, useResetUserToTemplate } from "@/hooks/useRoleTemplates";
 
-const ROLES = [
-  { value: "hq_admin", label: "HQ Admin" },
-  { value: "hq_standard", label: "HQ Standard" },
-  { value: "partner_manager", label: "Partner Manager" },
-  { value: "partner_admin", label: "Partner Admin" },
-  { value: "partner_sales", label: "Partner Sales" },
-  { value: "partner_restricted", label: "Partner Read Only" },
-];
+const ROLES = ROLE_OPTIONS;
 
 const ACCESS_LEVELS = [
   { value: "no_access", label: "No Access" },
@@ -40,7 +36,9 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
   const updateUser = useUpdateUser();
   const updateRole = useUpdateUserRole();
   const savePerms = useSavePermissions();
+  const resetTemplate = useResetUserToTemplate();
   const { data: existingPerms } = useUserPermissions(open ? user?.id : undefined);
+  const { data: effective } = useEffectivePermissions(open ? user?.id : undefined);
   const { data: partners } = useQuery({
     queryKey: ["partners-select"],
     queryFn: async () => {
@@ -106,12 +104,16 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
   };
 
   const handleSavePermissions = async () => {
+    if (!user) return;
     setSaving(true);
     try {
-      const permissions: ModulePermission[] = MODULE_KEYS_LIST.map(k => ({
-        module_key: k,
-        access_level: perms[k] || "no_access",
-      }));
+      // Only persist values that differ from the inherited template — those become overrides
+      const permissions: ModulePermission[] = MODULE_KEYS_LIST.flatMap(k => {
+        const inherited = effective?.find(e => e.module_key === k)?.template_level ?? "no_access";
+        const current = perms[k] ?? inherited;
+        if (current === inherited) return [];
+        return [{ module_key: k, access_level: current }];
+      });
       await savePerms.mutateAsync({ userId: user.id, permissions });
     } finally {
       setSaving(false);
@@ -186,33 +188,61 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
           </TabsContent>
 
           <TabsContent value="permissions" className="space-y-4">
-            <p className="text-sm text-muted-foreground">Define what this user can access in each module.</p>
-            <div className="space-y-2">
-              {MODULE_KEYS_LIST.map(key => (
-                <div key={key} className="flex items-center justify-between rounded-lg border p-3">
-                  <span className="text-sm font-medium">{MODULE_LABELS[key]}</span>
-                  <Select value={perms[key] || "no_access"} onValueChange={v => setPerms(prev => ({ ...prev, [key]: v }))}>
-                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {ACCESS_LEVELS.map(a => (
-                        <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {(() => {
+              const overrideCount = (existingPerms ?? []).length;
+              const usingTemplate = overrideCount === 0;
+              return (
+                <div className={`rounded-md border p-3 text-sm ${usingTemplate ? "bg-success/10 border-success/30" : "bg-warning/10 border-warning/30"}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="font-medium">
+                        {usingTemplate ? "Using role template" : `Custom permissions override active (${overrideCount})`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Effective access is shown next to each module. Inherited values come from the role template.
+                      </p>
+                    </div>
+                    {!usingTemplate && (
+                      <Button size="sm" variant="outline" onClick={() => user && resetTemplate.mutate(user.id)}>
+                        <RotateCcw className="h-4 w-4 mr-2" /> Reset to role template
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              ))}
+              );
+            })()}
+            <div className="space-y-2">
+              {MODULE_KEYS_LIST.map(key => {
+                const eff = effective?.find((e) => e.module_key === key);
+                const inherited = (eff?.template_level ?? "no_access");
+                const current = perms[key] ?? inherited;
+                const isOverride = current !== inherited;
+                return (
+                  <div key={key} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">{MODULE_LABELS[key]}</span>
+                      <span className="text-[11px] text-muted-foreground">
+                        Inherited: <span className="capitalize">{inherited.replace("_", " ")}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isOverride && <Badge variant="outline" className="bg-warning/10 text-warning-foreground">Override</Badge>}
+                      <Select value={current} onValueChange={v => setPerms(prev => ({ ...prev, [key]: v }))}>
+                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ACCESS_LEVELS.map(a => (
+                            <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex justify-between">
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" onClick={() => {
-                  const all: Record<string, string> = {};
-                  MODULE_KEYS_LIST.forEach(k => { all[k] = "admin"; });
-                  setPerms(all);
-                }}>Grant All</Button>
-                <Button size="sm" variant="outline" onClick={() => setPerms({})}>Revoke All</Button>
-              </div>
+            <div className="flex justify-end gap-2">
               <Button onClick={handleSavePermissions} disabled={saving}>
-                {saving ? "Saving..." : "Save Permissions"}
+                {saving ? "Saving..." : "Save custom permissions"}
               </Button>
             </div>
           </TabsContent>

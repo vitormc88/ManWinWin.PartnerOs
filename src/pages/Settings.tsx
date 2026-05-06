@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink, Outlet, useLocation, Navigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings as SettingsIcon, Tag, FileText, ChevronRight } from "lucide-react";
+import { Settings as SettingsIcon, Tag, FileText, ChevronRight, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const sections = [
@@ -11,6 +11,13 @@ const sections = [
     description: "Workspace preferences and defaults.",
     icon: SettingsIcon,
     comingSoon: true,
+  },
+  {
+    to: "/settings/roles",
+    title: "Roles & Permissions",
+    description: "Manage default module access for each role.",
+    icon: ShieldCheck,
+    comingSoon: false,
   },
   {
     to: "/settings/pricing",

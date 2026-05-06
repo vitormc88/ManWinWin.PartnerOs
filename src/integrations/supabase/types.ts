@@ -14,6 +14,219 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_partners_v1: {
+        Row: {
+          account_owner_id: string | null
+          alert_notice_days: number | null
+          assigned_manager_id: string | null
+          company_name: string | null
+          country: string | null
+          created_at: string | null
+          created_by: string | null
+          health_score: number | null
+          id: string | null
+          is_active: boolean | null
+          last_meeting_date: string | null
+          legal_name: string | null
+          meeting_cadence: string | null
+          next_meeting_date: string | null
+          notes: string | null
+          number_of_clients: number | null
+          onboarding_status: string | null
+          partner_code: string | null
+          partner_type: string | null
+          partnership_level: string | null
+          phone: string | null
+          pipeline_value: number | null
+          primary_contact_email: string | null
+          primary_contact_name: string | null
+          region: string | null
+          relationship_status: string | null
+          revenue_ytd: number | null
+          start_date: string | null
+          status: string | null
+          tier_id: number | null
+          total_revenue: number | null
+          updated_at: string | null
+          updated_by: string | null
+          uses_manwinwin_database: boolean | null
+          uses_own_database: boolean | null
+          website: string | null
+        }
+        Insert: {
+          account_owner_id?: string | null
+          alert_notice_days?: number | null
+          assigned_manager_id?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          health_score?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          last_meeting_date?: string | null
+          legal_name?: string | null
+          meeting_cadence?: string | null
+          next_meeting_date?: string | null
+          notes?: string | null
+          number_of_clients?: number | null
+          onboarding_status?: string | null
+          partner_code?: string | null
+          partner_type?: string | null
+          partnership_level?: string | null
+          phone?: string | null
+          pipeline_value?: number | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          region?: string | null
+          relationship_status?: string | null
+          revenue_ytd?: number | null
+          start_date?: string | null
+          status?: string | null
+          tier_id?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          uses_manwinwin_database?: boolean | null
+          uses_own_database?: boolean | null
+          website?: string | null
+        }
+        Update: {
+          account_owner_id?: string | null
+          alert_notice_days?: number | null
+          assigned_manager_id?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          health_score?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          last_meeting_date?: string | null
+          legal_name?: string | null
+          meeting_cadence?: string | null
+          next_meeting_date?: string | null
+          notes?: string | null
+          number_of_clients?: number | null
+          onboarding_status?: string | null
+          partner_code?: string | null
+          partner_type?: string | null
+          partnership_level?: string | null
+          phone?: string | null
+          pipeline_value?: number | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          region?: string | null
+          relationship_status?: string | null
+          revenue_ytd?: number | null
+          start_date?: string | null
+          status?: string | null
+          tier_id?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          uses_manwinwin_database?: boolean | null
+          uses_own_database?: boolean | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      _backup_profiles_v1: {
+        Row: {
+          avatar_url: string | null
+          certification_level: number | null
+          created_at: string | null
+          email: string | null
+          full_name: string | null
+          id: string | null
+          invitation_status: string | null
+          is_active: boolean | null
+          is_hq: boolean | null
+          last_login_at: string | null
+          onboarding_completion_pct: number | null
+          partner_id: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          certification_level?: number | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          invitation_status?: string | null
+          is_active?: boolean | null
+          is_hq?: boolean | null
+          last_login_at?: string | null
+          onboarding_completion_pct?: number | null
+          partner_id?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          certification_level?: number | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string | null
+          id?: string | null
+          invitation_status?: string | null
+          is_active?: boolean | null
+          is_hq?: boolean | null
+          last_login_at?: string | null
+          onboarding_completion_pct?: number | null
+          partner_id?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      _backup_user_module_permissions_v1: {
+        Row: {
+          access_level: string | null
+          created_at: string | null
+          id: string | null
+          module_key: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          access_level?: string | null
+          created_at?: string | null
+          id?: string | null
+          module_key?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          access_level?: string | null
+          created_at?: string | null
+          id?: string | null
+          module_key?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      _backup_user_roles_v1: {
+        Row: {
+          id: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          user_id?: string | null
+        }
+        Update: {
+          id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       announcements: {
         Row: {
           audience_scope: string | null
@@ -2460,6 +2673,30 @@ export type Database = {
           },
         ]
       }
+      role_permission_templates: {
+        Row: {
+          access_level: string
+          id: string
+          module_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          access_level?: string
+          id?: string
+          module_key: string
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          access_level?: string
+          id?: string
+          module_key?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -2635,6 +2872,7 @@ export type Database = {
           access_level: string
           created_at: string
           id: string
+          is_override: boolean
           module_key: string
           updated_at: string
           user_id: string
@@ -2643,6 +2881,7 @@ export type Database = {
           access_level?: string
           created_at?: string
           id?: string
+          is_override?: boolean
           module_key: string
           updated_at?: string
           user_id: string
@@ -2651,6 +2890,7 @@ export type Database = {
           access_level?: string
           created_at?: string
           id?: string
+          is_override?: boolean
           module_key?: string
           updated_at?: string
           user_id?: string
@@ -2689,12 +2929,29 @@ export type Database = {
       }
     }
     Functions: {
+      access_level_rank: { Args: { _lvl: string }; Returns: number }
       active_hq_admin_count: { Args: never; Returns: number }
+      apply_role_template_to_user: {
+        Args: { _overwrite_overrides?: boolean; _user_id: string }
+        Returns: undefined
+      }
+      can_admin_module: {
+        Args: { _module_key: string; _user_id: string }
+        Returns: boolean
+      }
+      can_edit_module: {
+        Args: { _module_key: string; _user_id: string }
+        Returns: boolean
+      }
       can_manage_client: { Args: { _client_id: string }; Returns: boolean }
       can_manage_deal: { Args: { _deal_id: string }; Returns: boolean }
       can_manage_partner: { Args: { _partner_id: string }; Returns: boolean }
       can_view_client: { Args: { _client_id: string }; Returns: boolean }
       can_view_deal: { Args: { _deal_id: string }; Returns: boolean }
+      can_view_module: {
+        Args: { _module_key: string; _user_id: string }
+        Returns: boolean
+      }
       can_view_partner: { Args: { _partner_id: string }; Returns: boolean }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -2707,6 +2964,24 @@ export type Database = {
       generate_partner_code: {
         Args: { _company_name: string; _country_code: string }
         Returns: string
+      }
+      get_effective_permissions: {
+        Args: { _user_id: string }
+        Returns: {
+          access_level: string
+          is_override: boolean
+          module_key: string
+          template_level: string
+        }[]
+      }
+      get_my_effective_permissions: {
+        Args: never
+        Returns: {
+          access_level: string
+          is_override: boolean
+          module_key: string
+          template_level: string
+        }[]
       }
       get_user_partner_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
@@ -2737,6 +3012,17 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reset_user_to_role_template: {
+        Args: { _user_id: string }
+        Returns: undefined
+      }
+      sync_role_template_to_users: {
+        Args: {
+          _overwrite_overrides?: boolean
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: number
       }
     }
     Enums: {
