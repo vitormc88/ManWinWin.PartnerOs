@@ -611,17 +611,6 @@ export default function PartnerDetail() {
                   <Switch checked={!!editForm.uses_manwinwin_database} onCheckedChange={v => setEditForm(f => ({ ...f, uses_manwinwin_database: v }))} />
                 </label>
               </div>
-              <div>
-                <Label>Meeting Cadence</Label>
-                <Select value={editForm.meeting_cadence || ""} onValueChange={v => setEditForm(f => ({ ...f, meeting_cadence: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Monthly">Monthly</SelectItem>
-                    <SelectItem value="Quarterly">Quarterly</SelectItem>
-                    <SelectItem value="None">None</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </section>
 
             <section className="space-y-3">
@@ -638,20 +627,7 @@ export default function PartnerDetail() {
             </section>
 
             <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">Relationship</h3>
-              <div>
-                <Label>Account Owner</Label>
-                <Select value={editForm.account_owner_id || ""} onValueChange={v => setEditForm(f => ({ ...f, account_owner_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select owner..." /></SelectTrigger>
-                  <SelectContent>
-                    {hqUsers.map((u: any) => <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><Label>Last Meeting Date</Label><Input type="date" value={editForm.last_meeting_date || ""} onChange={e => setEditForm(f => ({ ...f, last_meeting_date: e.target.value }))} /></div>
-                <div><Label>Next Meeting Date</Label><Input type="date" value={editForm.next_meeting_date || ""} onChange={e => setEditForm(f => ({ ...f, next_meeting_date: e.target.value }))} /></div>
-              </div>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">Onboarding Settings</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Alert Notice Days</Label><Input type="number" value={editForm.alert_notice_days ?? 60} onChange={e => setEditForm(f => ({ ...f, alert_notice_days: parseInt(e.target.value) || 60 }))} /></div>
                 <div>
