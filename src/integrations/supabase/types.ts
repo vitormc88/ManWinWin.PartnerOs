@@ -1473,6 +1473,8 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          next_actions: string | null
+          note_type: string
           partner_id: string
         }
         Insert: {
@@ -1481,6 +1483,8 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          next_actions?: string | null
+          note_type?: string
           partner_id: string
         }
         Update: {
@@ -1489,6 +1493,8 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          next_actions?: string | null
+          note_type?: string
           partner_id?: string
         }
         Relationships: [
@@ -1658,6 +1664,7 @@ export type Database = {
           primary_contact_email: string | null
           primary_contact_name: string | null
           region: string | null
+          relationship_status: string | null
           revenue_ytd: number | null
           start_date: string | null
           status: string | null
@@ -1695,6 +1702,7 @@ export type Database = {
           primary_contact_email?: string | null
           primary_contact_name?: string | null
           region?: string | null
+          relationship_status?: string | null
           revenue_ytd?: number | null
           start_date?: string | null
           status?: string | null
@@ -1732,6 +1740,7 @@ export type Database = {
           primary_contact_email?: string | null
           primary_contact_name?: string | null
           region?: string | null
+          relationship_status?: string | null
           revenue_ytd?: number | null
           start_date?: string | null
           status?: string | null
