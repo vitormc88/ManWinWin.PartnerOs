@@ -93,12 +93,12 @@ export function useMyPermissions() {
     enabled: !!authUserId && !authLoading,
     queryFn: async () => {
       if (!authUserId) return [];
-      const { data, error } = await supabase
-        .from("user_module_permissions")
-        .select("module_key, access_level")
-        .eq("user_id", authUserId);
+      const { data, error } = await supabase.rpc("get_my_effective_permissions" as any);
       if (error) throw error;
-      return (data ?? []) as ModulePermission[];
+      return ((data ?? []) as any[]).map((d) => ({
+        module_key: d.module_key,
+        access_level: d.access_level,
+      })) as ModulePermission[];
     },
     staleTime: 30_000,
   });
