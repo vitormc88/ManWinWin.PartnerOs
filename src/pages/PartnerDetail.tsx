@@ -112,10 +112,6 @@ export default function PartnerDetail() {
       status: partner.status || "Active",
       alert_notice_days: partner.alert_notice_days ?? 60,
       onboarding_status: partner.onboarding_status || "Not Started",
-      account_owner_id: (partner as any).account_owner_id || "",
-      last_meeting_date: (partner as any).last_meeting_date || "",
-      next_meeting_date: (partner as any).next_meeting_date || "",
-      meeting_cadence: (partner as any).meeting_cadence || "",
       uses_own_database: !!(partner as any).uses_own_database,
       uses_manwinwin_database: !!(partner as any).uses_manwinwin_database,
     });
@@ -130,10 +126,6 @@ export default function PartnerDetail() {
         id: partner.id,
         ...rest,
         primary_contact_name,
-        account_owner_id: rest.account_owner_id || null,
-        last_meeting_date: rest.last_meeting_date || null,
-        next_meeting_date: rest.next_meeting_date || null,
-        meeting_cadence: rest.meeting_cadence || null,
       } as any);
       toast.success("Partner updated successfully");
       setEditing(false);
