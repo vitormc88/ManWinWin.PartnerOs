@@ -153,9 +153,10 @@ export function useRenewals(filters?: { status?: string }) {
   });
 }
 
-export function useNotifications() {
+export function useNotifications(enabled: boolean = true) {
   return useQuery({
     queryKey: ["notifications"],
+    enabled,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("notifications")

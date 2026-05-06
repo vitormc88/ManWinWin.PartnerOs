@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { useNotifications } from "@/hooks/useDeals";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useMyPermissions } from "@/hooks/useUsers";
+import { canView } from "@/lib/permissions";
 
 const typeIcons: Record<string, typeof Info> = {
   warning: AlertTriangle,
@@ -14,7 +16,9 @@ const typeIcons: Record<string, typeof Info> = {
 };
 
 export function NotificationBell() {
-  const { data: notifications = [] } = useNotifications();
+  const { data: perms } = useMyPermissions();
+  const allowed = canView(perms as any, "notifications");
+  const { data: notifications = [] } = useNotifications(allowed);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
@@ -41,6 +45,8 @@ export function NotificationBell() {
     await supabase.from("notifications").update({ is_read: true }).in("id", ids);
     queryClient.invalidateQueries({ queryKey: ["notifications"] });
   };
+
+  if (!allowed) return null;
 
   return (
     <div className="relative" ref={ref}>
