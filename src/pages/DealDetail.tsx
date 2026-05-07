@@ -249,6 +249,7 @@ export default function DealDetail() {
         </div>
         {!editing && (
           <div className="flex items-center gap-2">
+            {deal.stage !== "Lost" && <MarkAsWonButton deal={deal} />}
             <Button size="sm" onClick={() => setShowCreateProposal(true)}>
               <FileText className="h-3.5 w-3.5 mr-1.5" />Generate Proposal
             </Button>
