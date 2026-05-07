@@ -18,11 +18,50 @@ export interface CreateLicensePayload {
   license_model: LicenseModel;
   contract_start_date: string;
   renewal_date?: string | null;
+  /** Legacy aggregate (kept for backwards compat). Prefer initial/recurring split. */
   contract_value?: number | null;
+  /** Year-1 invoice = recurring + one-time (services / setup). */
+  initial_contract_value?: number | null;
+  /** Year-2+ recurring (used for ARR & renewals). */
+  recurring_contract_value?: number | null;
   billing_frequency: BillingFrequency;
   num_users?: number | null;
   notes?: string | null;
   is_draft?: boolean;
+  source_proposal_id?: string | null;
+}
+
+/** Inherit operational license defaults from an approved proposal. */
+export function proposalToLicenseDefaults(proposal: any): {
+  license_type: string;
+  license_model: LicenseModel;
+  billing_frequency: BillingFrequency;
+  initial_contract_value: number;
+  recurring_contract_value: number;
+  num_users: number | null;
+  notes: string;
+  source_proposal_id: string;
+} {
+  const family = proposal?.product_family || "Professional";
+  const model: LicenseModel =
+    family === "Business" && proposal?.license_model === "keepit"
+      ? "Perpetual / KeepIT"
+      : "SaaS / UseIT";
+  const license_type =
+    family === "Business" ? "Business" : `Professional ${proposal?.plan ?? 1}`;
+  const initial = Number(proposal?.total_year_1 || 0);
+  const recurring = Number(proposal?.total_recurring || 0);
+  const users = Number(proposal?.web_users || 0) || null;
+  return {
+    license_type,
+    license_model: model,
+    billing_frequency: "Annual",
+    initial_contract_value: initial,
+    recurring_contract_value: recurring,
+    num_users: users,
+    notes: `Inherited from Proposal v${proposal?.version ?? 1}${proposal?.project_name ? ` — ${proposal.project_name}` : ""}.`,
+    source_proposal_id: proposal?.id,
+  };
 }
 
 export function computeRenewalDate(
