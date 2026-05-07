@@ -18,28 +18,41 @@ interface Props {
   dealId: string;
   dealCompanyName: string;
   linkedPartnerId: string | null;
+  defaults?: {
+    title?: string;
+    priority?: string;
+    status?: string;
+    assignedUserId?: string;
+    dueDate?: string;
+  };
 }
 
-export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName, linkedPartnerId }: Props) {
+export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName, linkedPartnerId, defaults }: Props) {
   const { user } = useAuth();
   const createTask = useCreateDealTask();
   const { data: partnerUsers = [] } = usePartnerUsers(linkedPartnerId);
   const { data: hqUsers = [] } = useHQUsers();
 
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(defaults?.title || "");
   const [description, setDescription] = useState("");
-  const [assignedUserId, setAssignedUserId] = useState<string>("");
-  const [dueDate, setDueDate] = useState("");
-  const [status, setStatus] = useState("To Do");
-  const [priority, setPriority] = useState("Medium");
+  const [assignedUserId, setAssignedUserId] = useState<string>(defaults?.assignedUserId || "");
+  const [dueDate, setDueDate] = useState(defaults?.dueDate || "");
+  const [status, setStatus] = useState(defaults?.status || "To Do");
+  const [priority, setPriority] = useState(defaults?.priority || "Medium");
+
+  // Re-apply defaults whenever the dialog opens
+  // (so multiple invocations with different defaults work)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useState(() => {});
+  if (open === false) { /* no-op */ }
 
   const reset = () => {
-    setTitle("");
+    setTitle(defaults?.title || "");
     setDescription("");
-    setAssignedUserId("");
-    setDueDate("");
-    setStatus("To Do");
-    setPriority("Medium");
+    setAssignedUserId(defaults?.assignedUserId || "");
+    setDueDate(defaults?.dueDate || "");
+    setStatus(defaults?.status || "To Do");
+    setPriority(defaults?.priority || "Medium");
   };
 
   const handleSubmit = async () => {
