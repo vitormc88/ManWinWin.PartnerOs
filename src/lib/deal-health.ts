@@ -1,5 +1,7 @@
 // Deal Health computation logic — central, reusable.
-// Used by Pipeline cards, deal detail, and manager intelligence counters.
+// All thresholds live in src/lib/pipeline-health-config.ts.
+
+import { PIPELINE_HEALTH_CONFIG, applyHealthAdjustment, suggestNextAction, type SuggestedAction } from "@/lib/pipeline-health-config";
 
 export type DealHealth = "Hot" | "Healthy" | "Attention" | "Stalled" | "AtRisk";
 
@@ -8,25 +10,33 @@ export interface DealHealthInputs {
   status?: string | null;
   stageEnteredAt: Date | null;
   createdAt: Date;
-  lastActivityAt: Date | null;       // max(deal_activities.created_at, stage_entered_at)
-  nextFollowUpAt: Date | null;       // earliest non-done task due_date in the future
-  hasOverdueTask: boolean;           // any task with due_date < today and not done
-  latestProposalAt: Date | null;     // latest proposal created_at
-  hasOwner: boolean;                 // assigned_salesperson present
+  lastActivityAt: Date | null;
+  nextFollowUpAt: Date | null;
+  hasOverdueTask: boolean;
+  latestProposalAt: Date | null;
+  hasOwner: boolean;
+  baseProbability?: number | null;
 }
 
 export interface DealHealthResult {
   health: DealHealth;
   reasons: string[];
-  warnings: string[];                // short labels for the card (e.g. "Proposal aging")
+  positives: string[];
+  warnings: string[];
   daysSinceActivity: number | null;
   daysInStage: number;
   daysSinceProposal: number | null;
+  hasFutureFollowUp: boolean;
+  suggestedAction: SuggestedAction | null;
+  effectiveProbability: number;
+  baseProbability: number;
+  probabilityAdjustment: number;
 }
 
 const DAY = 86400000;
+const cfg = PIPELINE_HEALTH_CONFIG;
 
-// ── Stage aging thresholds (centralized) ────────────────────────────────
+// Per-stage aging overrides — fallback to config defaults when unspecified.
 export const STAGE_AGING: Record<string, { warn: number; risk: number }> = {
   "Open Lead":         { warn: 14, risk: 30 },
   "Qualified":         { warn: 14, risk: 30 },
@@ -38,9 +48,10 @@ export const STAGE_AGING: Record<string, { warn: number; risk: number }> = {
   "Price Negotiation": { warn: 10, risk: 21 },
 };
 
-export const PROPOSAL_AGING_WARN_DAYS = 14;
-export const INACTIVITY_ATTENTION_DAYS = 10;
-export const INACTIVITY_STALLED_DAYS = 21;
+// Re-export legacy constants so existing imports keep working.
+export const PROPOSAL_AGING_WARN_DAYS = cfg.no_followup_days;
+export const INACTIVITY_ATTENTION_DAYS = cfg.attention_inactivity_days;
+export const INACTIVITY_STALLED_DAYS = cfg.stalled_inactivity_days;
 
 function daysBetween(from: Date | null, to: Date = new Date()): number | null {
   if (!from) return null;
@@ -53,50 +64,93 @@ export function computeDealHealth(input: DealHealthInputs): DealHealthResult {
   const daysInStage = daysBetween(input.stageEnteredAt ?? input.createdAt, now) ?? 0;
   const daysSinceProposal = daysBetween(input.latestProposalAt, now);
   const hasFutureFollowUp =
-    !!input.nextFollowUpAt && input.nextFollowUpAt.getTime() >= now.getTime();
+    !!input.nextFollowUpAt && input.nextFollowUpAt.getTime() >= now.getTime() - DAY;
 
   const reasons: string[] = [];
+  const positives: string[] = [];
   const warnings: string[] = [];
 
   // ── At Risk signals ─────────────────────────────────────────────────
-  const stageThr = STAGE_AGING[input.stage];
-  const stageStuck = stageThr ? daysInStage >= stageThr.risk : false;
+  const stageThr = STAGE_AGING[input.stage] ?? { warn: cfg.default_stage_warn_days, risk: cfg.default_stage_risk_days };
+  const stageStuck = daysInStage >= stageThr.risk;
   if (input.hasOverdueTask) { reasons.push("Has overdue tasks"); warnings.push("Overdue tasks"); }
   if (!input.hasOwner) { reasons.push("Missing owner"); warnings.push("No owner"); }
-  if (stageStuck) { reasons.push(`Stuck in ${input.stage} (${daysInStage}d)`); warnings.push(`${daysInStage}d in stage`); }
+  if (stageStuck) { reasons.push(`${daysInStage}d in ${input.stage} stage`); warnings.push(`${daysInStage}d in stage`); }
 
   // ── Stalled signals ─────────────────────────────────────────────────
-  const veryInactive = (daysSinceActivity ?? Infinity) > INACTIVITY_STALLED_DAYS;
+  const veryInactive = (daysSinceActivity ?? Infinity) > cfg.stalled_inactivity_days;
   const proposalAging =
     daysSinceProposal !== null &&
-    daysSinceProposal > PROPOSAL_AGING_WARN_DAYS &&
-    (daysSinceActivity ?? Infinity) > 7;
+    daysSinceProposal > cfg.no_followup_days &&
+    !hasFutureFollowUp;
   if (veryInactive) reasons.push(`No activity for ${daysSinceActivity}d`);
   if (proposalAging) { reasons.push(`Proposal sent ${daysSinceProposal}d ago, no follow-up`); warnings.push(`Proposal ${daysSinceProposal}d old`); }
 
   // ── Attention signals ───────────────────────────────────────────────
-  const attentionInactive = (daysSinceActivity ?? Infinity) > INACTIVITY_ATTENTION_DAYS;
+  const attentionInactive = (daysSinceActivity ?? Infinity) > cfg.attention_inactivity_days;
   const noFollowUpRequired =
     !hasFutureFollowUp &&
     ["Proposal Sent", "Advance 1", "Meeting 2", "Advance 2", "Price Negotiation"].includes(input.stage);
   if (attentionInactive && !veryInactive) reasons.push(`No activity for ${daysSinceActivity}d`);
   if (noFollowUpRequired) { reasons.push("No follow-up scheduled"); warnings.push("No follow-up"); }
-  const stageWarn = stageThr ? daysInStage >= stageThr.warn && daysInStage < stageThr.risk : false;
+  const stageWarn = daysInStage >= stageThr.warn && daysInStage < stageThr.risk;
   if (stageWarn) warnings.push(`${daysInStage}d in stage`);
 
-  // ── Hot signals ─────────────────────────────────────────────────────
-  const recentActivity = (daysSinceActivity ?? Infinity) < 3;
-  const recentProposal = (daysSinceProposal ?? Infinity) < 7;
+  // ── Hot signals (rebalanced — score-based, not all-or-nothing) ──────
+  const w = cfg.hot_signal_weights;
+  const recentActivity = (daysSinceActivity ?? Infinity) < cfg.hot_activity_window;
+  const recentProposal = (daysSinceProposal ?? Infinity) < cfg.proposal_recent_window;
   const recentlyEnteredStage = daysInStage < 5;
+  const highProb = (input.baseProbability ?? 0) >= cfg.high_probability_floor;
+
+  let hotScore = 0;
+  if (recentActivity)        { hotScore += w.recentActivity;        positives.push(`Activity ${daysSinceActivity ?? 0}d ago`); }
+  if (hasFutureFollowUp)     { hotScore += w.futureFollowUp;        positives.push("Follow-up scheduled"); }
+  if (recentProposal)        { hotScore += w.recentProposal;        positives.push(`Proposal sent ${daysSinceProposal}d ago`); }
+  if (highProb)              { hotScore += w.highProbability;       positives.push(`Probability ${input.baseProbability}%`); }
+  if (recentlyEnteredStage)  { hotScore += w.recentlyEnteredStage;  positives.push(`Entered stage ${daysInStage}d ago`); }
+
+  const isHot = hotScore >= cfg.hot_score_threshold;
 
   // ── Decide health (priority: AtRisk > Stalled > Attention > Hot > Healthy) ──
   let health: DealHealth = "Healthy";
   if (input.hasOverdueTask || !input.hasOwner || stageStuck) health = "AtRisk";
   else if (veryInactive || proposalAging) health = "Stalled";
   else if (attentionInactive || noFollowUpRequired || stageWarn) health = "Attention";
-  else if (recentActivity && hasFutureFollowUp && (recentProposal || recentlyEnteredStage)) health = "Hot";
+  else if (isHot) health = "Hot";
 
-  return { health, reasons, warnings, daysSinceActivity, daysInStage, daysSinceProposal };
+  if (health === "Healthy") {
+    if (hasFutureFollowUp) positives.push("Follow-up scheduled");
+    if ((daysSinceActivity ?? Infinity) <= cfg.attention_inactivity_days) positives.push("Regular activity");
+    if (!stageWarn && !stageStuck) positives.push("Stage progression normal");
+  }
+
+  // ── Probability adjustment ───────────────────────────────────────────
+  const adj = applyHealthAdjustment(input.baseProbability ?? 0, health);
+  const suggestedAction = suggestNextAction({
+    health,
+    stage: input.stage,
+    hasOverdueTask: input.hasOverdueTask,
+    hasFutureFollowUp,
+    daysSinceActivity,
+    daysSinceProposal,
+    hasOwner: input.hasOwner,
+  });
+
+  return {
+    health,
+    reasons,
+    positives,
+    warnings,
+    daysSinceActivity,
+    daysInStage,
+    daysSinceProposal,
+    hasFutureFollowUp,
+    suggestedAction,
+    baseProbability: adj.base,
+    probabilityAdjustment: adj.adjustment,
+    effectiveProbability: adj.effective,
+  };
 }
 
 // ── UI helpers ──────────────────────────────────────────────────────────
