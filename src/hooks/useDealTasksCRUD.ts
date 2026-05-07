@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { logSystemActivity } from "@/lib/activity-log";
 
 export const TASK_STATUSES = ["To Do", "In Progress", "Done"] as const;
 export const TASK_PRIORITIES = ["Low", "Medium", "High"] as const;
