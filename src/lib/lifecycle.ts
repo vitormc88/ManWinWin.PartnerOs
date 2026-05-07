@@ -1,5 +1,34 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logSystemActivity } from "@/lib/activity-log";
+import { computeBusinessOption, type BusinessConfig, DEFAULT_BUSINESS_CONFIG } from "@/lib/proposal-business-engine";
+import type { PricingRule, ProposalLicenseModel } from "@/types/proposal";
+
+/** Default included accesses per Business proposal (per HQ pricing). */
+export const BUSINESS_INCLUDED_BACKOFFICE = 3;
+export const BUSINESS_INCLUDED_WEB = 1;
+
+/** Map a Business proposal config to the canonical operational module/plugin labels. */
+export function modulesFromBusinessConfig(cfg: Partial<BusinessConfig> | null | undefined): string[] {
+  if (!cfg) return [];
+  const out: string[] = ["Maintenance Module"]; // always
+  if (cfg.includeRequests) out.push("Maintenance Requests");
+  if (cfg.includeStock) out.push("Stock Management");
+  if (cfg.includePurchase) out.push("Purchase Orders");
+  if (cfg.pluginSLA) out.push("SLA");
+  if (cfg.pluginWorkflow) out.push("Workflow");
+  if (cfg.pluginAdvancedReports) out.push("Advanced Reports");
+  if (cfg.pluginImport) out.push("Import Tool");
+  if (cfg.api) out.push("API");
+  return out;
+}
+
+/** Whether this proposal requires the user to explicitly pick KeepIT or UseIT before operationalization. */
+export function requiresAwardChoice(proposal: any): boolean {
+  return (
+    proposal?.product_family === "Business" &&
+    proposal?.proposal_mode === "compare_keepit_useit"
+  );
+}
 
 /**
  * License model — used internally for renewal/billing logic.
