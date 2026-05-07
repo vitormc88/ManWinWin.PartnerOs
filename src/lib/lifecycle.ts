@@ -181,6 +181,7 @@ export function proposalToLicenseDefaults(
     license_type = `Professional ${plan}`;
     license_model = "SaaS";
     included_backoffice = 1;
+    additional_backoffice = 0; // Professional does NOT support additional BackOffice users
     // Professional always includes 1 Web/Mobile access; proposal.web_users is the *additional* count.
     included_web = 1;
     additional_web = Math.max(0, Number(proposal?.web_users || 0));
