@@ -30,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MarkAsWonButton } from "@/components/deals/MarkAsWonButton";
 import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";
 import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
+import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
