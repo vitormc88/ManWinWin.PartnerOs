@@ -486,32 +486,39 @@ export default function DealDetail() {
           </div>
         </TabsContent>
 
-        {/* ───── Communication ───── */}
+        {/* ───── Communication / Activity Timeline ───── */}
         <TabsContent value="communication" className="mt-4">
           <div className="bg-card rounded-xl border shadow-sm p-4">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-1">
               <h3 className="text-sm font-semibold text-foreground">Activity Timeline</h3>
               <Button size="sm" variant="outline" onClick={() => setShowAddActivity(true)}><Plus className="h-3.5 w-3.5 mr-1" />Log Activity</Button>
             </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Historical record of calls, meetings, emails, demos and system events. Use the Tasks tab for upcoming work.
+            </p>
             <div className="space-y-0">
-              {activities.map((a, i) => (
-                <div key={a.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                      {activityIcon(a.activity_type)}
+              {activities.map((a, i) => {
+                const isSystem = a.activity_type === "system";
+                return (
+                  <div key={a.id} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${isSystem ? "bg-muted/60" : "bg-secondary"}`}>
+                        {activityIcon(a.activity_type)}
+                      </div>
+                      {i < activities.length - 1 && <div className="w-px flex-1 bg-border my-1" />}
                     </div>
-                    {i < activities.length - 1 && <div className="w-px flex-1 bg-border my-1" />}
-                  </div>
-                  <div className="pb-4 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-medium text-foreground">{a.subject}</p>
-                      <Badge variant="outline" className="text-[10px] capitalize">{a.activity_type}</Badge>
+                    <div className="pb-4 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <p className={`text-sm font-medium ${isSystem ? "text-muted-foreground" : "text-foreground"}`}>{a.subject}</p>
+                        <Badge variant="outline" className="text-[10px]">{ACTIVITY_TYPE_LABELS[a.activity_type] || a.activity_type}</Badge>
+                        {isSystem && <Badge variant="secondary" className="text-[10px]">System</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">{a.performed_by || "—"} · {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                      {a.description && <p className="text-sm text-foreground/80 whitespace-pre-wrap">{a.description}</p>}
                     </div>
-                    <p className="text-xs text-muted-foreground mb-1">{a.performed_by || "—"} · {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-                    <p className="text-sm text-foreground/80">{a.description}</p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {activities.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">No activity recorded yet</p>}
             </div>
           </div>
