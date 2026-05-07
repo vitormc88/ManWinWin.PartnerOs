@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { UserPlus, Mail, KeyRound } from "lucide-react";
 import { toast } from "sonner";
+import { getAppRedirectUrl } from "@/lib/app-url";
 
 import { ROLE_OPTIONS, roleType } from "@/lib/permissions";
 import { useRoleTemplates } from "@/hooks/useRoleTemplates";
