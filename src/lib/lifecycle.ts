@@ -403,6 +403,10 @@ export async function createLicenseAndRenewal(
       web_accesses: totalWeb || null,
       mobile_users: addWeb || null,
       api_access: !!payload.api_enabled,
+      // Professional is SaaS-only and ALWAYS includes active S&AT (Support & Updates).
+      // Business UseIT also implicitly includes S&AT; Business KeepIT pays S&AT separately but it's active by default at operationalization.
+      sat_active: payload.product_family === "Professional" ? true : true,
+      sat_end_date: renewalDate,
       notes: payload.notes ?? null,
       is_draft: !!payload.is_draft,
       source_proposal_id: payload.source_proposal_id ?? null,
