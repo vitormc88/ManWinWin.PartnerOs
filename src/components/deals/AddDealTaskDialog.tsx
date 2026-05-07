@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
-import { useCreateDealTask, TASK_STATUSES, TASK_PRIORITIES } from "@/hooks/useDealTasksCRUD";
+import { useCreateDealTask, TASK_STATUSES, TASK_PRIORITIES, TASK_CATEGORIES } from "@/hooks/useDealTasksCRUD";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,8 +20,10 @@ interface Props {
   linkedPartnerId: string | null;
   defaults?: {
     title?: string;
+    description?: string;
     priority?: string;
     status?: string;
+    category?: string;
     assignedUserId?: string;
     dueDate?: string;
   };
@@ -34,31 +36,34 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
   const { data: hqUsers = [] } = useHQUsers();
 
   const [title, setTitle] = useState(defaults?.title || "");
-  const [description, setDescription] = useState("");
+  const [description, setDescription] = useState(defaults?.description || "");
   const [assignedUserId, setAssignedUserId] = useState<string>(defaults?.assignedUserId || "");
   const [dueDate, setDueDate] = useState(defaults?.dueDate || "");
   const [status, setStatus] = useState(defaults?.status || "To Do");
   const [priority, setPriority] = useState(defaults?.priority || "Medium");
+  const [category, setCategory] = useState(defaults?.category || "Follow-up");
 
   useEffect(() => {
     if (open) {
       setTitle(defaults?.title || "");
-      setDescription("");
+      setDescription(defaults?.description || "");
       setAssignedUserId(defaults?.assignedUserId || "");
       setDueDate(defaults?.dueDate || "");
       setStatus(defaults?.status || "To Do");
       setPriority(defaults?.priority || "Medium");
+      setCategory(defaults?.category || "Follow-up");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const reset = () => {
     setTitle(defaults?.title || "");
-    setDescription("");
+    setDescription(defaults?.description || "");
     setAssignedUserId(defaults?.assignedUserId || "");
     setDueDate(defaults?.dueDate || "");
     setStatus(defaults?.status || "To Do");
     setPriority(defaults?.priority || "Medium");
+    setCategory(defaults?.category || "Follow-up");
   };
 
   const handleSubmit = async () => {
