@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { computeDealHealth, HEALTH_META, STAGE_AGING } from "@/lib/deal-health";
 import type { Deal } from "@/hooks/useDeals";
-import { Activity, AlertTriangle, Clock, BellOff } from "lucide-react";
+import { Activity, AlertTriangle, Clock, BellOff, Lightbulb, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function DealHealthBanner({ deal }: { deal: Deal }) {
@@ -51,13 +51,16 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
     hasOverdueTask: data.hasOverdueTask,
     latestProposalAt: data.latestProposalAt ? new Date(data.latestProposalAt) : null,
     hasOwner: !!(deal.assigned_salesperson && deal.assigned_salesperson.trim()),
+    baseProbability: (deal as any).probability ?? null,
   });
 
   const meta = HEALTH_META[result.health];
   const stageThr = STAGE_AGING[deal.stage];
+  const isPositive = result.health === "Hot" || result.health === "Healthy";
+  const items = isPositive ? result.positives : result.reasons;
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm p-4 animate-reveal-up">
+    <div className="bg-card rounded-xl border shadow-sm p-4 animate-reveal-up space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold", meta.chip)}>
@@ -88,12 +91,45 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
           </span>
         </div>
       </div>
-      {(result.reasons.length > 0 && result.health !== "Healthy" && result.health !== "Hot") && (
-        <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
-          <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-amber-600 shrink-0" />
-          <span>{result.reasons.join(" · ")}</span>
+
+      {items.length > 0 && (
+        <ul className="grid sm:grid-cols-2 gap-x-4 gap-y-1">
+          {items.slice(0, 6).map((r, i) => (
+            <li key={i} className="flex items-start gap-1.5 text-xs text-foreground">
+              {isPositive
+                ? <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-emerald-600 shrink-0" />
+                : <AlertTriangle className="h-3.5 w-3.5 mt-0.5 text-amber-600 shrink-0" />}
+              <span>{r}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {result.suggestedAction && (
+        <div className="flex items-start gap-2 rounded-lg bg-secondary/50 border px-3 py-2">
+          <Lightbulb className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+          <div className="text-xs">
+            <p className="font-semibold text-foreground">Next best action</p>
+            <p className="text-muted-foreground">
+              {result.suggestedAction.label}
+              {result.suggestedAction.hint && <span className="opacity-70"> · {result.suggestedAction.hint}</span>}
+            </p>
+          </div>
         </div>
       )}
+
+      <div className="flex items-center gap-4 text-[11px] text-muted-foreground tabular-nums pt-1 border-t">
+        <span>Base probability <span className="font-semibold text-foreground">{result.baseProbability}%</span></span>
+        <span>
+          Health adjustment{" "}
+          <span className={cn("font-semibold", result.probabilityAdjustment > 0 ? "text-emerald-600" : result.probabilityAdjustment < 0 ? "text-red-600" : "text-foreground")}>
+            {result.probabilityAdjustment > 0 ? "+" : ""}{result.probabilityAdjustment}%
+          </span>
+        </span>
+        <span>
+          Effective <span className="font-semibold text-foreground">{result.effectiveProbability}%</span>
+        </span>
+      </div>
     </div>
   );
 }
