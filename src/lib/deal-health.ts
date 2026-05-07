@@ -37,15 +37,16 @@ const DAY = 86400000;
 const cfg = PIPELINE_HEALTH_CONFIG;
 
 // Per-stage aging overrides — fallback to config defaults when unspecified.
+// Tuned for real B2B sales rhythms — less aggressive than CRM defaults.
 export const STAGE_AGING: Record<string, { warn: number; risk: number }> = {
-  "Open Lead":         { warn: 14, risk: 30 },
-  "Qualified":         { warn: 14, risk: 30 },
-  "Demo":              { warn: 10, risk: 21 },
-  "Proposal Sent":     { warn: 7,  risk: 14 },
-  "Advance 1":         { warn: 14, risk: 28 },
-  "Meeting 2":         { warn: 14, risk: 28 },
-  "Advance 2":         { warn: 14, risk: 28 },
-  "Price Negotiation": { warn: 10, risk: 21 },
+  "Open Lead":         { warn: 7,  risk: 14 },
+  "Qualified":         { warn: 10, risk: 18 },
+  "Demo":              { warn: 10, risk: 18 },
+  "Proposal Sent":     { warn: 14, risk: 25 },
+  "Advance 1":         { warn: 14, risk: 25 },
+  "Meeting 2":         { warn: 14, risk: 25 },
+  "Advance 2":         { warn: 21, risk: 35 },
+  "Price Negotiation": { warn: 30, risk: 45 },
 };
 
 // Re-export legacy constants so existing imports keep working.
@@ -86,13 +87,32 @@ export function computeDealHealth(input: DealHealthInputs): DealHealthResult {
   if (veryInactive) reasons.push(`No activity for ${daysSinceActivity}d`);
   if (proposalAging) { reasons.push(`Proposal sent ${daysSinceProposal}d ago, no follow-up`); warnings.push(`Proposal ${daysSinceProposal}d old`); }
 
+  // ── Follow-up grace window — recent activity / proposal / stage move
+  // suppresses the "no follow-up" warning to avoid CRM bureaucracy.
+  const recentlyActiveForGrace =
+    (daysSinceActivity ?? Infinity) <= cfg.followup_grace_recent_activity_days;
+  const recentlyProposedForGrace =
+    (daysSinceProposal ?? Infinity) <= cfg.followup_grace_recent_proposal_days;
+  const recentlyChangedStageForGrace =
+    daysInStage <= cfg.followup_grace_recent_stage_days;
+  const hasFollowUpGrace =
+    recentlyActiveForGrace || recentlyProposedForGrace || recentlyChangedStageForGrace;
+
   // ── Attention signals ───────────────────────────────────────────────
   const attentionInactive = (daysSinceActivity ?? Infinity) > cfg.attention_inactivity_days;
+  const stagesRequiringFollowUp = ["Proposal Sent", "Advance 1", "Meeting 2", "Advance 2", "Price Negotiation"];
   const noFollowUpRequired =
     !hasFutureFollowUp &&
-    ["Proposal Sent", "Advance 1", "Meeting 2", "Advance 2", "Price Negotiation"].includes(input.stage);
+    stagesRequiringFollowUp.includes(input.stage) &&
+    !hasFollowUpGrace;
+  const awaitingNextAction =
+    !hasFutureFollowUp &&
+    stagesRequiringFollowUp.includes(input.stage) &&
+    hasFollowUpGrace;
+
   if (attentionInactive && !veryInactive) reasons.push(`No activity for ${daysSinceActivity}d`);
   if (noFollowUpRequired) { reasons.push("No follow-up scheduled"); warnings.push("No follow-up"); }
+  if (awaitingNextAction) { positives.push("Awaiting next action"); }
   const stageWarn = daysInStage >= stageThr.warn && daysInStage < stageThr.risk;
   if (stageWarn) warnings.push(`${daysInStage}d in stage`);
 
@@ -112,16 +132,25 @@ export function computeDealHealth(input: DealHealthInputs): DealHealthResult {
 
   const isHot = hotScore >= cfg.hot_score_threshold;
 
-  // ── Decide health (priority: AtRisk > Stalled > Attention > Hot > Healthy) ──
+  // ── Decide health (rebalanced — At Risk requires multiple signals) ──
+  // At Risk only when SEVERE: missing owner, OR stage-stuck combined with
+  // inactivity/overdue, OR overdue tasks plus inactivity. A single missing
+  // behaviour (e.g. no follow-up alone) should never escalate to At Risk.
+  let atRiskSignals = 0;
+  if (input.hasOverdueTask) atRiskSignals++;
+  if (stageStuck) atRiskSignals++;
+  if (veryInactive) atRiskSignals++;
+
   let health: DealHealth = "Healthy";
-  if (input.hasOverdueTask || !input.hasOwner || stageStuck) health = "AtRisk";
-  else if (veryInactive || proposalAging) health = "Stalled";
-  else if (attentionInactive || noFollowUpRequired || stageWarn) health = "Attention";
+  if (!input.hasOwner) health = "AtRisk";
+  else if (atRiskSignals >= 2) health = "AtRisk";
+  else if (veryInactive || proposalAging || stageStuck) health = "Stalled";
+  else if (input.hasOverdueTask || attentionInactive || noFollowUpRequired || stageWarn) health = "Attention";
   else if (isHot) health = "Hot";
 
   if (health === "Healthy") {
     if (hasFutureFollowUp) positives.push("Follow-up scheduled");
-    if ((daysSinceActivity ?? Infinity) <= cfg.attention_inactivity_days) positives.push("Regular activity");
+    if ((daysSinceActivity ?? Infinity) <= cfg.attention_inactivity_days) positives.push("Recent activity");
     if (!stageWarn && !stageStuck) positives.push("Stage progression normal");
   }
 
@@ -132,8 +161,10 @@ export function computeDealHealth(input: DealHealthInputs): DealHealthResult {
     stage: input.stage,
     hasOverdueTask: input.hasOverdueTask,
     hasFutureFollowUp,
+    hasProposal: !!input.latestProposalAt,
     daysSinceActivity,
     daysSinceProposal,
+    daysInStage,
     hasOwner: input.hasOwner,
   });
 
