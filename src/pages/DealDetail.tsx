@@ -191,30 +191,6 @@ export default function DealDetail() {
     toast.success("Contact removed");
   };
 
-  // Activity actions
-  const addActivity = async () => {
-    if (!activityForm.subject) { toast.error("Subject required"); return; }
-    const { error } = await supabase.from("deal_activities").insert({
-      deal_id: deal.id,
-      activity_type: activityForm.activity_type,
-      subject: activityForm.subject,
-      description: activityForm.description || null,
-      performed_by: activityForm.performed_by || null,
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Activity logged");
-    queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
-    setShowAddActivity(false);
-    setActivityForm({ activity_type: "note", subject: "", description: "", performed_by: currentUserName });
-  };
-
-  const activityIcon = (type: string) => {
-    if (type === "call") return <Phone className="h-3.5 w-3.5 text-blue-500" />;
-    if (type === "email") return <Mail className="h-3.5 w-3.5 text-amber-500" />;
-    if (type === "meeting") return <Calendar className="h-3.5 w-3.5 text-emerald-500" />;
-    if (type === "system") return <FileText className="h-3.5 w-3.5 text-muted-foreground" />;
-    return <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />;
-  };
 
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!deal) return <div className="p-8 text-center text-muted-foreground">Deal not found</div>;
