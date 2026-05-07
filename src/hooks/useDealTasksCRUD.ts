@@ -68,6 +68,7 @@ export function useCreateDealTask() {
       due_date?: string | null;
       status?: string;
       priority?: string;
+      category?: string | null;
       created_by?: string;
       assigned_user_name?: string | null;
     }) => {
@@ -81,6 +82,7 @@ export function useCreateDealTask() {
           due_date: task.due_date || null,
           status: task.status || "To Do",
           priority: task.priority || "Medium",
+          category: task.category || null,
           created_by: task.created_by || null,
         } as any)
         .select("*")
@@ -99,11 +101,11 @@ export function useCreateDealTask() {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_activities", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deal-health-signals", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deals-health"] });
     },
   });
 }
-
-export function useUpdateDealTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, deal_id, _completedByName, _taskTitle, ...updates }: {
@@ -113,6 +115,7 @@ export function useUpdateDealTask() {
       priority?: string;
       title?: string;
       description?: string;
+      category?: string | null;
       assigned_user_id?: string | null;
       due_date?: string | null;
       completed_at?: string | null;
@@ -163,6 +166,8 @@ export function useUpdateDealTask() {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", data.deal_id] });
       qc.invalidateQueries({ queryKey: ["deal_activities", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deal-health-signals", data.deal_id] });
+      qc.invalidateQueries({ queryKey: ["deals-health"] });
     },
   });
 }
@@ -178,6 +183,8 @@ export function useDeleteDealTask() {
     onSuccess: (dealId) => {
       qc.invalidateQueries({ queryKey: ["deal-tasks-enhanced", dealId] });
       qc.invalidateQueries({ queryKey: ["deal_tasks", dealId] });
+      qc.invalidateQueries({ queryKey: ["deal-health-signals", dealId] });
+      qc.invalidateQueries({ queryKey: ["deals-health"] });
     },
   });
 }
