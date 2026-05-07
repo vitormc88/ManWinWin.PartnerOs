@@ -181,13 +181,20 @@ export function proposalToLicenseDefaults(
     license_type = `Professional ${plan}`;
     license_model = "SaaS";
     included_backoffice = 1;
-    included_web = Number(proposal?.web_users || 0) || 1;
+    // Professional always includes 1 Web/Mobile access; proposal.web_users is the *additional* count.
+    included_web = 1;
+    additional_web = Math.max(0, Number(proposal?.web_users || 0));
     api_enabled = plan === 3;
-    modules = plan >= 3
+    const baseModules = plan >= 3
       ? ["Maintenance Module", "Stock Management", "Purchase Orders", "Workflow", "SLA", "Advanced Reports", "Import Tool", "API"]
       : plan === 2
       ? ["Maintenance Module", "Stock Management", "Purchase Orders"]
       : ["Maintenance Module"];
+    // Maintenance Requests is optional but, when sold in the proposal, must be inherited as enabled.
+    if (proposal?.include_requests_module && !baseModules.includes("Maintenance Requests")) {
+      baseModules.splice(1, 0, "Maintenance Requests");
+    }
+    modules = baseModules;
   } else {
     hosting = "SaaS";
     license_type = family;
@@ -396,6 +403,10 @@ export async function createLicenseAndRenewal(
       web_accesses: totalWeb || null,
       mobile_users: addWeb || null,
       api_access: !!payload.api_enabled,
+      // Professional is SaaS-only and ALWAYS includes active S&AT. Leave Business logic untouched.
+      ...(payload.product_family === "Professional"
+        ? { sat_active: true, sat_end_date: renewalDate }
+        : {}),
       notes: payload.notes ?? null,
       is_draft: !!payload.is_draft,
       source_proposal_id: payload.source_proposal_id ?? null,
