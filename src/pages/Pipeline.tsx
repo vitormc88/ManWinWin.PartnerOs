@@ -239,13 +239,14 @@ export default function Pipeline() {
                         )}
 
                         {/* Intelligence row */}
-                        {meta && (
-                          <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                            <span className={cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-0 text-[9.5px] font-medium", meta.chip)}>
-                              <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
-                              {meta.label}
-                            </span>
-                            {h!.warnings.slice(0, 2).map((w, i) => (
+                        {h && (
+                          <div
+                            className="flex items-center gap-1.5 flex-wrap mb-1"
+                            onClickCapture={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <DealHealthBadge result={h} />
+                            {h.warnings.slice(0, 2).map((w, i) => (
                               <span key={i} className="text-[9.5px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-900 px-1.5 py-0 rounded-full">{w}</span>
                             ))}
                           </div>
