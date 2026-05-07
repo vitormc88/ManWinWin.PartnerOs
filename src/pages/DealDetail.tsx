@@ -547,34 +547,6 @@ export default function DealDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* ─── Log Activity Dialog ─── */}
-      <Dialog open={showAddActivity} onOpenChange={setShowAddActivity}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Log Activity</DialogTitle></DialogHeader>
-          <div className="space-y-3 mt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Type</Label>
-                <Select value={activityForm.activity_type} onValueChange={v => setActivityForm(f => ({ ...f, activity_type: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {ACTIVITY_TYPE_OPTIONS.filter(o => o.value !== "system").map(o => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label>Performed By</Label><Input value={activityForm.performed_by} onChange={e => setActivityForm(f => ({ ...f, performed_by: e.target.value }))} /></div>
-            </div>
-            <div><Label>Subject *</Label><Input value={activityForm.subject} onChange={e => setActivityForm(f => ({ ...f, subject: e.target.value }))} /></div>
-            <div><Label>Details</Label><Textarea value={activityForm.description} onChange={e => setActivityForm(f => ({ ...f, description: e.target.value }))} rows={3} /></div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowAddActivity(false)}>Cancel</Button>
-              <Button onClick={addActivity}>Log Activity</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {pendingClientId && (
         <CreateLicenseDialog
