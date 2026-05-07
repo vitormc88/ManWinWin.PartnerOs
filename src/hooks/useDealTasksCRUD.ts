@@ -106,6 +106,8 @@ export function useCreateDealTask() {
     },
   });
 }
+
+export function useUpdateDealTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, deal_id, _completedByName, _taskTitle, ...updates }: {
