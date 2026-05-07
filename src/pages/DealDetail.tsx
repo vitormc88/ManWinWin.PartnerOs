@@ -473,6 +473,7 @@ export default function DealDetail() {
                 )}
               </div>
             </div>
+            </div>
           )}
         </TabsContent>
 
