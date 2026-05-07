@@ -625,6 +625,16 @@ export default function DealDetail() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {pendingClientId && (
+        <CreateLicenseDialog
+          open={licenseModalOpen}
+          onOpenChange={setLicenseModalOpen}
+          clientId={pendingClientId}
+          dealId={deal.id}
+          onSkip={() => toast.message("License setup skipped — client will show 'Missing license configuration'.")}
+        />
+      )}
     </div>
   );
 }
