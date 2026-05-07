@@ -5,16 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { FileText, Sparkles } from "lucide-react";
-import { useLeadProposals } from "@/hooks/useProposals";
+import { FileText, Sparkles, AlertTriangle } from "lucide-react";
+import { useLeadProposals, usePricingRules } from "@/hooks/useProposals";
 import {
   createLicenseAndRenewal,
   computeRenewalDate,
   proposalToLicenseDefaults,
   shouldCreateRenewal,
+  requiresAwardChoice,
   type BillingFrequency,
   type Hosting,
   type ProductFamily,
@@ -37,6 +40,8 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
   const [submitting, setSubmitting] = useState(false);
 
   const { data: proposals = [] } = useLeadProposals(dealId);
+  const { data: pricingRules = [] } = usePricingRules();
+
   const candidateProposals = useMemo(
     () =>
       [...proposals]
@@ -55,6 +60,9 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
     [candidateProposals, selectedProposalId]
   );
 
+  const isCompare = !!selectedProposal && requiresAwardChoice(selectedProposal);
+  const [awarded, setAwarded] = useState<BusinessProposalMode | null>(null);
+
   const [form, setForm] = useState({
     product_family: "Professional" as ProductFamily,
     plan: 1 as number | null,
@@ -65,15 +73,49 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
     initial_contract_value: "",
     recurring_contract_value: "",
     billing_frequency: "Annual" as BillingFrequency,
-    num_users: "",
     notes: "",
     source_proposal_id: "" as string,
+    included_backoffice: 0,
+    additional_backoffice: 0,
+    included_web: 0,
+    additional_web: 0,
+    api_enabled: false,
+    modules: [] as string[],
   });
 
-  // Inherit defaults from selected proposal
+  // Reset awarded option when switching proposals
+  useEffect(() => {
+    if (selectedProposal) setAwarded(null);
+  }, [selectedProposal?.id]);
+
+  // Inherit defaults from selected proposal (and awarded option, when in compare mode)
   useEffect(() => {
     if (!open || !selectedProposal) return;
-    const d = proposalToLicenseDefaults(selectedProposal);
+    if (isCompare && !awarded) {
+      // hold off populating commercial values until user picks
+      const d = proposalToLicenseDefaults(selectedProposal, undefined, pricingRules);
+      setForm((f) => ({
+        ...f,
+        product_family: d.product_family,
+        proposal_mode: null,
+        hosting: d.hosting,
+        billing_frequency: d.billing_frequency,
+        initial_contract_value: "",
+        recurring_contract_value: "",
+        notes: d.notes,
+        source_proposal_id: d.source_proposal_id,
+        included_backoffice: d.included_backoffice,
+        additional_backoffice: d.additional_backoffice,
+        included_web: d.included_web,
+        additional_web: d.additional_web,
+        api_enabled: d.api_enabled,
+        modules: d.modules,
+      }));
+      setSelectedProposalId(selectedProposal.id);
+      return;
+    }
+
+    const d = proposalToLicenseDefaults(selectedProposal, awarded || undefined, pricingRules);
     setForm((f) => ({
       ...f,
       product_family: d.product_family,
@@ -83,21 +125,28 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
       billing_frequency: d.billing_frequency,
       initial_contract_value: String(d.initial_contract_value || ""),
       recurring_contract_value: String(d.recurring_contract_value || ""),
-      num_users: d.num_users ? String(d.num_users) : "",
       notes: d.notes,
       source_proposal_id: d.source_proposal_id,
+      included_backoffice: d.included_backoffice,
+      additional_backoffice: d.additional_backoffice,
+      included_web: d.included_web,
+      additional_web: d.additional_web,
+      api_enabled: d.api_enabled,
+      modules: d.modules,
     }));
     setSelectedProposalId(selectedProposal.id);
-  }, [open, selectedProposal?.id]);
+  }, [open, selectedProposal?.id, awarded, isCompare, pricingRules.length]);
 
   const inherited = !!form.source_proposal_id;
   const isProfessional = form.product_family === "Professional";
   const isBusiness = form.product_family === "Business";
 
-  // Derive concrete license_type + license_model from current form
   const licenseType = useMemo(() => {
     if (isProfessional) return `Professional ${form.plan ?? 1}`;
-    if (isBusiness) return `Business ${form.proposal_mode || "UseIT"}`;
+    if (isBusiness) {
+      if (!form.proposal_mode) return "Business (awaiting selection)";
+      return `Business ${form.proposal_mode}`;
+    }
     return form.product_family;
   }, [form.product_family, form.plan, form.proposal_mode, isProfessional, isBusiness]);
 
@@ -107,10 +156,16 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
   const autoRenewal = computeRenewalDate(form.contract_start_date, licenseModel, form.billing_frequency);
   const willCreateRenewal = shouldCreateRenewal(form.product_family, form.proposal_mode);
 
+  const blockedByAward = isCompare && !awarded;
+
   const submit = async (mode: "save_renewal" | "draft" | "skip") => {
     if (mode === "skip") {
       onSkip?.();
       onOpenChange(false);
+      return;
+    }
+    if (blockedByAward) {
+      toast.error("Select the awarded option (KeepIT or UseIT) before continuing.");
       return;
     }
     setSubmitting(true);
@@ -128,15 +183,22 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
           initial_contract_value: form.initial_contract_value ? Number(form.initial_contract_value) : null,
           recurring_contract_value: form.recurring_contract_value ? Number(form.recurring_contract_value) : null,
           billing_frequency: form.billing_frequency,
-          num_users: form.num_users ? Number(form.num_users) : null,
+          num_users: (form.included_backoffice + form.additional_backoffice + form.included_web + form.additional_web) || null,
           notes: form.notes || null,
           is_draft: mode === "draft",
           source_proposal_id: form.source_proposal_id || null,
+          included_backoffice: form.included_backoffice,
+          additional_backoffice: form.additional_backoffice,
+          included_web: form.included_web,
+          additional_web: form.additional_web,
+          api_enabled: form.api_enabled,
+          modules: form.modules,
         },
         { dealId, createRenewal: mode === "save_renewal" && willCreateRenewal }
       );
       toast.success(mode === "draft" ? "License saved as draft" : "Operationalization confirmed");
       qc.invalidateQueries({ queryKey: ["licenses"] });
+      qc.invalidateQueries({ queryKey: ["licensed_modules"] });
       qc.invalidateQueries({ queryKey: ["renewals"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["deal_activities", dealId] });
@@ -150,7 +212,7 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{inherited ? "Confirm Operationalization" : "Set Up License"}</DialogTitle>
           <DialogDescription>
@@ -189,7 +251,38 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4 mt-2">
+        {isCompare && (
+          <div className="rounded-lg border border-warning/40 bg-warning/10 p-3 flex items-start gap-3">
+            <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="text-xs font-medium text-foreground">
+                This proposal compares <strong>KeepIT</strong> vs <strong>UseIT</strong>. Select the awarded commercial option to operationalize.
+              </div>
+              <RadioGroup
+                value={awarded || ""}
+                onValueChange={(v) => setAwarded(v as BusinessProposalMode)}
+                className="grid grid-cols-2 gap-2"
+              >
+                <label className="flex items-center gap-2 rounded-md border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                  <RadioGroupItem value="KeepIT" id="aw-keepit" />
+                  <div className="text-xs">
+                    <div className="font-medium">KeepIT</div>
+                    <div className="text-muted-foreground">Perpetual + S&AT renewal</div>
+                  </div>
+                </label>
+                <label className="flex items-center gap-2 rounded-md border bg-background p-2 cursor-pointer hover:bg-muted/40">
+                  <RadioGroupItem value="UseIT" id="aw-useit" />
+                  <div className="text-xs">
+                    <div className="font-medium">UseIT</div>
+                    <div className="text-muted-foreground">Annual subscription</div>
+                  </div>
+                </label>
+              </RadioGroup>
+            </div>
+          </div>
+        )}
+
+        <div className={`grid grid-cols-2 gap-4 mt-2 ${blockedByAward ? "opacity-50 pointer-events-none" : ""}`}>
           <div>
             <Label>Product Family</Label>
             <Select
@@ -226,11 +319,11 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
             </div>
           )}
 
-          {isBusiness && (
+          {isBusiness && form.proposal_mode && (
             <div>
-              <Label>Proposal Mode</Label>
+              <Label>Awarded Mode</Label>
               <Select
-                value={form.proposal_mode || "UseIT"}
+                value={form.proposal_mode}
                 onValueChange={(v) => setForm((f) => ({ ...f, proposal_mode: v as BusinessProposalMode }))}
               >
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -261,8 +354,36 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
           </div>
 
           <div>
-            <Label>Users / Licenses</Label>
-            <Input type="number" min={0} value={form.num_users} onChange={(e) => setForm((f) => ({ ...f, num_users: e.target.value }))} />
+            <Label>Included BackOffice</Label>
+            <Input type="number" min={0} value={form.included_backoffice}
+              onChange={(e) => setForm((f) => ({ ...f, included_backoffice: parseInt(e.target.value) || 0 }))} />
+            <p className="text-[10px] text-muted-foreground mt-1">Default included by license.</p>
+          </div>
+          <div>
+            <Label>Additional BackOffice</Label>
+            <Input type="number" min={0} value={form.additional_backoffice}
+              onChange={(e) => setForm((f) => ({ ...f, additional_backoffice: parseInt(e.target.value) || 0 }))} />
+            <p className="text-[10px] text-muted-foreground mt-1">Purchased extras.</p>
+          </div>
+
+          <div>
+            <Label>Included Web/Mobile</Label>
+            <Input type="number" min={0} value={form.included_web}
+              onChange={(e) => setForm((f) => ({ ...f, included_web: parseInt(e.target.value) || 0 }))} />
+          </div>
+          <div>
+            <Label>Additional Web/Mobile</Label>
+            <Input type="number" min={0} value={form.additional_web}
+              onChange={(e) => setForm((f) => ({ ...f, additional_web: parseInt(e.target.value) || 0 }))} />
+          </div>
+
+          <div className="col-span-2 flex items-center justify-between rounded-md border p-2">
+            <div>
+              <Label className="text-xs">API Access</Label>
+              <p className="text-[10px] text-muted-foreground">Inherited from proposal configuration.</p>
+            </div>
+            <Switch checked={form.api_enabled}
+              onCheckedChange={(v) => setForm((f) => ({ ...f, api_enabled: v }))} />
           </div>
 
           <div>
@@ -311,6 +432,20 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
             <p className="text-[10px] text-muted-foreground mt-1">Used for ARR & renewals.</p>
           </div>
 
+          {form.modules.length > 0 && (
+            <div className="col-span-2">
+              <Label>Inherited Modules & Plugins</Label>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {form.modules.map((m) => (
+                  <Badge key={m} variant="secondary" className="text-[10px]">{m}</Badge>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Will be activated automatically on the operational license.
+              </p>
+            </div>
+          )}
+
           <div className="col-span-2">
             <Label>Notes</Label>
             <Textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
@@ -320,6 +455,9 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
             <div className="font-medium text-foreground">License preview</div>
             <div className="text-muted-foreground">
               <span className="text-foreground">{licenseType}</span> · Hosting: <span className="text-foreground">{form.hosting}</span>
+              {" · "}BackOffice: <span className="text-foreground">{form.included_backoffice + form.additional_backoffice}</span>
+              {" · "}Web: <span className="text-foreground">{form.included_web + form.additional_web}</span>
+              {form.api_enabled && " · API"}
               {!willCreateRenewal && <span className="ml-2">· No renewal by default</span>}
             </div>
           </div>
@@ -327,8 +465,8 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
 
         <DialogFooter className="mt-4 gap-2">
           <Button variant="ghost" disabled={submitting} onClick={() => submit("skip")}>Skip for now</Button>
-          <Button variant="outline" disabled={submitting} onClick={() => submit("draft")}>Save as Draft</Button>
-          <Button disabled={submitting} onClick={() => submit("save_renewal")}>
+          <Button variant="outline" disabled={submitting || blockedByAward} onClick={() => submit("draft")}>Save as Draft</Button>
+          <Button disabled={submitting || blockedByAward} onClick={() => submit("save_renewal")}>
             {willCreateRenewal ? (inherited ? "Confirm & Activate Renewal" : "Save & Create Renewal") : "Confirm License"}
           </Button>
         </DialogFooter>

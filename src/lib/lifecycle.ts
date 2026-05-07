@@ -1,5 +1,34 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logSystemActivity } from "@/lib/activity-log";
+import { computeBusinessOption, type BusinessConfig, DEFAULT_BUSINESS_CONFIG } from "@/lib/proposal-business-engine";
+import type { PricingRule, ProposalLicenseModel } from "@/types/proposal";
+
+/** Default included accesses per Business proposal (per HQ pricing). */
+export const BUSINESS_INCLUDED_BACKOFFICE = 3;
+export const BUSINESS_INCLUDED_WEB = 1;
+
+/** Map a Business proposal config to the canonical operational module/plugin labels. */
+export function modulesFromBusinessConfig(cfg: Partial<BusinessConfig> | null | undefined): string[] {
+  if (!cfg) return [];
+  const out: string[] = ["Maintenance Module"]; // always
+  if (cfg.includeRequests) out.push("Maintenance Requests");
+  if (cfg.includeStock) out.push("Stock Management");
+  if (cfg.includePurchase) out.push("Purchase Orders");
+  if (cfg.pluginSLA) out.push("SLA");
+  if (cfg.pluginWorkflow) out.push("Workflow");
+  if (cfg.pluginAdvancedReports) out.push("Advanced Reports");
+  if (cfg.pluginImport) out.push("Import Tool");
+  if (cfg.api) out.push("API");
+  return out;
+}
+
+/** Whether this proposal requires the user to explicitly pick KeepIT or UseIT before operationalization. */
+export function requiresAwardChoice(proposal: any): boolean {
+  return (
+    proposal?.product_family === "Business" &&
+    proposal?.proposal_mode === "compare_keepit_useit"
+  );
+}
 
 /**
  * License model — used internally for renewal/billing logic.
@@ -25,7 +54,6 @@ export const LICENSE_TYPE_OPTIONS = [
 
 export interface CreateLicensePayload {
   client_id: string;
-  /** Concrete license_type stored on the license & client (e.g. "Professional 2", "Business UseIT"). */
   license_type: string;
   license_model: LicenseModel;
   product_family?: ProductFamily;
@@ -41,6 +69,14 @@ export interface CreateLicensePayload {
   notes?: string | null;
   is_draft?: boolean;
   source_proposal_id?: string | null;
+  /** Operational accesses inherited from the proposal. */
+  included_backoffice?: number | null;
+  additional_backoffice?: number | null;
+  included_web?: number | null;
+  additional_web?: number | null;
+  api_enabled?: boolean | null;
+  /** Canonical module names (e.g. "Stock Management", "SLA", "API"). */
+  modules?: string[] | null;
 }
 
 export interface ProposalDefaults {
@@ -56,40 +92,109 @@ export interface ProposalDefaults {
   num_users: number | null;
   notes: string;
   source_proposal_id: string;
+  /** Operational defaults (Business-aware). */
+  included_backoffice: number;
+  additional_backoffice: number;
+  included_web: number;
+  additional_web: number;
+  api_enabled: boolean;
+  modules: string[];
+  /** True when proposal compares KeepIT vs UseIT and the caller must explicitly choose. */
+  requires_award_choice: boolean;
 }
 
-/** Inherit operational license defaults from an approved proposal — mirrors Proposal Generator structure. */
-export function proposalToLicenseDefaults(proposal: any): ProposalDefaults {
+/**
+ * Inherit operational license defaults from an approved proposal — mirrors Proposal Generator.
+ * For Business "Compare KeepIT vs UseIT" proposals, the caller MUST pass the awarded option;
+ * otherwise the function returns `requires_award_choice = true` and zeroed commercial values.
+ */
+export function proposalToLicenseDefaults(
+  proposal: any,
+  awarded?: BusinessProposalMode,
+  pricingRules?: PricingRule[],
+): ProposalDefaults {
   const family: ProductFamily =
     (proposal?.product_family as ProductFamily) || "Professional";
 
-  // Professional → SaaS only, never UseIT/KeepIT
-  // Business     → proposal_mode (UseIT/KeepIT) + hosting (SaaS/On-Premise)
   let proposal_mode: BusinessProposalMode | null = null;
   let hosting: Hosting = "SaaS";
   let license_type = "";
   let license_model: LicenseModel = "SaaS";
+  let included_backoffice = 0;
+  let additional_backoffice = 0;
+  let included_web = 0;
+  let additional_web = 0;
+  let api_enabled = false;
+  let modules: string[] = [];
+  let requires_award_choice = false;
+  let initial_contract_value = Number(proposal?.total_year_1 || 0);
+  let recurring_contract_value = Number(proposal?.total_recurring || 0);
 
   if (family === "Business") {
-    proposal_mode = proposal?.license_model === "keepit" ? "KeepIT" : "UseIT";
-    // Business hosting may come from `deployment` (saas/on_premise) or `hosting`
-    const dep = (proposal?.deployment || "").toString().toLowerCase();
+    const cfg = (proposal?.business_config || {}) as Partial<BusinessConfig>;
+    const dep = (proposal?.deployment || cfg?.deployment || "").toString().toLowerCase();
     const host = (proposal?.hosting || "").toString().toLowerCase();
     hosting =
       dep === "on_premise" || host === "on-premise" || host === "on_premise"
         ? "On-Premise"
         : "SaaS";
-    license_type = `Business ${proposal_mode}`;
-    license_model = proposal_mode === "KeepIT" ? "Perpetual" : "SaaS";
+
+    const isCompare = proposal?.proposal_mode === "compare_keepit_useit";
+    if (isCompare && !awarded) {
+      requires_award_choice = true;
+      proposal_mode = null;
+      license_type = "Business";
+      license_model = "SaaS";
+      initial_contract_value = 0;
+      recurring_contract_value = 0;
+    } else {
+      proposal_mode =
+        awarded ||
+        (proposal?.license_model === "keepit" ? "KeepIT" : "UseIT");
+      license_type = `Business ${proposal_mode}`;
+      license_model = proposal_mode === "KeepIT" ? "Perpetual" : "SaaS";
+
+      // Recompute totals for the awarded option from business_config when in compare mode
+      if (isCompare && pricingRules && cfg && Object.keys(cfg).length > 0) {
+        const fullCfg: BusinessConfig = { ...DEFAULT_BUSINESS_CONFIG, ...cfg } as BusinessConfig;
+        const opt = computeBusinessOption(
+          pricingRules,
+          fullCfg,
+          (proposal_mode === "KeepIT" ? "keepit" : "useit") as ProposalLicenseModel,
+        );
+        if (opt) {
+          initial_contract_value = opt.totalYear1;
+          recurring_contract_value = opt.totalYear2Plus;
+        }
+      }
+    }
+
+    included_backoffice = BUSINESS_INCLUDED_BACKOFFICE;
+    included_web = BUSINESS_INCLUDED_WEB;
+    additional_backoffice = Math.max(0, Number(cfg?.additionalBackoffice || 0));
+    additional_web = Math.max(0, Number(cfg?.additionalWebUsers || 0));
+    api_enabled = !!cfg?.api;
+    modules = modulesFromBusinessConfig(cfg);
   } else if (family === "Professional") {
     hosting = "SaaS";
-    license_type = `Professional ${proposal?.plan ?? 1}`;
+    const plan = Number(proposal?.plan ?? 1);
+    license_type = `Professional ${plan}`;
     license_model = "SaaS";
+    included_backoffice = 1;
+    included_web = Number(proposal?.web_users || 0) || 1;
+    api_enabled = plan === 3;
+    modules = plan >= 3
+      ? ["Maintenance Module", "Stock Management", "Purchase Orders", "Workflow", "SLA", "Advanced Reports", "Import Tool", "API"]
+      : plan === 2
+      ? ["Maintenance Module", "Stock Management", "Purchase Orders"]
+      : ["Maintenance Module"];
   } else {
-    // START / Express
     hosting = "SaaS";
     license_type = family;
     license_model = "SaaS";
+    included_backoffice = 1;
+    included_web = 1;
+    modules = ["Maintenance Module"];
   }
 
   return {
@@ -100,11 +205,18 @@ export function proposalToLicenseDefaults(proposal: any): ProposalDefaults {
     license_type,
     license_model,
     billing_frequency: "Annual",
-    initial_contract_value: Number(proposal?.total_year_1 || 0),
-    recurring_contract_value: Number(proposal?.total_recurring || 0),
-    num_users: Number(proposal?.web_users || 0) || null,
-    notes: `Inherited from Proposal v${proposal?.version ?? 1}${proposal?.project_name ? ` — ${proposal.project_name}` : ""}.`,
+    initial_contract_value,
+    recurring_contract_value,
+    num_users: (included_web + additional_web) || null,
+    notes: `Inherited from Proposal v${proposal?.version ?? 1}${proposal?.project_name ? ` — ${proposal.project_name}` : ""}${requires_award_choice ? " (awaiting awarded option selection)" : ""}.`,
     source_proposal_id: proposal?.id,
+    included_backoffice,
+    additional_backoffice,
+    included_web,
+    additional_web,
+    api_enabled,
+    modules,
+    requires_award_choice,
   };
 }
 
@@ -258,6 +370,13 @@ export async function createLicenseAndRenewal(
   const initialValue = payload.initial_contract_value ?? payload.contract_value ?? null;
   const hosting: Hosting = payload.hosting || (payload.license_model === "Perpetual" ? "On-Premise" : "SaaS");
 
+  const includedBO = Number(payload.included_backoffice ?? 0);
+  const addBO = Number(payload.additional_backoffice ?? 0);
+  const includedWeb = Number(payload.included_web ?? 0);
+  const addWeb = Number(payload.additional_web ?? 0);
+  const totalBO = includedBO + addBO;
+  const totalWeb = includedWeb + addWeb;
+
   const { data: license, error: licErr } = await supabase
     .from("licenses")
     .insert({
@@ -271,7 +390,12 @@ export async function createLicenseAndRenewal(
       contract_value: initialValue,
       initial_contract_value: initialValue,
       recurring_contract_value: recurringValue,
-      num_users: payload.num_users ?? null,
+      num_users: payload.num_users ?? (totalBO + totalWeb || null),
+      backoffice_users: totalBO || null,
+      backoffice_employee_users: includedBO || null,
+      web_accesses: totalWeb || null,
+      mobile_users: addWeb || null,
+      api_access: !!payload.api_enabled,
       notes: payload.notes ?? null,
       is_draft: !!payload.is_draft,
       source_proposal_id: payload.source_proposal_id ?? null,
@@ -280,6 +404,18 @@ export async function createLicenseAndRenewal(
     .select()
     .single();
   if (licErr) throw licErr;
+
+  // Persist enabled modules (idempotent — replace any existing rows for this license)
+  if (payload.modules && payload.modules.length > 0) {
+    await supabase.from("licensed_modules").delete().eq("license_id", license.id);
+    const rows = payload.modules.map((m) => ({
+      license_id: license.id,
+      module_name: m,
+      enabled: true,
+      license_type: payload.license_type,
+    }));
+    await supabase.from("licensed_modules").insert(rows);
+  }
 
   // Sync client-level license_type & hosting so list views show correct badges.
   if (!payload.is_draft) {
