@@ -1,0 +1,1 @@
+ALTER TABLE public.deal_tasks ADD COLUMN IF NOT EXISTS category text;
