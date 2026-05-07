@@ -1434,6 +1434,7 @@ export type Database = {
           created_at: string
           database_type: string | null
           id: string
+          initial_contract_value: number | null
           is_draft: boolean
           license_end_date: string | null
           license_model: string | null
@@ -1443,8 +1444,10 @@ export type Database = {
           num_users: number | null
           periodicity: string | null
           product: string | null
+          recurring_contract_value: number | null
           sat_active: boolean
           sat_end_date: string | null
+          source_proposal_id: string | null
           updated_at: string
           version: string | null
           web_accesses: number | null
@@ -1459,6 +1462,7 @@ export type Database = {
           created_at?: string
           database_type?: string | null
           id?: string
+          initial_contract_value?: number | null
           is_draft?: boolean
           license_end_date?: string | null
           license_model?: string | null
@@ -1468,8 +1472,10 @@ export type Database = {
           num_users?: number | null
           periodicity?: string | null
           product?: string | null
+          recurring_contract_value?: number | null
           sat_active?: boolean
           sat_end_date?: string | null
+          source_proposal_id?: string | null
           updated_at?: string
           version?: string | null
           web_accesses?: number | null
@@ -1484,6 +1490,7 @@ export type Database = {
           created_at?: string
           database_type?: string | null
           id?: string
+          initial_contract_value?: number | null
           is_draft?: boolean
           license_end_date?: string | null
           license_model?: string | null
@@ -1493,8 +1500,10 @@ export type Database = {
           num_users?: number | null
           periodicity?: string | null
           product?: string | null
+          recurring_contract_value?: number | null
           sat_active?: boolean
           sat_end_date?: string | null
+          source_proposal_id?: string | null
           updated_at?: string
           version?: string | null
           web_accesses?: number | null
@@ -2616,6 +2625,7 @@ export type Database = {
         Row: {
           alert_window_days: number | null
           assigned_owner: string | null
+          billing_frequency: string | null
           client_id: string
           contract_id: string | null
           created_at: string
@@ -2629,12 +2639,14 @@ export type Database = {
           priority: string | null
           renewal_date: string | null
           renewal_type: string
+          source_proposal_id: string | null
           status: string
           updated_at: string
         }
         Insert: {
           alert_window_days?: number | null
           assigned_owner?: string | null
+          billing_frequency?: string | null
           client_id: string
           contract_id?: string | null
           created_at?: string
@@ -2648,12 +2660,14 @@ export type Database = {
           priority?: string | null
           renewal_date?: string | null
           renewal_type?: string
+          source_proposal_id?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
           alert_window_days?: number | null
           assigned_owner?: string | null
+          billing_frequency?: string | null
           client_id?: string
           contract_id?: string | null
           created_at?: string
@@ -2667,6 +2681,7 @@ export type Database = {
           priority?: string | null
           renewal_date?: string | null
           renewal_type?: string
+          source_proposal_id?: string | null
           status?: string
           updated_at?: string
         }
