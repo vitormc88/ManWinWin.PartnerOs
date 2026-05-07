@@ -31,9 +31,13 @@ export function useClient(id: string | undefined) {
     queryKey: ["client", id],
     queryFn: async () => {
       if (!id) return null;
-      const { data, error } = await supabase.from("clients").select("*").eq("id", id).single();
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*, partner:partner_id(id, name)")
+        .eq("id", id)
+        .single();
       if (error) throw error;
-      return data as Client;
+      return data as Client & { partner?: { id: string; name: string } | null };
     },
     enabled: !!id,
   });
