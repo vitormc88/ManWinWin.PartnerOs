@@ -162,7 +162,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-1.5">
+      <SidebarContent className="min-h-0 flex-1 px-1.5">
         {renderGroup("Main", mainNav)}
         {renderGroup("Sales CRM", salesNav)}
         {renderGroup("Partner Ops", partnerOpsNav)}
@@ -170,7 +170,7 @@ export function AppSidebar() {
         {renderGroup("Engage", communityNav)}
       </SidebarContent>
 
-      <SidebarFooter className="px-3 py-3 shrink-0 border-t border-sidebar-border bg-sidebar pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <SidebarFooter className="relative border-t border-sidebar-border bg-sidebar px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <SidebarMenu>
           {isAdmin && (
             <SidebarMenuItem>
