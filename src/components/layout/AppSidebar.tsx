@@ -93,6 +93,12 @@ export function AppSidebar() {
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
 
+  // Auto-close mobile sidebar after navigation
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, isMobile]);
+
   const renderGroup = (label: string, items: typeof mainNav) => {
     const visible = items.filter(item => canSee(item.url));
     if (visible.length === 0) return null;
