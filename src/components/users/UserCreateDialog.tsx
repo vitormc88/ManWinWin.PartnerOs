@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { UserPlus, Mail, KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { getAppRedirectUrl } from "@/lib/app-url";
+import { getPublishedResetPasswordUrl } from "@/lib/app-url";
 
 import { ROLE_OPTIONS, roleType } from "@/lib/permissions";
 import { useRoleTemplates } from "@/hooks/useRoleTemplates";
@@ -81,7 +81,7 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
         payload.password = password;
       } else {
         payload.mode = "invite";
-        payload.redirectTo = getAppRedirectUrl("/reset-password");
+        payload.redirectTo = getPublishedResetPasswordUrl();
       }
 
       const { data, error } = await supabase.functions.invoke("admin-create-user", { body: payload });

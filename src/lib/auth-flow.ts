@@ -1,5 +1,6 @@
 export interface AuthFlowState {
   hasTokens: boolean;
+  hasCodeExchange: boolean;
   isInviteFlow: boolean;
   isRecoveryFlow: boolean;
   shouldForcePasswordSetup: boolean;
@@ -20,15 +21,22 @@ export function getAuthFlowState(url: Pick<Location, "hash" | "search"> = window
       searchParams.get("access_token") ||
       searchParams.get("refresh_token")
   );
+  const hasCodeExchange = Boolean(
+    hashParams.get("code") ||
+      searchParams.get("code") ||
+      hashParams.get("token_hash") ||
+      searchParams.get("token_hash")
+  );
 
   const isInviteFlow = type === "invite" || type === "signup";
   const isRecoveryFlow = type === "recovery";
 
   return {
     hasTokens,
+    hasCodeExchange,
     isInviteFlow,
     isRecoveryFlow,
-    shouldForcePasswordSetup: hasTokens || isInviteFlow || isRecoveryFlow,
+    shouldForcePasswordSetup: hasTokens || hasCodeExchange || isInviteFlow || isRecoveryFlow,
   };
 }
 

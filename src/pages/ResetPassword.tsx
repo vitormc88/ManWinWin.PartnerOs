@@ -18,6 +18,7 @@ export default function ResetPassword() {
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const search = new URLSearchParams(window.location.search);
     const errorCode = hashParams.get("error_code") || search.get("error_code");
+    const code = search.get("code") || hashParams.get("code");
 
     if (errorCode) {
       setTokenValid(false);
@@ -38,10 +39,29 @@ export default function ResetPassword() {
       }
     });
 
-    if (flow.shouldForcePasswordSetup) {
+    const bootstrapInviteSession = async () => {
+      if (!flow.shouldForcePasswordSetup) {
+        setChecking(false);
+        return;
+      }
+
+      if (code) {
+        const { data: existing } = await supabase.auth.getSession();
+        if (!existing.session) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            setTokenValid(false);
+            setChecking(false);
+            return;
+          }
+        }
+      }
+
       setTokenValid(true);
       setChecking(false);
-    }
+    };
+
+    void bootstrapInviteSession();
 
     const timer = setTimeout(() => setChecking(false), 3000);
 
