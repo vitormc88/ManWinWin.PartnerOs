@@ -11,6 +11,7 @@ interface Profile {
   is_hq: boolean;
   is_active: boolean;
   avatar_url: string | null;
+  invitation_status?: string | null;
 }
 
 interface AuthContextType {
