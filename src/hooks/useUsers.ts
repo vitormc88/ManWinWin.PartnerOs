@@ -22,6 +22,8 @@ export interface UserProfile {
   is_active: boolean | null;
   last_login_at: string | null;
   invitation_status: string | null;
+  invitation_sent_at?: string | null;
+  invitation_accepted_at?: string | null;
   created_at: string | null;
   roles: string[];
   partner_name?: string;
@@ -156,16 +158,49 @@ export function useSavePermissions() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ userId, permissions }: { userId: string; permissions: ModulePermission[] }) => {
+      // Determine the user's role(s) and the matching role template, so we
+      // only persist rows that actually differ from the template (real
+      // overrides). This keeps `is_override` accurate and prevents the
+      // "Custom permissions override active" banner from appearing for
+      // unmodified users.
+      const { data: userRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId);
+      const roles = (userRoles ?? []).map((r: any) => String(r.role));
+
+      let templateMap = new Map<string, string>();
+      if (roles.length > 0) {
+        const { data: templates } = await supabase
+          .from("role_permission_templates" as any)
+          .select("module_key, access_level, role")
+          .in("role", roles as any);
+        // If user has multiple roles, take the highest access level per module.
+        const rank: Record<string, number> = { no_access: 0, view: 1, edit: 2, admin: 3 };
+        for (const row of (templates ?? []) as any[]) {
+          const cur = templateMap.get(row.module_key);
+          if (!cur || (rank[row.access_level] ?? 0) > (rank[cur] ?? 0)) {
+            templateMap.set(row.module_key, row.access_level);
+          }
+        }
+      }
+
       // Replace all overrides for this user
       const { error: delErr } = await supabase.from("user_module_permissions").delete().eq("user_id", userId);
       if (delErr) throw delErr;
-      // Persist all rows passed in (caller decides which are overrides — including no_access)
-      const toInsert = permissions.map(p => ({
-        user_id: userId,
-        module_key: p.module_key,
-        access_level: p.access_level,
-        is_override: true,
-      } as any));
+
+      const toInsert = permissions
+        .filter(p => {
+          const tmpl = templateMap.get(p.module_key) ?? "no_access";
+          return p.access_level !== tmpl; // only true overrides
+        })
+        .map(p => ({
+          user_id: userId,
+          module_key: p.module_key,
+          access_level: p.access_level,
+          is_override: true,
+        } as any));
+
       if (toInsert.length > 0) {
         const { error: insErr } = await supabase.from("user_module_permissions").insert(toInsert);
         if (insErr) throw insErr;

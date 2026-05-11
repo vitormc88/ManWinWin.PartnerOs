@@ -8,43 +8,41 @@ export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isRecovery, setIsRecovery] = useState(false);
+  const [tokenValid, setTokenValid] = useState(false);
   const [isInvite, setIsInvite] = useState(false);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Check hash fragment for token type
     const hash = window.location.hash;
-    const hashParams = new URLSearchParams(hash.replace("#", ""));
-    const hashType = hashParams.get("type");
+    const hashParams = new URLSearchParams(hash.replace(/^#/, ""));
+    const search = new URLSearchParams(window.location.search);
+    const type = hashParams.get("type") || search.get("type");
+    const errorCode = hashParams.get("error_code") || search.get("error_code");
     const accessToken = hashParams.get("access_token");
 
-    // Check query params as fallback
-    const searchParams = new URLSearchParams(window.location.search);
-    const queryType = searchParams.get("type");
-
-    const type = hashType || queryType;
-
-    if (type === "invite" || type === "signup") {
-      setIsInvite(true);
-      setIsRecovery(true);
-    }
-    if (type === "recovery") {
-      setIsRecovery(true);
+    if (errorCode) {
+      setTokenValid(false);
+      setChecking(false);
+      return;
     }
 
-    // If we have an access_token in the hash, Supabase will auto-set the session
-    if (accessToken) {
-      setIsRecovery(true);
-    }
+    if (type === "invite" || type === "signup") setIsInvite(true);
 
-    // Listen for auth state changes (Supabase auto-processes the token)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Supabase auto-establishes a recovery session from the URL hash. We
+      // accept it as proof the token is valid, but we deliberately KEEP the
+      // user on this page until they set a password. No redirect, no auto
+      // login into the app.
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setIsRecovery(true);
+        setTokenValid(true);
         setChecking(false);
       }
     });
+
+    if (accessToken) {
+      setTokenValid(true);
+      setChecking(false);
+    }
 
     const timer = setTimeout(() => setChecking(false), 3000);
 
@@ -70,12 +68,14 @@ export default function ResetPassword() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
-      // Update invitation_status to active
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase
           .from("profiles")
-          .update({ invitation_status: "active" })
+          .update({
+            invitation_status: "active",
+            invitation_accepted_at: new Date().toISOString(),
+          })
           .eq("id", user.id);
       }
 
@@ -84,7 +84,8 @@ export default function ResetPassword() {
           ? "Password set successfully! Welcome to ManWinWin PartnerOS."
           : "Password updated successfully."
       );
-      setTimeout(() => navigate("/dashboard"), 1500);
+      // The user already has an authenticated session at this point — safe to enter the app.
+      setTimeout(() => navigate("/dashboard", { replace: true }), 1200);
     } catch (error: any) {
       toast.error(error.message || "Failed to update password");
     } finally {
@@ -100,7 +101,7 @@ export default function ResetPassword() {
     );
   }
 
-  if (!isRecovery) {
+  if (!tokenValid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-sm space-y-6 text-center">
@@ -112,7 +113,7 @@ export default function ResetPassword() {
             This invitation link is invalid or has expired. Please contact your administrator to request a new invitation.
           </p>
           <button
-            onClick={() => navigate("/auth")}
+            onClick={async () => { await supabase.auth.signOut(); navigate("/auth"); }}
             className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
           >
             Back to Sign In
@@ -150,6 +151,7 @@ export default function ResetPassword() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
+              autoFocus
               className="mt-1 w-full h-10 px-3 rounded-lg border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
               placeholder="••••••••"
             />
@@ -173,6 +175,9 @@ export default function ResetPassword() {
           >
             {loading ? "Setting up..." : isInvite ? "Set Password & Access Platform" : "Update Password"}
           </button>
+          <p className="text-[11px] text-muted-foreground text-center">
+            You must set a password before accessing the platform.
+          </p>
         </form>
       </div>
     </div>

@@ -11,6 +11,7 @@ interface Profile {
   is_hq: boolean;
   is_active: boolean;
   avatar_url: string | null;
+  invitation_status?: string | null;
 }
 
 interface AuthContextType {
@@ -70,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -80,6 +81,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               fetchProfile(session.user.id),
               fetchRoles(session.user.id),
             ]);
+
+            // Safety net: if a user signs in with an active session (not in
+            // the middle of a password recovery / invite flow) but their
+            // profile is still marked "pending", flip it to "active". This
+            // covers the manual-creation bug where the profile timestamp
+            // wasn't stamped at create time.
+            if (event === "SIGNED_IN" && !window.location.pathname.startsWith("/reset-password")) {
+              const { data: p } = await supabase
+                .from("profiles")
+                .select("invitation_status")
+                .eq("id", session.user.id)
+                .single();
+              if (p && p.invitation_status === "pending") {
+                await supabase
+                  .from("profiles")
+                  .update({
+                    invitation_status: "active",
+                    invitation_accepted_at: new Date().toISOString(),
+                  })
+                  .eq("id", session.user.id);
+                await fetchProfile(session.user.id);
+              }
+            }
+
             setIsLoading(false);
           }, 0);
         } else {

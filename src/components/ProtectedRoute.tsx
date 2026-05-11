@@ -31,6 +31,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (isLoading) return <LoadingSpinner />;
   if (!session) return <Navigate to="/auth" replace />;
+
+  // Force invited users who haven't completed password setup back to /reset-password.
+  if (profile?.invitation_status === "pending" && location.pathname !== "/reset-password") {
+    return <Navigate to="/reset-password" replace />;
+  }
+
   if (isAdmin) return <>{children}</>;
 
   if (permsLoading || !permsResolved) return <LoadingSpinner />;

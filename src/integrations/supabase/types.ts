@@ -2284,6 +2284,8 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          invitation_accepted_at: string | null
+          invitation_sent_at: string | null
           invitation_status: string | null
           is_active: boolean | null
           is_hq: boolean | null
@@ -2300,6 +2302,8 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          invitation_accepted_at?: string | null
+          invitation_sent_at?: string | null
           invitation_status?: string | null
           is_active?: boolean | null
           is_hq?: boolean | null
@@ -2316,6 +2320,8 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          invitation_accepted_at?: string | null
+          invitation_sent_at?: string | null
           invitation_status?: string | null
           is_active?: boolean | null
           is_hq?: boolean | null

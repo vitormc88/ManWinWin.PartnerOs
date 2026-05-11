@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyPermissions } from "@/hooks/useUsers";
 import { LogOut, UserCog } from "lucide-react";
@@ -76,7 +77,7 @@ const communityNav = [
 export function AppSidebar() {
   const { profile, roles, signOut } = useAuth();
   const { data: myPerms } = useMyPermissions();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, setOpenMobile, isMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isAdmin = roles.includes("hq_admin");
@@ -91,6 +92,12 @@ export function AppSidebar() {
 
   const isActive = (path: string) =>
     path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+
+  // Auto-close mobile sidebar after navigation
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, isMobile]);
 
   const renderGroup = (label: string, items: typeof mainNav) => {
     const visible = items.filter(item => canSee(item.url));

@@ -17,6 +17,10 @@ import { MODULE_LABELS } from "@/lib/module-access";
 
 const ROLES = ROLE_OPTIONS;
 
+// Email validation supporting international TLDs (e.g. .vn, .co.uk, .中国)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u;
+const isEmailValid = (email: string) => EMAIL_REGEX.test(email.trim());
+
 export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,6 +30,7 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
   const [manualMode, setManualMode] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
   const qc = useQueryClient();
 
   const { data: partners } = useQuery({
@@ -46,11 +51,13 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
     setManualMode(false);
     setPassword("");
     setConfirmPassword("");
+    setEmailTouched(false);
   };
 
   const handleCreate = async () => {
     if (!fullName.trim()) { toast.error("Full name is required"); return; }
     if (!email.trim()) { toast.error("Email is required"); return; }
+    if (!isEmailValid(email)) { setEmailTouched(true); toast.error("Please enter a valid email address"); return; }
     if (isPartnerRole && partnerId === "none") { toast.error("Partner is required for partner users"); return; }
 
     if (manualMode) {
@@ -136,7 +143,20 @@ export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: ()
             </div>
             <div>
               <Label>Email *</Label>
-              <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="john@company.com" />
+              <Input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="john@company.com"
+                aria-invalid={emailTouched && !isEmailValid(email)}
+                onBlur={() => setEmailTouched(true)}
+                className={emailTouched && !isEmailValid(email) ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {emailTouched && email.length > 0 && !isEmailValid(email) && (
+                <p className="mt-1 text-[11px] text-destructive">
+                  Invalid email format. Use the form name@example.com (international domains like .vn, .co.uk are supported).
+                </p>
+              )}
             </div>
           </div>
 

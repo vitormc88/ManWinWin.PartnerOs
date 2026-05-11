@@ -1,112 +1,110 @@
-Before proceeding, please ensure that the Mark as Won flow is idempotent:
 
-- if the same deal is already Won and already linked to a client, do not create another client, license, or renewal
+# Production Stabilization — Auth, Permissions, Sidebar, Lifecycle
 
-- if a license modal is reopened, do not duplicate draft licenses or renewals
+This plan addresses the 9 issues raised, grouped into 4 work blocks. Backend logic + frontend rendering must use the **same** effective-permissions resolver everywhere.
 
-- only create a renewal when a valid license is saved
+---
 
-- skipping license should create the client but not create a renewal  
-  
-Goal
+## Block 1 — Invitation & Manual-Creation Lifecycle (Issues #1, #2, #8)
 
-Connect the full Lead → Deal → Client → License → Renewal lifecycle in PartnerOS, so winning a deal automatically materializes operational records and the Renewals/Clients/Dashboard modules reflect reality.
+**Problem**: Invited users land directly on dashboard without setting a password; manually-created users stay `Pending` after first login; no resend / accepted timestamp tracking.
 
-## Scope summary
+### Changes
 
-1. **Won Deal → Client**: Auto-create (or link) a client when a deal is moved to `Won`.
-2. **License creation modal**: Guided flow launched after Won, with Save & Create Renewal / Save Draft / Skip.
-3. **Auto Renewal**: Computed from license model + billing frequency.
-4. **Renewals module**: Wire to real `licenses` + new `renewals` data with proper aging + RLS.
-5. **Clients & Licenses list**: Show denormalized lifecycle columns.
-6. **Client Detail page**: 6 tabs (Overview, Licenses, Renewals, Contacts, Activity Timeline, Documents).
-7. **Dashboard**: Source from real entities consistently (Won deals = revenue; clients/renewals from tables).
-8. **Quick "Mark as Won"** action on Deal Detail with confirmation + license modal.
-9. **System activity logging** for all lifecycle events.
-10. **Non-destructive migrations** only.
+1. **Edge function `admin-create-user`**
+   - On `mode = "invite"`: keep `inviteUserByEmail`, but also write `invitation_status='pending'`, `invitation_sent_at=now()`, `invitation_accepted_at=null`.
+   - On `mode = "manual"`: set `invitation_status='active'`, `invitation_accepted_at=now()`. Already correct, but verify.
+   - On `action = "resend_invite"`: update `invitation_sent_at=now()`.
+   - Remove the dead duplicated `return` line at the bottom.
 
-## Technical plan
+2. **DB migration**
+   - Add columns `invitation_sent_at timestamptz`, `invitation_accepted_at timestamptz` to `profiles`.
+   - Backfill: existing `active` users get `invitation_accepted_at = created_at`.
 
-### Database (additive migration)
+3. **`/reset-password` page (invite handling)**
+   - Detect `type=invite | signup | recovery` from hash.
+   - On invite: **sign the user out immediately** after Supabase auto-establishes the recovery session, keep only the recovery token in memory, then force them through the password form before `navigate("/dashboard")`.
+   - On invalid/expired token: show "Invalid or expired link" with Resend hint.
+   - On success: call `supabase.auth.updateUser({ password })`, then update profile (`invitation_status='active'`, `invitation_accepted_at=now()`), then navigate.
+   - Mobile: ensure form is responsive (already is — verify `min-h-screen` + padding).
 
-New table `renewals`:
+4. **Auth context safety net**
+   - Add a "first login" check: if `profile.invitation_status === 'pending'` after sign-in, mark it `active` and stamp `invitation_accepted_at` (covers manual-created users on first successful login and any edge cases where the password-set step succeeded but profile update failed).
 
-```text
-renewals
-- id uuid pk
-- client_id uuid (fk clients)
-- license_id uuid (fk licenses, nullable)
-- partner_id text (denormalized from client for RLS perf)
-- renewal_type text  -- 'License' | 'SaaS' | 'Support' | 'Maintenance'
-- renewal_date date
-- estimated_value numeric
-- currency text default 'EUR'
-- status text  -- 'Active' | 'Due Soon' | 'Overdue' | 'Won' | 'Lost'
-- billing_frequency text  -- 'Annual' | 'Monthly' | 'One-time'
-- notes text
-- created_at, updated_at
-```
+5. **User Management UI**
+   - Show `invitation_sent_at` / `invitation_accepted_at` in user row.
+   - Add **Resend Invitation** action for `pending` users (calls existing edge function action).
 
-RLS policies mirror `clients` (HQ full; partner users scoped via `can_view_partner` / `get_user_partner_id`).
+---
 
-Add columns:
+## Block 2 — Permission Inheritance & Override Hygiene (Issues #4, #5)
 
-- `clients.source_deal_id uuid nullable` — provenance link.
-- `licenses.billing_frequency text nullable`, `licenses.contract_value numeric nullable`, `licenses.notes text nullable`, `licenses.is_draft boolean default false`.
-- `deals.client_id uuid nullable` — link won deal to created/matched client.
+**Problem**: New users are created with explicit override rows that mirror role template — making `is_override=true` everywhere; "Custom permissions override active" banner shows incorrectly; role preview doesn't match real permissions.
 
-No data wipe; all columns nullable / defaulted.
+### Changes
 
-### Helpers
+1. **Edge function `admin-create-user`**
+   - **Remove** the `MODULE_DEFAULTS` constant and the bulk insert into `user_module_permissions`. Role assignment alone is enough — `get_effective_permissions` already resolves from `role_permission_templates`.
+   - This eliminates the bogus override rows that cause Onboarding/Certifications/Training to appear for `partner_admin`.
 
-- `src/lib/lifecycle.ts`:
-  - `findOrCreateClientFromDeal(deal)` — duplicate check on `lower(company_name) + partner_id`.
-  - `createLicenseAndRenewal(payload)` — inserts license, computes renewal date, inserts renewal, logs activities.
-  - `computeRenewalDate(startDate, model, frequency)`.
-  - `computeRenewalStatus(renewalDate)` for aging buckets.
+2. **`useMyPermissions` / `useUserPermissions`**
+   - Switch `useUserPermissions(userId)` (used in the edit dialog override editor) to call `get_effective_permissions(_user_id)` for display, but only persist rows where the level differs from the template (true overrides). Existing `useMyPermissions` already uses `get_my_effective_permissions` — leave it.
 
-### UI
+3. **`useSavePermissions`**
+   - Before insert, fetch role template for the user's role and only insert rows where `access_level !== template_level`. If equal, skip — keeps `user_module_permissions` clean.
 
-- `src/components/deals/MarkAsWonButton.tsx` — confirmation dialog, triggers client creation + opens license modal.
-- `src/components/deals/CreateLicenseDialog.tsx` — fields per spec; 3 buttons.
-- `src/pages/DealDetail.tsx` — add "Mark as Won" quick action; if stage changes to Won via edit, also fire flow.
-- `src/pages/ClientDetail.tsx` — already exists; expand to 6 tabs: Overview / Licenses / Renewals / Contacts / Activity Timeline / Documents. Add "Missing license configuration" warning badge.
-- `src/pages/ClientsLicenses.tsx` — extend columns: license type, model, renewal date, contract value.
-- `src/pages/Renewals.tsx` — replace mock with `useRenewals` (new hook reading new table).
-- `src/pages/Dashboard.tsx` — keep Won-deals-as-revenue rule (per Core memory), point renewal cards at new `renewals` table.
+4. **"Custom override active" banner**
+   - Drive from `effective_permissions` rows where `is_override = true`. Already correct shape — will work after #1 above removes spurious overrides.
 
-### Hooks
+5. **Role Preview component (`UserCreateDialog`)**
+   - Currently reads `role_permission_templates` directly — keep as-is; it now matches reality because we no longer write extra overrides.
 
-- `src/hooks/useRenewals.ts` (new, replaces the old deal-derived stub used in Dashboard).
-- `src/hooks/useClientLifecycle.ts` — wraps the lifecycle helpers as mutations with toasts + cache invalidation.
-- Extend `useClients`/`useClientLicenses` to expose new fields.
+---
 
-### Activity logging
+## Block 3 — Sidebar / Route / Mobile Consistency (Issues #3, #7)
 
-Reuse `logSystemActivity(dealId, ...)` and add a sibling `logClientActivity(clientId, ...)` that writes to `client_notes` with `note_type = 'system'` (existing table — non-destructive). All lifecycle events log on both deal and client where applicable.
+**Problem**: Sidebar shows modules a user can't access; mobile sidebar stays open after navigation and is too wide.
 
-### Notifications
+### Changes
 
-On renewal creation, insert a `notifications` row scoped to partner (uses existing RLS).
+1. **`AppSidebar`**
+   - Already filters via `canSee → hasModuleAccess`. Bug is upstream (Block 2) — once spurious overrides are gone, hidden modules will disappear. Verify after Block 2.
+   - Add `useEffect` on `location.pathname` to call `setOpenMobile(false)` so the sheet closes after navigation on mobile.
+   - Tighten mobile width: use `Sidebar` mobile sheet default; ensure it doesn't render the full desktop padding.
 
-### Non-goals (this pass)
+2. **`ProtectedRoute`** — already enforces module access via `hasModuleAccess`. Keep.
 
-- No destructive backfill of existing Won deals (a one-shot "Generate missing clients" admin action can come later).
-- Documents tab on Client Detail surfaces the existing `documents` table filtered by partner; no new uploads UI in this pass.
-- Won via pipeline drag-drop is not added; only the quick action + edit flow.
+3. **Module list cleanup**
+   - Confirm that any module not in the `role_permission_templates` table for `partner_admin` (Onboarding/Certifications/Training) defaults to `no_access` — `get_effective_permissions` already does this via `COALESCE(..., 'no_access')`.
 
-## Out-of-scope confirmations
+---
 
-- Total Revenue stays sourced from Won deals (per existing Core rule "Total Revenue & Pipeline Value come strictly from deals").
-- Active Clients count switches to real `clients` table (already the case).
+## Block 4 — Email Validation UX (Issue #6) + General Audit (Issue #9)
 
-## Testing checklist
+1. **`UserCreateDialog` email field**
+   - Add inline validation with regex supporting international TLDs: `/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u`.
+   - Show red border + small error text under the field; disable submit while invalid.
 
-- Move a deal to Won → client created, license modal opens.
-- Save & Create Renewal → renewal appears in Renewals page + Dashboard "Due Soon" buckets.
-- Skip license → client shows "Missing license configuration" badge.
-- Re-winning a deal whose company already exists for that partner → toast "Existing client found — linked to current deal.", no duplicate.
-- Partner user sees only own client/renewals; HQ sees all.
-- Activity Timeline on Deal and Client both show the lifecycle entries.
+2. **General audit pass**
+   - Verify role preview, sidebar, and `/users` permission editor all read from the same RPC (`get_effective_permissions`) post-changes.
+   - Verify `ProtectedRoute` redirects unauthorized direct-URL access (already does).
+   - Smoke-check `partner_admin` user post-creation: should see only Dashboard, Clients, Pipeline, Renewals, Knowledge Base (per template).
 
-Approve to proceed.
+---
+
+## Files to Edit / Create
+
+- `supabase/functions/admin-create-user/index.ts` — remove `MODULE_DEFAULTS`, add `invitation_sent_at`, fix dup return, resend timestamp.
+- `supabase/migrations/<new>.sql` — add columns + backfill.
+- `src/pages/ResetPassword.tsx` — robust invite handling, force password before login, update accepted timestamp.
+- `src/contexts/AuthContext.tsx` — first-login safety net for `pending → active`.
+- `src/hooks/useUsers.ts` — `useSavePermissions` skips rows equal to template; expose timestamps.
+- `src/components/users/UserCreateDialog.tsx` — email validation UX.
+- `src/components/users/UserEditDialog.tsx` — show timestamps + Resend action.
+- `src/components/layout/AppSidebar.tsx` — auto-close mobile on navigate.
+- `src/pages/UserManagement.tsx` — surface invitation timestamps + Resend.
+
+## Out of Scope
+- Reworking the `role_permission_templates` data itself (only its consumption).
+- Visual redesign of sidebar or auth pages.
+- New modules or new RBAC roles.
