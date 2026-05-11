@@ -170,7 +170,7 @@ export function AppSidebar() {
         {renderGroup("Engage", communityNav)}
       </SidebarContent>
 
-      <SidebarFooter className="px-3 py-3">
+      <SidebarFooter className="px-3 py-3 shrink-0 border-t border-sidebar-border bg-sidebar pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <SidebarMenu>
           {isAdmin && (
             <SidebarMenuItem>
