@@ -17,6 +17,10 @@ import { MODULE_LABELS } from "@/lib/module-access";
 
 const ROLES = ROLE_OPTIONS;
 
+// Email validation supporting international TLDs (e.g. .vn, .co.uk, .中国)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/u;
+const isEmailValid = (email: string) => EMAIL_REGEX.test(email.trim());
+
 export function UserCreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
