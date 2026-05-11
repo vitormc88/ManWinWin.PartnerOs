@@ -1,5 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
+const PUBLISHED_RESET_PASSWORD_URL = "https://partneros-manwinwin.lovable.app/reset-password";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -60,8 +62,7 @@ Deno.serve(async (req) => {
       const existingUser = users?.users?.find((u: any) => u.email === email);
       if (!existingUser) return Response.json({ error: "User not found" }, { status: 404, headers: corsHeaders });
 
-      const PRODUCTION_APP_URL = "https://partneros-manwinwin.lovable.app";
-      const redirectTo = body.redirectTo || `${PRODUCTION_APP_URL}/reset-password`;
+      const redirectTo = PUBLISHED_RESET_PASSWORD_URL;
       const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, { redirectTo });
 
       if (inviteError) return Response.json({ error: inviteError.message }, { status: 400, headers: corsHeaders });
@@ -107,10 +108,9 @@ Deno.serve(async (req) => {
       }
       userId = createData.user.id;
     } else {
-      const PRODUCTION_APP_URL = "https://partneros-manwinwin.lovable.app";
       const { data: inviteData, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
         data: { full_name: fullName },
-        redirectTo: body.redirectTo || `${PRODUCTION_APP_URL}/reset-password`,
+        redirectTo: PUBLISHED_RESET_PASSWORD_URL,
       });
 
       if (inviteError || !inviteData.user) {
