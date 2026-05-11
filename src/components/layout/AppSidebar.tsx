@@ -76,7 +76,7 @@ const communityNav = [
 export function AppSidebar() {
   const { profile, roles, signOut } = useAuth();
   const { data: myPerms } = useMyPermissions();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, setOpenMobile, isMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
   const isAdmin = roles.includes("hq_admin");
