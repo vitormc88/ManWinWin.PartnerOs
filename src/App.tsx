@@ -25,6 +25,7 @@ import PartnerTiers from "@/pages/PartnerTiers";
 import PartnerPerformance from "@/pages/PartnerPerformance";
 import KnowledgeBase from "@/pages/KnowledgeBase";
 import Announcements from "@/pages/Announcements";
+import Community from "@/pages/Community";
 import ComingSoon from "@/pages/ComingSoon";
 import IncomingLeads from "@/pages/IncomingLeads";
 import LeadDetail from "@/pages/LeadDetail";
@@ -70,7 +71,7 @@ const App = () => (
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/knowledge" element={<KnowledgeBase />} />
               <Route path="/training" element={<ComingSoon />} />
-              <Route path="/community" element={<ComingSoon />} />
+              <Route path="/community" element={<Community />} />
               <Route path="/announcements" element={<Announcements />} />
               <Route path="/settings" element={<Settings />}>
                 <Route path="general" element={<SettingsComingSoon title="General Settings" />} />

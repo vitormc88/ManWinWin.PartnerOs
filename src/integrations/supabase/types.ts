@@ -684,6 +684,89 @@ export type Database = {
           },
         ]
       }
+      community_comments: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_official_hq_reply: boolean
+          post_id: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_official_hq_reply?: boolean
+          post_id: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_official_hq_reply?: boolean
+          post_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "community_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_posts: {
+        Row: {
+          answered_at: string | null
+          body: string | null
+          category: string
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          partner_id: string | null
+          pinned: boolean
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          answered_at?: string | null
+          body?: string | null
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          partner_id?: string | null
+          pinned?: boolean
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          answered_at?: string | null
+          body?: string | null
+          category?: string
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          partner_id?: string | null
+          pinned?: boolean
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contracts: {
         Row: {
           billing_notes: string | null
