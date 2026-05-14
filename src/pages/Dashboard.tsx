@@ -27,8 +27,9 @@ export default function Dashboard() {
   }, [clients]);
 
   // Revenue & Pipeline from deals (same logic as Pipeline module)
-  const wonDeals = deals.filter(d => d.status === "Won");
-  const openDeals = deals.filter(d => d.status === "Open");
+  // Same definitions as Pipeline page so KPIs match the visible Kanban
+  const wonDeals = deals.filter(d => d.status === "Won" && d.stage === "Won");
+  const openDeals = deals.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
   const totalRevenue = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
   const totalPipeline = openDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
 
