@@ -45,6 +45,7 @@ const fmtEuroK = (v: number) => `€${(v / 1000).toFixed(0)}k`;
 
 export default function Analytics() {
   const [tab, setTab] = useState("overview");
+  const { isAdmin } = useAuth();
 
   const pipelineStage = usePipelineStageBreakdown();
   const sales = useSalesPerformance();
@@ -52,6 +53,7 @@ export default function Analytics() {
   const renewals = useRenewalsAnalytics();
   const country = useRevenueByCountry();
   const outcomes = useOutcomes();
+  const reconciliation = useDealReconciliation(isAdmin);
 
   // Order pipeline-stage data by canonical stage order
   const stageOrder = new Map<string, number>(
