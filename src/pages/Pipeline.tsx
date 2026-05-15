@@ -10,6 +10,8 @@ import { GripVertical, Search, TrendingUp, Target, AlertTriangle, Trophy, Plus, 
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, resolveDealProbability, isActivePipelineStage, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
+import { useAllProfilesMap } from "@/hooks/useAssignableUsers";
+import { getOwnerDisplay, getOwnershipStatus, ownershipStatusColor, ownershipStatusLabel } from "@/lib/owner-display";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 import { DealHealthBadge } from "@/components/deals/DealHealthBadge";
 import { cn } from "@/lib/utils";
@@ -43,6 +45,7 @@ export default function Pipeline() {
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
   const { data: healthMap } = useDealsHealth(deals);
+  const { data: profilesMap } = useAllProfilesMap();
   const queryClient = useQueryClient();
 
   const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
@@ -50,7 +53,10 @@ export default function Pipeline() {
 
   const filtered = deals.filter(d => {
     const pName = partnerMap.get(d.partner_id || "") || "";
-    const matchSearch = d.company_name.toLowerCase().includes(search.toLowerCase()) || (d.assigned_salesperson || "").toLowerCase().includes(search.toLowerCase());
+    const ownerDisplay = getOwnerDisplay(d as any, profilesMap).toLowerCase();
+    const matchSearch =
+      d.company_name.toLowerCase().includes(search.toLowerCase()) ||
+      ownerDisplay.includes(search.toLowerCase());
     const matchPartner = partnerFilter === "all" || pName === partnerFilter;
     const h = healthMap?.get(d.id);
     const matchHealth = healthFilter === "all" || h?.health === healthFilter;
@@ -255,8 +261,13 @@ export default function Pipeline() {
                         )}
 
                         <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
-                          <span className="truncate flex-1">
-                            {(deal.assigned_salesperson || "").split(" ")[0] || "—"}
+                          <span className="truncate flex-1 inline-flex items-center gap-1">
+                            <span>{(getOwnerDisplay(deal as any, profilesMap).split(" ")[0]) || "—"}</span>
+                            {isHQ && (() => {
+                              const s = getOwnershipStatus(deal as any, profilesMap);
+                              if (s === "assigned" || s === "unassigned") return null;
+                              return <span className={`text-[9px] px-1 py-0 border rounded-full ${ownershipStatusColor(s)}`}>{ownershipStatusLabel(s)}</span>;
+                            })()}
                             <span className="opacity-60"> · {h?.daysInStage ?? 0}d in stage</span>
                           </span>
                           <span className="shrink-0 ml-1.5">
@@ -291,7 +302,7 @@ export default function Pipeline() {
                   <Link key={deal.id} to={`/deals/${deal.id}`} className="flex items-center justify-between bg-card rounded-lg border p-3 hover:shadow-sm transition-shadow">
                     <div>
                       <p className="text-sm font-medium text-foreground">{deal.company_name}</p>
-                      <p className="text-[11px] text-muted-foreground">{partnerMap.get(deal.partner_id || "") || "—"} · {deal.assigned_salesperson || "—"}</p>
+                      <p className="text-[11px] text-muted-foreground">{partnerMap.get(deal.partner_id || "") || "—"} · {getOwnerDisplay(deal as any, profilesMap)}</p>
                     </div>
                     <span className="text-sm font-semibold tabular-nums text-foreground">€{(deal.total_value || deal.expected_value || 0).toLocaleString()}</span>
                   </Link>

@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { useDeal } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
+import { useAssignableUsers, useAllProfilesMap } from "@/hooks/useAssignableUsers";
+import { getOwnerDisplay, getOwnershipStatus, ownershipStatusColor, ownershipStatusLabel } from "@/lib/owner-display";
 import { useDealContacts, useDealActivities } from "@/hooks/useCommissions";
 import { useDealTasksEnhanced } from "@/hooks/useDealTasksCRUD";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +69,17 @@ export default function DealDetail() {
 
   const dealPartnerId = editForm.partner_id || deal?.partner_id || null;
   const { data: partnerUsers = [] } = usePartnerUsers(dealPartnerId);
+  const { data: assignableUsers = [] } = useAssignableUsers();
+  const { data: profilesMap } = useAllProfilesMap();
+  // Owner picker source: HQ-aware partner-scoped union (HQ sees everyone, partners see own org)
+  const ownerCandidates = (() => {
+    const ids = new Set<string>();
+    const merged: { id: string; full_name: string | null; email: string }[] = [];
+    [...assignableUsers, ...partnerUsers].forEach((u: any) => {
+      if (!ids.has(u.id)) { ids.add(u.id); merged.push(u); }
+    });
+    return merged;
+  })();
   // Contact add
   const [showAddContact, setShowAddContact] = useState(false);
   const [contactForm, setContactForm] = useState({ contact_name: "", role: "", email: "", phone: "", is_decision_maker: false });
@@ -79,6 +92,7 @@ export default function DealDetail() {
       industry: deal.industry || "",
       lead_source: deal.lead_source || "",
       partner_id: deal.partner_id || "",
+      assigned_user_id: (deal as any).assigned_user_id || null,
       assigned_salesperson: deal.assigned_salesperson || "",
       stage: deal.stage,
       expected_value: deal.expected_value || 0,
@@ -106,7 +120,11 @@ export default function DealDetail() {
       industry: editForm.industry || editForm.sector || null,
       lead_source: editForm.lead_source || null,
       partner_id: editForm.partner_id || null,
-      assigned_salesperson: editForm.assigned_salesperson || null,
+      assigned_user_id: editForm.assigned_user_id || null,
+      assigned_salesperson:
+        (editForm.assigned_user_id
+          ? (ownerCandidates.find(u => u.id === editForm.assigned_user_id)?.full_name || null)
+          : (editForm.assigned_salesperson || null)),
       stage: editForm.stage,
       expected_value: parseFloat(editForm.expected_value) || 0,
       probability: stageChanged ? getStageProbability(editForm.stage) : (parseInt(editForm.probability) || 0),
@@ -218,9 +236,14 @@ export default function DealDetail() {
             <h1 className="text-xl font-bold text-foreground tracking-tight truncate">{deal.company_name}</h1>
             <Badge variant={deal.status === "Won" ? "success" : deal.status === "Lost" ? "destructive" : "outline"}>{deal.stage}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {(deal as any).contact_person_name ? `${(deal as any).contact_person_name} · ` : ""}
-            {deal.assigned_salesperson || "Unassigned"}
+          <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
+            {(deal as any).contact_person_name ? <span>{(deal as any).contact_person_name} ·</span> : null}
+            <span>{getOwnerDisplay(deal as any, profilesMap)}</span>
+            {(() => {
+              const s = getOwnershipStatus(deal as any, profilesMap);
+              if (s === "assigned") return null;
+              return <span className={`text-[10px] border px-1.5 py-0 rounded-full ${ownershipStatusColor(s)}`}>{ownershipStatusLabel(s)}</span>;
+            })()}
           </p>
         </div>
         {!editing && (
@@ -298,20 +321,24 @@ export default function DealDetail() {
                 <div>
                   <Label>Assigned To</Label>
                   <Select
-                    value={partnerUsers.find(u => u.full_name === editForm.assigned_salesperson)?.id || "none"}
+                    value={editForm.assigned_user_id || "none"}
                     onValueChange={v => {
-                      const user = partnerUsers.find(u => u.id === v);
-                      setEditForm((f: any) => ({ ...f, assigned_salesperson: user?.full_name || "" }));
+                      const uid = v === "none" ? null : v;
+                      const user = ownerCandidates.find(u => u.id === uid);
+                      setEditForm((f: any) => ({
+                        ...f,
+                        assigned_user_id: uid,
+                        assigned_salesperson: user?.full_name || "",
+                      }));
                     }}
-                    disabled={!editForm.partner_id}
                   >
-                    <SelectTrigger><SelectValue placeholder={editForm.assigned_salesperson || "Select user"} /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">— None —</SelectItem>
-                      {partnerUsers.length === 0 && editForm.partner_id && (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground">No users available for this partner</div>
+                      <SelectItem value="none">— Unassigned —</SelectItem>
+                      {ownerCandidates.length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">No assignable users</div>
                       )}
-                      {partnerUsers.map(u => (
+                      {ownerCandidates.map(u => (
                         <SelectItem key={u.id} value={u.id}>{u.full_name || u.email || "Unnamed"}</SelectItem>
                       ))}
                     </SelectContent>
@@ -401,7 +428,7 @@ export default function DealDetail() {
                   { icon: User, label: "Contact Person", value: (deal as any).contact_person_name || "—" },
                   { icon: Building2, label: "Company", value: deal.company_name },
                   { icon: MapPin, label: "Country", value: deal.country || "—" },
-                  { icon: User, label: "Assigned To", value: deal.assigned_salesperson || "—" },
+                  { icon: User, label: "Assigned To", value: getOwnerDisplay(deal as any, profilesMap) },
                   { icon: User, label: "Lead Source", value: deal.lead_source || "—" },
                   { icon: Building2, label: "Sector", value: (deal as any).sector || deal.industry || "—" },
                   { icon: Mail, label: "Email", value: (deal as any).contact_email || "—" },
@@ -434,7 +461,7 @@ export default function DealDetail() {
                         return [
                           { label: "Won Value", value: wonValue > 0 ? `€${wonValue.toLocaleString()}` : "—", color: "text-emerald-600" },
                           { label: "Won Date", value: wonAt ? new Date(wonAt).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
-                          { label: "Sales Owner", value: deal.assigned_salesperson || "Unassigned", color: "text-foreground" },
+                          { label: "Sales Owner", value: getOwnerDisplay(deal as any, profilesMap), color: "text-foreground" },
                           { label: "Sales Cycle", value: cycleDays !== null ? `${cycleDays} day${cycleDays === 1 ? "" : "s"}` : "—", color: "text-foreground" },
                           { label: "Proposals", value: String(proposals.length), color: "text-foreground" },
                           { label: "Partner", value: partners.find(p => p.id === deal.partner_id)?.company_name || "—", color: "text-foreground" },
@@ -457,7 +484,7 @@ export default function DealDetail() {
                         return [
                           { label: "Lost Value", value: lostValue > 0 ? `€${lostValue.toLocaleString()}` : "—", color: "text-destructive" },
                           { label: "Lost Date", value: lostAt ? new Date(lostAt).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
-                          { label: "Sales Owner", value: deal.assigned_salesperson || "Unassigned", color: "text-foreground" },
+                          { label: "Sales Owner", value: getOwnerDisplay(deal as any, profilesMap), color: "text-foreground" },
                           { label: "Partner", value: partners.find(p => p.id === deal.partner_id)?.company_name || "—", color: "text-foreground" },
                         ];
                       })().map(m => (

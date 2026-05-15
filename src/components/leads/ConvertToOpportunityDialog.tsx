@@ -79,6 +79,7 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
           stage: "Open Lead",
           expected_value: form.expected_value ? parseFloat(form.expected_value) : 0,
           probability: getStageProbability("Open Lead"),
+          assigned_user_id: assignedUser?.id || null,
           assigned_salesperson: assignedUser?.full_name || null,
           lead_source: form.lead_source || "HQ (Inbound)",
           notes: form.notes || null,

@@ -81,6 +81,7 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
         stage: "Open Lead",
         expected_value: 0,
         probability: getStageProbability("Open Lead"),
+        assigned_user_id: assignedUser?.id || null,
         assigned_salesperson: assignedUser?.full_name || null,
         lead_source: form.lead_source || "Partner (Outbound)",
         notes: form.notes || null,
