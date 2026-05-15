@@ -474,7 +474,7 @@ export default function DealDetail() {
                     <h3 className="text-sm font-semibold text-foreground">Pipeline Metrics</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { label: "Stage Probability", value: `${getStageProbability(deal.stage)}%`, color: getStageProbability(deal.stage) >= 60 ? "text-emerald-600" : "text-foreground" },
+                        { label: "Probability", value: `${resolvedProb}%`, color: resolvedProb >= 60 ? "text-emerald-600" : "text-foreground" },
                         { label: "Expected Value", value: expectedValue > 0 ? `€${expectedValue.toLocaleString()}` : "—", color: "text-foreground" },
                         { label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
                         { label: "Weighted Value", value: weightedValue > 0 ? `€${weightedValue.toLocaleString()}` : "—", color: "text-foreground" },
