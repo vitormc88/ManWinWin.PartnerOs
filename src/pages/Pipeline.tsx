@@ -236,7 +236,7 @@ export default function Pipeline() {
                         {(deal.expected_value || 0) > 0 && (
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-bold text-foreground tabular-nums">€{(deal.expected_value || 0).toLocaleString()}</span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{getStageProbability(deal.stage)}%</Badge>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{resolveDealProbability(deal)}%</Badge>
                           </div>
                         )}
 
