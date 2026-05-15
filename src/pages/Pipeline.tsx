@@ -261,8 +261,13 @@ export default function Pipeline() {
                         )}
 
                         <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
-                          <span className="truncate flex-1">
-                            {(deal.assigned_salesperson || "").split(" ")[0] || "—"}
+                          <span className="truncate flex-1 inline-flex items-center gap-1">
+                            <span>{(getOwnerDisplay(deal as any, profilesMap).split(" ")[0]) || "—"}</span>
+                            {isHQ && (() => {
+                              const s = getOwnershipStatus(deal as any, profilesMap);
+                              if (s === "assigned" || s === "unassigned") return null;
+                              return <span className={`text-[9px] px-1 py-0 border rounded-full ${ownershipStatusColor(s)}`}>{ownershipStatusLabel(s)}</span>;
+                            })()}
                             <span className="opacity-60"> · {h?.daysInStage ?? 0}d in stage</span>
                           </span>
                           <span className="shrink-0 ml-1.5">
