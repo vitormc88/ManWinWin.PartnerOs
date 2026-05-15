@@ -321,20 +321,24 @@ export default function DealDetail() {
                 <div>
                   <Label>Assigned To</Label>
                   <Select
-                    value={partnerUsers.find(u => u.full_name === editForm.assigned_salesperson)?.id || "none"}
+                    value={editForm.assigned_user_id || "none"}
                     onValueChange={v => {
-                      const user = partnerUsers.find(u => u.id === v);
-                      setEditForm((f: any) => ({ ...f, assigned_salesperson: user?.full_name || "" }));
+                      const uid = v === "none" ? null : v;
+                      const user = ownerCandidates.find(u => u.id === uid);
+                      setEditForm((f: any) => ({
+                        ...f,
+                        assigned_user_id: uid,
+                        assigned_salesperson: user?.full_name || "",
+                      }));
                     }}
-                    disabled={!editForm.partner_id}
                   >
-                    <SelectTrigger><SelectValue placeholder={editForm.assigned_salesperson || "Select user"} /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">— None —</SelectItem>
-                      {partnerUsers.length === 0 && editForm.partner_id && (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground">No users available for this partner</div>
+                      <SelectItem value="none">— Unassigned —</SelectItem>
+                      {ownerCandidates.length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">No assignable users</div>
                       )}
-                      {partnerUsers.map(u => (
+                      {ownerCandidates.map(u => (
                         <SelectItem key={u.id} value={u.id}>{u.full_name || u.email || "Unnamed"}</SelectItem>
                       ))}
                     </SelectContent>
