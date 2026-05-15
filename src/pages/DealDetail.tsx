@@ -461,7 +461,7 @@ export default function DealDetail() {
                         return [
                           { label: "Won Value", value: wonValue > 0 ? `€${wonValue.toLocaleString()}` : "—", color: "text-emerald-600" },
                           { label: "Won Date", value: wonAt ? new Date(wonAt).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
-                          { label: "Sales Owner", value: deal.assigned_salesperson || "Unassigned", color: "text-foreground" },
+                          { label: "Sales Owner", value: getOwnerDisplay(deal as any, profilesMap), color: "text-foreground" },
                           { label: "Sales Cycle", value: cycleDays !== null ? `${cycleDays} day${cycleDays === 1 ? "" : "s"}` : "—", color: "text-foreground" },
                           { label: "Proposals", value: String(proposals.length), color: "text-foreground" },
                           { label: "Partner", value: partners.find(p => p.id === deal.partner_id)?.company_name || "—", color: "text-foreground" },
@@ -484,7 +484,7 @@ export default function DealDetail() {
                         return [
                           { label: "Lost Value", value: lostValue > 0 ? `€${lostValue.toLocaleString()}` : "—", color: "text-destructive" },
                           { label: "Lost Date", value: lostAt ? new Date(lostAt).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
-                          { label: "Sales Owner", value: deal.assigned_salesperson || "Unassigned", color: "text-foreground" },
+                          { label: "Sales Owner", value: getOwnerDisplay(deal as any, profilesMap), color: "text-foreground" },
                           { label: "Partner", value: partners.find(p => p.id === deal.partner_id)?.company_name || "—", color: "text-foreground" },
                         ];
                       })().map(m => (
