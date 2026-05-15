@@ -23,7 +23,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, type DealStage } from "@/data/pipeline-stages";
+import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, resolveDealProbability, type DealStage } from "@/data/pipeline-stages";
 import { cn } from "@/lib/utils";
 import { logSystemActivity } from "@/lib/activity-log";
 import { useAuth } from "@/contexts/AuthContext";
@@ -201,7 +201,8 @@ export default function DealDetail() {
     .filter((proposal) => proposal.status !== "Lost")
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
   const expectedValue = latestProposal?.total_year_1 ?? deal.expected_value ?? 0;
-  const weightedValue = expectedValue > 0 ? Math.round((expectedValue * getStageProbability(deal.stage)) / 100) : 0;
+  const resolvedProb = resolveDealProbability(deal);
+  const weightedValue = expectedValue > 0 ? Math.round((expectedValue * resolvedProb) / 100) : 0;
 
   const stageIdx = PIPELINE_STAGES.findIndex(s => s.key === deal.stage);
 
@@ -473,7 +474,7 @@ export default function DealDetail() {
                     <h3 className="text-sm font-semibold text-foreground">Pipeline Metrics</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { label: "Stage Probability", value: `${getStageProbability(deal.stage)}%`, color: getStageProbability(deal.stage) >= 60 ? "text-emerald-600" : "text-foreground" },
+                        { label: "Probability", value: `${resolvedProb}%`, color: resolvedProb >= 60 ? "text-emerald-600" : "text-foreground" },
                         { label: "Expected Value", value: expectedValue > 0 ? `€${expectedValue.toLocaleString()}` : "—", color: "text-foreground" },
                         { label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
                         { label: "Weighted Value", value: weightedValue > 0 ? `€${weightedValue.toLocaleString()}` : "—", color: "text-foreground" },

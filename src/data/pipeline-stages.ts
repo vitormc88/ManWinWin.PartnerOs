@@ -42,5 +42,18 @@ export function getStageProbability(stage: string): number {
   return PIPELINE_STAGES.find(s => s.key === stage)?.probability ?? 0;
 }
 
+/**
+ * Single source of truth for resolved deal probability.
+ * Mirrors SQL: COALESCE(NULLIF(deals.probability, 0), pipeline_stage_probability(deals.stage))
+ * Use this EVERYWHERE in the frontend (cards, badges, weighted calc, forecasts).
+ */
+export function resolveDealProbability(
+  deal: { probability?: number | null; stage: string }
+): number {
+  const p = deal.probability;
+  if (p && p > 0) return p;
+  return getStageProbability(deal.stage);
+}
+
 /** Stuck = no stage change for 30+ days */
 export const STUCK_THRESHOLD_DAYS = 30;

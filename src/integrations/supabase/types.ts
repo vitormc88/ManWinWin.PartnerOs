@@ -3332,13 +3332,14 @@ export type Database = {
           country_normalized: string | null
           country_raw: string | null
           created_at: string | null
+          deal_probability: number | null
           expected_value: number | null
           id: string | null
           in_pipeline: boolean | null
           in_revenue: boolean | null
           lost_at: string | null
           partner_id: string | null
-          probability: number | null
+          resolved_probability: number | null
           salesperson: string | null
           stage: string | null
           status: string | null

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { GripVertical, Search, TrendingUp, Target, AlertTriangle, Trophy, Plus, Flame, Clock, BellOff, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, isActivePipelineStage, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
+import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, resolveDealProbability, isActivePipelineStage, STUCK_THRESHOLD_DAYS, type DealStage } from "@/data/pipeline-stages";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 import { DealHealthBadge } from "@/components/deals/DealHealthBadge";
 import { cn } from "@/lib/utils";
@@ -70,9 +70,8 @@ export default function Pipeline() {
   const authValue = (d: typeof open[number]) =>
     (d.total_value && Number(d.total_value) !== 0 ? Number(d.total_value) : Number(d.expected_value || 0));
   // Canonical probability: explicit deal probability if set, otherwise stage probability.
-  // NO health/hot/stalled modifiers — must match v_analytics_pipeline_summary.
-  const canonicalProb = (d: typeof open[number]) =>
-    (d.probability && d.probability > 0 ? d.probability : getStageProbability(d.stage));
+  // Single source of truth — must match SQL pipeline_stage_probability + resolveDealProbability.
+  const canonicalProb = (d: typeof open[number]) => resolveDealProbability(d);
   const totalPipeline = open.reduce((s, d) => s + authValue(d), 0);
   const weightedPipeline = open.reduce((s, d) => s + authValue(d) * (canonicalProb(d) / 100), 0);
   const closedCount = won.length + lost.length;
@@ -237,7 +236,7 @@ export default function Pipeline() {
                         {(deal.expected_value || 0) > 0 && (
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-bold text-foreground tabular-nums">€{(deal.expected_value || 0).toLocaleString()}</span>
-                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{getStageProbability(deal.stage)}%</Badge>
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{resolveDealProbability(deal)}%</Badge>
                           </div>
                         )}
 

@@ -331,30 +331,38 @@ export default function Analytics() {
             <table className="w-full text-xs">
               <thead className="bg-secondary/50">
                 <tr className="border-b">
-                  {["Company","Status","Stage","Country (raw → normalized)","Salesperson","Value (auth)","Weighted","In Revenue","In Pipeline","Closed at"].map(h => (
+                  {["Company","Status","Stage","Country (raw → normalized)","Salesperson","Value (auth)","Probability","Weighted","In Revenue","In Pipeline","Closed at"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {(reconciliation.data || []).map(r => (
-                  <tr key={r.id} className="hover:bg-secondary/30">
-                    <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{r.company_name}</td>
-                    <td className="px-3 py-2"><Badge variant={r.status === "Won" ? "success" : r.status === "Lost" ? "destructive" : "outline"} className="text-[10px]">{r.status}</Badge></td>
-                    <td className="px-3 py-2 text-muted-foreground">{r.stage}</td>
-                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                      {r.country_raw || "—"} {r.country_raw !== r.country_normalized && <span className="text-foreground">→ {r.country_normalized || "—"}</span>}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">{r.salesperson}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmtEuro(r.authoritative_value)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{fmtEuro(r.weighted_value)}</td>
-                    <td className="px-3 py-2 text-center">{r.in_revenue ? "✓" : "—"}</td>
-                    <td className="px-3 py-2 text-center">{r.in_pipeline ? "✓" : "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{r.status_changed_at ? new Date(r.status_changed_at).toLocaleDateString() : "—"}</td>
-                  </tr>
-                ))}
+                {(reconciliation.data || []).map((r: any) => {
+                  const resolved = r.resolved_probability ?? 0;
+                  const overridden = r.deal_probability != null && Number(r.deal_probability) > 0;
+                  return (
+                    <tr key={r.id} className="hover:bg-secondary/30">
+                      <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{r.company_name}</td>
+                      <td className="px-3 py-2"><Badge variant={r.status === "Won" ? "success" : r.status === "Lost" ? "destructive" : "outline"} className="text-[10px]">{r.status}</Badge></td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.stage}</td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                        {r.country_raw || "—"} {r.country_raw !== r.country_normalized && <span className="text-foreground">→ {r.country_normalized || "—"}</span>}
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.salesperson}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{fmtEuro(r.authoritative_value)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {resolved}%
+                        <span className="ml-1 text-[10px] text-muted-foreground">{overridden ? "(custom)" : "(stage)"}</span>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{fmtEuro(r.weighted_value)}</td>
+                      <td className="px-3 py-2 text-center">{r.in_revenue ? "✓" : "—"}</td>
+                      <td className="px-3 py-2 text-center">{r.in_pipeline ? "✓" : "—"}</td>
+                      <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{r.status_changed_at ? new Date(r.status_changed_at).toLocaleDateString() : "—"}</td>
+                    </tr>
+                  );
+                })}
                 {(reconciliation.data || []).length === 0 && (
-                  <tr><td colSpan={10} className="p-0"><EmptyState message="No deals to reconcile" /></td></tr>
+                  <tr><td colSpan={11} className="p-0"><EmptyState message="No deals to reconcile" /></td></tr>
                 )}
               </tbody>
             </table>
