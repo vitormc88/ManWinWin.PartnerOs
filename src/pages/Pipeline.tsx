@@ -302,7 +302,7 @@ export default function Pipeline() {
                   <Link key={deal.id} to={`/deals/${deal.id}`} className="flex items-center justify-between bg-card rounded-lg border p-3 hover:shadow-sm transition-shadow">
                     <div>
                       <p className="text-sm font-medium text-foreground">{deal.company_name}</p>
-                      <p className="text-[11px] text-muted-foreground">{partnerMap.get(deal.partner_id || "") || "—"} · {deal.assigned_salesperson || "—"}</p>
+                      <p className="text-[11px] text-muted-foreground">{partnerMap.get(deal.partner_id || "") || "—"} · {getOwnerDisplay(deal as any, profilesMap)}</p>
                     </div>
                     <span className="text-sm font-semibold tabular-nums text-foreground">€{(deal.total_value || deal.expected_value || 0).toLocaleString()}</span>
                   </Link>
