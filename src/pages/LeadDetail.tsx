@@ -82,7 +82,11 @@ export default function LeadDetail() {
   const topAction = useMemo(() => topNextAction(draft), [draft]);
   const discovery = useMemo(() => lastMeaningfulDiscovery(draft), [draft]);
   const questions = useMemo(() => suggestedQuestions(draft), [draft]);
-  const guidance = useMemo(() => contextualGuidance(draft), [draft]);
+  const guidanceBlocks = useMemo(() => contextualGuidanceAll(draft), [draft]);
+  const insights = useMemo(() => discoveryInsights(draft), [draft]);
+  const positioning = useMemo(() => positioningHelp(draft), [draft]);
+  const risks = useMemo(() => likelyRisks(draft), [draft]);
+  const snippets = useMemo(() => knowledgeSnippets(draft), [draft]);
 
   const handleSave = (extra: Record<string, any> = {}) => {
     if (!lead) return;
