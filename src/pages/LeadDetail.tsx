@@ -35,6 +35,7 @@ import {
   suggestedQuestions, qualificationSignals, lastMeaningfulDiscovery, FIT_FACTORS,
   CURRENT_PROCESS_OPTIONS, MAIN_CHALLENGE_OPTIONS, EXISTING_SYSTEM_OPTIONS, DATA_VISIBILITY_OPTIONS,
   contextualGuidanceAll, discoveryInsights, positioningHelp, likelyRisks, knowledgeSnippets,
+  splitPositioning,
 } from "@/lib/qualification";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, BookOpen, Megaphone, Search as SearchIcon } from "lucide-react";
