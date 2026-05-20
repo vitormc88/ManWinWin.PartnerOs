@@ -319,9 +319,28 @@ export type GuidanceBlock = {
   source: "process" | "system" | "challenge" | "context";
   pains?: string[];
   prompts?: string[];
-  positioning?: string[];
+  positioning?: string[]; // legacy combined list (kept for back-compat)
+  businessValue?: string[]; // outcomes
+  capabilities?: string[]; // product features
   modules?: string[];
 };
+
+// Heuristic split for legacy `positioning` lists into business value vs capability.
+const VALUE_HINTS = [
+  "reduce", "improve", "standardiz", "visibility", "control", "lower", "faster",
+  "adoption", "lifecycle", "traceability", "ready", "audit trail", "support",
+  "onboarding", "tco", "scale",
+];
+export function splitPositioning(items: string[] | undefined): { businessValue: string[]; capabilities: string[] } {
+  const businessValue: string[] = [];
+  const capabilities: string[] = [];
+  for (const it of items || []) {
+    const v = it.toLowerCase();
+    if (VALUE_HINTS.some((h) => v.includes(h))) businessValue.push(it);
+    else capabilities.push(it);
+  }
+  return { businessValue, capabilities };
+}
 
 function guidanceForChallenge(challenge: string | null | undefined): GuidanceBlock | null {
   switch (challenge) {
