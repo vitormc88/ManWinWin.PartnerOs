@@ -223,12 +223,12 @@ export function lastMeaningfulDiscovery(lead: Record<string, any>): string[] {
 
 export function suggestedQuestions(lead: Record<string, any>): string[] {
   return [
-    "How are you managing maintenance today?",
-    "What are the main operational challenges you face?",
-    "Is there an existing CMMS or ERP in place?",
-    "What triggered this initiative now?",
-    "Who else is involved in the decision?",
-    "What does success look like in 6–12 months?",
+    "How are you managing maintenance day to day?",
+    "What's the part of the operation that frustrates you most?",
+    "Are you using any system today — even spreadsheets?",
+    "What made you start looking at this now?",
+    "Besides you, who else would weigh in on a decision like this?",
+    "If this worked well, what would change in six months?",
   ];
 }
 
