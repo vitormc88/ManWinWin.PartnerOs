@@ -620,7 +620,7 @@ export default function LeadDetail() {
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* What to do next — always open */}
+              {/* Always-visible: What to do next */}
               <AsstSection icon={Target} title="What to do next">
                 <ul className="space-y-1.5 text-sm">
                   {actions.map((a, i) => (
@@ -638,171 +638,144 @@ export default function LeadDetail() {
                 </Button>
               </AsstSection>
 
-              {/* Discovery Insights */}
-              <CollapsibleSection
-                icon={SearchIcon}
-                title="Discovery insights"
-                count={insights.length}
-                defaultOpen={insights.length > 0}
-                emptyHint="Capture current process, system or challenge to surface insights."
-              >
-                <ul className="space-y-1">
-                  {insights.map((i) => (
-                    <li key={i.id} className="flex items-start gap-2 text-xs">
-                      <span className={cn(
-                        "mt-1 h-1.5 w-1.5 rounded-full shrink-0",
-                        i.tone === "positive" && "bg-success",
-                        i.tone === "warning" && "bg-warning",
-                        i.tone === "neutral" && "bg-muted-foreground/50",
-                      )} />
-                      <span className={i.tone === "warning" ? "text-foreground" : "text-muted-foreground"}>
-                        {i.label}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </CollapsibleSection>
-
-              {/* Missing info */}
-              <CollapsibleSection
-                icon={AlertCircle}
-                title="Missing information"
-                count={missing.length}
-                defaultOpen={missing.length > 0 && missing.length <= 4}
-                emptyHint="All key information captured."
-              >
-                <ul className="space-y-1 text-xs">
-                  {missing.map((m, i) => (
-                    <li key={i} className="text-muted-foreground">• {m}</li>
-                  ))}
-                </ul>
-              </CollapsibleSection>
-
-              {/* Contextual guidance — one collapsible per block */}
-              {guidanceBlocks.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Lightbulb className="h-3.5 w-3.5" />
-                    Contextual guidance
-                  </div>
-                  {guidanceBlocks.map((g, idx) => (
-                    <CollapsibleSection
-                      key={g.id}
-                      title={g.title}
-                      count={(g.pains?.length || 0) + (g.prompts?.length || 0)}
-                      defaultOpen={idx === 0}
-                      compact
-                    >
-                      {g.pains?.length ? (
-                        <Subsection label="Common pains">
-                          <ul className="space-y-0.5 text-xs">
-                            {g.pains.map((p, i) => (
-                              <li key={i} className="text-muted-foreground">• {p}</li>
-                            ))}
-                          </ul>
-                        </Subsection>
-                      ) : null}
-                      {g.prompts?.length ? (
-                        <Subsection label="Discovery prompts">
-                          <ul className="space-y-0.5 text-xs">
-                            {g.prompts.map((p, i) => (
-                              <li key={i} className="text-muted-foreground">“{p}”</li>
-                            ))}
-                          </ul>
-                        </Subsection>
-                      ) : null}
-                      {g.positioning?.length ? (
-                        <Subsection label="Positioning angles">
-                          <div className="flex flex-wrap gap-1">
-                            {g.positioning.map((p, i) => (
-                              <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                                {p}
-                              </span>
-                            ))}
-                          </div>
-                        </Subsection>
-                      ) : null}
-                      {g.modules?.length ? (
-                        <Subsection label="Relevant modules">
-                          <div className="flex flex-wrap gap-1">
-                            {g.modules.map((m, i) => (
-                              <span key={i} className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground border">
-                                {m}
-                              </span>
-                            ))}
-                          </div>
-                        </Subsection>
-                      ) : null}
-                    </CollapsibleSection>
-                  ))}
-                </div>
-              )}
-
-              {/* Positioning help */}
-              {positioning.length > 0 && (
-                <CollapsibleSection
-                  icon={Megaphone}
-                  title="What to emphasize"
-                  count={positioning.length}
-                  defaultOpen={false}
-                >
-                  <ul className="space-y-2">
-                    {positioning.map((p) => (
-                      <li key={p.id} className="text-xs">
-                        <div className="font-medium text-foreground">{p.emphasis}</div>
-                        <div className="text-muted-foreground leading-snug">{p.reason}</div>
-                      </li>
-                    ))}
-                  </ul>
-                </CollapsibleSection>
-              )}
-
-              {/* Likely risks */}
-              {risks.length > 0 && (
-                <CollapsibleSection
-                  icon={ShieldAlert}
-                  title="Likely risks"
-                  count={risks.length}
-                  defaultOpen={false}
-                >
-                  <ul className="space-y-2">
-                    {risks.map((r) => (
-                      <li key={r.id} className="text-xs">
-                        <div className="font-medium text-foreground">{r.label}</div>
-                        <div className="text-muted-foreground leading-snug">{r.hint}</div>
-                      </li>
-                    ))}
-                  </ul>
-                </CollapsibleSection>
-              )}
-
-              {/* Knowledge snippets */}
-              {snippets.length > 0 && (
-                <CollapsibleSection
-                  icon={BookOpen}
-                  title="Positioning snippets"
-                  count={snippets.length}
-                  defaultOpen={false}
-                >
-                  <ul className="space-y-2">
-                    {snippets.map((s) => (
-                      <li key={s.id} className="text-xs">
-                        <div className="font-medium text-foreground">{s.title}</div>
-                        <div className="text-muted-foreground leading-snug">{s.body}</div>
-                      </li>
-                    ))}
-                  </ul>
-                </CollapsibleSection>
-              )}
-
-              {/* Suggested questions — always last, collapsed */}
-              <CollapsibleSection icon={HelpCircle} title="Suggested questions" defaultOpen={false}>
-                <ul className="space-y-1 text-xs">
-                  {questions.slice(0, 6).map((q, i) => (
-                    <li key={i} className="text-muted-foreground leading-snug">“{q}”</li>
-                  ))}
-                </ul>
-              </CollapsibleSection>
+              {/* Single-expand accordion — only one section open at a time.
+                  Order = visual priority: missing → insights → guidance → questions → emphasize → risks → snippets */}
+              <SingleAccordion
+                defaultValue={missing.length > 0 ? "missing" : "insights"}
+                sections={[
+                  {
+                    value: "missing",
+                    icon: AlertCircle,
+                    title: "Missing information",
+                    count: missing.length,
+                    empty: "All key information captured.",
+                    render: () => (
+                      <ul className="space-y-1 text-xs">
+                        {missing.map((m, i) => (<li key={i} className="text-muted-foreground">• {m}</li>))}
+                      </ul>
+                    ),
+                  },
+                  {
+                    value: "insights",
+                    icon: SearchIcon,
+                    title: "Discovery insights",
+                    count: insights.length,
+                    empty: "Capture current process, system or challenge to surface insights.",
+                    render: () => (
+                      <ul className="space-y-1">
+                        {insights.map((i) => (
+                          <li key={i.id} className="flex items-start gap-2 text-xs">
+                            <span className={cn(
+                              "mt-1 h-1.5 w-1.5 rounded-full shrink-0",
+                              i.tone === "positive" && "bg-success",
+                              i.tone === "warning" && "bg-warning",
+                              i.tone === "neutral" && "bg-muted-foreground/50",
+                            )} />
+                            <span className={i.tone === "warning" ? "text-foreground" : "text-muted-foreground"}>
+                              {i.label}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ),
+                  },
+                  ...(guidanceBlocks.length > 0 ? [{
+                    value: "guidance",
+                    icon: Lightbulb,
+                    title: "Contextual guidance",
+                    count: guidanceBlocks.length,
+                    render: () => (
+                      <div className="space-y-3">
+                        {guidanceBlocks.map((g) => {
+                          const split = splitPositioning(g.positioning);
+                          return (
+                            <div key={g.id} className="rounded-md border bg-card/40 p-2.5">
+                              <div className="text-xs font-semibold text-foreground mb-2">{g.title}</div>
+                              {g.pains?.length ? (
+                                <Subsection label="Common pains">
+                                  <TopList items={g.pains} limit={3} className="text-xs text-muted-foreground" />
+                                </Subsection>
+                              ) : null}
+                              {g.prompts?.length ? (
+                                <Subsection label="Try asking">
+                                  <TopList items={g.prompts} limit={3} quote className="text-xs text-muted-foreground" />
+                                </Subsection>
+                              ) : null}
+                              {split.businessValue.length ? (
+                                <Subsection label="Business value">
+                                  <ChipList items={split.businessValue.slice(0, 3)} tone="primary" />
+                                </Subsection>
+                              ) : null}
+                              {split.capabilities.length ? (
+                                <Subsection label="Product capabilities">
+                                  <ChipList items={split.capabilities.slice(0, 3)} tone="muted" />
+                                </Subsection>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ),
+                  }] : []),
+                  {
+                    value: "questions",
+                    icon: HelpCircle,
+                    title: "Suggested questions",
+                    count: Math.min(questions.length, 3),
+                    render: () => (
+                      <TopList items={questions} limit={3} quote className="text-xs text-muted-foreground leading-snug" />
+                    ),
+                  },
+                  ...(positioning.length > 0 ? [{
+                    value: "emphasize",
+                    icon: Megaphone,
+                    title: "What to emphasize",
+                    count: Math.min(positioning.length, 3),
+                    render: () => (
+                      <ul className="space-y-2">
+                        {positioning.slice(0, 3).map((p) => (
+                          <li key={p.id} className="text-xs">
+                            <div className="font-medium text-foreground">{p.emphasis}</div>
+                            <div className="text-muted-foreground leading-snug">{p.reason}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    ),
+                  }] : []),
+                  ...(risks.length > 0 ? [{
+                    value: "risks",
+                    icon: ShieldAlert,
+                    title: "Likely risks",
+                    count: risks.length,
+                    render: () => (
+                      <ul className="space-y-2">
+                        {risks.slice(0, 3).map((r) => (
+                          <li key={r.id} className="text-xs">
+                            <div className="font-medium text-foreground">{r.label}</div>
+                            <div className="text-muted-foreground leading-snug">{r.hint}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    ),
+                  }] : []),
+                  ...(snippets.length > 0 ? [{
+                    value: "snippets",
+                    icon: BookOpen,
+                    title: "Positioning snippets",
+                    count: snippets.length,
+                    render: () => (
+                      <ul className="space-y-2">
+                        {snippets.slice(0, 3).map((s) => (
+                          <li key={s.id} className="text-xs">
+                            <div className="font-medium text-foreground">{s.title}</div>
+                            <div className="text-muted-foreground leading-snug">{s.body}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    ),
+                  }] : []),
+                ]}
+              />
             </CardContent>
           </Card>
         </aside>
