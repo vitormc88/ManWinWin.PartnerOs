@@ -831,8 +831,48 @@ export default function LeadDetail() {
                       />
                     </div>
                   )}
+
+                  {/* Assigned owner — saved immediately so the trigger fires
+                      and SLA/ownership context updates without a manual Save. */}
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Assigned owner</Label>
+                    <Select
+                      value={(draft as any).assigned_user_id || "__none__"}
+                      onValueChange={(v) => {
+                        const next = v === "__none__" ? null : v;
+                        set({ assigned_user_id: next });
+                        updateLead.mutate(
+                          { id: lead.id, assigned_user_id: next as any },
+                          {
+                            onSuccess: () =>
+                              toast.success(next ? "Owner assigned — notification sent" : "Owner cleared"),
+                            onError: (e: any) => toast.error(e.message),
+                          },
+                        );
+                      }}
+                      disabled={isConverted || allAssignableUsers.length === 0}
+                    >
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Unassigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Unassigned</SelectItem>
+                        {allAssignableUsers.map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.full_name || u.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {(draft as any).assigned_at && (draft as any).assigned_user_id && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Assigned {formatDistanceToNow(new Date((draft as any).assigned_at), { addSuffix: true })}
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
+
 
               {isAdmin && (
                 <Card className="border-destructive/30">
