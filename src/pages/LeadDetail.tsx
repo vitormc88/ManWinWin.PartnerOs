@@ -262,9 +262,10 @@ export default function LeadDetail() {
               </span>
             </div>
             <span className="h-3 w-px bg-border" />
-            <Badge variant="outline" className="gap-1 text-[10px] h-5 px-1.5">
-              <ActivityIcon className="h-2.5 w-2.5" /> {(draft as any).engagement_status || "New"}
+            <Badge variant="outline" className="gap-1 text-[10px] h-5 px-1.5" title="Communication state — not a business status">
+              <ActivityIcon className="h-2.5 w-2.5" /> {engagementLabel((draft as any).engagement_status)}
             </Badge>
+
             <span className="text-muted-foreground">
               <PhoneCall className="h-3 w-3 inline mr-0.5" />{counts.calls}
               <Mail className="h-3 w-3 inline ml-2 mr-0.5" />{counts.emails}
