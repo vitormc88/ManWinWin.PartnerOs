@@ -6,17 +6,18 @@ export type IncomingLead = Tables<"incoming_leads"> & {
   partners?: { id: string; company_name: string; country: string | null } | null;
 };
 
+// Canonical business lifecycle statuses (re-exported from qualification lib).
 export const LEAD_STATUSES = [
   "New",
-  "Assigned",
-  "In Review",
-  "Contacted",
-  "Qualified",
+  "Active Qualification",
   "Nurture",
+  "Qualified",
   "Rejected",
+  "Converted",
 ] as const;
 
 export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
 
 export function useIncomingLeads() {
   return useQuery({

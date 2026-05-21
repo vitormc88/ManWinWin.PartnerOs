@@ -37,7 +37,8 @@ import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { cn } from "@/lib/utils";
 import {
-  QUALIFICATION_STAGES, type QualificationStage, normalizeStage,
+  QUALIFICATION_STAGES, type QualificationStage, normalizeStage, lifecycleFromStage,
+  engagementLabel,
   TIMD_CATEGORIES, CATEGORY_STATUSES, type CategoryStatus,
   resolvedStatus, autoStatusFromNotes,
   timdCompletion, fitScore, missingInformation, nextBestActions, topNextAction,
@@ -47,6 +48,7 @@ import {
   splitPositioning,
   cadenceGuidance, attemptCounts, slaBucket, nextBestActionDynamic, qualificationReadiness,
 } from "@/lib/qualification";
+
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -186,6 +188,12 @@ export default function LeadDetail() {
   const markDisqualified = () =>
     handleSave({ qualification_stage: "Disqualified", status: "Rejected" });
 
+  // Stage button click — also keeps lifecycle status aligned.
+  const setStage = (s: QualificationStage) => {
+    set({ qualification_stage: s, status: lifecycleFromStage(s) });
+  };
+
+
   const handleDelete = () => {
     if (!lead) return;
     deleteLead.mutate(lead.id, {
@@ -254,9 +262,10 @@ export default function LeadDetail() {
               </span>
             </div>
             <span className="h-3 w-px bg-border" />
-            <Badge variant="outline" className="gap-1 text-[10px] h-5 px-1.5">
-              <ActivityIcon className="h-2.5 w-2.5" /> {(draft as any).engagement_status || "New"}
+            <Badge variant="outline" className="gap-1 text-[10px] h-5 px-1.5" title="Communication state — not a business status">
+              <ActivityIcon className="h-2.5 w-2.5" /> {engagementLabel((draft as any).engagement_status)}
             </Badge>
+
             <span className="text-muted-foreground">
               <PhoneCall className="h-3 w-3 inline mr-0.5" />{counts.calls}
               <Mail className="h-3 w-3 inline ml-2 mr-0.5" />{counts.emails}
@@ -330,7 +339,7 @@ export default function LeadDetail() {
                     key={s}
                     type="button"
                     disabled={isConverted}
-                    onClick={() => set({ qualification_stage: s })}
+                    onClick={() => setStage(s as QualificationStage)}
                     className={cn(
                       "px-2 py-0.5 rounded-full text-[10px] font-medium border transition",
                       isActive && "bg-primary text-primary-foreground border-primary",
@@ -1463,24 +1472,26 @@ function buildTimeline({
     });
   }
 
-  // Contact attempts.
+  // Contact attempts — clearly distinguish attempts vs established conversations.
   for (const a of attempts || []) {
-    const channel = CHANNEL_TITLE[a.channel] || "Contact attempt";
+    const channel = CHANNEL_TITLE[a.channel] || "Contact";
     const outcome = ATTEMPT_LABEL[a.outcome] || a.outcome;
-    const tone: TimelineEvent["tone"] =
-      a.outcome === "reached" || a.outcome === "replied" || a.outcome === "scheduled"
-        ? "success"
-        : a.outcome === "unreachable" || a.outcome === "bounced"
-        ? "destructive"
-        : "warning";
+    const isConversation = a.outcome === "reached" || a.outcome === "replied" || a.outcome === "scheduled";
+    const isFailed = a.outcome === "unreachable" || a.outcome === "bounced";
+    const tone: TimelineEvent["tone"] = isConversation ? "success" : isFailed ? "destructive" : "warning";
+    // Wording: only call it a real "contact" when two-way comms happened.
+    const title = isConversation
+      ? `${channel} — ${outcome}`
+      : `${channel} attempt — ${outcome}`;
     events.push({
       id: `attempt-${a.id}`,
       at: a.performed_at,
-      title: `${channel} — ${outcome}`,
+      title,
       detail: a.notes || undefined,
       tone,
     });
   }
+
 
   // Tasks created and completed.
   for (const t of tasks || []) {

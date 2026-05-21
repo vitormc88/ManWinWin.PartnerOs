@@ -67,7 +67,7 @@ export function useLeadContactAttempts(leadId: string | undefined) {
 export function deriveEngagement(
   attempts: { outcome: ContactOutcome; channel?: ContactChannel }[],
 ): string {
-  if (attempts.length === 0) return "New";
+  if (attempts.length === 0) return "No outreach yet";
   const replied = attempts.some((a) => a.outcome === "reached" || a.outcome === "replied");
   const scheduled = attempts.some((a) => a.outcome === "scheduled");
   const unreachable = attempts.some((a) => a.outcome === "unreachable");
@@ -80,8 +80,11 @@ export function deriveEngagement(
   if (unreachable || failedCalls >= 5) return "Unreachable";
   if (failedCalls >= 3) return "Silent";
   if (emailSent) return "Outreach Sent";
-  return "Outreach Attempted";
+  return "Attempted";
 }
+
+// Lifecycle statuses that should auto-bump to "Active Qualification" once outreach starts.
+const PRE_QUAL_STATUSES = new Set(["New", "Assigned", "In Review", "Contacted", null, undefined, ""]);
 
 export function useLogContactAttempt() {
   const qc = useQueryClient();
@@ -115,13 +118,26 @@ export function useLogContactAttempt() {
         .eq("lead_id", args.lead_id);
       const next = deriveEngagement((all || []) as { outcome: ContactOutcome }[]);
 
+      // Read current lifecycle status to decide whether to auto-bump.
+      const { data: current } = await (supabase as any)
+        .from("incoming_leads")
+        .select("status")
+        .eq("id", args.lead_id)
+        .single();
+
+      const updates: Record<string, any> = {
+        last_contact_at: performed_at,
+        last_outcome: args.outcome,
+        engagement_status: next,
+      };
+      // First outreach (or pre-qualification state) → promote to "Active Qualification".
+      if (PRE_QUAL_STATUSES.has(current?.status)) {
+        updates.status = "Active Qualification";
+      }
+
       await (supabase as any)
         .from("incoming_leads")
-        .update({
-          last_contact_at: performed_at,
-          last_outcome: args.outcome,
-          engagement_status: next,
-        })
+        .update(updates)
         .eq("id", args.lead_id);
 
       return data as LeadContactAttempt;
@@ -133,3 +149,4 @@ export function useLogContactAttempt() {
     },
   });
 }
+

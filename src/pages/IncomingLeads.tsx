@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
+import { LIFECYCLE_STATUSES, normalizeLifecycle, engagementLabel } from "@/lib/qualification";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
@@ -32,14 +33,17 @@ const TEAM_SIZE_OPTIONS = ["1–3", "4 or more", "Unknown"];
 const statusColor = (s: string) => {
   switch (s) {
     case "New": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
-    case "Assigned": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
-    case "In Review": return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
-    case "Contacted": return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
-    case "Qualified": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+    case "Active Qualification": return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+    case "Nurture": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+    case "Qualified": return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+    case "Converted": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
     case "Rejected": return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
     default: return "bg-muted text-muted-foreground";
   }
 };
+
+
+
 
 const defaultForm = {
   company_name: "",
@@ -84,7 +88,7 @@ export default function IncomingLeads() {
       .filter(Boolean).some(v => v!.toLowerCase().includes(search.toLowerCase()));
     const matchesOwner = filterOwner === "all" || lead.lead_owner_type === filterOwner;
     const matchesPartner = filterPartner === "all" || lead.linked_partner_id === filterPartner;
-    const matchesStatus = filterStatus === "all" || lead.status === filterStatus;
+    const matchesStatus = filterStatus === "all" || normalizeLifecycle(lead.status) === filterStatus;
     return matchesSearch && matchesOwner && matchesPartner && matchesStatus;
   });
 
@@ -196,12 +200,10 @@ export default function IncomingLeads() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="New">New</SelectItem>
-            <SelectItem value="Assigned">Assigned</SelectItem>
-            <SelectItem value="In Review">In Review</SelectItem>
-            <SelectItem value="Contacted">Contacted</SelectItem>
-            <SelectItem value="Qualified">Qualified</SelectItem>
-            <SelectItem value="Rejected">Rejected</SelectItem>
+            {LIFECYCLE_STATUSES.map((s) => (
+              <SelectItem key={s} value={s}>{s}</SelectItem>
+            ))}
+
           </SelectContent>
         </Select>
         <span className="text-sm text-muted-foreground ml-auto">
@@ -278,10 +280,23 @@ export default function IncomingLeads() {
                         {lead.lead_owner_type || "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge className={statusColor(lead.status || "New")}>
-                          {lead.status || "New"}
-                        </Badge>
+                        {(() => {
+                          const life = normalizeLifecycle(lead.status);
+                          const eng = engagementLabel((lead as any).engagement_status);
+                          const showEng = eng !== "No outreach yet" && life !== "Converted" && life !== "Rejected";
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <Badge className={statusColor(life)}>{life}</Badge>
+                              {showEng && (
+                                <span className="text-[10px] text-muted-foreground leading-tight">
+                                  · {eng}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
+
                       <td className="px-4 py-3 text-muted-foreground">
                         {format(new Date(lead.created_at), "dd MMM yyyy")}
                       </td>

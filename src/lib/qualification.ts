@@ -1,6 +1,73 @@
 // Centralized qualification logic for Incoming Leads workspace.
 // Pure functions; no AI. Logic stays transparent and editable.
 
+/* =====================================================================
+ * SEMANTIC ARCHITECTURE — three distinct concepts. Do NOT conflate them.
+ *
+ * 1. LIFECYCLE_STATUSES  — Lead business status (table, filters, reporting).
+ * 2. ENGAGEMENT_STATES   — Communication state (operational chip only).
+ * 3. QUALIFICATION_STAGES — Qualification maturity (workspace progression).
+ * ===================================================================== */
+
+// ---------- 1. LEAD LIFECYCLE STATUS (business) ----------
+export const LIFECYCLE_STATUSES = [
+  "New",
+  "Active Qualification",
+  "Nurture",
+  "Qualified",
+  "Rejected",
+  "Converted",
+] as const;
+export type LifecycleStatus = (typeof LIFECYCLE_STATUSES)[number];
+
+/** Map legacy / free-form statuses into the canonical lifecycle set. */
+export function normalizeLifecycle(s: string | null | undefined): LifecycleStatus {
+  if (!s) return "New";
+  if ((LIFECYCLE_STATUSES as readonly string[]).includes(s)) return s as LifecycleStatus;
+  switch (s) {
+    case "Assigned":
+    case "In Review":
+    case "Contacted":
+      return "Active Qualification";
+    case "Disqualified":
+      return "Rejected";
+    default:
+      return "New";
+  }
+}
+
+export function lifecycleTone(s: LifecycleStatus): "neutral" | "primary" | "success" | "warning" | "destructive" {
+  switch (s) {
+    case "New": return "neutral";
+    case "Active Qualification": return "primary";
+    case "Nurture": return "warning";
+    case "Qualified": return "success";
+    case "Converted": return "success";
+    case "Rejected": return "destructive";
+  }
+}
+
+// ---------- 2. ENGAGEMENT STATE (communication) ----------
+export const ENGAGEMENT_STATES = [
+  "No outreach yet",
+  "Attempted",
+  "Outreach Sent",
+  "In Conversation",
+  "Discovery Scheduled",
+  "Silent",
+  "Unreachable",
+] as const;
+export type EngagementState = (typeof ENGAGEMENT_STATES)[number];
+
+/** Normalize stored engagement values (handles legacy strings). */
+export function engagementLabel(s: string | null | undefined): EngagementState {
+  if (!s || s === "New") return "No outreach yet";
+  if (s === "Outreach Attempted") return "Attempted";
+  if ((ENGAGEMENT_STATES as readonly string[]).includes(s)) return s as EngagementState;
+  return "No outreach yet";
+}
+
+// ---------- 3. QUALIFICATION STAGE (workspace progression) ----------
 export const QUALIFICATION_STAGES = [
   "New",
   "Attempted",
@@ -38,6 +105,19 @@ export function normalizeStage(s: string | null | undefined): QualificationStage
   if (s && (QUALIFICATION_STAGES as readonly string[]).includes(s)) return s as QualificationStage;
   return "New";
 }
+
+/** Map a qualification stage to its corresponding lifecycle status. */
+export function lifecycleFromStage(stage: QualificationStage): LifecycleStatus {
+  switch (stage) {
+    case "New": return "New";
+    case "Attempted":
+    case "Contacted": return "Active Qualification";
+    case "Qualified": return "Qualified";
+    case "Converted": return "Converted";
+    case "Disqualified": return "Rejected";
+  }
+}
+
 
 export const CATEGORY_STATUSES = ["missing", "partial", "complete"] as const;
 export type CategoryStatus = (typeof CATEGORY_STATUSES)[number];
