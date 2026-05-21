@@ -410,9 +410,28 @@ export default function LeadDetail() {
                 );
               })}
             </div>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => handleSave()} disabled={!dirty || updateLead.isPending}>
-              <Save className="h-3.5 w-3.5" /> Save
+            <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1 px-2" aria-live="polite">
+              {saveState === "saving" || (dirty && updateLead.isPending) ? (
+                <>· Saving…</>
+              ) : saveState === "error" ? (
+                <span className="text-destructive">· Save failed</span>
+              ) : dirty ? (
+                <>· Unsaved changes</>
+              ) : lastSavedAt ? (
+                <>· Saved {formatDistanceToNow(lastSavedAt, { addSuffix: true })}</>
+              ) : null}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8"
+              onClick={() => handleSave()}
+              disabled={!dirty || updateLead.isPending}
+              title="Force save now"
+            >
+              <Save className="h-3.5 w-3.5" />
             </Button>
+
           </div>
         </div>
       </div>
