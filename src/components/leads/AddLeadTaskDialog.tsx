@@ -90,6 +90,34 @@ export function AddLeadTaskDialog({ open, onOpenChange, leadId, leadCompanyName,
         </DialogHeader>
         <div className="space-y-4">
           <div>
+            <Label>Template</Label>
+            <Select
+              value=""
+              onValueChange={(v) => {
+                const tpl = LEAD_TASK_TEMPLATES.find((t) => t.id === v);
+                if (!tpl) return;
+                setTitle(tpl.title);
+                setPriority(tpl.priority);
+                setDescription(tpl.description || "");
+                const d = new Date();
+                d.setDate(d.getDate() + tpl.dueInDays);
+                setDueDate(d.toISOString().split("T")[0]);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Pick a qualification template…" />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAD_TASK_TEMPLATES.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Prefills title, priority and due date. You can edit anything after.
+            </p>
+          </div>
+          <div>
             <Label>Title *</Label>
             <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" />
           </div>
