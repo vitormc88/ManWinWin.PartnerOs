@@ -8,7 +8,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   momentumSignal, nextOutreach, microDiscoverySuggestions,
-  recommendedPlays, OUTREACH_PLAYS, type PlayKey,
+  recommendedPlays, OUTREACH_PLAYS, momentumRecoveryHints, type PlayKey,
 } from "@/lib/outreach";
 import type { AttemptLike } from "@/lib/qualification";
 
@@ -17,7 +17,9 @@ interface Props {
   attempts: AttemptLike[];
   onSendEmail: (playKey?: PlayKey) => void;
   onLogActivity: () => void;
+  onCreateTask?: () => void;
 }
+
 
 const channelIcon = {
   call: PhoneCall,
