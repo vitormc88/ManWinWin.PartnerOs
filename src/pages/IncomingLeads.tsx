@@ -280,10 +280,23 @@ export default function IncomingLeads() {
                         {lead.lead_owner_type || "—"}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge className={statusColor(lead.status || "New")}>
-                          {lead.status || "New"}
-                        </Badge>
+                        {(() => {
+                          const life = normalizeLifecycle(lead.status);
+                          const eng = engagementLabel((lead as any).engagement_status);
+                          const showEng = eng !== "No outreach yet" && life !== "Converted" && life !== "Rejected";
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <Badge className={statusColor(life)}>{life}</Badge>
+                              {showEng && (
+                                <span className="text-[10px] text-muted-foreground leading-tight">
+                                  · {eng}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
+
                       <td className="px-4 py-3 text-muted-foreground">
                         {format(new Date(lead.created_at), "dd MMM yyyy")}
                       </td>
