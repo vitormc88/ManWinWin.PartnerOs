@@ -735,6 +735,57 @@ export default function LeadDetail() {
               </Card>
             </TabsContent>
 
+            {/* ACTIVITY TIMELINE — real events only */}
+            <TabsContent value="activity" className="mt-4">
+              <Card>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <History className="h-4 w-4 text-muted-foreground" /> Activity timeline
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Real operational events stored in the system. No synthetic entries.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => setShowLogContact(true)} disabled={isConverted}>
+                    <PhoneCall className="h-3.5 w-3.5" /> Log contact
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {timeline.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">
+                      No operational events yet.
+                    </p>
+                  ) : (
+                    <ol className="relative border-l border-border ml-2 space-y-4">
+                      {timeline.map((ev) => (
+                        <li key={ev.id} className="ml-4">
+                          <span className={cn(
+                            "absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-background",
+                            ev.tone === "success" && "bg-success",
+                            ev.tone === "warning" && "bg-warning",
+                            ev.tone === "destructive" && "bg-destructive",
+                            ev.tone === "neutral" && "bg-muted-foreground",
+                            ev.tone === "primary" && "bg-primary",
+                          )} />
+                          <div className="flex items-baseline justify-between gap-3 flex-wrap">
+                            <div className="text-sm font-medium leading-snug">{ev.title}</div>
+                            <div className="text-[11px] text-muted-foreground whitespace-nowrap">
+                              {format(new Date(ev.at), "dd MMM yyyy · HH:mm")}
+                            </div>
+                          </div>
+                          {ev.detail && (
+                            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{ev.detail}</p>
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+
             {/* ASSIGNMENT */}
             <TabsContent value="assignment" className="mt-4 space-y-4">
               <Card>
