@@ -18,6 +18,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
+import { LIFECYCLE_STATUSES, normalizeLifecycle, engagementLabel } from "@/lib/qualification";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
@@ -28,6 +29,19 @@ const JOB_ROLE_OPTIONS = [
 ];
 const ASSET_RANGE_OPTIONS = ["1–100", "101–250", "+250"];
 const TEAM_SIZE_OPTIONS = ["1–3", "4 or more", "Unknown"];
+
+const statusColor = (s: string) => {
+  switch (s) {
+    case "New": return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+    case "Active Qualification": return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300";
+    case "Nurture": return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300";
+    case "Qualified": return "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300";
+    case "Converted": return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+    case "Rejected": return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+    default: return "bg-muted text-muted-foreground";
+  }
+};
+
 
 const statusColor = (s: string) => {
   switch (s) {
