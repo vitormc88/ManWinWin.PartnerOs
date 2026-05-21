@@ -1402,3 +1402,151 @@ function ChipList({ items, tone }: { items: string[]; tone: "primary" | "muted" 
 }
 
 
+
+/* ---------- Activity timeline (real events only) ---------- */
+
+type TimelineEvent = {
+  id: string;
+  at: string;
+  title: string;
+  detail?: string;
+  tone: "success" | "warning" | "destructive" | "neutral" | "primary";
+};
+
+const ATTEMPT_LABEL: Record<string, string> = {
+  no_answer: "No answer",
+  left_voicemail: "Left voicemail",
+  reached: "Reached contact",
+  bounced: "Bounced / invalid",
+  replied: "Replied",
+  scheduled: "Meeting scheduled",
+  unreachable: "Marked unreachable",
+  other: "Other outcome",
+};
+
+const CHANNEL_TITLE: Record<string, string> = {
+  call: "Call",
+  email: "Email",
+  linkedin: "LinkedIn",
+  meeting: "Meeting",
+  other: "Contact attempt",
+};
+
+function buildTimeline({
+  lead,
+  attempts,
+  tasks,
+  assignedUser,
+}: {
+  lead: Record<string, any>;
+  attempts: any[];
+  tasks: any[];
+  assignedUser: any;
+}): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  // Lead created — real timestamp on the record.
+  if (lead?.created_at) {
+    events.push({
+      id: `created-${lead.id}`,
+      at: lead.created_at,
+      title: "Lead created",
+      detail: lead.lead_source ? `Source: ${lead.lead_source}` : undefined,
+      tone: "neutral",
+    });
+  }
+
+  // Assignment — only if we have an actual assigned_at stamp.
+  if (lead?.assigned_at && lead?.assigned_user_id) {
+    events.push({
+      id: `assigned-${lead.assigned_at}`,
+      at: lead.assigned_at,
+      title: "Owner assigned",
+      detail: assignedUser
+        ? `Assigned to ${assignedUser.full_name || assignedUser.email}`
+        : undefined,
+      tone: "primary",
+    });
+  }
+
+  // Contact attempts.
+  for (const a of attempts || []) {
+    const channel = CHANNEL_TITLE[a.channel] || "Contact attempt";
+    const outcome = ATTEMPT_LABEL[a.outcome] || a.outcome;
+    const tone: TimelineEvent["tone"] =
+      a.outcome === "reached" || a.outcome === "replied" || a.outcome === "scheduled"
+        ? "success"
+        : a.outcome === "unreachable" || a.outcome === "bounced"
+        ? "destructive"
+        : "warning";
+    events.push({
+      id: `attempt-${a.id}`,
+      at: a.performed_at,
+      title: `${channel} — ${outcome}`,
+      detail: a.notes || undefined,
+      tone,
+    });
+  }
+
+  // Tasks created and completed.
+  for (const t of tasks || []) {
+    if (t.created_at) {
+      events.push({
+        id: `task-created-${t.id}`,
+        at: t.created_at,
+        title: `Task created: ${t.title}`,
+        detail: t.due_date ? `Due ${t.due_date}` : undefined,
+        tone: "neutral",
+      });
+    }
+    if (t.completed_at) {
+      events.push({
+        id: `task-done-${t.id}`,
+        at: t.completed_at,
+        title: `Task completed: ${t.title}`,
+        tone: "success",
+      });
+    }
+  }
+
+  // Nurture decision (real, only when nurture_until or nurture_reason exist).
+  if (lead?.status === "Nurture" && (lead?.nurture_until || lead?.nurture_reason)) {
+    events.push({
+      id: `nurture-${lead.id}`,
+      at: lead.nurture_until
+        ? new Date(lead.nurture_until + "T00:00:00").toISOString()
+        : lead.last_contact_at || lead.created_at,
+      title: "Moved to nurture",
+      detail: [
+        lead.nurture_reason,
+        lead.nurture_until ? `Follow up on ${lead.nurture_until}` : null,
+      ].filter(Boolean).join(" — "),
+      tone: "warning",
+    });
+  }
+
+  // Disqualified (only if we have a reason recorded).
+  if (lead?.qualification_stage === "Disqualified" && lead?.disqualified_reason) {
+    events.push({
+      id: `disq-${lead.id}`,
+      at: lead.last_contact_at || lead.created_at,
+      title: "Disqualified",
+      detail: lead.disqualified_reason,
+      tone: "destructive",
+    });
+  }
+
+  // Converted to opportunity.
+  if (lead?.converted_to_deal_id) {
+    events.push({
+      id: `conv-${lead.id}`,
+      at: lead.last_contact_at || lead.created_at,
+      title: "Converted to opportunity",
+      tone: "primary",
+    });
+  }
+
+  return events
+    .filter((e) => !!e.at)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
