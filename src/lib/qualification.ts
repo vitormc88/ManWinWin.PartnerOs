@@ -134,18 +134,18 @@ export function timdCompletion(lead: Record<string, any>): {
 export function fitScore(lead: Record<string, any>): {
   score: number;
   total: number;
-  label: "Good Fit" | "Medium Fit" | "Weak Fit";
+  label: "Good Fit" | "Partial Fit" | "Fit pending";
   tone: "success" | "warning" | "destructive";
 } {
   const total = FIT_FACTORS.length;
   const score = FIT_FACTORS.filter((f) => !!lead[f.key]).length;
-  let label: "Good Fit" | "Medium Fit" | "Weak Fit" = "Weak Fit";
-  let tone: "success" | "warning" | "destructive" = "destructive";
+  let label: "Good Fit" | "Partial Fit" | "Fit pending" = "Fit pending";
+  let tone: "success" | "warning" | "destructive" = "warning";
   if (score >= 5) {
     label = "Good Fit";
     tone = "success";
   } else if (score >= 3) {
-    label = "Medium Fit";
+    label = "Partial Fit";
     tone = "warning";
   }
   return { score, total, label, tone };
