@@ -97,7 +97,7 @@ export default function LeadDetail() {
   };
 
   const isConverted = !!draft?.converted_to_deal_id;
-  const stage: QualificationStage = (draft.qualification_stage as QualificationStage) || "New";
+  const stage: QualificationStage = normalizeStage(draft.qualification_stage as any);
 
   const timd = useMemo(() => timdCompletion(draft), [draft]);
   const fit = useMemo(() => fitScore(draft), [draft]);
