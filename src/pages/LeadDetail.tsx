@@ -31,6 +31,8 @@ import { LogContactAttemptDialog } from "@/components/leads/LogContactAttemptDia
 import { DisqualifyLeadDialog } from "@/components/leads/DisqualifyLeadDialog";
 import { MoveToNurtureDialog } from "@/components/leads/MoveToNurtureDialog";
 import { SendEmailDialog } from "@/components/leads/SendEmailDialog";
+import { OutreachIntelligence } from "@/components/leads/OutreachIntelligence";
+import type { PlayKey } from "@/lib/outreach";
 import { useLeadContactAttempts, OUTCOME_LABEL, CHANNEL_LABEL } from "@/hooks/useLeadContactAttempts";
 import { useLeadTasks } from "@/hooks/useLeadTasks";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
@@ -79,6 +81,11 @@ export default function LeadDetail() {
   const [showDisqualify, setShowDisqualify] = useState(false);
   const [showNurture, setShowNurture] = useState(false);
   const [showSendEmail, setShowSendEmail] = useState(false);
+  const [emailPlay, setEmailPlay] = useState<PlayKey | undefined>(undefined);
+  const openSendEmail = (play?: PlayKey) => {
+    setEmailPlay(play);
+    setShowSendEmail(true);
+  };
   const [openTimd, setOpenTimd] = useState<string>("");
 
   const { data: attempts = [] } = useLeadContactAttempts(id);
@@ -303,7 +310,7 @@ export default function LeadDetail() {
             <Button size="sm" variant="outline" className="h-8" onClick={() => setShowLogContact(true)} disabled={isConverted}>
               <CheckSquare className="h-3.5 w-3.5" /> Log activity
             </Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => setShowSendEmail(true)} disabled={!draft.email}>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => openSendEmail()} disabled={!draft.email}>
               <MailPlus className="h-3.5 w-3.5" /> Send email
             </Button>
             <Button size="sm" variant="outline" className="h-8" onClick={() => setShowAddTask(true)} disabled={isConverted}>
@@ -417,6 +424,15 @@ export default function LeadDetail() {
               )}
             </CompactDisclosure>
           </div>
+
+          {/* OUTREACH INTELLIGENCE — distinct from Qualification Assistant.
+              Focus: contact strategy, cadence guidance, plays, micro-discovery. */}
+          <OutreachIntelligence
+            lead={draft}
+            attempts={attempts as any}
+            onSendEmail={(k) => openSendEmail(k)}
+            onLogActivity={() => setShowLogContact(true)}
+          />
 
 
           {/* TABS */}
@@ -1076,6 +1092,8 @@ export default function LeadDetail() {
         to={draft.email}
         contactName={draft.contact_name}
         companyName={draft.company_name}
+        lead={draft}
+        initialPlay={emailPlay}
       />
       <AlertDialog open={showConvertGate} onOpenChange={setShowConvertGate}>
         <AlertDialogContent>

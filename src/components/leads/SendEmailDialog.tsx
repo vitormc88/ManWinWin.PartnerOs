@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MailPlus, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { OUTREACH_PLAYS, type PlayKey, type PlayContext } from "@/lib/outreach";
+import { microDiscoverySuggestions } from "@/lib/outreach";
 
 interface Props {
   open: boolean;
@@ -14,51 +16,40 @@ interface Props {
   to?: string | null;
   contactName?: string | null;
   companyName?: string | null;
+  /** Full lead record to drive contextual play templates (sector, current_process, main_challenge…). */
+  lead?: Record<string, any> | null;
+  /** Pre-select a contextual play (set by Outreach Intelligence). */
+  initialPlay?: PlayKey;
 }
 
-type TemplateKey = "intro" | "followup" | "retry" | "discovery";
-
-const TEMPLATES: Record<TemplateKey, { label: string; subject: (c: string) => string; body: (n: string, c: string) => string }> = {
-  intro: {
-    label: "Intro / first touch",
-    subject: () => "Quick intro regarding maintenance operations",
-    body: (n, c) =>
-      `Hi ${n || "there"},\n\nReaching out briefly about how ${c || "your team"} manages maintenance today. If it's a relevant topic, 15 minutes is usually enough to know whether ManWinWin would be a fit.\n\nWould any time this week work?\n\nBest,`,
-  },
-  followup: {
-    label: "Polite follow-up",
-    subject: () => "Quick follow-up regarding maintenance operations",
-    body: (n, c) =>
-      `Hi ${n || "there"},\n\nCircling back on my previous note. Happy to share a couple of quick examples relevant to ${c || "your sector"} if useful.\n\nIs there a better time to connect?\n\nBest,`,
-  },
-  retry: {
-    label: "After unanswered call",
-    subject: () => "Following up after my earlier call",
-    body: (n) =>
-      `Hi ${n || "there"},\n\nTried reaching you by phone earlier — sending a quick note in case email is easier. A few minutes would be enough to understand how you handle maintenance today and whether we can help.\n\nLet me know what works.\n\nBest,`,
-  },
-  discovery: {
-    label: "Discovery call invite",
-    subject: () => "Maintenance process discussion",
-    body: (n, c) =>
-      `Hi ${n || "there"},\n\nFollowing our exchange, I'd like to schedule a short discovery session to map ${c || "your"} current process, main pain points and decision flow. 30 minutes should be enough.\n\nDoes any of these slots work?\n - \n - \n\nBest,`,
-  },
-};
-
-export function SendEmailDialog({ open, onOpenChange, to, contactName, companyName }: Props) {
-  const [template, setTemplate] = useState<TemplateKey>("intro");
+export function SendEmailDialog({
+  open, onOpenChange, to, contactName, companyName, lead, initialPlay,
+}: Props) {
+  const [play, setPlay] = useState<PlayKey>(initialPlay || "intro");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
 
   useEffect(() => {
-    const t = TEMPLATES[template];
-    setSubject(t.subject(companyName || ""));
-    setBody(t.body(contactName || "", companyName || ""));
-  }, [template, contactName, companyName, open]);
+    if (open && initialPlay) setPlay(initialPlay);
+  }, [open, initialPlay]);
+
+  useEffect(() => {
+    if (!open) return;
+    const tpl = OUTREACH_PLAYS.find((p) => p.key === play);
+    if (!tpl) return;
+    const ctx: PlayContext = {
+      contactName: contactName || lead?.contact_name || null,
+      companyName: companyName || lead?.company_name || null,
+      sector: lead?.sector || null,
+      currentProcess: lead?.current_process || null,
+      mainChallenge: lead?.main_challenge || null,
+      microDiscoveryQuestion: lead ? microDiscoverySuggestions(lead, 1)[0] || null : null,
+    };
+    setSubject(tpl.subject(ctx));
+    setBody(tpl.body(ctx));
+  }, [play, open, contactName, companyName, lead]);
 
   const mailtoHref = () => {
-    // Use encodeURIComponent (spaces → %20) instead of URLSearchParams (spaces → +),
-    // so subjects render as readable text in email clients.
     const parts: string[] = [];
     if (subject) parts.push(`subject=${encodeURIComponent(subject)}`);
     if (body) parts.push(`body=${encodeURIComponent(body)}`);
@@ -71,27 +62,34 @@ export function SendEmailDialog({ open, onOpenChange, to, contactName, companyNa
     toast.success("Email copied to clipboard");
   };
 
+  const currentPlay = OUTREACH_PLAYS.find((p) => p.key === play);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Send email</DialogTitle>
           <DialogDescription className="text-xs">
-            Opens your email client pre-filled. Don't forget to log a contact attempt afterwards.
+            Plays are contextual starting points — edit before sending. Don't forget to log the activity afterwards.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs">Template</Label>
-              <Select value={template} onValueChange={(v) => setTemplate(v as TemplateKey)}>
+              <Label className="text-xs">Outreach play</Label>
+              <Select value={play} onValueChange={(v) => setPlay(v as PlayKey)}>
                 <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {Object.entries(TEMPLATES).map(([k, v]) => (
-                    <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                  {OUTREACH_PLAYS.map((p) => (
+                    <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {currentPlay && (
+                <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+                  {currentPlay.whenToUse}
+                </p>
+              )}
             </div>
             <div>
               <Label className="text-xs">To</Label>
