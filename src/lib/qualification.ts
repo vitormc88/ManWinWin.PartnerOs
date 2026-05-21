@@ -1069,3 +1069,121 @@ export const LEAD_TASK_TEMPLATES: LeadTaskTemplate[] = [
   },
 ];
 
+/* =====================================================================
+ * WAITING STATE INTELLIGENCE — not every inactive lead is unhealthy.
+ * Distinguishes legitimate "waiting" situations from real inactivity.
+ * ===================================================================== */
+export type WaitingState = {
+  label:
+    | "Waiting for customer reply"
+    | "Discovery scheduled"
+    | "Follow-up scheduled"
+    | "Nurturing — revisit later"
+    | "Waiting on internal validation";
+  hint: string;
+  tone: "neutral" | "positive";
+};
+
+export function waitingState(
+  lead: Record<string, any>,
+  attempts: AttemptLike[],
+  tasks: TaskLike[],
+): WaitingState | null {
+  const c = attemptCounts(attempts);
+  const last = attempts[0];
+  const reached = c.replied > 0;
+  const hSinceLast = last?.performed_at
+    ? Math.round((Date.now() - new Date(last.performed_at).getTime()) / 36e5)
+    : null;
+
+  if (last?.outcome === "scheduled") {
+    return {
+      label: "Discovery scheduled",
+      hint: "Meeting is on the books — prep, don't push.",
+      tone: "positive",
+    };
+  }
+  if (reached && hSinceLast !== null && hSinceLast < 72) {
+    return {
+      label: "Waiting for customer reply",
+      hint: `Last reply ${hSinceLast}h ago — give it room before nudging.`,
+      tone: "neutral",
+    };
+  }
+  const openTasks = (tasks || []).filter((t) => t.status !== "Done" && t.due_date);
+  const nextTask = openTasks
+    .slice()
+    .sort((a, b) => new Date(a.due_date!).getTime() - new Date(b.due_date!).getTime())[0];
+  if (nextTask?.due_date) {
+    const hUntil = Math.round((new Date(nextTask.due_date).getTime() - Date.now()) / 36e5);
+    if (hUntil >= 0 && hUntil < 96) {
+      return {
+        label: "Follow-up scheduled",
+        hint: hUntil < 24 ? `Task due in ${Math.max(1, hUntil)}h.` : `Task due in ${Math.round(hUntil / 24)}d.`,
+        tone: "neutral",
+      };
+    }
+  }
+  if (lead?.status === "Nurture" && (lead as any).nurture_until) {
+    const days = Math.round((new Date((lead as any).nurture_until).getTime() - Date.now()) / 86400000);
+    if (days > 0) {
+      return {
+        label: "Nurturing — revisit later",
+        hint: `Planned revisit in ${days}d.`,
+        tone: "neutral",
+      };
+    }
+  }
+  return null;
+}
+
+/* =====================================================================
+ * NURTURE INTELLIGENCE — make moving to nurture feel strategic.
+ * ===================================================================== */
+export type NurturePreset = {
+  key: string;
+  label: string;
+  description: string;
+  revisitDays: number;
+  angle: string;
+};
+
+export const NURTURE_PRESETS: NurturePreset[] = [
+  {
+    key: "timing",
+    label: "Timing mismatch",
+    description: "Right fit, wrong moment — project window not open yet.",
+    revisitDays: 60,
+    angle: "Light check-in when the project window opens.",
+  },
+  {
+    key: "budget",
+    label: "Budget cycle",
+    description: "Budget not allocated for this cycle.",
+    revisitDays: 90,
+    angle: "Re-engage close to next fiscal planning.",
+  },
+  {
+    key: "no_project",
+    label: "No active project",
+    description: "Interested in principle, nothing concrete on the table.",
+    revisitDays: 120,
+    angle: "Stay visible quarterly — share relevant operational content.",
+  },
+  {
+    key: "priority",
+    label: "Lower priority right now",
+    description: "Other internal priorities are competing for attention.",
+    revisitDays: 45,
+    angle: "Short async touch in 6 weeks — no pressure.",
+  },
+  {
+    key: "future",
+    label: "Future opportunity",
+    description: "Plausible long-term fit — worth keeping warm.",
+    revisitDays: 90,
+    angle: "Maintain a light cadence to stay top of mind.",
+  },
+];
+
+
