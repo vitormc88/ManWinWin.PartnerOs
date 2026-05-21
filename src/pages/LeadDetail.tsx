@@ -318,14 +318,29 @@ export default function LeadDetail() {
             ) : (
               <span className="text-muted-foreground">· no activity yet</span>
             )}
-            <Badge className={cn(
-              "gap-1 text-[10px] h-5 px-1.5 border",
-              sla.bucket === "healthy" && "bg-success/10 text-success border-success/30",
-              sla.bucket === "warning" && "bg-warning/15 text-warning-foreground border-warning/30",
-              sla.bucket === "critical" && "bg-destructive/10 text-destructive border-destructive/30",
-            )}>
-              <Clock className="h-2.5 w-2.5" /> {sla.label}
-            </Badge>
+            {waiting ? (
+              <Badge
+                className={cn(
+                  "gap-1 text-[10px] h-5 px-1.5 border",
+                  waiting.tone === "positive"
+                    ? "bg-success/10 text-success border-success/30"
+                    : "bg-muted text-muted-foreground border-border",
+                )}
+                title={waiting.hint}
+              >
+                <Hourglass className="h-2.5 w-2.5" /> {waiting.label}
+              </Badge>
+            ) : (
+              <Badge className={cn(
+                "gap-1 text-[10px] h-5 px-1.5 border",
+                sla.bucket === "healthy" && "bg-success/10 text-success border-success/30",
+                sla.bucket === "warning" && "bg-warning/15 text-warning-foreground border-warning/30",
+                sla.bucket === "critical" && "bg-destructive/10 text-destructive border-destructive/30",
+              )}>
+                <Clock className="h-2.5 w-2.5" /> {sla.label}
+              </Badge>
+            )}
+
             <div className="flex-1" />
             <span className="inline-flex items-center gap-1.5 text-foreground">
               <Target className="h-3 w-3 text-primary" />
