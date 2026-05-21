@@ -771,12 +771,12 @@ export function cadenceGuidance(attempts: AttemptLike[]): {
 
   if (counts.total === 1) {
     return {
-      step: "First attempt logged",
+      step: "First outreach logged — no response yet",
       tone: "neutral",
       suggestions: [
         "Retry in 2 days at a different time window",
-        "Send a short intro email between calls",
-        "Try the company main line if direct number failed",
+        "Send a short email with one or two operational questions",
+        "Try the company main line if the direct number failed",
       ],
     };
   }
