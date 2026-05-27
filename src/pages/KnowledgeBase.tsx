@@ -810,8 +810,8 @@ function DocumentDialog({ open, onOpenChange, editing, categories, onCreate, onU
       setUploading(false);
       return;
     }
-    const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
-    setFileUrl(urlData.publicUrl);
+    // Store the storage path; the bucket is private and we sign URLs on read.
+    setFileUrl(path);
     setFileType(ext);
     setFileName(file.name);
     setUploading(false);
@@ -936,12 +936,11 @@ function BulkUploadDialog({ open, onOpenChange, categories, onComplete }: {
       const path = `kb/${Date.now()}_${file.name}`;
       const { error: uploadError } = await supabase.storage.from("documents").upload(path, file);
       if (uploadError) { failCount++; setProgress(((i + 1) / files.length) * 100); continue; }
-      const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
       const title = file.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
       try {
         await new Promise<void>((resolve) => {
           createDocument.mutate({
-            title, file_url: urlData.publicUrl, file_type: ext, file_name: file.name,
+            title, file_url: path, file_type: ext, file_name: file.name,
             file_size_bytes: file.size, category_id: categoryId || undefined, visibility_scope: visibility,
           }, { onSuccess: () => { successCount++; resolve(); }, onError: () => { failCount++; resolve(); } });
         });
