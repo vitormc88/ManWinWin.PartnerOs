@@ -165,6 +165,7 @@ export async function signFileUrl(
     .createSignedUrl(ref.extractedObjectPath, expiresInSeconds);
 
   if (error || !data) {
+    const storageError = error as { code?: string | null; message?: string | null } | null;
     if (debugOptions?.context === "knowledge-base") {
       console.error("[KB-DIAG] signFileUrl:error", {
         context: debugOptions.context,
@@ -173,15 +174,15 @@ export async function signFileUrl(
         success: false,
         extractedBucket: ref.extractedBucket,
         extractedObjectPath: ref.extractedObjectPath,
-        storageErrorCode: error?.code ?? null,
-        storageErrorMessage: error?.message ?? null,
-        likelyCause: classifyStorageSignError(error),
+        storageErrorCode: storageError?.code ?? null,
+        storageErrorMessage: storageError?.message ?? null,
+        likelyCause: classifyStorageSignError(storageError),
       });
     } else {
       console.error("[signFileUrl] createSignedUrl failed", {
         bucket: ref.extractedBucket,
         path: ref.extractedObjectPath,
-        error,
+        error: storageError,
       });
     }
     return null;
