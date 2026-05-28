@@ -11,7 +11,7 @@ import {
   useDeleteDocument,
 } from "@/hooks/useKnowledgeBase";
 import { supabase } from "@/integrations/supabase/client";
-import { signFileUrl } from "@/lib/storage-url";
+import { extractStorageReference, signFileUrl } from "@/lib/storage-url";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,7 +89,7 @@ function getFileTypeVariant(fileType: string | null): "default" | "secondary" | 
 }
 
 export default function KnowledgeBase() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user, profile, roles } = useAuth();
   const { data: categories = [], isLoading: catLoading } = useCategories();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const { data: documents = [], isLoading: docLoading } = useDocuments(selectedCategoryId);
@@ -139,6 +139,27 @@ export default function KnowledgeBase() {
   });
 
   const selectedCategory = categories.find((c: any) => c.id === selectedCategoryId);
+
+  const logKbAccessAttempt = useCallback((action: "preview" | "download", doc: any) => {
+    const ref = extractStorageReference("documents", doc?.file_url || "");
+    console.info("[KB-DIAG] attempt", {
+      action,
+      currentAuthUserId: user?.id ?? null,
+      profileRoles: roles,
+      profileIsHq: profile?.is_hq ?? null,
+      profilePartnerId: profile?.partner_id ?? null,
+      documentId: doc?.id ?? null,
+      documentTitle: doc?.title ?? null,
+      documentVisibilityScope: doc?.visibility_scope ?? null,
+      documentPartnerId: doc?.partner_id ?? null,
+      storedFileUrl: doc?.file_url ?? null,
+      storedFilePath: doc?.file_path ?? null,
+      storedFileName: doc?.file_name ?? null,
+      extractedBucket: ref.extractedBucket,
+      extractedObjectPath: ref.extractedObjectPath,
+      referenceParseError: ref.parseError,
+    });
+  }, [profile?.is_hq, profile?.partner_id, roles, user?.id]);
 
   // Find which accordion value should be open based on selected category
   const getAccordionDefault = () => {
@@ -582,8 +603,14 @@ export default function KnowledgeBase() {
   );
 
   async function handleOpenDoc(doc: any) {
+    logKbAccessAttempt("preview", doc);
     if (!doc.file_url) {
-      console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
+      console.error("[KB-DIAG] missing-file-reference", {
+        action: "preview",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+      });
       toast({ title: "File unavailable", description: "This document has no file or link reference.", variant: "destructive" });
       return;
     }
@@ -598,13 +625,33 @@ export default function KnowledgeBase() {
       setPreviewLoading(true);
       setPreviewBlobUrl(null);
       try {
-        const signed = await signFileUrl("documents", doc.file_url);
+        const signed = await signFileUrl("documents", doc.file_url, 60 * 60, {
+          context: "knowledge-base",
+          action: "preview",
+          documentId: doc.id,
+        });
         if (!signed) throw new Error("Could not sign URL");
         const res = await fetch(signed);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
         setPreviewBlobUrl(URL.createObjectURL(blob));
       } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const likelyCause = message.includes("HTTP 404")
+          ? "likely_object_not_found_after_signing"
+          : message.includes("HTTP 401") || message.includes("HTTP 403")
+            ? "likely_signed_url_access_denied"
+            : message === "Could not sign URL"
+              ? "signing_failed_check_signFileUrl_error"
+              : "unknown";
+        console.error("[KB-DIAG] fetch:error", {
+          action: "preview",
+          currentAuthUserId: user?.id ?? null,
+          documentId: doc?.id ?? null,
+          documentTitle: doc?.title ?? null,
+          fetchErrorMessage: message,
+          likelyCause,
+        });
         console.error("[KnowledgeBase] PDF fetch failed:", err);
         toast({ title: "Preview unavailable", description: "Could not load preview. Try downloading instead.", variant: "destructive" });
         setPreviewDoc(null);
@@ -618,13 +665,23 @@ export default function KnowledgeBase() {
   }
 
   async function handleDownloadDoc(doc: any) {
+    logKbAccessAttempt("download", doc);
     if (!doc.file_url) {
-      console.error("[KnowledgeBase] Document missing file_url:", doc.id, doc.title);
+      console.error("[KB-DIAG] missing-file-reference", {
+        action: "download",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+      });
       toast({ title: "File unavailable", description: "This document has no file reference.", variant: "destructive" });
       return;
     }
     try {
-      const signed = await signFileUrl("documents", doc.file_url);
+      const signed = await signFileUrl("documents", doc.file_url, 60 * 60, {
+        context: "knowledge-base",
+        action: "download",
+        documentId: doc.id,
+      });
       if (!signed) throw new Error("Could not sign URL");
       const res = await fetch(signed);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -638,6 +695,22 @@ export default function KnowledgeBase() {
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      const likelyCause = message.includes("HTTP 404")
+        ? "likely_object_not_found_after_signing"
+        : message.includes("HTTP 401") || message.includes("HTTP 403")
+          ? "likely_signed_url_access_denied"
+          : message === "Could not sign URL"
+            ? "signing_failed_check_signFileUrl_error"
+            : "unknown";
+      console.error("[KB-DIAG] fetch:error", {
+        action: "download",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+        fetchErrorMessage: message,
+        likelyCause,
+      });
       console.error("[KnowledgeBase] Download failed:", err);
       toast({ title: "Download failed", description: "This document could not be downloaded. Please try again.", variant: "destructive" });
     }
