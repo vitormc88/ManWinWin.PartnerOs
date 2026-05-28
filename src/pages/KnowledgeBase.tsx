@@ -152,6 +152,8 @@ export default function KnowledgeBase() {
       documentTitle: doc?.title ?? null,
       documentVisibilityScope: doc?.visibility_scope ?? null,
       documentPartnerId: doc?.partner_id ?? null,
+      originalStoredReference: doc?.file_url ?? null,
+      detectedLegacyPublicUrl: ref.isLegacyPublicUrl,
       storedFileUrl: doc?.file_url ?? null,
       storedFilePath: doc?.file_path ?? null,
       storedFileName: doc?.file_name ?? null,
@@ -616,6 +618,14 @@ export default function KnowledgeBase() {
     }
     const isLink = doc.file_type === "link";
     if (isLink) {
+      console.info("[KB-DIAG] link-open", {
+        action: "preview",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+        finalUrlUsedByFrontend: doc.file_url,
+        finalUrlStillUsesPublicObjectEndpoint: doc.file_url.includes("/storage/v1/object/public/"),
+      });
       window.open(doc.file_url, "_blank", "noopener,noreferrer");
       return;
     }
@@ -631,6 +641,14 @@ export default function KnowledgeBase() {
           documentId: doc.id,
         });
         if (!signed) throw new Error("Could not sign URL");
+        console.info("[KB-DIAG] frontend-url", {
+          action: "preview",
+          currentAuthUserId: user?.id ?? null,
+          documentId: doc?.id ?? null,
+          documentTitle: doc?.title ?? null,
+          finalUrlUsedByFrontend: signed,
+          finalUrlStillUsesPublicObjectEndpoint: signed.includes("/storage/v1/object/public/"),
+        });
         const res = await fetch(signed);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
@@ -683,6 +701,14 @@ export default function KnowledgeBase() {
         documentId: doc.id,
       });
       if (!signed) throw new Error("Could not sign URL");
+      console.info("[KB-DIAG] frontend-url", {
+        action: "download",
+        currentAuthUserId: user?.id ?? null,
+        documentId: doc?.id ?? null,
+        documentTitle: doc?.title ?? null,
+        finalUrlUsedByFrontend: signed,
+        finalUrlStillUsesPublicObjectEndpoint: signed.includes("/storage/v1/object/public/"),
+      });
       const res = await fetch(signed);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
