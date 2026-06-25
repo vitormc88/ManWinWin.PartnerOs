@@ -5,14 +5,15 @@
 import type { PartnerNote, ActionItem } from "@/hooks/usePartnerNotes";
 
 export type Momentum =
+  | "New"
+  | "Building"
   | "Accelerating"
   | "Growing"
   | "Stable"
   | "Slowing"
   | "Dormant"
-  | "At Risk"
   | "Recovering"
-  | "New";
+  | "At Risk";
 
 export type Confidence = "High" | "Medium" | "Low";
 
