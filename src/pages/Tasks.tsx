@@ -680,8 +680,18 @@ function TaskGroup({
 
 /* ---------- Create manual task dialog ---------- */
 
-function CreateTaskDialog() {
-  const [open, setOpen] = useState(false);
+function CreateTaskDialog({
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  open?: boolean;
+  onOpenChange?: (o: boolean) => void;
+} = {}) {
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (o: boolean) => {
+    onOpenChange ? onOpenChange(o) : setInternalOpen(o);
+  };
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
