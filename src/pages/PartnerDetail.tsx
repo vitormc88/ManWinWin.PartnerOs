@@ -487,35 +487,13 @@ export default function PartnerDetail() {
             </div>
           ) : (
             <div className="relative space-y-4 before:content-[''] before:absolute before:left-3 before:top-2 before:bottom-2 before:w-px before:bg-border">
-              {notes.map(n => {
-                const typeColor = n.note_type === "Meeting" ? "bg-primary" : n.note_type === "Follow-up" ? "bg-warning" : "bg-muted-foreground";
-                const badgeVariant: any = n.note_type === "Meeting" ? "default" : n.note_type === "Follow-up" ? "warning" : "secondary";
-                return (
-                  <div key={n.id} className="relative pl-9">
-                    <span className={`absolute left-2 top-3 h-3 w-3 rounded-full ring-4 ring-background ${typeColor}`} />
-                    <div className="bg-card rounded-xl border shadow-sm p-4 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs text-muted-foreground tabular-nums">{fmtDateTime(n.created_at)}</span>
-                          <span className="text-xs text-muted-foreground">·</span>
-                          <span className="text-xs font-medium text-foreground">{n.author_name || "Unknown"}</span>
-                          <Badge variant={badgeVariant} className="text-[10px]">{n.note_type}</Badge>
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteNote.mutate({ id: n.id, partner_id: partner.id })}>
-                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      </div>
-                      <p className="text-sm text-foreground whitespace-pre-wrap">{n.content}</p>
-                      {n.next_actions && (
-                        <div className="mt-2 rounded-md bg-secondary/50 border p-2.5">
-                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Next actions</p>
-                          <p className="text-sm text-foreground whitespace-pre-wrap">{n.next_actions}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {notes.map(n => (
+                <RelationshipTimelineEntry
+                  key={n.id}
+                  note={n}
+                  onDelete={() => deleteNote.mutate({ id: n.id, partner_id: partner.id })}
+                />
+              ))}
             </div>
           )}
         </TabsContent>
