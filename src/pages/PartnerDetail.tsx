@@ -311,8 +311,8 @@ export default function PartnerDetail() {
       </div>
 
       <Tabs defaultValue="overview" className="animate-reveal-up stagger-2">
-        <div className="border-b border-border">
-          <TabsList className="h-auto p-0 bg-transparent gap-6 rounded-none w-full justify-start overflow-x-auto">
+        <div className="sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
+          <TabsList className="h-12 p-0 bg-transparent gap-1 rounded-none w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
             {[
               ["overview", "Overview", null],
               ["relationship", "Relationship", notes.length],
@@ -324,18 +324,20 @@ export default function PartnerDetail() {
               <TabsTrigger
                 key={value as string}
                 value={value as string}
-                className="relative h-10 px-0 rounded-none bg-transparent border-0 shadow-none text-sm font-medium text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:left-0 data-[state=active]:after:right-0 data-[state=active]:after:-bottom-px data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary"
+                className="group relative h-12 px-3 shrink-0 rounded-none bg-transparent border-0 shadow-none text-sm font-normal text-muted-foreground transition-colors hover:text-foreground/80 data-[state=active]:text-foreground data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:after:content-[''] data-[state=active]:after:absolute data-[state=active]:after:left-3 data-[state=active]:after:right-3 data-[state=active]:after:-bottom-px data-[state=active]:after:h-[2px] data-[state=active]:after:bg-primary data-[state=active]:after:rounded-full"
               >
-                {label}
+                <span>{label}</span>
                 {count !== null && (
-                  <span className="ml-1.5 text-[11px] text-muted-foreground/80 tabular-nums">({count as number})</span>
+                  <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-muted text-[11px] font-medium text-muted-foreground tabular-nums group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary">
+                    {count as number}
+                  </span>
                 )}
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
 
-        <TabsContent value="overview" className="mt-6 space-y-5">
+        <TabsContent value="overview" className="mt-6 animate-fade-in space-y-5">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             {/* Partner Profile — compact executive profile */}
             <aside className="lg:col-span-4 space-y-4">
@@ -583,7 +585,7 @@ export default function PartnerDetail() {
         </TabsContent>
 
 
-        <TabsContent value="relationship" className="mt-5 space-y-4">
+        <TabsContent value="relationship" className="mt-5 animate-fade-in space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">Meeting notes, follow-ups, and relationship history.</p>
             <Button size="sm" onClick={() => setShowAddNote(true)}><Plus className="h-4 w-4 mr-1.5" /> New Entry</Button>
@@ -607,7 +609,7 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="clients" className="mt-5 space-y-3">
+        <TabsContent value="clients" className="mt-5 animate-fade-in space-y-3">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowAddClient(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Client</Button>
           </div>
@@ -641,7 +643,7 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="leads" className="mt-5 space-y-3">
+        <TabsContent value="leads" className="mt-5 animate-fade-in space-y-3">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowCreateLead(true)}><Plus className="h-4 w-4 mr-1.5" /> New Lead</Button>
           </div>
@@ -680,7 +682,7 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="renewals" className="mt-5 space-y-3">
+        <TabsContent value="renewals" className="mt-5 animate-fade-in space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{partnerRenewals.length} renewal{partnerRenewals.length === 1 ? "" : "s"} {expiredRenewalsCount > 0 && <span className="text-destructive font-medium">· {expiredRenewalsCount} expired</span>}</p>
             <Button size="sm" onClick={() => setShowAddRenewal(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Renewal</Button>
@@ -741,7 +743,7 @@ export default function PartnerDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="certifications" className="mt-5 space-y-3">
+        <TabsContent value="certifications" className="mt-5 animate-fade-in space-y-3">
           <div className="flex justify-end">
             <Button size="sm" onClick={() => setShowAddCert(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Certification</Button>
           </div>
