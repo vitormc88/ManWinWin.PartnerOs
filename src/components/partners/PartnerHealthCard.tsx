@@ -1,32 +1,30 @@
 import { Info, Check, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import type { HealthFactor } from "@/lib/partner-health-config";
+import type { BusinessFactor } from "@/lib/partner-health-narrative";
 import { healthBand } from "@/lib/partner-health-config";
 
 interface PartnerHealthCardProps {
   score: number;
-  factors?: HealthFactor[];
-  /** Backward-compatible plain text fallbacks. */
-  positiveFactors?: string[];
-  negativeFactors?: string[];
+  summary: string;
+  factors: BusinessFactor[];
 }
 
 const IMPACT_RANK: Record<string, number> = { high: 3, medium: 2, low: 1 };
+const DIM_RANK: Record<string, number> = { relationship: 3, momentum: 2, engagement: 1 };
 
-function rank(factors: HealthFactor[], type: "positive" | "negative", max = 3) {
+function rank(factors: BusinessFactor[], type: "positive" | "negative", max = 3) {
   return [...factors]
     .filter((f) => f.type === type)
-    .sort((a, b) => (IMPACT_RANK[b.impact] ?? 0) - (IMPACT_RANK[a.impact] ?? 0))
+    .sort((a, b) => {
+      const i = (IMPACT_RANK[b.impact] ?? 0) - (IMPACT_RANK[a.impact] ?? 0);
+      if (i !== 0) return i;
+      return (DIM_RANK[b.dimension] ?? 0) - (DIM_RANK[a.dimension] ?? 0);
+    })
     .slice(0, max);
 }
 
-export function PartnerHealthCard({
-  score,
-  factors = [],
-  positiveFactors = [],
-  negativeFactors = [],
-}: PartnerHealthCardProps) {
+export function PartnerHealthCard({ score, summary, factors }: PartnerHealthCardProps) {
   const band = healthBand(score);
   const label = band === "healthy" ? "Healthy" : band === "moderate" ? "Moderate" : "At Risk";
   const color =
@@ -38,14 +36,6 @@ export function PartnerHealthCard({
 
   const positives = rank(factors, "positive");
   const negatives = rank(factors, "negative");
-
-  // Fallback to plain text arrays when structured factors are absent.
-  const positiveLabels = positives.length
-    ? positives.map((f) => f.label)
-    : positiveFactors.slice(0, 3);
-  const negativeLabels = negatives.length
-    ? negatives.map((f) => f.label)
-    : negativeFactors.slice(0, 3);
 
   return (
     <div className="bg-card rounded-xl border shadow-sm p-5 space-y-5">
@@ -61,10 +51,11 @@ export function PartnerHealthCard({
                 </button>
               </TooltipTrigger>
               <TooltipContent className="max-w-xs text-xs leading-relaxed">
-                Partner Health reflects the overall strength of this partnership.
-                It combines relationship quality, business momentum and
-                operational engagement, and updates continuously as the
-                partnership evolves.
+                Partner Health reflects the overall strength of this partnership by
+                considering relationship quality, commercial momentum and
+                operational engagement. Its purpose is to help identify where
+                attention should be focused to build stronger and more successful
+                partnerships.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -85,13 +76,18 @@ export function PartnerHealthCard({
             style={{ width: `${Math.max(0, Math.min(100, score))}%`, backgroundColor: color }}
           />
         </div>
+
+        {/* ── Business narrative summary ─────────────────────────── */}
+        {summary && (
+          <p className="text-sm text-foreground/90 leading-snug pt-1">{summary}</p>
+        )}
       </div>
 
       {/* ── What's helping ───────────────────────────────────────── */}
       <FactorSection
         title="What's helping"
         tone="positive"
-        items={positiveLabels}
+        items={positives.map((f) => f.label)}
         emptyText="No strong positive indicators yet."
       />
 
@@ -99,7 +95,7 @@ export function PartnerHealthCard({
       <FactorSection
         title="Needs attention"
         tone="negative"
-        items={negativeLabels}
+        items={negatives.map((f) => f.label)}
         emptyText="No immediate concerns detected."
       />
 
