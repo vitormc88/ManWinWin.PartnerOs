@@ -27,6 +27,7 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { COUNTRY_NAME_BY_CODE } from "@/data/iso-countries";
 import { PartnerHealthCard } from "@/components/partners/PartnerHealthCard";
+import { buildPartnerNarrative } from "@/lib/partner-health-narrative";
 
 const fmt = (d?: string | null) => d ? new Date(d).toLocaleDateString() : "—";
 const fmtDateTime = (d?: string | null) => d ? new Date(d).toLocaleString() : "—";
@@ -348,12 +349,36 @@ export default function PartnerDetail() {
             </div>
 
             <div className="space-y-5">
-              <PartnerHealthCard
-                score={score}
-                factors={metrics?.factors}
-                positiveFactors={metrics?.positive_factors}
-                negativeFactors={metrics?.negative_factors}
-              />
+              {(() => {
+                const narrative = buildPartnerNarrative({
+                  score,
+                  maturity: metrics?.maturity,
+                  partner: {
+                    onboarding_status: partner.onboarding_status,
+                    next_meeting_date: (partner as any).next_meeting_date,
+                    last_meeting_date: (partner as any).last_meeting_date,
+                    account_owner_id: (partner as any).account_owner_id,
+                    assigned_manager_id: (partner as any).assigned_manager_id,
+                  },
+                  clients,
+                  deals,
+                  notes,
+                  leadsOpen: openDeals.length,
+                  renewalsUpcoming: partnerRenewals.filter((r: any) => {
+                    if (!r.renewal_date) return false;
+                    const days = (new Date(r.renewal_date).getTime() - Date.now()) / 86400000;
+                    return days >= 0 && days <= 120 && r.status !== "Completed";
+                  }).length,
+                });
+                return (
+                  <PartnerHealthCard
+                    score={score}
+                    summary={narrative.summary}
+                    factors={narrative.factors}
+                  />
+                );
+              })()}
+
 
               <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
                 <div className="flex items-center justify-between">
