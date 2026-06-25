@@ -5,14 +5,15 @@
 import type { PartnerNote, ActionItem } from "@/hooks/usePartnerNotes";
 
 export type Momentum =
+  | "New"
+  | "Building"
   | "Accelerating"
   | "Growing"
   | "Stable"
   | "Slowing"
   | "Dormant"
-  | "At Risk"
   | "Recovering"
-  | "New";
+  | "At Risk";
 
 export type Confidence = "High" | "Medium" | "Low";
 
@@ -217,6 +218,10 @@ function buildMomentumContext(input: BriefInput): MomentumContext {
 
 function classifyMomentum(c: MomentumContext): { momentum: Momentum; hint: string } {
   if (c.maturity === "new") return { momentum: "New", hint: "Partnership recently established." };
+  if (c.maturity === "onboarding") {
+    return { momentum: "Building", hint: "Partnership is being established — history still developing." };
+  }
+
 
   // Dormant: long silence and no commercial signal.
   if (c.daysSinceContact > 120 && !c.hasOpenPipeline && c.recentWins90 === 0 && c.newDeals60 === 0) {
@@ -451,6 +456,7 @@ function buildExecutiveSummary(args: {
     Dormant: "Partnership has gone quiet and is not currently producing business.",
     "At Risk": "Partnership is showing signs of deterioration that need attention.",
     New: "Partnership is in its early phase and still taking shape.",
+    Building: "Partnership is being established and commercial history is still developing.",
   };
   lines.push(posture[momentum]);
 
@@ -493,6 +499,83 @@ function buildExecutiveSummary(args: {
   return lines.slice(0, 5).join(" ");
 }
 
+// ───────────────────────────────────────────────────────────────── Insufficient data
+// Distinguishes "missing information" from "negative information" so newly
+// created partners are never reported as At Risk just because history is thin.
+function hasInsufficientHistory(input: BriefInput): boolean {
+  const notes = input.notes || [];
+  const deals = input.deals || [];
+  const clients = input.clients || [];
+  const maturity = (input.maturity || "").toLowerCase();
+  const ageDays = daysAgo(input.partner.created_at);
+  const totalSignals = notes.length + deals.length + clients.length;
+  const notes90 = notes.filter((n) => daysAgo(n.interaction_date || n.created_at) <= 90).length;
+
+  if (maturity === "new") return true;
+  if (maturity === "onboarding" && totalSignals < 4) return true;
+  if (totalSignals === 0) return true;
+  // Thin history on a recently created partner: not enough to judge trends.
+  if (ageDays <= 60 && notes90 < 2 && deals.length < 2) return true;
+  return false;
+}
+
+function buildNeutralSignals(input: BriefInput): BusinessSignal[] {
+  const notes = input.notes || [];
+  const deals = input.deals || [];
+  const clients = input.clients || [];
+  const out: BusinessSignal[] = [];
+
+  if (notes.length === 0 && deals.length === 0 && clients.length === 0) {
+    out.push({ label: "Relationship recently created — no interactions logged yet.", tone: "neutral" });
+  } else {
+    out.push({ label: "First interactions being established.", tone: "neutral" });
+  }
+  if (deals.length === 0) {
+    out.push({ label: "Commercial history still developing.", tone: "neutral" });
+  } else if (deals.length < 2) {
+    out.push({ label: "Early commercial activity — no historical trend available yet.", tone: "neutral" });
+  }
+  if (clients.length === 0) {
+    out.push({ label: "No customers registered yet under this partner.", tone: "neutral" });
+  }
+  return out.slice(0, 4);
+}
+
+function buildOnboardingRecommendation(input: BriefInput): StrategicRecommendation {
+  const notes = input.notes || [];
+  const deals = input.deals || [];
+  const clients = input.clients || [];
+
+  if (notes.length === 0) {
+    return {
+      title: "Capture first structured interaction",
+      rationale: "Log an initial meeting to start building relationship history.",
+    };
+  }
+  if (!input.partner.next_meeting_date) {
+    return {
+      title: "Establish operating cadence",
+      rationale: "Schedule a recurring touchpoint to anchor the partnership rhythm.",
+    };
+  }
+  if (deals.length === 0) {
+    return {
+      title: "Register first customer opportunity",
+      rationale: "Initial pipeline creates a foundation for commercial assessment.",
+    };
+  }
+  if (clients.length === 0) {
+    return {
+      title: "Convert first reference customer",
+      rationale: "A beachhead account anchors the partnership commercially.",
+    };
+  }
+  return {
+    title: "Schedule first quarterly review",
+    rationale: "Set a structured checkpoint to consolidate early progress.",
+  };
+}
+
 // ───────────────────────────────────────────────────────────────── Entry
 export function buildPartnerBrief(input: BriefInput): BriefData {
   const notes = input.notes || [];
@@ -500,27 +583,32 @@ export function buildPartnerBrief(input: BriefInput): BriefData {
   const clients = input.clients || [];
   const maturity = (input.maturity || "").toLowerCase();
 
-  const isNew =
-    (maturity === "new" && notes.length === 0 && deals.length === 0 && clients.length === 0) ||
-    (notes.length === 0 && deals.length === 0 && clients.length === 0);
-
-  if (isNew) {
+  // Insufficient-data mode: avoid confusing absence of evidence with evidence of problems.
+  if (hasInsufficientHistory(input)) {
+    const momentum: Momentum = maturity === "new" || (notes.length + deals.length + clients.length) === 0 ? "New" : "Building";
+    const hint =
+      momentum === "New"
+        ? "Partnership recently created — no momentum to assess yet."
+        : "Partnership is being established — history still developing.";
+    const summaryParts = [
+      momentum === "New"
+        ? "Partnership recently established."
+        : "Partnership is in its early phase and commercial history is still developing.",
+      "Insufficient historical activity to determine long-term relationship health.",
+      "Continue recording meetings, opportunities and commercial interactions before producing strategic conclusions.",
+    ];
     return {
-      isNew: true,
-      summary:
-        "Partnership is newly established. Continue onboarding activities and begin documenting interactions to enable a meaningful assessment.",
-      momentum: "New",
-      momentumHint: "Not enough history yet to assess momentum.",
+      isNew: momentum === "New",
+      summary: summaryParts.join(" "),
+      momentum,
+      momentumHint: hint,
       confidence: "Low",
-      confidenceReason: "No interactions, deals or customers recorded yet.",
-      signals: [],
-      recommendation: {
-        title: "Establish operating cadence",
-        rationale: "Set up a recurring touchpoint and capture the first structured interaction.",
-      },
-      currentFocus: [],
-      openCommitments: [],
-      recentProgress: [],
+      confidenceReason: "Limited historical activity — assessment will improve as data accumulates.",
+      signals: buildNeutralSignals(input),
+      recommendation: buildOnboardingRecommendation(input),
+      currentFocus: extractCurrentFocus(notes),
+      openCommitments: extractOpenCommitments(notes),
+      recentProgress: extractRecentProgress(input),
     };
   }
 
@@ -551,3 +639,4 @@ export function buildPartnerBrief(input: BriefInput): BriefData {
     recentProgress: extractRecentProgress(input),
   };
 }
+

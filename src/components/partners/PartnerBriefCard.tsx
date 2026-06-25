@@ -31,6 +31,7 @@ const MOMENTUM_META: Record<Momentum, { label: string; icon: typeof TrendingUp; 
   Dormant: { label: "Dormant", icon: Moon, className: "bg-muted text-muted-foreground border-border" },
   "At Risk": { label: "At Risk", icon: AlertOctagon, className: "bg-destructive/10 text-destructive border-destructive/30" },
   New: { label: "New", icon: Sparkles, className: "bg-muted text-muted-foreground border-border" },
+  Building: { label: "Building", icon: Sparkles, className: "bg-info/10 text-info border-info/20" },
 };
 
 const CONFIDENCE_META: Record<BriefData["confidence"], string> = {
