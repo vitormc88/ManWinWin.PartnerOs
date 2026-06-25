@@ -249,25 +249,38 @@ function TaskRow({ task }: { task: UnifiedTask }) {
   };
 
   return (
-    <div className="flex items-start gap-3 px-4 py-3 hover:bg-muted/40 transition-colors group">
+    <div className="relative flex items-start gap-3 pl-4 pr-4 py-3 hover:bg-muted/40 transition-colors group">
+      <span
+        aria-hidden
+        className={cn(
+          "absolute left-0 top-0 bottom-0 w-[3px]",
+          PRIORITY_ACCENT[task.priority],
+        )}
+      />
       <button
         onClick={handleComplete}
-        title="Mark complete"
-        className="mt-0.5 h-5 w-5 rounded border border-input flex items-center justify-center hover:bg-emerald-50 hover:border-emerald-400"
+        title={`Mark complete · Priority: ${task.priority}`}
+        className="mt-0.5 h-5 w-5 rounded border border-input flex items-center justify-center hover:bg-success/10 hover:border-success transition-colors"
       >
-        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground group-hover:text-emerald-600" />
+        <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground group-hover:text-success" />
       </button>
       <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center shrink-0">
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="font-medium text-sm truncate">{task.title}</span>
-          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", PRIORITY_STYLES[task.priority])}>
-            {task.priority}
-          </Badge>
+          <span className="font-medium text-sm text-foreground truncate">{task.title}</span>
+          {task.priority === "Critical" && (
+            <span className={cn("text-[10px] font-semibold uppercase tracking-wide", PRIORITY_LABEL.Critical)}>
+              Critical
+            </span>
+          )}
           {task.is_auto && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-blue-50 text-blue-700 border-blue-200">
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 bg-info/10 text-info border-info/30"
+              title="Generated automatically"
+            >
               Auto
             </Badge>
           )}
@@ -275,19 +288,27 @@ function TaskRow({ task }: { task: UnifiedTask }) {
         {task.description && (
           <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{task.description}</p>
         )}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1.5 flex-wrap">
-          {task.company_name && <span className="truncate max-w-[180px]">{task.company_name}</span>}
-          <span>·</span>
+        <div className="flex items-center gap-x-2 gap-y-1 text-xs text-muted-foreground mt-1.5 flex-wrap">
+          {task.company_name && (
+            <span className="truncate max-w-[180px] font-medium text-foreground/80">{task.company_name}</span>
+          )}
+          {task.company_name && <span className="text-border">·</span>}
           <span>{SOURCE_LABEL[task.source]}</span>
-          <span>·</span>
+          <span className="text-border">·</span>
           <span className={cn(
-            due.tone === "danger" && "text-red-600",
-            due.tone === "warn" && "text-amber-600"
+            "tabular-nums",
+            due.tone === "danger" && "text-destructive font-medium",
+            due.tone === "warn" && "text-warning-foreground font-medium",
           )}>
             {due.label}
           </span>
-          {task.owner_name && (<><span>·</span><span>{task.owner_name}</span></>)}
-          {task.revenue_impact > 0 && (<><span>·</span><span>{formatEur(task.revenue_impact)}</span></>)}
+          {task.owner_name && (<><span className="text-border">·</span><span>{task.owner_name}</span></>)}
+          {task.revenue_impact > 0 && (
+            <>
+              <span className="text-border">·</span>
+              <span className="tabular-nums text-foreground/80">{formatEur(task.revenue_impact)}</span>
+            </>
+          )}
         </div>
       </div>
       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
