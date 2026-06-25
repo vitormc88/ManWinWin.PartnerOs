@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { addDays, format, formatDistanceToNow, isToday, isPast, nextMonday, parseISO, startOfDay } from "date-fns";
 import {
   Phone, Mail, Calendar as CalendarIcon, FileText, RefreshCcw, Users as UsersIcon,
   AlertTriangle, Pin, CheckCircle2, Clock, ExternalLink, Plus, Search, MoreHorizontal,
-  TrendingUp, Inbox, ListFilter, ChevronDown,
+  TrendingUp, Inbox, ListFilter, ChevronDown, X, Keyboard, Rows3, Rows2, PartyPopper,
 } from "lucide-react";
 import {
   useTasks, useTodaysFocus, useWorkload, useTeamWorkload,
@@ -30,8 +30,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+type Density = "comfortable" | "compact";
 
 
 /* ---------- helpers ---------- */
