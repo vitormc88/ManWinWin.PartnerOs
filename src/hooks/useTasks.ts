@@ -252,31 +252,64 @@ export function useCompleteTask() {
     mutationFn: async (task: UnifiedTask) => {
       const now = new Date().toISOString();
       if (task.source === "manual") {
-        const id = parseRawId(task.id);
-        await supabase.from("manual_tasks").update({ status: "Done", completed_at: now }).eq("id", id);
+        await supabase.from("manual_tasks").update({ status: "Done", completed_at: now }).eq("id", parseRawId(task.id));
       } else if (task.id.startsWith("lead:")) {
-        const id = parseRawId(task.id);
-        await supabase.from("lead_tasks").update({ status: "Done", completed_at: now }).eq("id", id);
+        await supabase.from("lead_tasks").update({ status: "Done", completed_at: now }).eq("id", parseRawId(task.id));
       } else if (task.id.startsWith("pipeline:")) {
-        const id = parseRawId(task.id);
-        await supabase.from("deal_tasks").update({ status: "Done", is_completed: true, completed_at: now }).eq("id", id);
+        await supabase.from("deal_tasks").update({ status: "Done", is_completed: true, completed_at: now }).eq("id", parseRawId(task.id));
       } else if (task.id.startsWith("partner_action:")) {
-        // Update jsonb action item status to "Done"
         const [noteId, actionId] = task.id.replace("partner_action:", "").split(":");
         const { data } = await supabase.from("partner_notes").select("action_items").eq("id", noteId).single();
         const items = (data?.action_items as any[] | undefined) || [];
         const next = items.map((a) => (a.id === actionId ? { ...a, status: "Done" } : a));
         await supabase.from("partner_notes").update({ action_items: next as any }).eq("id", noteId);
       } else {
-        // Auto-generated rows (renewal/deal_stalled/lead_waiting) cannot be "completed" directly.
         throw new Error("This task is auto-generated from another module. Open the related record to act on it.");
       }
     },
-    onSuccess: () => {
+    onMutate: async (task: UnifiedTask) => {
+      await qc.cancelQueries({ queryKey: ["unified_tasks"] });
+      const snapshots = qc.getQueriesData<UnifiedTask[]>({ queryKey: ["unified_tasks"] });
+      qc.setQueriesData<UnifiedTask[]>({ queryKey: ["unified_tasks"] }, (old) =>
+        (old || []).filter((t) => t.id !== task.id),
+      );
+      return { snapshots };
+    },
+    onError: (_e, _task, ctx) => {
+      ctx?.snapshots?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["unified_tasks"] });
       qc.invalidateQueries({ queryKey: ["unified_tasks_focus"] });
       qc.invalidateQueries({ queryKey: ["unified_tasks_workload"] });
       qc.invalidateQueries({ queryKey: ["unified_tasks_team"] });
+    },
+  });
+}
+
+export function useUncompleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (task: UnifiedTask) => {
+      if (task.source === "manual") {
+        await supabase.from("manual_tasks").update({ status: "Pending", completed_at: null }).eq("id", parseRawId(task.id));
+      } else if (task.id.startsWith("lead:")) {
+        await supabase.from("lead_tasks").update({ status: "Pending", completed_at: null }).eq("id", parseRawId(task.id));
+      } else if (task.id.startsWith("pipeline:")) {
+        await supabase.from("deal_tasks").update({ status: "Pending", is_completed: false, completed_at: null }).eq("id", parseRawId(task.id));
+      } else if (task.id.startsWith("partner_action:")) {
+        const [noteId, actionId] = task.id.replace("partner_action:", "").split(":");
+        const { data } = await supabase.from("partner_notes").select("action_items").eq("id", noteId).single();
+        const items = (data?.action_items as any[] | undefined) || [];
+        const next = items.map((a) => (a.id === actionId ? { ...a, status: "Open" } : a));
+        await supabase.from("partner_notes").update({ action_items: next as any }).eq("id", noteId);
+      } else {
+        throw new Error("Cannot undo auto-generated task.");
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["unified_tasks"] });
+      qc.invalidateQueries({ queryKey: ["unified_tasks_focus"] });
     },
   });
 }
@@ -301,9 +334,18 @@ export function useRescheduleTask() {
         throw new Error("Auto tasks cannot be rescheduled here.");
       }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["unified_tasks"] });
+    onMutate: async ({ task, due_date }) => {
+      await qc.cancelQueries({ queryKey: ["unified_tasks"] });
+      const snapshots = qc.getQueriesData<UnifiedTask[]>({ queryKey: ["unified_tasks"] });
+      qc.setQueriesData<UnifiedTask[]>({ queryKey: ["unified_tasks"] }, (old) =>
+        (old || []).map((t) => (t.id === task.id ? { ...t, due_date } : t)),
+      );
+      return { snapshots };
     },
+    onError: (_e, _v, ctx) => {
+      ctx?.snapshots?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["unified_tasks"] }),
   });
 }
 
@@ -321,7 +363,18 @@ export function useAssignTask() {
         throw new Error("This task type can't be reassigned from here.");
       }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["unified_tasks"] }),
+    onMutate: async ({ task, owner_user_id }) => {
+      await qc.cancelQueries({ queryKey: ["unified_tasks"] });
+      const snapshots = qc.getQueriesData<UnifiedTask[]>({ queryKey: ["unified_tasks"] });
+      qc.setQueriesData<UnifiedTask[]>({ queryKey: ["unified_tasks"] }, (old) =>
+        (old || []).map((t) => (t.id === task.id ? { ...t, owner_user_id } : t)),
+      );
+      return { snapshots };
+    },
+    onError: (_e, _v, ctx) => {
+      ctx?.snapshots?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["unified_tasks"] }),
   });
 }
 
