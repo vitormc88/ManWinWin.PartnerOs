@@ -3544,9 +3544,14 @@ export type Database = {
       partner_metrics: {
         Row: {
           clients: number | null
+          engagement_score: number | null
           health_score: number | null
+          momentum_score: number | null
+          negative_factors: string[] | null
           partner_id: string | null
           pipeline: number | null
+          positive_factors: string[] | null
+          relationship_score: number | null
           revenue: number | null
         }
         Relationships: []
