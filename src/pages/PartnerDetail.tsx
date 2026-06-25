@@ -347,29 +347,12 @@ export default function PartnerDetail() {
             </div>
 
             <div className="space-y-5">
-              <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-foreground text-sm">Health</h3>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button type="button" className="text-muted-foreground hover:text-foreground"><Info className="h-3.5 w-3.5" /></button>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        Health is based on revenue, pipeline activity, and client base. Scores 80–100 = Healthy, 40–70 = Moderate, 0–30 = At Risk.
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: healthColor }} />
-                  <span className="text-2xl font-bold tabular-nums">{score}<span className="text-sm font-normal text-muted-foreground">/100</span></span>
-                  <Badge variant="outline" className="ml-2">{healthLabel}</Badge>
-                </div>
-                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full transition-all" style={{ width: `${score}%`, backgroundColor: healthColor }} />
-                </div>
-              </div>
+              <PartnerHealthCard
+                score={score}
+                factors={metrics?.factors}
+                positiveFactors={metrics?.positive_factors}
+                negativeFactors={metrics?.negative_factors}
+              />
 
               <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
                 <div className="flex items-center justify-between">
