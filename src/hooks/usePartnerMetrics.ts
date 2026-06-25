@@ -56,19 +56,43 @@ export function usePartnerMetrics() {
       if (error) throw error;
       const map: Record<string, PartnerMetric> = {};
       (data as any[] || []).forEach((r) => {
+        const maturity = normalizeMaturity(r.maturity);
+        const positive = Array.isArray(r.positive_factors) ? r.positive_factors : [];
+        const negative = Array.isArray(r.negative_factors) ? r.negative_factors : [];
+        const structured = normalizeFactors(r.factors);
+        const hasGenuineNegative =
+          negative.length > 0 || structured.some((f) => f.type === "negative");
+
+        let health = Number(r.health_score) || 0;
+        let relationship = Number(r.relationship_score) || 0;
+        let momentum = Number(r.momentum_score) || 0;
+        let engagement = Number(r.engagement_score) || 0;
+
+        // Executive principle: absence of evidence ≠ evidence of problems.
+        // For new/onboarding partners without genuine negative signals, lift
+        // dimensions and composite to a neutral floor so the partner is not
+        // reported as "At Risk" purely because history is thin.
+        if (!hasGenuineNegative && (maturity === "new" || maturity === "onboarding")) {
+          const floor = maturity === "new" ? 55 : 50;
+          relationship = Math.max(relationship, floor);
+          momentum = Math.max(momentum, floor);
+          engagement = Math.max(engagement, floor);
+          health = Math.max(health, floor);
+        }
+
         map[r.partner_id] = {
           partner_id: r.partner_id,
           revenue: Number(r.revenue) || 0,
           pipeline: Number(r.pipeline) || 0,
           clients: Number(r.clients) || 0,
-          maturity: normalizeMaturity(r.maturity),
-          health_score: Number(r.health_score) || 0,
-          relationship_score: Number(r.relationship_score) || 0,
-          momentum_score: Number(r.momentum_score) || 0,
-          engagement_score: Number(r.engagement_score) || 0,
-          positive_factors: Array.isArray(r.positive_factors) ? r.positive_factors : [],
-          negative_factors: Array.isArray(r.negative_factors) ? r.negative_factors : [],
-          factors: normalizeFactors(r.factors),
+          maturity,
+          health_score: health,
+          relationship_score: relationship,
+          momentum_score: momentum,
+          engagement_score: engagement,
+          positive_factors: positive,
+          negative_factors: negative,
+          factors: structured,
         };
       });
       return map;
