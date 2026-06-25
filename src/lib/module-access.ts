@@ -31,6 +31,7 @@ export const MODULE_KEYS_LIST = [
 
 export const MODULE_LABELS: Record<(typeof MODULE_KEYS_LIST)[number], string> = {
   dashboard: "Dashboard",
+  tasks: "Tasks",
   partners: "Partners",
   clients: "Clients & Licenses",
   renewals: "Renewals",
