@@ -218,6 +218,10 @@ function buildMomentumContext(input: BriefInput): MomentumContext {
 
 function classifyMomentum(c: MomentumContext): { momentum: Momentum; hint: string } {
   if (c.maturity === "new") return { momentum: "New", hint: "Partnership recently established." };
+  if (c.maturity === "onboarding") {
+    return { momentum: "Building", hint: "Partnership is being established — history still developing." };
+  }
+
 
   // Dormant: long silence and no commercial signal.
   if (c.daysSinceContact > 120 && !c.hasOpenPipeline && c.recentWins90 === 0 && c.newDeals60 === 0) {
