@@ -833,6 +833,7 @@ export default function Tasks() {
                       isCollapsed={collapsed.has(label)}
                       onToggle={() => toggle(label)}
                       groupBy={groupBy}
+                      archived={view === "completed"}
                     />
                   ))}
                 </div>
