@@ -30,7 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
-import { loadClientsListState, saveClientsListState } from "@/lib/clients-list-state";
+import { loadClientsListState } from "@/lib/clients-list-state";
 import {
   Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
