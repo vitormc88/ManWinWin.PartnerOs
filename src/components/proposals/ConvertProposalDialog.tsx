@@ -222,7 +222,7 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
                 variant="outline"
                 size="sm"
                 disabled={step === 1 || submitting}
-                onClick={() => setStep((s) => Math.max(1, (s - 1) as Step))}
+                onClick={() => setStep((s) => (Math.max(1, s - 1) as Step))}
               >
                 <ChevronLeft className="h-3.5 w-3.5 mr-1" />
                 Back
@@ -231,7 +231,7 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
                 <Button
                   size="sm"
                   disabled={!canAdvance() || submitting}
-                  onClick={() => setStep((s) => Math.min(3, (s + 1) as Step))}
+                  onClick={() => setStep((s) => (Math.min(3, s + 1) as Step))}
                 >
                   Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
                 </Button>
