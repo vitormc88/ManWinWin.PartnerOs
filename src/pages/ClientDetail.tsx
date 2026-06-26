@@ -1147,10 +1147,22 @@ export default function ClientDetail() {
           </div>
           {contracts.length === 0 ? (
             <Card className="border-border/60 shadow-sm"><CardContent className="py-12 text-center text-muted-foreground">No contracts. <button onClick={() => setShowAddContract(true)} className="text-primary hover:underline">Create first contract</button></CardContent></Card>
-          ) : contracts.map(co => (
+          ) : contracts.map(co => {
+            const isGenerated = (co as any).is_imported === false;
+            const calcTotal = Number((co as any).calculated_total || 0);
+            const displayTotal = isGenerated && calcTotal > 0 ? calcTotal : Number(co.total_value || 0);
+            const displayContractValue = isGenerated && calcTotal > 0 ? calcTotal : Number(co.contract_value || 0);
+            return (
             <Card key={co.id} className="border-border/60 shadow-sm">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                <CardTitle className="text-sm font-semibold">Contract — {co.contract_start_date} to {co.contract_end_date} <Badge variant="secondary" className="ml-2 text-xs">{co.currency}</Badge></CardTitle>
+                <div className="space-y-1">
+                  <CardTitle className="text-sm font-semibold">Contract — {co.contract_start_date} to {co.contract_end_date} <Badge variant="secondary" className="ml-2 text-xs">{co.currency}</Badge></CardTitle>
+                  {isGenerated && (
+                    <Badge variant="outline" className="text-[10px] gap-1 border-primary/40 text-primary">
+                      <Sparkles className="h-3 w-3" /> Generated from approved proposal
+                    </Badge>
+                  )}
+                </div>
                 {editingContractId === co.id ? (
                   <div className="flex gap-1">
                     <Button variant="outline" size="sm" onClick={() => setEditingContractId(null)}><X className="h-3.5 w-3.5" /></Button>
@@ -1189,11 +1201,18 @@ export default function ClientDetail() {
                       <FieldRow label="Renewal Increase" value={co.renewal_increase_pct ? `${co.renewal_increase_pct}%` : "—"} />
                     </div>
                     <div className="space-y-0">
-                      <FieldRow label="Contract Value" value={`€${Number(co.contract_value || 0).toLocaleString()}`} />
-                      <FieldRow label="Invoiced Value" value={`€${Number(co.invoiced_value || 0).toLocaleString()}`} />
-                      <FieldRow label="Hosting Value" value={co.hosting_value ? `€${Number(co.hosting_value).toLocaleString()}` : "—"} />
-                      <FieldRow label="SAT Value" value={co.sat_value ? `€${Number(co.sat_value).toLocaleString()}` : "—"} />
-                      <FieldRow label="Total Value" value={<span className="font-semibold">€{Number(co.total_value || 0).toLocaleString()}</span>} />
+                      <FieldRow label="Contract Value" value={`€${displayContractValue.toLocaleString()}`} />
+                      {!isGenerated && <FieldRow label="Invoiced Value" value={`€${Number(co.invoiced_value || 0).toLocaleString()}`} />}
+                      {(!isGenerated || Number(co.hosting_value || 0) > 0) && (
+                        <FieldRow label="Hosting Value" value={co.hosting_value ? `€${Number(co.hosting_value).toLocaleString()}` : "—"} />
+                      )}
+                      {(!isGenerated || Number(co.sat_value || 0) > 0) && (
+                        <FieldRow label="SAT Value" value={co.sat_value ? `€${Number(co.sat_value).toLocaleString()}` : "—"} />
+                      )}
+                      <FieldRow label="Total Value" value={<span className="font-semibold">€{displayTotal.toLocaleString()}</span>} />
+                      {isGenerated && (
+                        <p className="text-[10px] text-muted-foreground mt-1">Calculated from contract lines</p>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1201,11 +1220,18 @@ export default function ClientDetail() {
                   <div className="mt-4"><p className="text-xs font-medium text-muted-foreground mb-1">Observations</p><p className="text-sm text-foreground">{co.observations}</p></div>
                 )}
                 {editingContractId !== co.id && (
-                  <ContractBreakdown contractId={co.id} legacyTotal={co.total_value} currency={co.currency} />
+                  <ContractBreakdown
+                    contractId={co.id}
+                    legacyTotal={co.total_value}
+                    currency={co.currency}
+                    isImported={(co as any).is_imported !== false}
+                    manualAdjustment={(co as any).manual_adjustment_amount}
+                  />
                 )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </TabsContent>
 
         {/* ═══════════════════ NOTES TAB ═══════════════════ */}
