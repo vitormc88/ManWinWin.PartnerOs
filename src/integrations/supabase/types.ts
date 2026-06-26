@@ -524,6 +524,7 @@ export type Database = {
       clients: {
         Row: {
           account_manager: string | null
+          account_manager_id: string | null
           address: string | null
           auto_update: boolean
           award_reference: string | null
@@ -546,8 +547,10 @@ export type Database = {
           is_premium: boolean
           license_type: string | null
           manager_owner: string | null
+          manager_owner_id: string | null
           observations: string | null
           partner_id: string | null
+          partner_uuid: string | null
           phone: string | null
           postal_code: string | null
           product_type: string | null
@@ -561,6 +564,7 @@ export type Database = {
         }
         Insert: {
           account_manager?: string | null
+          account_manager_id?: string | null
           address?: string | null
           auto_update?: boolean
           award_reference?: string | null
@@ -583,8 +587,10 @@ export type Database = {
           is_premium?: boolean
           license_type?: string | null
           manager_owner?: string | null
+          manager_owner_id?: string | null
           observations?: string | null
           partner_id?: string | null
+          partner_uuid?: string | null
           phone?: string | null
           postal_code?: string | null
           product_type?: string | null
@@ -598,6 +604,7 @@ export type Database = {
         }
         Update: {
           account_manager?: string | null
+          account_manager_id?: string | null
           address?: string | null
           auto_update?: boolean
           award_reference?: string | null
@@ -620,8 +627,10 @@ export type Database = {
           is_premium?: boolean
           license_type?: string | null
           manager_owner?: string | null
+          manager_owner_id?: string | null
           observations?: string | null
           partner_id?: string | null
+          partner_uuid?: string | null
           phone?: string | null
           postal_code?: string | null
           product_type?: string | null
@@ -633,7 +642,71 @@ export type Database = {
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clients_account_manager_id_fkey"
+            columns: ["account_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_account_manager_id_fkey"
+            columns: ["account_manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "clients_account_manager_id_fkey"
+            columns: ["account_manager_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "clients_manager_owner_id_fkey"
+            columns: ["manager_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_manager_owner_id_fkey"
+            columns: ["manager_owner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "clients_manager_owner_id_fkey"
+            columns: ["manager_owner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "clients_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "clients_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+        ]
       }
       commissions: {
         Row: {
@@ -794,6 +867,99 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      contract_lines: {
+        Row: {
+          amount: number
+          billing_frequency: string | null
+          client_id: string
+          contract_id: string
+          created_at: string
+          currency: string
+          description: string
+          end_date: string | null
+          id: string
+          line_type: string
+          notes: string | null
+          related_license_id: string | null
+          related_module_id: string | null
+          related_plugin_id: string | null
+          start_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          billing_frequency?: string | null
+          client_id: string
+          contract_id: string
+          created_at?: string
+          currency?: string
+          description: string
+          end_date?: string | null
+          id?: string
+          line_type: string
+          notes?: string | null
+          related_license_id?: string | null
+          related_module_id?: string | null
+          related_plugin_id?: string | null
+          start_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          billing_frequency?: string | null
+          client_id?: string
+          contract_id?: string
+          created_at?: string
+          currency?: string
+          description?: string
+          end_date?: string | null
+          id?: string
+          line_type?: string
+          notes?: string | null
+          related_license_id?: string | null
+          related_module_id?: string | null
+          related_plugin_id?: string | null
+          start_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_lines_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_lines_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_lines_related_license_id_fkey"
+            columns: ["related_license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_lines_related_module_id_fkey"
+            columns: ["related_module_id"]
+            isOneToOne: false
+            referencedRelation: "modules_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_lines_related_plugin_id_fkey"
+            columns: ["related_plugin_id"]
+            isOneToOne: false
+            referencedRelation: "plugins_catalog"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contracts: {
         Row: {
@@ -1858,36 +2024,54 @@ export type Database = {
           enabled: boolean
           end_date: string | null
           id: string
+          included_in_base: boolean
+          item_type: string | null
           license_id: string
           license_type: string | null
+          module_id: string | null
           module_name: string
           notes: string | null
           periodicity: string | null
+          plugin_id: string | null
+          quantity: number
           start_date: string | null
+          unit_price: number | null
         }
         Insert: {
           created_at?: string
           enabled?: boolean
           end_date?: string | null
           id?: string
+          included_in_base?: boolean
+          item_type?: string | null
           license_id: string
           license_type?: string | null
+          module_id?: string | null
           module_name: string
           notes?: string | null
           periodicity?: string | null
+          plugin_id?: string | null
+          quantity?: number
           start_date?: string | null
+          unit_price?: number | null
         }
         Update: {
           created_at?: string
           enabled?: boolean
           end_date?: string | null
           id?: string
+          included_in_base?: boolean
+          item_type?: string | null
           license_id?: string
           license_type?: string | null
+          module_id?: string | null
           module_name?: string
           notes?: string | null
           periodicity?: string | null
+          plugin_id?: string | null
+          quantity?: number
           start_date?: string | null
+          unit_price?: number | null
         }
         Relationships: [
           {
@@ -1895,6 +2079,20 @@ export type Database = {
             columns: ["license_id"]
             isOneToOne: false
             referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licensed_modules_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licensed_modules_plugin_id_fkey"
+            columns: ["plugin_id"]
+            isOneToOne: false
+            referencedRelation: "plugins_catalog"
             referencedColumns: ["id"]
           },
         ]
@@ -1906,21 +2104,33 @@ export type Database = {
           backoffice_users: number | null
           billing_frequency: string | null
           client_id: string
+          contract_id: string | null
           contract_value: number | null
           created_at: string
+          currency: string
           database_type: string | null
+          deal_id: string | null
+          deployment_type: string | null
+          edition: string | null
+          environment: string | null
           id: string
           initial_contract_value: number | null
           is_draft: boolean
+          lic_code: string | null
+          lic_serial: string | null
           license_end_date: string | null
           license_model: string | null
           license_start_date: string | null
+          license_status: string
           mobile_users: number | null
           notes: string | null
           num_users: number | null
           periodicity: string | null
+          previous_license_id: string | null
           product: string | null
+          proposal_id: string | null
           recurring_contract_value: number | null
+          replaced_by_license_id: string | null
           sat_active: boolean
           sat_end_date: string | null
           source_proposal_id: string | null
@@ -1934,21 +2144,33 @@ export type Database = {
           backoffice_users?: number | null
           billing_frequency?: string | null
           client_id: string
+          contract_id?: string | null
           contract_value?: number | null
           created_at?: string
+          currency?: string
           database_type?: string | null
+          deal_id?: string | null
+          deployment_type?: string | null
+          edition?: string | null
+          environment?: string | null
           id?: string
           initial_contract_value?: number | null
           is_draft?: boolean
+          lic_code?: string | null
+          lic_serial?: string | null
           license_end_date?: string | null
           license_model?: string | null
           license_start_date?: string | null
+          license_status?: string
           mobile_users?: number | null
           notes?: string | null
           num_users?: number | null
           periodicity?: string | null
+          previous_license_id?: string | null
           product?: string | null
+          proposal_id?: string | null
           recurring_contract_value?: number | null
+          replaced_by_license_id?: string | null
           sat_active?: boolean
           sat_end_date?: string | null
           source_proposal_id?: string | null
@@ -1962,21 +2184,33 @@ export type Database = {
           backoffice_users?: number | null
           billing_frequency?: string | null
           client_id?: string
+          contract_id?: string | null
           contract_value?: number | null
           created_at?: string
+          currency?: string
           database_type?: string | null
+          deal_id?: string | null
+          deployment_type?: string | null
+          edition?: string | null
+          environment?: string | null
           id?: string
           initial_contract_value?: number | null
           is_draft?: boolean
+          lic_code?: string | null
+          lic_serial?: string | null
           license_end_date?: string | null
           license_model?: string | null
           license_start_date?: string | null
+          license_status?: string
           mobile_users?: number | null
           notes?: string | null
           num_users?: number | null
           periodicity?: string | null
+          previous_license_id?: string | null
           product?: string | null
+          proposal_id?: string | null
           recurring_contract_value?: number | null
+          replaced_by_license_id?: string | null
           sat_active?: boolean
           sat_end_date?: string | null
           source_proposal_id?: string | null
@@ -1990,6 +2224,27 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licenses_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licenses_previous_license_id_fkey"
+            columns: ["previous_license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licenses_replaced_by_license_id_fkey"
+            columns: ["replaced_by_license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
             referencedColumns: ["id"]
           },
         ]
@@ -2093,6 +2348,33 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      modules_catalog: {
+        Row: {
+          category: string | null
+          code: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          category?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          category?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -2852,6 +3134,33 @@ export type Database = {
           },
         ]
       }
+      plugins_catalog: {
+        Row: {
+          category: string | null
+          code: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          category?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          category?: string | null
+          code?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       pricing_rules: {
         Row: {
           active: boolean
@@ -3325,11 +3634,14 @@ export type Database = {
           license_id: string | null
           notes: string | null
           partner_id: string | null
+          partner_uuid: string | null
           priority: string | null
           renewal_date: string | null
           renewal_type: string
           source_proposal_id: string | null
           status: string
+          target_id: string | null
+          target_type: string | null
           updated_at: string
         }
         Insert: {
@@ -3347,11 +3659,14 @@ export type Database = {
           license_id?: string | null
           notes?: string | null
           partner_id?: string | null
+          partner_uuid?: string | null
           priority?: string | null
           renewal_date?: string | null
           renewal_type?: string
           source_proposal_id?: string | null
           status?: string
+          target_id?: string | null
+          target_type?: string | null
           updated_at?: string
         }
         Update: {
@@ -3369,11 +3684,14 @@ export type Database = {
           license_id?: string | null
           notes?: string | null
           partner_id?: string | null
+          partner_uuid?: string | null
           priority?: string | null
           renewal_date?: string | null
           renewal_type?: string
           source_proposal_id?: string | null
           status?: string
+          target_id?: string | null
+          target_type?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3418,6 +3736,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "licenses"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "renewals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
           },
         ]
       }
