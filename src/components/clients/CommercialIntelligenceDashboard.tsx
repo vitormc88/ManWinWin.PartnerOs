@@ -338,7 +338,6 @@ function ActionRow({
 function CommercialSnapshotSection({
   data,
   client,
-  ownerName,
   contractStatus,
   billing,
 }: {
@@ -348,14 +347,12 @@ function CommercialSnapshotSection({
   contractStatus?: string | null;
   billing?: string | null;
 }) {
-  const partner = data.partner_name || "HQ Direct";
-  const owner = ownerName || client?.manager_owner || "—";
-  const industry = data.sector || client?.sector;
-  const country = data.country || client?.country;
-  const customerSince = client?.created_at;
   const isPremium = !!client?.is_premium;
   const renewal = data.next_renewal_date;
   const contractLabel = contractStatus || (data.has_contract ? `${data.active_contract_count} active` : "None");
+  const modulesCount = (data.active_modules ?? []).length;
+  const pluginsCount = (data.active_plugins ?? []).length;
+  const billingLabel = billing || (data.recurring_items?.[0]?.billing_frequency as string | undefined) || "Annual";
 
   return (
     <Card className="border-border/60 shadow-sm">
@@ -365,34 +362,39 @@ function CommercialSnapshotSection({
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-4 space-y-3">
-        {/* Commercial / CRM context first */}
-        <SnapshotRow label="Partner" value={partner} />
-        <SnapshotRow label="Owner" value={owner} />
-        <SnapshotRow label="Industry" value={industry} />
-        <SnapshotRow label="Country" value={country} />
-        <SnapshotRow label="Customer Since" value={fmtDate(customerSince)} />
+        {/* Licensing setup */}
+        <SnapshotRow label="Product Family" value={data.license_family} />
+        <SnapshotRow label="Variant" value={data.license_variant} />
+        <SnapshotRow label="Deployment" value={data.deployment_type} />
         <Separator />
-        <SnapshotRow label="Current Contract" value={contractLabel} />
-        <SnapshotRow label="Renewal" value={fmtDate(renewal)} />
-        <SnapshotRow label="ARR" value={`${fmtCurrency(data.recurring_arr)} / year`} strong />
-        {billing && <SnapshotRow label="Billing" value={billing} />}
+        {/* Commercial structure */}
+        <SnapshotRow label="Contract Status" value={contractLabel} />
+        <SnapshotRow label="Renewal Date" value={fmtDate(renewal)} />
+        <SnapshotRow label="Billing Frequency" value={billingLabel} />
+        <SnapshotRow
+          label="Recurring Revenue (ARR)"
+          value={`${fmtCurrency(data.recurring_arr)} / year`}
+          strong
+        />
+        <SnapshotRow label="Year 1 Revenue" value={fmtCurrency(data.year1_value)} />
         <SnapshotRow
           label="Premium"
           value={<Badge variant={isPremium ? "default" : "secondary"} className="text-[10px]">{isPremium ? "Yes" : "No"}</Badge>}
         />
         <Separator />
-        {/* Technical context after */}
-        <SnapshotRow label="Deployment" value={data.deployment_type} />
-        <SnapshotRow
-          label="API"
-          value={<Badge variant={data.api_access ? "default" : "secondary"} className="text-[10px]">{data.api_access ? "Enabled" : "Disabled"}</Badge>}
-        />
+        {/* Technical entitlements */}
         <SnapshotRow
           label="S&AT"
           value={<Badge variant={data.sat_active ? "default" : "secondary"} className="text-[10px]">{data.sat_active ? "Active" : "Not active"}</Badge>}
         />
+        <SnapshotRow
+          label="API"
+          value={<Badge variant={data.api_access ? "default" : "secondary"} className="text-[10px]">{data.api_access ? "Enabled" : "Disabled"}</Badge>}
+        />
         <SnapshotRow label="BackOffice users" value={data.backoffice_users} />
-        <SnapshotRow label="Web users" value={data.web_users} />
+        <SnapshotRow label="Web / Mobile users" value={data.web_users} />
+        <SnapshotRow label="Active Modules" value={modulesCount} />
+        <SnapshotRow label="Active Plugins" value={pluginsCount} />
       </CardContent>
     </Card>
   );
