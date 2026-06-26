@@ -44,6 +44,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editingProposal, setEditingProposal] = useState<(Proposal & { items?: ProposalItem[] }) | null>(null);
+  const [convertingProposalId, setConvertingProposalId] = useState<string | null>(null);
 
   const loadProposalAndItems = async (id: string) => {
     const { data: prop } = await supabase.from("proposals").select("*").eq("id", id).single();
