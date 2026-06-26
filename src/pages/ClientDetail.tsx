@@ -25,6 +25,7 @@ import {
   useCreateNote, useCreateCredential,
 } from "@/hooks/useClients";
 import { ContractBreakdown } from "@/components/clients/ContractBreakdown";
+import { CommercialContractView } from "@/components/clients/CommercialContractView";
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -1152,6 +1153,19 @@ export default function ClientDetail() {
             const calcTotal = Number((co as any).calculated_total || 0);
             const displayTotal = isGenerated && calcTotal > 0 ? calcTotal : Number(co.total_value || 0);
             const displayContractValue = isGenerated && calcTotal > 0 ? calcTotal : Number(co.contract_value || 0);
+
+            // Generated-from-proposal contracts → commercial view
+            if (isGenerated && editingContractId !== co.id) {
+              return (
+                <CommercialContractView
+                  key={co.id}
+                  contract={co}
+                  clientId={client.id}
+                  onEditLegacy={() => startEditContract(co)}
+                />
+              );
+            }
+
             return (
             <Card key={co.id} className="border-border/60 shadow-sm">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -1178,12 +1192,12 @@ export default function ClientDetail() {
                     <EditField label="Start Date" value={conEditForm.contract_start_date} onChange={v => setConEditForm(f => ({...f, contract_start_date: v}))} type="date" />
                     <EditField label="End Date" value={conEditForm.contract_end_date} onChange={v => setConEditForm(f => ({...f, contract_end_date: v}))} type="date" />
                     <EditField label="Notice Days" value={String(conEditForm.notice_period_days)} onChange={v => setConEditForm(f => ({...f, notice_period_days: parseInt(v)||30}))} type="number" />
-                    <EditField label="Contract Value (€)" value={String(conEditForm.contract_value)} onChange={v => setConEditForm(f => ({...f, contract_value: parseFloat(v)||0}))} type="number" />
-                    <EditField label="Invoiced (€)" value={String(conEditForm.invoiced_value)} onChange={v => setConEditForm(f => ({...f, invoiced_value: parseFloat(v)||0}))} type="number" />
-                    <EditField label="Hosting (€)" value={String(conEditForm.hosting_value)} onChange={v => setConEditForm(f => ({...f, hosting_value: parseFloat(v)||0}))} type="number" />
-                    <EditField label="SAT (€)" value={String(conEditForm.sat_value)} onChange={v => setConEditForm(f => ({...f, sat_value: parseFloat(v)||0}))} type="number" />
-                    <EditField label="MWW Web (€)" value={String(conEditForm.mww_web_value)} onChange={v => setConEditForm(f => ({...f, mww_web_value: parseFloat(v)||0}))} type="number" />
-                    <EditField label="Total (€)" value={String(conEditForm.total_value)} onChange={v => setConEditForm(f => ({...f, total_value: parseFloat(v)||0}))} type="number" />
+                    {!isGenerated && <EditField label="Contract Value (€)" value={String(conEditForm.contract_value)} onChange={v => setConEditForm(f => ({...f, contract_value: parseFloat(v)||0}))} type="number" />}
+                    {!isGenerated && <EditField label="Invoiced (€)" value={String(conEditForm.invoiced_value)} onChange={v => setConEditForm(f => ({...f, invoiced_value: parseFloat(v)||0}))} type="number" />}
+                    {!isGenerated && <EditField label="Hosting (€)" value={String(conEditForm.hosting_value)} onChange={v => setConEditForm(f => ({...f, hosting_value: parseFloat(v)||0}))} type="number" />}
+                    {!isGenerated && <EditField label="SAT (€)" value={String(conEditForm.sat_value)} onChange={v => setConEditForm(f => ({...f, sat_value: parseFloat(v)||0}))} type="number" />}
+                    {!isGenerated && <EditField label="MWW Web (€)" value={String(conEditForm.mww_web_value)} onChange={v => setConEditForm(f => ({...f, mww_web_value: parseFloat(v)||0}))} type="number" />}
+                    {!isGenerated && <EditField label="Total (€)" value={String(conEditForm.total_value)} onChange={v => setConEditForm(f => ({...f, total_value: parseFloat(v)||0}))} type="number" />}
                     <EditField label="Installments" value={String(conEditForm.num_installments)} onChange={v => setConEditForm(f => ({...f, num_installments: parseInt(v)||1}))} type="number" />
                     <EditField label="Increase %" value={String(conEditForm.renewal_increase_pct)} onChange={v => setConEditForm(f => ({...f, renewal_increase_pct: parseFloat(v)||0}))} type="number" />
                     <EditField label="Price Table Ref" value={conEditForm.price_table_reference} onChange={v => setConEditForm(f => ({...f, price_table_reference: v}))} />
@@ -1202,17 +1216,10 @@ export default function ClientDetail() {
                     </div>
                     <div className="space-y-0">
                       <FieldRow label="Contract Value" value={`€${displayContractValue.toLocaleString()}`} />
-                      {!isGenerated && <FieldRow label="Invoiced Value" value={`€${Number(co.invoiced_value || 0).toLocaleString()}`} />}
-                      {(!isGenerated || Number(co.hosting_value || 0) > 0) && (
-                        <FieldRow label="Hosting Value" value={co.hosting_value ? `€${Number(co.hosting_value).toLocaleString()}` : "—"} />
-                      )}
-                      {(!isGenerated || Number(co.sat_value || 0) > 0) && (
-                        <FieldRow label="SAT Value" value={co.sat_value ? `€${Number(co.sat_value).toLocaleString()}` : "—"} />
-                      )}
+                      <FieldRow label="Invoiced Value" value={`€${Number(co.invoiced_value || 0).toLocaleString()}`} />
+                      <FieldRow label="Hosting Value" value={co.hosting_value ? `€${Number(co.hosting_value).toLocaleString()}` : "—"} />
+                      <FieldRow label="SAT Value" value={co.sat_value ? `€${Number(co.sat_value).toLocaleString()}` : "—"} />
                       <FieldRow label="Total Value" value={<span className="font-semibold">€{displayTotal.toLocaleString()}</span>} />
-                      {isGenerated && (
-                        <p className="text-[10px] text-muted-foreground mt-1">Calculated from contract lines</p>
-                      )}
                     </div>
                   </div>
                 )}
