@@ -29,6 +29,7 @@ import { CommercialContractView } from "@/components/clients/CommercialContractV
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
 import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
+import { ContactsCard } from "@/components/clients/ContactsCard";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -395,8 +396,10 @@ export default function ClientDetail() {
         backoffice_users: licenseForm.backoffice_users ?? 0,
         web_accesses: licenseForm.web_accesses ?? 0,
         sat_active: licenseForm.sat_active ?? false,
+        sat_start_date: licenseForm.sat_active ? (licenseForm.sat_start_date || licenseForm.license_start_date || null) : null,
+        sat_end_date: licenseForm.sat_active ? (licenseForm.sat_end_date || licenseForm.license_end_date || null) : null,
         api_access: licenseForm.api_access ?? false,
-      });
+      } as any);
       await updateClient.mutateAsync({ id: client.id, license_type: licenseForm.product, cloud_onpremise: licenseForm.database_type });
       toast.success("License created");
       setShowAddLicense(false);
@@ -437,10 +440,16 @@ export default function ClientDetail() {
       license_start_date: lic.license_start_date || "",
       license_end_date: lic.license_end_date || "",
       sat_active: lic.sat_active,
+      sat_start_date: (lic as any).sat_start_date || "",
       sat_end_date: lic.sat_end_date || "",
       backoffice_users: lic.backoffice_users ?? 0,
       web_accesses: lic.web_accesses ?? 0,
       api_access: lic.api_access,
+      // Snapshot of original dates — used to detect "still follows license period"
+      _origLicStart: lic.license_start_date || "",
+      _origLicEnd: lic.license_end_date || "",
+      _origSatStart: (lic as any).sat_start_date || "",
+      _origSatEnd: lic.sat_end_date || "",
     });
     setEditingLicenseId(lic.id);
   };
@@ -452,12 +461,34 @@ export default function ClientDetail() {
       return;
     }
     try {
-      const { _family, sat_end_date, ...rest } = licEditForm;
+      const {
+        _family, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
+        sat_start_date, sat_end_date, ...rest
+      } = licEditForm;
+
+      // S&AT date defaulting:
+      // - If S&AT is active and dates are empty, default to license window.
+      // - If license window changed and S&AT dates were equal to the previous license window,
+      //   follow the license window (preserve manual override otherwise).
+      let nextSatStart = sat_start_date || null;
+      let nextSatEnd = sat_end_date || null;
+      if (rest.sat_active) {
+        if (!nextSatStart) nextSatStart = rest.license_start_date || null;
+        if (!nextSatEnd) nextSatEnd = rest.license_end_date || null;
+        if (_origSatStart && _origLicStart && _origSatStart === _origLicStart && rest.license_start_date !== _origLicStart) {
+          nextSatStart = rest.license_start_date || null;
+        }
+        if (_origSatEnd && _origLicEnd && _origSatEnd === _origLicEnd && rest.license_end_date !== _origLicEnd) {
+          nextSatEnd = rest.license_end_date || null;
+        }
+      }
+
       await updateLicense.mutateAsync({
         id: editingLicenseId,
         ...rest,
-        sat_end_date: sat_end_date || null,
-      });
+        sat_start_date: nextSatStart,
+        sat_end_date: nextSatEnd,
+      } as any);
       if (licEditForm.product) {
         await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.database_type || client.cloud_onpremise });
       }
@@ -510,8 +541,97 @@ export default function ClientDetail() {
   };
 
   const handleAddContract = async () => {
-    try { await createContract.mutateAsync({ ...contractFormData, client_id: client.id }); toast.success("Contract created"); setShowAddContract(false); setContractFormData({}); }
-    catch (e: any) { toast.error(e?.message || "Failed"); }
+    const cf = contractFormData;
+    if (!cf.contract_start_date || !cf.contract_end_date) {
+      toast.error("Contract start and end dates are required");
+      return;
+    }
+    const recurringAmount = Number(cf._recurring_amount || 0);
+    const wantsRecurringLine = !!cf._add_recurring_line && recurringAmount > 0;
+    try {
+      // 1) Create the contract (manual legacy by default).
+      const { data: created, error: cErr } = await supabase
+        .from("contracts")
+        .insert({
+          client_id: client.id,
+          contract_start_date: cf.contract_start_date,
+          contract_end_date: cf.contract_end_date,
+          notice_period_days: cf.notice_period_days ?? 30,
+          currency: cf.currency || "EUR",
+          contract_value: wantsRecurringLine ? recurringAmount : (cf.contract_value ?? 0),
+          total_value: wantsRecurringLine ? recurringAmount : (cf.total_value ?? 0),
+          observations: cf.observations || null,
+          is_imported: false,
+          contract_mode: "manual_legacy",
+        } as any)
+        .select()
+        .single();
+      if (cErr) throw cErr;
+      const newContract = created as any;
+
+      // 2) Optional recurring line so ARR is derived from contract_lines.
+      if (wantsRecurringLine) {
+        const { error: lErr } = await supabase.from("contract_lines").insert({
+          contract_id: newContract.id,
+          client_id: client.id,
+          line_type: "license",
+          description: cf._recurring_description || "Annual renewal agreement",
+          amount: recurringAmount,
+          currency: newContract.currency || "EUR",
+          billing_frequency: "annual",
+          start_date: cf.contract_start_date,
+          end_date: cf.contract_end_date,
+          source: "manual_legacy",
+        } as any);
+        if (lErr) throw lErr;
+
+        // 3) Create the primary contract-level renewal.
+        const renewalPartnerUuid = (client as any)?.partner_uuid || null;
+        const renewalPartnerId = (client as any)?.partner_id || null;
+        const { data: ren, error: rErr } = await supabase
+          .from("renewals")
+          .insert({
+            client_id: client.id,
+            contract_id: newContract.id,
+            partner_id: renewalPartnerId,
+            partner_uuid: renewalPartnerUuid,
+            target_type: "contract",
+            target_id: newContract.id,
+            renewal_type: "Contract",
+            renewal_date: cf.contract_end_date,
+            estimated_value: recurringAmount,
+            billing_frequency: "Annual",
+            status: "Upcoming",
+            notes: "Annual Contract Renewal — auto-created from manual legacy agreement",
+          } as any)
+          .select()
+          .single();
+        if (rErr) throw rErr;
+
+        // 4) Suppress duplicate license-only €0 renewals for the same client/date.
+        await supabase
+          .from("renewals")
+          .update({ is_covered_by_contract: true, covered_by_contract_id: newContract.id } as any)
+          .eq("client_id", client.id)
+          .eq("renewal_date", cf.contract_end_date)
+          .is("contract_id", null)
+          .eq("is_covered_by_contract", false);
+
+        // Also link the newly created contract renewal back to its source.
+        if (ren) {
+          await supabase.from("renewals").update({ covered_by_contract_id: newContract.id } as any).eq("id", (ren as any).id);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["contracts", client.id] });
+      queryClient.invalidateQueries({ queryKey: ["contract-lines"] });
+      queryClient.invalidateQueries({ queryKey: ["renewals"] });
+      toast.success(wantsRecurringLine ? "Contract and recurring renewal created" : "Contract created");
+      setShowAddContract(false);
+      setContractFormData({});
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to create contract");
+    }
   };
 
   const startEditContract = (co: any) => {
@@ -787,6 +907,7 @@ export default function ClientDetail() {
               billing={(primaryContract as any)?.billing_frequency || null}
             />
           )}
+          {client?.id && <ContactsCard clientId={client.id} />}
         </TabsContent>
 
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}
@@ -878,8 +999,22 @@ export default function ClientDetail() {
                       <EditField label="License End" value={licEditForm.license_end_date} onChange={v => setLicEditForm(f => ({...f, license_end_date: v}))} type="date" />
                       <EditField label="BackOffice Users" value={String(licEditForm.backoffice_users)} onChange={v => setLicEditForm(f => ({...f, backoffice_users: parseInt(v)||0}))} type="number" />
                       <EditField label="Web Accesses" value={String(licEditForm.web_accesses)} onChange={v => setLicEditForm(f => ({...f, web_accesses: parseInt(v)||0}))} type="number" />
-                      <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.sat_active} onCheckedChange={v => setLicEditForm(f => ({...f, sat_active: v}))} /><Label className="text-xs">S&AT Active</Label></div>
+                      <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.sat_active} onCheckedChange={v => setLicEditForm(f => {
+                        const next: Record<string, any> = { ...f, sat_active: v };
+                        // When enabling S&AT and dates are empty, default to license window.
+                        if (v) {
+                          if (!next.sat_start_date && next.license_start_date) next.sat_start_date = next.license_start_date;
+                          if (!next.sat_end_date && next.license_end_date) next.sat_end_date = next.license_end_date;
+                        }
+                        return next;
+                      })} /><Label className="text-xs">S&AT Active</Label></div>
                       <div className="flex items-center gap-2 pt-5"><Switch checked={licEditForm.api_access} onCheckedChange={v => setLicEditForm(f => ({...f, api_access: v}))} /><Label className="text-xs">API Access</Label></div>
+                      {licEditForm.sat_active && (
+                        <>
+                          <EditField label="S&AT Start" value={licEditForm.sat_start_date || ""} onChange={v => setLicEditForm(f => ({...f, sat_start_date: v}))} type="date" />
+                          <EditField label="S&AT End" value={licEditForm.sat_end_date || ""} onChange={v => setLicEditForm(f => ({...f, sat_end_date: v}))} type="date" />
+                        </>
+                      )}
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
@@ -893,7 +1028,8 @@ export default function ClientDetail() {
                       <div className="space-y-0">
                         <FieldRow label="Periodicity" value={lic.periodicity} />
                         <FieldRow label="S&AT Active" value={lic.sat_active ? "Yes" : "No"} />
-                        <FieldRow label="S&AT End Date" value={lic.sat_end_date} />
+                        {lic.sat_active && <FieldRow label="S&AT Start" value={(lic as any).sat_start_date || "—"} />}
+                        {lic.sat_active && <FieldRow label="S&AT End" value={lic.sat_end_date || "—"} />}
                         <FieldRow label="BackOffice Users" value={lic.backoffice_users} />
                         <FieldRow label="Web Accesses" value={lic.web_accesses} />
                         <FieldRow label="API Access" value={lic.api_access ? "Yes" : "No"} />
@@ -1192,22 +1328,86 @@ export default function ClientDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Contract */}
+      {/* Add Contract — Manual / Legacy Agreement */}
       <Dialog open={showAddContract} onOpenChange={setShowAddContract}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Add Contract</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Add Contract</DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Manual legacy agreement. ARR and renewal value are calculated from recurring contract lines.
+            </p>
+          </DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
-              <EditField label="Start Date" value={contractFormData.contract_start_date || ""} onChange={v => setContractFormData(f => ({...f, contract_start_date: v}))} type="date" />
-              <EditField label="End Date" value={contractFormData.contract_end_date || ""} onChange={v => setContractFormData(f => ({...f, contract_end_date: v}))} type="date" />
+              <EditField label="Start Date *" value={contractFormData.contract_start_date || ""} onChange={v => setContractFormData(f => ({...f, contract_start_date: v}))} type="date" />
+              <EditField label="End / Renewal Date *" value={contractFormData.contract_end_date || ""} onChange={v => setContractFormData(f => ({...f, contract_end_date: v}))} type="date" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <EditField label="Contract Value (€)" value={String(contractFormData.contract_value || 0)} onChange={v => setContractFormData(f => ({...f, contract_value: parseFloat(v)||0}))} type="number" />
-              <EditField label="Total Value (€)" value={String(contractFormData.total_value || 0)} onChange={v => setContractFormData(f => ({...f, total_value: parseFloat(v)||0}))} type="number" />
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Currency</Label>
+                <Select value={contractFormData.currency || "EUR"} onValueChange={v => setContractFormData(f => ({...f, currency: v}))}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="GBP">GBP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <EditField label="Notice Days" value={String(contractFormData.notice_period_days || 30)} onChange={v => setContractFormData(f => ({...f, notice_period_days: parseInt(v)||30}))} type="number" />
             </div>
-            <EditField label="Notice Days" value={String(contractFormData.notice_period_days || 30)} onChange={v => setContractFormData(f => ({...f, notice_period_days: parseInt(v)||30}))} type="number" />
-            <div><Label className="text-xs">Observations</Label><Textarea value={contractFormData.observations || ""} onChange={e => setContractFormData(f => ({...f, observations: e.target.value}))} rows={3} className="text-sm" /></div>
-            <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowAddContract(false)}>Cancel</Button><Button onClick={handleAddContract} disabled={createContract.isPending}>{createContract.isPending ? "Creating..." : "Create Contract"}</Button></div>
+
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={!!contractFormData._add_recurring_line}
+                  onCheckedChange={v => setContractFormData(f => ({
+                    ...f,
+                    _add_recurring_line: v,
+                    _recurring_description: f._recurring_description || "Annual renewal agreement",
+                  }))}
+                />
+                <Label className="text-xs">Add a recurring annual line now</Label>
+              </div>
+              {contractFormData._add_recurring_line && (
+                <>
+                  <p className="text-[11px] text-muted-foreground">
+                    A single recurring line lets the system derive ARR and create one Annual Contract Renewal.
+                    Duplicate license-only renewals on the same end date will be marked as covered by this contract.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <EditField
+                      label="Description"
+                      value={contractFormData._recurring_description || "Annual renewal agreement"}
+                      onChange={v => setContractFormData(f => ({...f, _recurring_description: v}))}
+                    />
+                    <EditField
+                      label={`Annual amount (${contractFormData.currency || "EUR"})`}
+                      value={String(contractFormData._recurring_amount || "")}
+                      onChange={v => setContractFormData(f => ({...f, _recurring_amount: parseFloat(v) || 0}))}
+                      type="number"
+                      placeholder="e.g. 4112"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs">Observations</Label>
+              <Textarea
+                value={contractFormData.observations || ""}
+                onChange={e => setContractFormData(f => ({...f, observations: e.target.value}))}
+                rows={3}
+                className="text-sm"
+                placeholder="Paste legacy LIC notes here. They are preserved as context and do not affect ARR unless added as commercial lines."
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAddContract(false)}>Cancel</Button>
+              <Button onClick={handleAddContract}>Create Contract</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

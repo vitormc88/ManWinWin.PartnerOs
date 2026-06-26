@@ -171,9 +171,12 @@ export default function ClientsLicenses() {
         country: form.country || null,
         sector: form.sector || null,
         partner_id: partnerId,
+        // Single source of truth for partner display is clients.partner_uuid.
+        // Persist it whenever a partner is selected (HQ form) or the user is a partner.
+        partner_uuid: partnerId,
         license_type: licenseType,
         status: form.status || "Active",
-      });
+      } as any);
       toast.success("Client created successfully");
       setShowCreate(false);
       setForm({ client_code: "", commercial_name: "", short_name: "", country: "", sector: "", partner_id: "", license_family: "", license_variant: "", status: "Active" });
