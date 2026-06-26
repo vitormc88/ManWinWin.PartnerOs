@@ -396,8 +396,10 @@ export default function ClientDetail() {
         backoffice_users: licenseForm.backoffice_users ?? 0,
         web_accesses: licenseForm.web_accesses ?? 0,
         sat_active: licenseForm.sat_active ?? false,
+        sat_start_date: licenseForm.sat_active ? (licenseForm.sat_start_date || licenseForm.license_start_date || null) : null,
+        sat_end_date: licenseForm.sat_active ? (licenseForm.sat_end_date || licenseForm.license_end_date || null) : null,
         api_access: licenseForm.api_access ?? false,
-      });
+      } as any);
       await updateClient.mutateAsync({ id: client.id, license_type: licenseForm.product, cloud_onpremise: licenseForm.database_type });
       toast.success("License created");
       setShowAddLicense(false);
