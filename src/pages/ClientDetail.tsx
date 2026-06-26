@@ -1328,22 +1328,86 @@ export default function ClientDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Contract */}
+      {/* Add Contract — Manual / Legacy Agreement */}
       <Dialog open={showAddContract} onOpenChange={setShowAddContract}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Add Contract</DialogTitle></DialogHeader>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Add Contract</DialogTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Manual legacy agreement. ARR and renewal value are calculated from recurring contract lines.
+            </p>
+          </DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="grid grid-cols-2 gap-3">
-              <EditField label="Start Date" value={contractFormData.contract_start_date || ""} onChange={v => setContractFormData(f => ({...f, contract_start_date: v}))} type="date" />
-              <EditField label="End Date" value={contractFormData.contract_end_date || ""} onChange={v => setContractFormData(f => ({...f, contract_end_date: v}))} type="date" />
+              <EditField label="Start Date *" value={contractFormData.contract_start_date || ""} onChange={v => setContractFormData(f => ({...f, contract_start_date: v}))} type="date" />
+              <EditField label="End / Renewal Date *" value={contractFormData.contract_end_date || ""} onChange={v => setContractFormData(f => ({...f, contract_end_date: v}))} type="date" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <EditField label="Contract Value (€)" value={String(contractFormData.contract_value || 0)} onChange={v => setContractFormData(f => ({...f, contract_value: parseFloat(v)||0}))} type="number" />
-              <EditField label="Total Value (€)" value={String(contractFormData.total_value || 0)} onChange={v => setContractFormData(f => ({...f, total_value: parseFloat(v)||0}))} type="number" />
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Currency</Label>
+                <Select value={contractFormData.currency || "EUR"} onValueChange={v => setContractFormData(f => ({...f, currency: v}))}>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="GBP">GBP</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <EditField label="Notice Days" value={String(contractFormData.notice_period_days || 30)} onChange={v => setContractFormData(f => ({...f, notice_period_days: parseInt(v)||30}))} type="number" />
             </div>
-            <EditField label="Notice Days" value={String(contractFormData.notice_period_days || 30)} onChange={v => setContractFormData(f => ({...f, notice_period_days: parseInt(v)||30}))} type="number" />
-            <div><Label className="text-xs">Observations</Label><Textarea value={contractFormData.observations || ""} onChange={e => setContractFormData(f => ({...f, observations: e.target.value}))} rows={3} className="text-sm" /></div>
-            <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowAddContract(false)}>Cancel</Button><Button onClick={handleAddContract} disabled={createContract.isPending}>{createContract.isPending ? "Creating..." : "Create Contract"}</Button></div>
+
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={!!contractFormData._add_recurring_line}
+                  onCheckedChange={v => setContractFormData(f => ({
+                    ...f,
+                    _add_recurring_line: v,
+                    _recurring_description: f._recurring_description || "Annual renewal agreement",
+                  }))}
+                />
+                <Label className="text-xs">Add a recurring annual line now</Label>
+              </div>
+              {contractFormData._add_recurring_line && (
+                <>
+                  <p className="text-[11px] text-muted-foreground">
+                    A single recurring line lets the system derive ARR and create one Annual Contract Renewal.
+                    Duplicate license-only renewals on the same end date will be marked as covered by this contract.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <EditField
+                      label="Description"
+                      value={contractFormData._recurring_description || "Annual renewal agreement"}
+                      onChange={v => setContractFormData(f => ({...f, _recurring_description: v}))}
+                    />
+                    <EditField
+                      label={`Annual amount (${contractFormData.currency || "EUR"})`}
+                      value={String(contractFormData._recurring_amount || "")}
+                      onChange={v => setContractFormData(f => ({...f, _recurring_amount: parseFloat(v) || 0}))}
+                      type="number"
+                      placeholder="e.g. 4112"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs">Observations</Label>
+              <Textarea
+                value={contractFormData.observations || ""}
+                onChange={e => setContractFormData(f => ({...f, observations: e.target.value}))}
+                rows={3}
+                className="text-sm"
+                placeholder="Paste legacy LIC notes here. They are preserved as context and do not affect ARR unless added as commercial lines."
+              />
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowAddContract(false)}>Cancel</Button>
+              <Button onClick={handleAddContract}>Create Contract</Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
