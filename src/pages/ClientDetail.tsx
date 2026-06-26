@@ -787,6 +787,7 @@ export default function ClientDetail() {
               billing={(primaryContract as any)?.billing_frequency || null}
             />
           )}
+          {client?.id && <ContactsCard clientId={client.id} />}
         </TabsContent>
 
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}
