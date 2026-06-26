@@ -402,6 +402,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          is_primary: boolean
           mobile: string | null
           notes: string | null
           phone: string | null
@@ -413,6 +414,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_primary?: boolean
           mobile?: string | null
           notes?: string | null
           phone?: string | null
@@ -424,6 +426,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          is_primary?: boolean
           mobile?: string | null
           notes?: string | null
           phone?: string | null
@@ -983,6 +986,7 @@ export type Database = {
           calculated_total: number | null
           client_id: string
           contract_end_date: string | null
+          contract_mode: string | null
           contract_start_date: string | null
           contract_value: number | null
           created_at: string
@@ -1010,6 +1014,7 @@ export type Database = {
           calculated_total?: number | null
           client_id: string
           contract_end_date?: string | null
+          contract_mode?: string | null
           contract_start_date?: string | null
           contract_value?: number | null
           created_at?: string
@@ -1037,6 +1042,7 @@ export type Database = {
           calculated_total?: number | null
           client_id?: string
           contract_end_date?: string | null
+          contract_mode?: string | null
           contract_start_date?: string | null
           contract_value?: number | null
           created_at?: string
@@ -2168,6 +2174,7 @@ export type Database = {
           replaced_by_license_id: string | null
           sat_active: boolean
           sat_end_date: string | null
+          sat_start_date: string | null
           source_proposal_id: string | null
           updated_at: string
           version: string | null
@@ -2208,6 +2215,7 @@ export type Database = {
           replaced_by_license_id?: string | null
           sat_active?: boolean
           sat_end_date?: string | null
+          sat_start_date?: string | null
           source_proposal_id?: string | null
           updated_at?: string
           version?: string | null
@@ -2248,6 +2256,7 @@ export type Database = {
           replaced_by_license_id?: string | null
           sat_active?: boolean
           sat_end_date?: string | null
+          sat_start_date?: string | null
           source_proposal_id?: string | null
           updated_at?: string
           version?: string | null
@@ -3772,10 +3781,12 @@ export type Database = {
           billing_frequency: string | null
           client_id: string
           contract_id: string | null
+          covered_by_contract_id: string | null
           created_at: string
           estimated_value: number | null
           final_value: number | null
           id: string
+          is_covered_by_contract: boolean
           last_interaction: string | null
           license_id: string | null
           notes: string | null
@@ -3798,10 +3809,12 @@ export type Database = {
           billing_frequency?: string | null
           client_id: string
           contract_id?: string | null
+          covered_by_contract_id?: string | null
           created_at?: string
           estimated_value?: number | null
           final_value?: number | null
           id?: string
+          is_covered_by_contract?: boolean
           last_interaction?: string | null
           license_id?: string | null
           notes?: string | null
@@ -3824,10 +3837,12 @@ export type Database = {
           billing_frequency?: string | null
           client_id?: string
           contract_id?: string | null
+          covered_by_contract_id?: string | null
           created_at?: string
           estimated_value?: number | null
           final_value?: number | null
           id?: string
+          is_covered_by_contract?: boolean
           last_interaction?: string | null
           license_id?: string | null
           notes?: string | null
@@ -3875,6 +3890,13 @@ export type Database = {
           {
             foreignKeyName: "renewals_contract_id_fkey"
             columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renewals_covered_by_contract_id_fkey"
+            columns: ["covered_by_contract_id"]
             isOneToOne: false
             referencedRelation: "contracts"
             referencedColumns: ["id"]
