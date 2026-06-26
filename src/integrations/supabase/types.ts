@@ -4153,6 +4153,55 @@ export type Database = {
       }
     }
     Views: {
+      client_commercial_intelligence: {
+        Row: {
+          active_contract_count: number | null
+          active_license_count: number | null
+          active_modules: Json | null
+          active_plugins: Json | null
+          active_renewal_count: number | null
+          api_access: boolean | null
+          backoffice_users: number | null
+          client_id: string | null
+          client_name: string | null
+          commercial_score: number | null
+          confidence: string | null
+          country: string | null
+          days_to_renewal: number | null
+          deployment_type: string | null
+          expansion_potential: number | null
+          has_active_renewal: boolean | null
+          has_contract: boolean | null
+          has_license: boolean | null
+          high_confidence_potential: number | null
+          license_family: string | null
+          license_variant: string | null
+          low_confidence_potential: number | null
+          medium_confidence_potential: number | null
+          missing_modules: Json | null
+          missing_plugins: Json | null
+          next_renewal_date: string | null
+          next_renewal_value: number | null
+          not_renewed_items: Json | null
+          one_time_items: Json | null
+          one_time_value: number | null
+          partner_id: string | null
+          partner_name: string | null
+          proposed_not_purchased: Json | null
+          recommended_actions: Json | null
+          recurring_arr: number | null
+          recurring_items: Json | null
+          renewal_risk: string | null
+          risk_signals: Json | null
+          sat_active: boolean | null
+          sector: string | null
+          updated_at: string | null
+          upsell_opportunities: Json | null
+          web_users: number | null
+          year1_value: number | null
+        }
+        Relationships: []
+      }
       partner_metrics: {
         Row: {
           clients: number | null
@@ -4461,6 +4510,55 @@ export type Database = {
       generate_partner_code: {
         Args: { _company_name: string; _country_code: string }
         Returns: string
+      }
+      get_client_commercial_intelligence: {
+        Args: { client_uuid: string }
+        Returns: {
+          active_contract_count: number
+          active_license_count: number
+          active_modules: Json
+          active_plugins: Json
+          active_renewal_count: number
+          api_access: boolean
+          backoffice_users: number
+          client_id: string
+          client_name: string
+          commercial_score: number
+          confidence: string
+          country: string
+          days_to_renewal: number
+          deployment_type: string
+          expansion_potential: number
+          has_active_renewal: boolean
+          has_contract: boolean
+          has_license: boolean
+          high_confidence_potential: number
+          license_family: string
+          license_variant: string
+          low_confidence_potential: number
+          medium_confidence_potential: number
+          missing_modules: Json
+          missing_plugins: Json
+          next_renewal_date: string
+          next_renewal_value: number
+          not_renewed_items: Json
+          one_time_items: Json
+          one_time_value: number
+          partner_id: string
+          partner_name: string
+          proposed_not_purchased: Json
+          recommended_actions: Json
+          recurring_arr: number
+          recurring_items: Json
+          renewal_risk: string
+          risk_signals: Json
+          sat_active: boolean
+          sector: string
+          updated_at: string
+          upsell_opportunities: Json
+          web_users: number
+          year1_value: number
+        }[]
       }
       get_effective_permissions: {
         Args: { _user_id: string }
