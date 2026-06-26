@@ -771,7 +771,17 @@ export default function ClientDetail() {
         </TabsList>
 
         {/* ═══════════════════ OVERVIEW TAB ═══════════════════ */}
-        <TabsContent value="overview" className="mt-4">
+        <TabsContent value="overview" className="mt-4 space-y-5">
+          {client?.id && <CommercialIntelligenceDashboard clientId={client.id} />}
+
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" size="sm" className="w-full justify-between">
+                <span className="flex items-center gap-2"><Building2 className="h-3.5 w-3.5" /> Client Profile & Contacts</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             {/* Left column: Client Info + Contacts */}
             <div className="lg:col-span-2 space-y-4">
