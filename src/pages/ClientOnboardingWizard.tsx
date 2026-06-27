@@ -128,7 +128,7 @@ function loadDraft(): Draft {
       contract: { ...initialDraft.contract, ...(parsed.contract || {}) },
     } as Draft;
 
-    if (!merged.contract.sat_dates_touched) {
+    if (merged.contract.sat_active) {
       merged.contract.sat_start_date = merged.contract.start_date || merged.contract.sat_start_date;
       merged.contract.sat_end_date = merged.contract.renewal_date || merged.contract.sat_end_date;
     }
@@ -738,8 +738,8 @@ export default function ClientOnboardingWizard() {
                 </div>
                 {draft.contract.sat_active && (
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">S&AT Start</Label><Input type="date" value={draft.contract.sat_start_date} onChange={e => updContract({ sat_start_date: e.target.value, sat_dates_touched: true })} /></div>
-                    <div><Label className="text-xs">S&AT End</Label><Input type="date" value={draft.contract.sat_end_date} onChange={e => updContract({ sat_end_date: e.target.value, sat_dates_touched: true })} /></div>
+                    <div><Label className="text-xs">S&AT Start</Label><Input type="date" value={draft.contract.start_date} readOnly /></div>
+                    <div><Label className="text-xs">S&AT End</Label><Input type="date" value={draft.contract.renewal_date} readOnly /></div>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
