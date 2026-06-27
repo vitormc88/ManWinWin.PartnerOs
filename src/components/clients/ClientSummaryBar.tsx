@@ -28,14 +28,14 @@ function Cell({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function ClientSummaryBar({ client, ownerName, nextRenewalDate }: Props) {
+export function ClientSummaryBar({ client, ownerName, nextRenewalDate, onEdit }: Props) {
   const partner = client?.partner?.name || "HQ Direct";
   const owner = ownerName || client?.manager_owner || "—";
   const location = [client?.country, client?.sector].filter(Boolean).join(" • ") || "—";
 
   return (
     <Card className="border-border/60 shadow-sm">
-      <div className="px-5 py-3 flex items-center gap-4 border-b border-border/40 flex-wrap">
+      <div className="px-5 py-3 flex items-center justify-between gap-4 border-b border-border/40 flex-wrap">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-base font-semibold text-foreground truncate">{client?.commercial_name}</h2>
@@ -47,6 +47,11 @@ export function ClientSummaryBar({ client, ownerName, nextRenewalDate }: Props) 
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{location}</p>
         </div>
+        {onEdit && (
+          <Button variant="outline" size="sm" onClick={onEdit} className="h-8 gap-1.5">
+            <Pencil className="h-3.5 w-3.5" /> Edit
+          </Button>
+        )}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 px-5 py-3">
         <Cell label="Partner" value={partner} />
