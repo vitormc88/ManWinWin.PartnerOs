@@ -522,7 +522,7 @@ export default function ClientOnboardingWizard() {
                 <div><Label>Website</Label><Input value={draft.client.website} onChange={e => updClient({ website: e.target.value })} placeholder="https://" /></div>
                 <div>
                   <Label>Owner / Account Manager</Label>
-                  <Select value={draft.client.manager_owner_id || "none"} onValueChange={selectOwner} disabled={assignableUsersLoading || ownerOptions.length === 0}>
+                  <Select value={draft.client.manager_owner_id || "none"} onValueChange={selectOwner} disabled={assignableUsersLoading}>
                     <SelectTrigger>
                       <SelectValue placeholder={assignableUsersLoading ? "Loading users…" : "Select account manager"} />
                     </SelectTrigger>
@@ -531,6 +531,9 @@ export default function ClientOnboardingWizard() {
                       {ownerOptions.map(user => (
                         <SelectItem key={user.id} value={user.id}>{user.full_name || user.email}</SelectItem>
                       ))}
+                      {!assignableUsersLoading && ownerOptions.length === 0 && (
+                        <SelectItem value="no-users" disabled>No assignable users</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
