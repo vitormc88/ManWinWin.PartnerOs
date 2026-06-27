@@ -897,7 +897,9 @@ export default function ClientDetail() {
             client={client}
             ownerName={client.manager_owner || client.account_manager}
             nextRenewalDate={renewalEndDate}
+            onEdit={startEditClient}
           />
+          {client?.id && <ContactsCard clientId={client.id} />}
           {client?.id && (
             <CommercialIntelligenceDashboard
               clientId={client.id}
@@ -907,7 +909,6 @@ export default function ClientDetail() {
               billing={(primaryContract as any)?.billing_frequency || null}
             />
           )}
-          {client?.id && <ContactsCard clientId={client.id} />}
         </TabsContent>
 
         {/* ═══════════════════ LICENSING TAB ═══════════════════ */}
