@@ -60,7 +60,7 @@ type Draft = {
     country: string; sector: string; partner_id: string;
     status: string; industry: string; address: string; vat: string; notes: string;
     phone: string; email: string; website: string;
-    manager_owner: string; is_premium: boolean;
+     manager_owner: string; manager_owner_id: string; is_premium: boolean;
   };
   contacts: ContactForm[];
   license: {
@@ -89,7 +89,7 @@ const initialDraft: Draft = {
   client: {
     client_code: "", commercial_name: "", short_name: "", country: "", sector: "",
     partner_id: "", status: "Active", industry: "", address: "", vat: "", notes: "",
-    phone: "", email: "", website: "", manager_owner: "", is_premium: false,
+     phone: "", email: "", website: "", manager_owner: "", manager_owner_id: "", is_premium: false,
   },
   contacts: [{ ...emptyContact }],
   license: {
@@ -102,7 +102,9 @@ const initialDraft: Draft = {
     start_date: new Date().toISOString().slice(0, 10),
     renewal_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10),
     notice_period_days: 60,
-    sat_active: true, sat_start_date: new Date().toISOString().slice(0, 10), sat_end_date: "",
+     sat_active: true,
+     sat_start_date: new Date().toISOString().slice(0, 10),
+     sat_end_date: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10),
     sat_dates_touched: false,
     auto_renew: true,
   },
@@ -114,7 +116,24 @@ function loadDraft(): Draft {
   try {
     const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return initialDraft;
-    return { ...initialDraft, ...JSON.parse(raw) } as Draft;
+    const parsed = JSON.parse(raw) as Partial<Draft>;
+    const merged = {
+      ...initialDraft,
+      ...parsed,
+      client: { ...initialDraft.client, ...(parsed.client || {}) },
+      contacts: Array.isArray(parsed.contacts) && parsed.contacts.length
+        ? parsed.contacts.map(c => ({ ...emptyContact, ...c }))
+        : [{ ...emptyContact }],
+      license: { ...initialDraft.license, ...(parsed.license || {}) },
+      contract: { ...initialDraft.contract, ...(parsed.contract || {}) },
+    } as Draft;
+
+    if (!merged.contract.sat_dates_touched) {
+      merged.contract.sat_start_date = merged.contract.start_date || merged.contract.sat_start_date;
+      merged.contract.sat_end_date = merged.contract.renewal_date || merged.contract.sat_end_date;
+    }
+
+    return merged;
   } catch { return initialDraft; }
 }
 
@@ -151,12 +170,28 @@ export default function ClientOnboardingWizard() {
   const { isHQ, profile } = useAuth();
   const userPartnerId = !isHQ ? (profile?.partner_id ?? null) : null;
   const { data: partners = [] } = usePartners();
+  const { data: assignableUsers = [], isLoading: assignableUsersLoading } = useAssignableUsers();
   const { data: modules = [] } = useCatalog("modules_catalog");
   const { data: plugins = [] } = useCatalog("plugins_catalog");
 
   const [draft, setDraft] = useState<Draft>(loadDraft);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">("saved");
   const [submitting, setSubmitting] = useState(false);
+
+  const ownerOptions = useMemo(() => {
+    const selectedPartnerId = draft.client.partner_id || userPartnerId || null;
+    if (selectedPartnerId) return assignableUsers.filter(user => user.partner_id === selectedPartnerId);
+    return assignableUsers.filter(user => user.is_hq || !user.partner_id);
+  }, [assignableUsers, draft.client.partner_id, userPartnerId]);
+
+  const selectedModuleNames = useMemo(
+    () => modules.filter(m => draft.license.module_ids.includes(m.id)).map(m => m.name),
+    [modules, draft.license.module_ids],
+  );
+  const selectedPluginNames = useMemo(
+    () => plugins.filter(p => draft.license.plugin_ids.includes(p.id)).map(p => p.name),
+    [plugins, draft.license.plugin_ids],
+  );
 
   // Autosave (debounced)
   useEffect(() => {
@@ -209,6 +244,7 @@ export default function ClientOnboardingWizard() {
         email: draft.client.email?.trim() || null,
         website: draft.client.website?.trim() || null,
         manager_owner: draft.client.manager_owner?.trim() || null,
+         manager_owner_id: draft.client.manager_owner_id || null,
         is_premium: !!draft.client.is_premium,
         status: draft.client.status || "Active",
         address: draft.client.address || null,
@@ -344,7 +380,16 @@ export default function ClientOnboardingWizard() {
   // ── Helpers for nested updates
   const updClient = (p: Partial<Draft["client"]>) => setDraft(d => ({ ...d, client: { ...d.client, ...p } }));
   const updLicense = (p: Partial<Draft["license"]>) => setDraft(d => ({ ...d, license: { ...d.license, ...p } }));
-  const updContract = (p: Partial<Draft["contract"]>) => setDraft(d => ({ ...d, contract: { ...d.contract, ...p } }));
+  const updContract = (p: Partial<Draft["contract"]>) => setDraft(d => {
+    const next = { ...d.contract, ...p };
+    if ("start_date" in p && !("sat_start_date" in p)) next.sat_start_date = p.start_date || "";
+    if ("renewal_date" in p && !("sat_end_date" in p)) next.sat_end_date = p.renewal_date || "";
+    if ("sat_active" in p && p.sat_active) {
+      next.sat_start_date = next.sat_start_date || next.start_date;
+      next.sat_end_date = next.sat_end_date || next.renewal_date;
+    }
+    return { ...d, contract: next };
+  });
   const updContact = (i: number, p: Partial<ContactForm>) =>
     setDraft(d => ({ ...d, contacts: d.contacts.map((c, idx) => idx === i ? { ...c, ...p } : c) }));
   const addContact = () =>
@@ -354,6 +399,23 @@ export default function ClientOnboardingWizard() {
 
   const toggleId = (arr: string[], id: string) =>
     arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id];
+
+  const roleSelectValue = (role: string) => {
+    if (!role) return "";
+    return CONTACT_ROLES.includes(role as typeof CONTACT_ROLES[number]) ? role : "Other";
+  };
+
+  const selectOwner = (ownerId: string) => {
+    if (ownerId === "none") {
+      updClient({ manager_owner_id: "", manager_owner: "" });
+      return;
+    }
+    const owner = assignableUsers.find(user => user.id === ownerId);
+    updClient({
+      manager_owner_id: ownerId,
+      manager_owner: owner ? (owner.full_name || owner.email) : "",
+    });
+  };
 
   const resetDraft = () => {
     if (!confirm("Discard the current draft and start over?")) return;
@@ -431,7 +493,7 @@ export default function ClientOnboardingWizard() {
                 {isHQ ? (
                   <div>
                     <Label>Linked Partner</Label>
-                    <Select value={draft.client.partner_id || "none"} onValueChange={v => updClient({ partner_id: v === "none" ? "" : v })}>
+                    <Select value={draft.client.partner_id || "none"} onValueChange={v => updClient({ partner_id: v === "none" ? "" : v, manager_owner_id: "", manager_owner: "" })}>
                       <SelectTrigger><SelectValue placeholder="HQ Direct" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">HQ Direct</SelectItem>
@@ -458,7 +520,20 @@ export default function ClientOnboardingWizard() {
                 <div><Label>Phone</Label><Input value={draft.client.phone} onChange={e => updClient({ phone: e.target.value })} /></div>
                 <div><Label>Email</Label><Input type="email" value={draft.client.email} onChange={e => updClient({ email: e.target.value })} /></div>
                 <div><Label>Website</Label><Input value={draft.client.website} onChange={e => updClient({ website: e.target.value })} placeholder="https://" /></div>
-                <div><Label>Owner / Account Manager</Label><Input value={draft.client.manager_owner} onChange={e => updClient({ manager_owner: e.target.value })} placeholder="e.g. Jane Doe" /></div>
+                <div>
+                  <Label>Owner / Account Manager</Label>
+                  <Select value={draft.client.manager_owner_id || "none"} onValueChange={selectOwner} disabled={assignableUsersLoading || ownerOptions.length === 0}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={assignableUsersLoading ? "Loading users…" : "Select account manager"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Unassigned</SelectItem>
+                      {ownerOptions.map(user => (
+                        <SelectItem key={user.id} value={user.id}>{user.full_name || user.email}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex items-end gap-2"><Switch checked={draft.client.is_premium} onCheckedChange={v => updClient({ is_premium: v })} /><Label>Premium client</Label></div>
                 <div className="col-span-2"><Label>Address</Label><Input value={draft.client.address} onChange={e => updClient({ address: e.target.value })} /></div>
                 <div className="col-span-2"><Label>Internal Notes</Label><Textarea rows={2} value={draft.client.notes} onChange={e => updClient({ notes: e.target.value })} /></div>
@@ -490,7 +565,24 @@ export default function ClientOnboardingWizard() {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div><Label className="text-xs">Name *</Label><Input value={c.contact_name} onChange={e => updContact(i, { contact_name: e.target.value })} /></div>
-                      <div><Label className="text-xs">Role / Function</Label><Input value={c.role_function} onChange={e => updContact(i, { role_function: e.target.value })} placeholder="e.g. IT Manager" /></div>
+                      <div className="space-y-2">
+                        <div>
+                          <Label className="text-xs">Role / Function</Label>
+                          <Select value={roleSelectValue(c.role_function)} onValueChange={v => updContact(i, { role_function: v })}>
+                            <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
+                            <SelectContent>
+                              {CONTACT_ROLES.map(role => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {roleSelectValue(c.role_function) === "Other" && (
+                          <Input
+                            value={c.role_function === "Other" ? "" : c.role_function}
+                            onChange={e => updContact(i, { role_function: e.target.value || "Other" })}
+                            placeholder="Specify role/function"
+                          />
+                        )}
+                      </div>
                       <div><Label className="text-xs">Email</Label><Input type="email" value={c.email} onChange={e => updContact(i, { email: e.target.value })} /></div>
                       <div><Label className="text-xs">Phone</Label><Input value={c.phone} onChange={e => updContact(i, { phone: e.target.value })} /></div>
                       <div><Label className="text-xs">Mobile</Label><Input value={c.mobile} onChange={e => updContact(i, { mobile: e.target.value })} /></div>
@@ -523,9 +615,9 @@ export default function ClientOnboardingWizard() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>License Family *</Label>
+                  <Label>Product / License Type *</Label>
                   <Select value={draft.license.family || ""} onValueChange={v => updLicense({ family: v as Family, variant: "" })}>
-                    <SelectTrigger><SelectValue placeholder="Select family" /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select product type" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Business">Business</SelectItem>
                       <SelectItem value="Professional">Professional</SelectItem>
@@ -533,9 +625,9 @@ export default function ClientOnboardingWizard() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Variant *</Label>
+                  <Label>Edition / Package *</Label>
                   <Select value={draft.license.variant || ""} onValueChange={v => updLicense({ variant: v })} disabled={!draft.license.family}>
-                    <SelectTrigger><SelectValue placeholder={draft.license.family ? "Select variant" : "Pick a family first"} /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={draft.license.family ? "Select edition" : "Pick a product type first"} /></SelectTrigger>
                     <SelectContent>
                       {(VARIANTS[draft.license.family] || []).map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
                     </SelectContent>
@@ -553,7 +645,7 @@ export default function ClientOnboardingWizard() {
                   </Select>
                 </div>
                 <div><Label>Version</Label><Input value={draft.license.version} onChange={e => updLicense({ version: e.target.value })} placeholder="e.g. 7.5" /></div>
-                <div><Label>Business Objects (Backoffice users)</Label><Input type="number" min={0} value={draft.license.backoffice_users} onChange={e => updLicense({ backoffice_users: Number(e.target.value) })} /></div>
+                <div><Label>BackOffice Users</Label><Input type="number" min={0} value={draft.license.backoffice_users} onChange={e => updLicense({ backoffice_users: Number(e.target.value) })} /></div>
                 <div><Label>Web Users</Label><Input type="number" min={0} value={draft.license.web_accesses} onChange={e => updLicense({ web_accesses: Number(e.target.value) })} /></div>
                 <div className="flex items-end gap-2"><Switch checked={draft.license.api_access} onCheckedChange={v => updLicense({ api_access: v })} /><Label>API access enabled</Label></div>
               </div>
@@ -578,7 +670,7 @@ export default function ClientOnboardingWizard() {
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Plugins</Label>
+                <Label className="text-sm font-medium">Add-ons / Plugins</Label>
                 <p className="text-xs text-muted-foreground mb-2">{draft.license.plugin_ids.length} selected</p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-auto rounded-md border border-border/60 p-2 bg-muted/10">
                   {plugins.length === 0 && <span className="text-xs text-muted-foreground">No plugins in catalog.</span>}
@@ -643,8 +735,8 @@ export default function ClientOnboardingWizard() {
                 </div>
                 {draft.contract.sat_active && (
                   <div className="grid grid-cols-2 gap-3">
-                    <div><Label className="text-xs">S&AT Start</Label><Input type="date" value={draft.contract.sat_start_date} onChange={e => updContract({ sat_start_date: e.target.value })} /></div>
-                    <div><Label className="text-xs">S&AT End (optional)</Label><Input type="date" value={draft.contract.sat_end_date} onChange={e => updContract({ sat_end_date: e.target.value })} placeholder="Ongoing" /></div>
+                    <div><Label className="text-xs">S&AT Start</Label><Input type="date" value={draft.contract.sat_start_date} onChange={e => updContract({ sat_start_date: e.target.value, sat_dates_touched: true })} /></div>
+                    <div><Label className="text-xs">S&AT End</Label><Input type="date" value={draft.contract.sat_end_date} onChange={e => updContract({ sat_end_date: e.target.value, sat_dates_touched: true })} /></div>
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -673,16 +765,17 @@ export default function ClientOnboardingWizard() {
                   draft.contacts.filter(c => c.contact_name.trim()).map(c => `${c.contact_name}${c.is_primary ? " (Primary)" : ""}${c.role_function ? ` — ${c.role_function}` : ""}`)
                 },
                 { i: 2, title: "License", lines: [
-                  draft.license.variant ? `${draft.license.family} / ${draft.license.variant}` : "—",
-                  `${draft.license.backoffice_users} BO • ${draft.license.web_accesses} WEB`,
-                  `${draft.license.module_ids.length} Modules • ${draft.license.plugin_ids.length} Plugins`,
+                  draft.license.variant ? `Product / License Type: ${draft.license.family} — ${draft.license.variant}` : "—",
+                  `${draft.license.backoffice_users} BackOffice Users • ${draft.license.web_accesses} Web Users`,
+                  selectedModuleNames.length ? `Modules: ${selectedModuleNames.join(", ")}` : "Modules: none",
+                  selectedPluginNames.length ? `Add-ons / Plugins: ${selectedPluginNames.join(", ")}` : "Add-ons / Plugins: none",
                   `Deployment: ${draft.license.deployment_type}${draft.license.version ? ` • v${draft.license.version}` : ""}`,
                 ]},
                 { i: 3, title: "Contract", lines: [
                   `${draft.contract.currency} ${draft.contract.contract_value.toLocaleString()} / year`,
                   `${draft.contract.start_date} → ${draft.contract.renewal_date}`,
                   `Billing: ${draft.contract.billing_frequency} • Notice: ${draft.contract.notice_period_days} days`,
-                  draft.contract.sat_active ? `S&AT active${draft.contract.sat_end_date ? ` until ${draft.contract.sat_end_date}` : " (ongoing)"}` : "S&AT inactive",
+                  draft.contract.sat_active ? `S&AT: ${draft.contract.sat_start_date || "—"} → ${draft.contract.sat_end_date || "—"}` : "S&AT inactive",
                   draft.contract.auto_renew ? "Auto-renew yearly" : "Manual renewal",
                 ]},
               ] as const).map(section => (
