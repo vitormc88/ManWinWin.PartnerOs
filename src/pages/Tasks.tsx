@@ -1311,9 +1311,9 @@ export default function Tasks() {
       <TodaysFocus />
       {!isLoading && tasks.length > 0 && view !== "completed" && <PriorityFocus tasks={tasks} />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
 
-        <div className="lg:col-span-3 space-y-4">
+        <div className="lg:col-span-3 space-y-3">
           <Card className="overflow-hidden">
             {/* Unified toolbar: tabs + filters attached to list */}
             <div className="border-b bg-muted/20">
