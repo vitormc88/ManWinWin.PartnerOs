@@ -1283,7 +1283,7 @@ export default function Tasks() {
 
   return (
     <TooltipProvider delayDuration={250}>
-    <div className="container mx-auto max-w-[1400px] px-4 py-6 space-y-6">
+    <div className="container mx-auto max-w-[1400px] px-4 py-4 space-y-3">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">Tasks</h1>
