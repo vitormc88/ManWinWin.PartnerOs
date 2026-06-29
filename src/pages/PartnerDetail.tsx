@@ -806,7 +806,16 @@ export default function PartnerDetail() {
                                   <span className="text-sm text-muted-foreground">—</span>
                                 )}
                               </TableCell>
-                              <TableCell className="py-2.5"><span className="text-xs text-muted-foreground">{r.renewal_type}</span></TableCell>
+                              <TableCell className="py-2.5">
+                                <div className="flex flex-wrap gap-1">
+                                  {(r.included_services && r.included_services.length > 0
+                                    ? r.included_services
+                                    : [r.renewal_type]
+                                  ).map((s: string) => (
+                                    <span key={s} className="inline-flex items-center rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{s}</span>
+                                  ))}
+                                </div>
+                              </TableCell>
                               <TableCell className="py-2.5 text-sm tabular-nums">{r.renewal_date ? fmt(r.renewal_date) : "—"}</TableCell>
                               <TableCell className={`py-2.5 text-right text-xs tabular-nums ${daysCls}`}>{isCompleted ? "—" : daysLabel}</TableCell>
                               <TableCell className="py-2.5">
