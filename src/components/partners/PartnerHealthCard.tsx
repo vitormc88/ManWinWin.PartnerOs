@@ -109,17 +109,17 @@ function FactorSection({ title, tone, items, emptyText }: FactorSectionProps) {
   const iconColor = tone === "positive" ? "text-success" : "text-warning";
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
       </h4>
       {items.length === 0 ? (
         <p className="text-xs text-muted-foreground italic">{emptyText}</p>
       ) : (
-        <ul className="space-y-1.5">
+        <ul className="space-y-1">
           {items.map((label, i) => (
-            <li key={`${tone}-${i}`} className="flex items-start gap-2 text-sm text-foreground">
-              <Icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${iconColor}`} />
+            <li key={`${tone}-${i}`} className="flex items-start gap-2 text-[13px] text-foreground">
+              <Icon className={`h-3 w-3 mt-0.5 shrink-0 ${iconColor}`} />
               <span className="leading-snug">{label}</span>
             </li>
           ))}
