@@ -256,13 +256,20 @@ export default function PartnerDetail() {
 
   const updateRenewalStatus = async (renewal: any, status: string) => {
     try {
-      let targetId: string | null = renewal.id;
-      if (typeof targetId === "string" && targetId.startsWith("derived-")) {
-        targetId = await materializeDerivedRenewal(renewal);
+      // Consolidated commercial renewal — apply status to every underlying component
+      // (License / Contract / S&AT), materializing derived rows as needed.
+      const components: any[] = Array.isArray(renewal._components) && renewal._components.length
+        ? renewal._components
+        : [renewal];
+      for (const c of components) {
+        let targetId: string | null = c.id;
+        if (typeof targetId === "string" && targetId.startsWith("derived-")) {
+          targetId = await materializeDerivedRenewal(c);
+        }
+        if (!targetId) continue;
+        const { error } = await supabase.from("renewals").update({ status }).eq("id", targetId);
+        if (error) throw error;
       }
-      if (!targetId) throw new Error("Could not resolve renewal");
-      const { error } = await supabase.from("renewals").update({ status }).eq("id", targetId);
-      if (error) throw error;
       toast.success(status === "Completed" ? "Renewal marked completed" : "Renewal updated");
       queryClient.invalidateQueries({ queryKey: ["renewals"] });
     } catch (e: any) { toast.error(e?.message || "Failed to update renewal"); }
