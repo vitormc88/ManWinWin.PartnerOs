@@ -378,29 +378,109 @@ export function useAssignTask() {
   });
 }
 
+export const TASK_RELATED_TYPES = [
+  "client",
+  "deal",
+  "renewal",
+  "lead",
+  "partner",
+  "general",
+] as const;
+export type TaskRelatedType = (typeof TASK_RELATED_TYPES)[number];
+
+export const TASK_TYPES = [
+  "call",
+  "email",
+  "meeting",
+  "proposal",
+  "renewal",
+  "follow_up",
+  "internal",
+  "other",
+] as const;
+export type ManualTaskType = (typeof TASK_TYPES)[number];
+
+export const TASK_STATUSES = ["Open", "In Progress", "Waiting", "Completed"] as const;
+export type ManualTaskStatus = (typeof TASK_STATUSES)[number];
+
+const RELATED_ROUTE: Record<TaskRelatedType, (id: string) => string | null> = {
+  client: (id) => `/clients/${id}`,
+  deal: (id) => `/deals/${id}`,
+  renewal: (id) => `/renewals?focus=${id}`,
+  lead: (id) => `/incoming-leads/${id}`,
+  partner: (id) => `/partners/${id}`,
+  general: () => null,
+};
+
+export type CreateManualTaskInput = {
+  title: string;
+  description?: string;
+  due_date?: string | null;
+  priority?: string;
+  owner_user_id?: string | null;
+  task_type?: ManualTaskType | string;
+  task_status?: ManualTaskStatus;
+  related_type?: TaskRelatedType;
+  related_entity_id?: string | null;
+  related_company?: string | null;
+  related_route?: string | null;
+  // legacy alias — still accepted for backwards compatibility
+  related_source?: string | null;
+};
+
 export function useCreateManualTask() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (input: {
-      title: string;
-      description?: string;
-      due_date?: string | null;
-      priority?: string;
-      owner_user_id?: string | null;
-      task_type?: string;
-      related_company?: string | null;
-      related_source?: string | null;
-      related_entity_id?: string | null;
-      related_route?: string | null;
-    }) => {
+    mutationFn: async (input: CreateManualTaskInput) => {
+      const related_type: TaskRelatedType = (input.related_type ?? "general") as TaskRelatedType;
+      const related_route =
+        input.related_route ??
+        (input.related_entity_id ? RELATED_ROUTE[related_type]?.(input.related_entity_id) ?? null : null);
+
+      const payload: Record<string, any> = {
+        title: input.title,
+        description: input.description,
+        due_date: input.due_date ?? null,
+        priority: input.priority ?? "Medium",
+        task_type: input.task_type ?? "other",
+        task_status: input.task_status ?? "Open",
+        related_type,
+        related_entity_id: input.related_entity_id ?? null,
+        related_company: input.related_company ?? null,
+        related_source: input.related_source ?? related_type,
+        related_route,
+        owner_user_id: input.owner_user_id ?? user?.id ?? null,
+        created_by: user?.id ?? null,
+      };
+
       const { data, error } = await supabase
         .from("manual_tasks")
-        .insert({
-          ...input,
-          owner_user_id: input.owner_user_id ?? user?.id ?? null,
-          created_by: user?.id ?? null,
-        })
+        .insert(payload)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["unified_tasks"] }),
+  });
+}
+
+export function useUpdateManualTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      input: { id: string } & Partial<Omit<CreateManualTaskInput, "title"> & { title: string }>,
+    ) => {
+      const { id, ...rest } = input;
+      const patch: Record<string, any> = { ...rest };
+      if (rest.related_type && rest.related_entity_id && !rest.related_route) {
+        patch.related_route = RELATED_ROUTE[rest.related_type as TaskRelatedType]?.(rest.related_entity_id) ?? null;
+      }
+      const { data, error } = await supabase
+        .from("manual_tasks")
+        .update(patch)
+        .eq("id", id)
         .select()
         .single();
       if (error) throw error;
