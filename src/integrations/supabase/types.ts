@@ -2418,7 +2418,9 @@ export type Database = {
           related_entity_id: string | null
           related_route: string | null
           related_source: string | null
+          related_type: string
           status: string
+          task_status: string
           task_type: string
           title: string
           updated_at: string
@@ -2436,7 +2438,9 @@ export type Database = {
           related_entity_id?: string | null
           related_route?: string | null
           related_source?: string | null
+          related_type?: string
           status?: string
+          task_status?: string
           task_type?: string
           title: string
           updated_at?: string
@@ -2454,7 +2458,9 @@ export type Database = {
           related_entity_id?: string | null
           related_route?: string | null
           related_source?: string | null
+          related_type?: string
           status?: string
+          task_status?: string
           task_type?: string
           title?: string
           updated_at?: string
