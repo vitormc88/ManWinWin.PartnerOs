@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles } from "lucide-react";
+import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles, Trophy, Rocket, Target as TargetIcon, Users, Heart, GraduationCap, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { PIPELINE_STAGES } from "@/data/pipeline-stages";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -295,52 +295,10 @@ export default function Analytics() {
 
 
         {/* ---------- SALES ---------- */}
-        <TabsContent value="sales" className="space-y-6 mt-4">
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-5 border-b">
-              <h3 className="font-semibold text-foreground">Sales Performance</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">By assigned user · revenue from won deals only</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-secondary/50">
-                    <th className="text-left px-5 py-3 font-medium text-muted-foreground">Salesperson</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Revenue (Won)</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Open</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Won</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Lost</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Conversion</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Weighted Pipeline</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(sales.data || []).map(s => (
-                    <tr key={s.sales_key} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-5 py-3 font-medium text-foreground">
-                        <div className="flex items-center gap-2">
-                          <span>{s.sales_name}</span>
-                          {isAdmin && s.is_unlinked && <Badge variant="outline" className="text-[10px] opacity-60" title="No linked user profile (HQ-only diagnostic)">Unlinked</Badge>}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtEuro(s.won_revenue)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{s.open_count}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{s.won_count}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{s.lost_count}</td>
-                      <td className="px-5 py-3 text-right">
-                        <span className={`tabular-nums font-medium ${s.conversion >= 50 ? "text-emerald-600" : "text-foreground"}`}>{s.conversion}%</span>
-                      </td>
-                      <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{fmtEuro(s.weighted_pipeline)}</td>
-                    </tr>
-                  ))}
-                  {(sales.data || []).length === 0 && (
-                    <tr><td colSpan={7} className="p-0"><EmptyState hint="Assign opportunities to users to see performance breakdown." /></td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <TabsContent value="sales" className="space-y-4 mt-4">
+          <SalesCockpit sales={sales.data || []} isAdmin={isAdmin} navigate={navigate} />
         </TabsContent>
+
 
         {/* ---------- PARTNERS ---------- */}
         <TabsContent value="partners" className="space-y-6 mt-4">
@@ -737,4 +695,314 @@ function PipelineCockpit({
     </>
   );
 }
+
+// ============================================================
+// Sales Cockpit
+// ============================================================
+
+type SalesRow = {
+  sales_key: string;
+  user_id: string | null;
+  sales_name: string;
+  is_unlinked: boolean;
+  open_count: number;
+  won_count: number;
+  lost_count: number;
+  won_revenue: number;
+  pipeline_value: number;
+  weighted_pipeline: number;
+  conversion: number;
+};
+
+type SalesSortKey = "won_revenue" | "pipeline_value" | "won_count" | "lost_count" | "conversion" | "weighted_pipeline" | "open_count";
+
+function medal(idx: number) {
+  return idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "";
+}
+
+function RankCard({
+  title, icon: Icon, rows, format, onPick, emptyHint,
+}: {
+  title: string;
+  icon: any;
+  rows: { key: string; name: string; value: number; display: string }[];
+  format?: (n: number) => string;
+  onPick: (key: string, name: string) => void;
+  emptyHint?: string;
+}) {
+  return (
+    <ExecCard title={title} icon={Icon}>
+      {rows.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{emptyHint || "No data yet."}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {rows.slice(0, 3).map((r, i) => (
+            <li
+              key={r.key}
+              onClick={() => onPick(r.key, r.name)}
+              className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-md hover:bg-secondary/60 cursor-pointer transition-colors"
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base leading-none w-5 text-center">{medal(i)}</span>
+                <span className="text-sm font-medium text-foreground truncate">{r.name}</span>
+              </div>
+              <span className="text-sm font-semibold tabular-nums text-foreground">{r.display}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </ExecCard>
+  );
+}
+
+function SalesCockpit({
+  sales, isAdmin, navigate,
+}: { sales: SalesRow[]; isAdmin: boolean; navigate: (path: string) => void }) {
+  const [sortKey, setSortKey] = useState<SalesSortKey>("won_revenue");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const totalRevenue = sales.reduce((s, r) => s + r.won_revenue, 0);
+  const totalPipeline = sales.reduce((s, r) => s + r.pipeline_value, 0);
+  const avgConversion = sales.length > 0
+    ? Math.round(sales.reduce((s, r) => s + r.conversion, 0) / sales.filter(r => r.won_count + r.lost_count > 0).length || 0) || 0
+    : 0;
+
+  const openPicker = (key: string, _name: string) => {
+    // future: salesperson profile. For now: go to pipeline (filter not URL-driven yet).
+    navigate("/pipeline");
+  };
+
+  // Rankings
+  const byRevenue = [...sales]
+    .filter(r => r.won_revenue > 0)
+    .sort((a, b) => b.won_revenue - a.won_revenue)
+    .map(r => ({ key: r.sales_key, name: r.sales_name, value: r.won_revenue, display: fmtEuroK(r.won_revenue) }));
+
+  const byPipeline = [...sales]
+    .filter(r => r.pipeline_value > 0)
+    .sort((a, b) => b.pipeline_value - a.pipeline_value)
+    .map(r => ({ key: r.sales_key, name: r.sales_name, value: r.pipeline_value, display: fmtEuroK(r.pipeline_value) }));
+
+  const byConversion = [...sales]
+    .filter(r => r.won_count + r.lost_count >= 2)
+    .sort((a, b) => b.conversion - a.conversion)
+    .map(r => ({ key: r.sales_key, name: r.sales_name, value: r.conversion, display: `${r.conversion}%` }));
+
+  // Top / flag sets for badges
+  const topRevenueKey = byRevenue[0]?.key;
+  const topPipelineKey = byPipeline[0]?.key;
+  const topConversionKey = byConversion[0]?.key;
+  const lowestConvKey = [...sales]
+    .filter(r => r.won_count + r.lost_count >= 2)
+    .sort((a, b) => a.conversion - b.conversion)[0]?.sales_key;
+
+  // Health signals
+  const noPipelineCount = sales.filter(r => r.pipeline_value === 0 && r.open_count === 0).length;
+  const sortedByPipe = [...sales].sort((a, b) => b.pipeline_value - a.pipeline_value);
+  const top2PipeShare = totalPipeline > 0
+    ? Math.round(((sortedByPipe[0]?.pipeline_value || 0) + (sortedByPipe[1]?.pipeline_value || 0)) / totalPipeline * 100)
+    : 0;
+
+  // Coaching
+  const coaching: { key: string; name: string; reason: string }[] = [];
+  sales.forEach(r => {
+    if (r.pipeline_value > 0 && r.won_count === 0 && r.lost_count >= 2) {
+      coaching.push({ key: r.sales_key, name: r.sales_name, reason: "Active pipeline, zero wins" });
+    } else if (r.won_count + r.lost_count >= 3 && r.conversion < 30) {
+      coaching.push({ key: r.sales_key, name: r.sales_name, reason: `Low conversion (${r.conversion}%)` });
+    } else if (r.pipeline_value === 0 && r.open_count === 0 && r.won_revenue === 0) {
+      coaching.push({ key: r.sales_key, name: r.sales_name, reason: "No pipeline activity" });
+    } else if (r.open_count === 0 && r.won_revenue > 0) {
+      coaching.push({ key: r.sales_key, name: r.sales_name, reason: "No open pipeline" });
+    }
+  });
+  const coachingTop = coaching.slice(0, 4);
+  const coachingKeys = new Set(coaching.map(c => c.key));
+
+  // Executive insights
+  const insights: string[] = [];
+  if (byRevenue[0]) insights.push(`${byRevenue[0].name} leads revenue generation at ${fmtEuroK(byRevenue[0].value)}.`);
+  if (byPipeline[0]) insights.push(`${byPipeline[0].name} owns the largest active pipeline (${fmtEuroK(byPipeline[0].value)}).`);
+  if (top2PipeShare >= 50) insights.push(`Pipeline ownership is concentrated — top 2 hold ${top2PipeShare}% of total pipeline.`);
+  else if (sales.length >= 3) insights.push(`Pipeline distribution is balanced across the team.`);
+  if (avgConversion >= 60) insights.push(`Overall conversion remains strong at ${avgConversion}%.`);
+  else if (avgConversion > 0) insights.push(`Average conversion at ${avgConversion}% — coaching focus advised.`);
+  if (noPipelineCount > 0) insights.push(`${noPipelineCount} salesperson${noPipelineCount > 1 ? "s have" : " has"} no active pipeline.`);
+
+  // Sortable table
+  const sortedTable = [...sales].sort((a, b) => {
+    const av = (a as any)[sortKey] as number;
+    const bv = (b as any)[sortKey] as number;
+    return sortDir === "desc" ? bv - av : av - bv;
+  });
+
+  const toggleSort = (k: SalesSortKey) => {
+    if (sortKey === k) setSortDir(sortDir === "desc" ? "asc" : "desc");
+    else { setSortKey(k); setSortDir("desc"); }
+  };
+
+  const SortTh = ({ k, label, align = "right" }: { k: SalesSortKey; label: string; align?: "left" | "right" }) => (
+    <th
+      onClick={() => toggleSort(k)}
+      className={`px-5 py-3 font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground ${align === "right" ? "text-right" : "text-left"}`}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortKey === k
+          ? (sortDir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />)
+          : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+      </span>
+    </th>
+  );
+
+  if (sales.length === 0) {
+    return (
+      <div className="bg-card rounded-xl border shadow-sm">
+        <EmptyState hint="Assign opportunities to users to see sales performance." />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* KPI row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KPI label="Total Salespeople" value={String(sales.length)} sub="active users with deals" />
+        <KPI label="Total Won Revenue" value={fmtEuroK(totalRevenue)} sub="from won deals" trend="up" />
+        <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="across all owners" />
+        <KPI label="Average Win Rate" value={`${avgConversion}%`} sub="team conversion" trend={avgConversion >= 50 ? "up" : "neutral"} />
+      </div>
+
+      {/* Top Performers */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <RankCard title="Top Revenue" icon={Trophy} rows={byRevenue} onPick={openPicker} emptyHint="No won deals yet." />
+        <RankCard title="Highest Pipeline" icon={Rocket} rows={byPipeline} onPick={openPicker} emptyHint="No open pipeline." />
+        <RankCard title="Best Conversion" icon={TargetIcon} rows={byConversion} onPick={openPicker} emptyHint="Not enough closed deals." />
+      </div>
+
+      {/* Health + Coaching */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <ExecCard title="Sales Health" icon={Heart}>
+          <ul className="space-y-1.5 text-sm">
+            {noPipelineCount > 0 && (
+              <li className="flex items-start gap-2"><span className="text-muted-foreground">•</span><span>{noPipelineCount} salesperson{noPipelineCount > 1 ? "s have" : " has"} no active pipeline.</span></li>
+            )}
+            {top2PipeShare > 0 && (
+              <li className="flex items-start gap-2"><span className="text-muted-foreground">•</span><span>Top 2 account managers own <strong>{top2PipeShare}%</strong> of pipeline.</span></li>
+            )}
+            {sortedByPipe[0] && (
+              <li className="flex items-start gap-2"><span className="text-muted-foreground">•</span><span>Highest pipeline holder: <strong>{sortedByPipe[0].sales_name}</strong> ({fmtEuroK(sortedByPipe[0].pipeline_value)}).</span></li>
+            )}
+            <li className="flex items-start gap-2">
+              <span className="text-muted-foreground">•</span>
+              <span>Average conversion {avgConversion >= 50 ? "remains above target" : "needs attention"} at <strong>{avgConversion}%</strong>.</span>
+            </li>
+          </ul>
+        </ExecCard>
+
+        <ExecCard title="Coaching Opportunities" icon={GraduationCap}>
+          {coachingTop.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No coaching flags — team is performing within expected ranges.</p>
+          ) : (
+            <ul className="space-y-1.5 text-sm">
+              {coachingTop.map(c => (
+                <li
+                  key={`${c.key}-${c.reason}`}
+                  onClick={() => openPicker(c.key, c.name)}
+                  className="flex items-start gap-2 px-2 py-1 -mx-2 rounded-md hover:bg-secondary/60 cursor-pointer"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+                  <span><strong className="text-foreground">{c.name}</strong> <span className="text-muted-foreground">— {c.reason}</span></span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </ExecCard>
+      </div>
+
+      {/* Executive Insights */}
+      <ExecCard title="Executive Insights" icon={Sparkles}>
+        <ul className="space-y-1 text-sm">
+          {insights.slice(0, 5).map((t, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <span className="text-muted-foreground">•</span>
+              <span className="text-foreground">{t}</span>
+            </li>
+          ))}
+        </ul>
+      </ExecCard>
+
+      {/* Full sortable table */}
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-foreground text-sm">Full Sales Performance</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Click a header to sort · click a row to drill in</p>
+          </div>
+          <Badge variant="outline" className="text-[10px]">{sales.length} users</Badge>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-secondary/50">
+                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Salesperson</th>
+                <SortTh k="won_revenue" label="Revenue" />
+                <SortTh k="pipeline_value" label="Pipeline" />
+                <SortTh k="open_count" label="Open" />
+                <SortTh k="won_count" label="Won" />
+                <SortTh k="lost_count" label="Lost" />
+                <SortTh k="conversion" label="Conversion" />
+                <SortTh k="weighted_pipeline" label="Weighted" />
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {sortedTable.map(s => {
+                const badges: { label: string; cls: string }[] = [];
+                if (s.sales_key === topRevenueKey) badges.push({ label: "🏆 Top Revenue", cls: "bg-amber-50 text-amber-700 border-amber-200" });
+                if (s.sales_key === topPipelineKey) badges.push({ label: "🚀 Pipeline Leader", cls: "bg-blue-50 text-blue-700 border-blue-200" });
+                if (s.sales_key === topConversionKey) badges.push({ label: "🎯 Best Conversion", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" });
+                if (coachingKeys.has(s.sales_key)) badges.push({ label: "⚠ Needs Attention", cls: "bg-amber-50 text-amber-700 border-amber-200" });
+
+                const rowHighlight =
+                  s.sales_key === topRevenueKey ? "bg-amber-50/30" :
+                  s.sales_key === topPipelineKey ? "bg-blue-50/20" :
+                  s.sales_key === lowestConvKey ? "bg-destructive/5" : "";
+
+                return (
+                  <tr
+                    key={s.sales_key}
+                    onClick={() => openPicker(s.sales_key, s.sales_name)}
+                    className={`hover:bg-secondary/40 transition-colors cursor-pointer ${rowHighlight}`}
+                  >
+                    <td className="px-5 py-3 font-medium text-foreground">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span>{s.sales_name}</span>
+                        {isAdmin && s.is_unlinked && <Badge variant="outline" className="text-[10px] opacity-60">Unlinked</Badge>}
+                        {badges.map(b => (
+                          <span key={b.label} className={`text-[10px] px-1.5 py-0.5 border rounded-full ${b.cls}`}>{b.label}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtEuro(s.won_revenue)}</td>
+                    <td className="px-5 py-3 text-right tabular-nums">{fmtEuro(s.pipeline_value)}</td>
+                    <td className="px-5 py-3 text-right tabular-nums">{s.open_count}</td>
+                    <td className="px-5 py-3 text-right tabular-nums">{s.won_count}</td>
+                    <td className="px-5 py-3 text-right tabular-nums">{s.lost_count}</td>
+                    <td className="px-5 py-3 text-right">
+                      <span className={`tabular-nums font-medium ${s.conversion >= 50 ? "text-emerald-600" : s.sales_key === lowestConvKey ? "text-destructive" : "text-foreground"}`}>
+                        {s.won_count + s.lost_count > 0 ? `${s.conversion}%` : "—"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{fmtEuro(s.weighted_pipeline)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
 
