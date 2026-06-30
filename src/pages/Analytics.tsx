@@ -300,42 +300,9 @@ export default function Analytics() {
         </TabsContent>
 
 
-        {/* ---------- PARTNERS ---------- */}
-        <TabsContent value="partners" className="space-y-6 mt-4">
-          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-            <div className="p-5 border-b"><h3 className="font-semibold text-foreground">Partner Performance Ranking</h3></div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-secondary/50">
-                    <th className="text-left px-5 py-3 font-medium text-muted-foreground">#</th>
-                    <th className="text-left px-5 py-3 font-medium text-muted-foreground">Partner</th>
-                    <th className="text-left px-5 py-3 font-medium text-muted-foreground">Country</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Revenue (Won)</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Open Deals</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Pipeline</th>
-                    <th className="text-right px-5 py-3 font-medium text-muted-foreground">Active Clients</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {(partners.data || []).map((p, i) => (
-                    <tr key={p.partner_id} className="hover:bg-secondary/30 transition-colors">
-                      <td className="px-5 py-3 font-medium text-muted-foreground">{i + 1}</td>
-                      <td className="px-5 py-3 font-medium text-foreground">{p.company_name}</td>
-                      <td className="px-5 py-3 text-muted-foreground">{p.country || "—"}</td>
-                      <td className="px-5 py-3 text-right tabular-nums font-medium">{fmtEuro(p.revenue)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{p.open_deal_count}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{fmtEuro(p.pipeline)}</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{p.client_count}</td>
-                    </tr>
-                  ))}
-                  {(partners.data || []).length === 0 && (
-                    <tr><td colSpan={7} className="p-0"><EmptyState /></td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+        {/* ---------- PARTNERS (Executive Cockpit) ---------- */}
+        <TabsContent value="partners" className="space-y-4 mt-4">
+          <PartnerCockpit partners={partners.data || []} navigate={navigate} />
         </TabsContent>
 
         {/* ---------- RENEWALS ---------- */}
@@ -1004,5 +971,337 @@ function SalesCockpit({
     </>
   );
 }
+
+// ---------- Partner Cockpit (Executive Partner Dashboard) ----------
+import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
+import { useIncomingLeads } from "@/hooks/useIncomingLeads";
+import { useRenewals as useUnifiedRenewals } from "@/hooks/useDeals";
+import { useAllProfilesMap } from "@/hooks/useAssignableUsers";
+
+type PartnerRow = {
+  partner_id: string;
+  company_name: string;
+  country: string | null;
+  revenue: number;
+  pipeline: number;
+  client_count: number;
+  open_deal_count: number;
+  won_deal_count: number;
+};
+
+function healthBandColor(score: number) {
+  if (score > 80) return { row: "bg-emerald-50/50 hover:bg-emerald-50", dot: "bg-emerald-500", text: "text-emerald-700" };
+  if (score >= 60) return { row: "bg-amber-50/40 hover:bg-amber-50", dot: "bg-amber-500", text: "text-amber-700" };
+  return { row: "bg-red-50/40 hover:bg-red-50", dot: "bg-red-500", text: "text-red-700" };
+}
+
+type SortKey = "company_name" | "country" | "revenue" | "pipeline" | "client_count" | "health" | "open_leads" | "renewals" | "relationship";
+
+function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; navigate: (path: string) => void }) {
+  const metricsQ = usePartnerMetrics();
+  const partnersFullQ = usePartners();
+  const leadsQ = useIncomingLeads();
+  const renewalsQ = useUnifiedRenewals();
+  const profilesQ = useAllProfilesMap();
+
+  const metrics = metricsQ.data || {};
+  const partnersFull = partnersFullQ.data || [];
+  const leads = leadsQ.data || [];
+  const renewals = renewalsQ.data || [];
+  const profiles = profilesQ.data;
+
+  const fullById = new Map(partnersFull.map((p: any) => [p.id, p]));
+
+  // Aggregations per partner
+  const openLeadStatuses = new Set(["New", "Active Qualification", "Nurture"]);
+  const leadsByPartner = new Map<string, number>();
+  leads.forEach((l: any) => {
+    const pid = l.linked_partner_id;
+    if (!pid) return;
+    if (openLeadStatuses.has(l.status)) leadsByPartner.set(pid, (leadsByPartner.get(pid) || 0) + 1);
+  });
+
+  const overdueByPartner = new Map<string, number>();
+  const renewalsByPartner = new Map<string, number>();
+  renewals.forEach((r: any) => {
+    const pid = r.partner_id;
+    if (!pid) return;
+    renewalsByPartner.set(pid, (renewalsByPartner.get(pid) || 0) + 1);
+    if (r.status === "Expired" || r.status === "Overdue") {
+      overdueByPartner.set(pid, (overdueByPartner.get(pid) || 0) + 1);
+    }
+  });
+
+  // Enrich partner rows with health/owner/leads/renewals/relationship
+  const rows = partners.map((p) => {
+    const full: any = fullById.get(p.partner_id) || {};
+    const m = metrics[p.partner_id];
+    const ownerId = full.account_owner_id || full.assigned_manager_id;
+    const ownerProfile = ownerId && profiles ? profiles.get(ownerId) : null;
+    const ownerName = ownerProfile?.full_name || ownerProfile?.email || null;
+    return {
+      ...p,
+      health: m?.health_score ?? 0,
+      open_leads: leadsByPartner.get(p.partner_id) || 0,
+      renewals_count: renewalsByPartner.get(p.partner_id) || 0,
+      overdue_renewals: overdueByPartner.get(p.partner_id) || 0,
+      relationship: (full.relationship_status as string) || "—",
+      owner: ownerName,
+      last_meeting_date: full.last_meeting_date as string | null,
+    };
+  });
+
+  // KPIs
+  const activeCount = rows.length;
+  const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
+  const totalPipeline = rows.reduce((s, r) => s + r.pipeline, 0);
+  const avgHealth = rows.length ? Math.round(rows.reduce((s, r) => s + r.health, 0) / rows.length) : 0;
+
+  // Rankings
+  const topRevenue = [...rows].sort((a, b) => b.revenue - a.revenue).filter(r => r.revenue > 0).slice(0, 3);
+  const topPipeline = [...rows].sort((a, b) => b.pipeline - a.pipeline).filter(r => r.pipeline > 0).slice(0, 3);
+  const topHealth = [...rows].sort((a, b) => b.health - a.health).filter(r => r.health > 0).slice(0, 3);
+
+  // Health summary
+  const healthy = rows.filter(r => r.health > 80).length;
+  const atRisk = rows.filter(r => r.health > 0 && r.health < 60).length;
+  const overdueRenewalsPartners = rows.filter(r => r.overdue_renewals > 0).length;
+  const now = Date.now();
+  const inactive = rows.filter(r => {
+    if (!r.last_meeting_date) return true;
+    return (now - new Date(r.last_meeting_date).getTime()) / 86400000 > 60;
+  }).length;
+
+  // Growth opportunities (max 4)
+  const opportunities: { name: string; note: string; tone: "positive" | "warning" | "info"; id: string }[] = [];
+  rows.forEach(r => {
+    if (r.pipeline > 0 && r.client_count === 0) {
+      opportunities.push({ name: r.company_name, note: "Growing pipeline but no customers yet.", tone: "info", id: r.partner_id });
+    } else if (r.revenue > 0 && r.pipeline === 0) {
+      opportunities.push({ name: r.company_name, note: "Strong revenue but no active pipeline.", tone: "warning", id: r.partner_id });
+    } else if (r.pipeline > 30000 && r.health >= 60) {
+      opportunities.push({ name: r.company_name, note: "Excellent momentum — invest more.", tone: "positive", id: r.partner_id });
+    } else if (r.health > 0 && r.health < 60 && r.revenue > 0) {
+      opportunities.push({ name: r.company_name, note: "Relationship cooling — schedule a check-in.", tone: "warning", id: r.partner_id });
+    }
+  });
+  const topOpportunities = opportunities.slice(0, 4);
+
+  // Executive insights (max 6)
+  const insights: string[] = [];
+  if (topRevenue[0] && totalRevenue > 0) {
+    const pct = Math.round((topRevenue[0].revenue / totalRevenue) * 100);
+    insights.push(`${topRevenue[0].company_name} generates ${pct}% of total partner revenue.`);
+  }
+  if (topPipeline[0]) {
+    insights.push(`${topPipeline[0].company_name} leads pipeline with ${fmtEuroK(topPipeline[0].pipeline)} in open opportunities.`);
+  }
+  const emptyClients = rows.filter(r => r.pipeline > 0 && r.client_count === 0).slice(0, 1)[0];
+  if (emptyClients) insights.push(`${emptyClients.company_name} is progressing but customer portfolio is still empty.`);
+  if (atRisk > 0) insights.push(`${atRisk} partner${atRisk > 1 ? "s require" : " requires"} commercial recovery.`);
+  if (overdueRenewalsPartners > 0) insights.push(`${overdueRenewalsPartners} partner${overdueRenewalsPartners > 1 ? "s have" : " has"} overdue renewals.`);
+  if (healthy > 0) insights.push(`${healthy} partnership${healthy > 1 ? "s are" : " is"} performing in a healthy state.`);
+
+  // Sorting state for the table
+  const [sortKey, setSortKey] = useState<SortKey>("revenue");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir(key === "company_name" || key === "country" || key === "relationship" ? "asc" : "desc"); }
+  };
+  const sortedRows = [...rows].sort((a, b) => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    const get = (r: typeof rows[number]) => {
+      switch (sortKey) {
+        case "company_name": return r.company_name?.toLowerCase() || "";
+        case "country": return r.country?.toLowerCase() || "";
+        case "revenue": return r.revenue;
+        case "pipeline": return r.pipeline;
+        case "client_count": return r.client_count;
+        case "health": return r.health;
+        case "open_leads": return r.open_leads;
+        case "renewals": return r.renewals_count;
+        case "relationship": return r.relationship?.toLowerCase() || "";
+      }
+    };
+    const av = get(a); const bv = get(b);
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+
+  const SortArrow = ({ k }: { k: SortKey }) => sortKey !== k
+    ? <ArrowUpDown className="inline h-3 w-3 ml-1 opacity-40" />
+    : sortDir === "asc" ? <ArrowUp className="inline h-3 w-3 ml-1" /> : <ArrowDown className="inline h-3 w-3 ml-1" />;
+
+  return (
+    <>
+      {/* KPI Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KPI label="Active Partners" value={String(activeCount)} sub={`${activeCount} Active Partner${activeCount !== 1 ? "s" : ""}`} />
+        <KPI label="Revenue Generated" value={fmtEuroK(totalRevenue)} sub={`${fmtEuroK(totalRevenue)} Generated`} />
+        <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="Across all partners" />
+        <KPI label="Average Partner Health" value={`${avgHealth}/100`} sub="Network average" trend={avgHealth >= 70 ? "up" : avgHealth >= 50 ? "neutral" : "down"} />
+      </div>
+
+      {/* Top Performance */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <ExecCard title="Top Revenue" icon={Trophy}>
+          <RankList items={topRevenue.map(r => ({ id: r.partner_id, name: r.company_name, value: fmtEuroK(r.revenue) }))} navigate={navigate} />
+        </ExecCard>
+        <ExecCard title="Highest Pipeline" icon={Rocket}>
+          <RankList items={topPipeline.map(r => ({ id: r.partner_id, name: r.company_name, value: fmtEuroK(r.pipeline) }))} navigate={navigate} />
+        </ExecCard>
+        <ExecCard title="Best Health" icon={Heart}>
+          <RankList items={topHealth.map(r => ({ id: r.partner_id, name: r.company_name, value: String(r.health) }))} navigate={navigate} />
+        </ExecCard>
+      </div>
+
+      {/* Partner Health + Growth Opportunities */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ExecCard title="Partner Health" icon={Activity}>
+          {rows.length > 0 ? (
+            <ul className="space-y-1.5 text-sm">
+              <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-emerald-500 shrink-0" /><span className="text-foreground">{healthy} healthy partnership{healthy !== 1 ? "s" : ""}</span></li>
+              <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-amber-500 shrink-0" /><span className="text-foreground">{atRisk} require attention</span></li>
+              <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-red-500 shrink-0" /><span className="text-foreground">{overdueRenewalsPartners} have overdue renewals</span></li>
+              <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-muted-foreground shrink-0" /><span className="text-foreground">{inactive} with no recent interaction (60d+)</span></li>
+            </ul>
+          ) : <EmptyState />}
+        </ExecCard>
+
+        <ExecCard title="Growth Opportunities" icon={Lightbulb}>
+          {topOpportunities.length > 0 ? (
+            <ul className="space-y-2 text-sm">
+              {topOpportunities.map((o, i) => (
+                <li key={i} onClick={() => navigate(`/partners/${o.id}`)} className="flex items-start gap-2 cursor-pointer hover:bg-secondary/40 rounded-md px-2 py-1.5 -mx-2">
+                  <span className={`h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${o.tone === "positive" ? "bg-emerald-500" : o.tone === "warning" ? "bg-amber-500" : "bg-info"}`} />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground leading-tight">{o.name}</p>
+                    <p className="text-xs text-muted-foreground leading-snug">{o.note}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : <EmptyState message="No specific growth signals detected" />}
+        </ExecCard>
+      </div>
+
+      {/* Executive Insights */}
+      <ExecCard title="Executive Insights" icon={Sparkles}>
+        {insights.length > 0 ? (
+          <ul className="space-y-1.5 text-sm">
+            {insights.slice(0, 6).map((s, i) => (
+              <li key={i} className="flex items-start gap-2 text-foreground leading-snug">
+                <span className="text-primary mt-0.5">•</span><span>{s}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <EmptyState />}
+      </ExecCard>
+
+      {/* Full Partner Performance Table */}
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b flex items-center justify-between">
+          <h3 className="font-semibold text-foreground">Full Partner Performance</h3>
+          <span className="text-xs text-muted-foreground">{rows.length} partner{rows.length !== 1 ? "s" : ""} · click a row to open</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-secondary/50">
+                <SortHeader label="Partner" k="company_name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
+                <SortHeader label="Country" k="country" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
+                <SortHeader label="Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Pipeline" k="pipeline" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Clients" k="client_count" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Health" k="health" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Open Leads" k="open_leads" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Renewals" k="renewals" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Relationship" k="relationship" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">Owner</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {sortedRows.map((r) => {
+                const band = healthBandColor(r.health);
+                return (
+                  <tr
+                    key={r.partner_id}
+                    onClick={() => navigate(`/partners/${r.partner_id}`)}
+                    className={`cursor-pointer transition-colors ${band.row}`}
+                  >
+                    <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">{r.company_name}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{r.country || "—"}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtEuro(r.revenue)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtEuro(r.pipeline)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{r.client_count}</td>
+                    <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${band.text}`}>
+                      <span className="inline-flex items-center gap-1.5 justify-end">
+                        <span className={`h-1.5 w-1.5 rounded-full ${band.dot}`} />
+                        {r.health || "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">{r.open_leads}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums">
+                      {r.renewals_count}
+                      {r.overdue_renewals > 0 && (
+                        <Badge variant="destructive" className="ml-1.5 text-[10px]">{r.overdue_renewals} overdue</Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{r.relationship}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{r.owner || "—"}</td>
+                  </tr>
+                );
+              })}
+              {sortedRows.length === 0 && (
+                <tr><td colSpan={10} className="p-0"><EmptyState /></td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function RankList({ items, navigate }: { items: { id: string; name: string; value: string }[]; navigate: (path: string) => void }) {
+  if (items.length === 0) return <EmptyState message="No data yet" />;
+  return (
+    <ol className="space-y-2">
+      {items.map((it, i) => (
+        <li
+          key={it.id}
+          onClick={() => navigate(`/partners/${it.id}`)}
+          className="flex items-center justify-between gap-3 cursor-pointer hover:bg-secondary/40 rounded-md px-2 py-1.5 -mx-2"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs font-semibold text-muted-foreground tabular-nums w-4">{i + 1}.</span>
+            <span className="text-sm font-medium text-foreground truncate">{it.name}</span>
+          </div>
+          <span className="text-sm font-semibold text-primary tabular-nums shrink-0">{it.value}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function SortHeader({ label, k, sortKey, dir, onClick, align }: {
+  label: string; k: SortKey; sortKey: SortKey; dir: "asc" | "desc"; onClick: (k: SortKey) => void; align: "left" | "right";
+}) {
+  const active = sortKey === k;
+  return (
+    <th
+      onClick={() => onClick(k)}
+      className={`px-4 py-2 font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground whitespace-nowrap text-${align}`}
+    >
+      {label}
+      {!active && <ArrowUpDown className="inline h-3 w-3 ml-1 opacity-40" />}
+      {active && dir === "asc" && <ArrowUp className="inline h-3 w-3 ml-1" />}
+      {active && dir === "desc" && <ArrowDown className="inline h-3 w-3 ml-1" />}
+    </th>
+  );
+}
+
 
 
