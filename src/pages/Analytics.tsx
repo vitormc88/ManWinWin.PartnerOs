@@ -468,3 +468,273 @@ export default function Analytics() {
     </div>
   );
 }
+
+// ---------- Pipeline Cockpit ----------
+import { useDeals } from "@/hooks/useDeals";
+import { usePartners } from "@/hooks/usePartners";
+import { Target, GitBranch, Gauge, Lightbulb, Crown } from "lucide-react";
+
+function PipelineCockpit({
+  stageData, totalOpenDeals, totalPipelineValue, totalWeightedPipeline, wonCount, navigate,
+}: {
+  stageData: any[];
+  totalOpenDeals: number;
+  totalPipelineValue: number;
+  totalWeightedPipeline: number;
+  wonCount: number;
+  navigate: (path: string) => void;
+}) {
+  const dealsQ = useDeals();
+  const partnersQ = usePartners();
+  const allDeals = dealsQ.data || [];
+  const openDeals = allDeals.filter((d: any) => d.status === "Open");
+  const partnerMap = new Map((partnersQ.data || []).map((p: any) => [p.id, p.company_name]));
+
+  // Stage age (days in stage) per stage
+  const now = Date.now();
+  const stageAge = new Map<string, number>();
+  const stageDealsCount = new Map<string, number>();
+  openDeals.forEach((d: any) => {
+    const ts = d.stage_entered_at || d.created_at;
+    if (!ts) return;
+    const days = Math.max(0, Math.floor((now - new Date(ts).getTime()) / 86400000));
+    stageAge.set(d.stage, (stageAge.get(d.stage) || 0) + days);
+    stageDealsCount.set(d.stage, (stageDealsCount.get(d.stage) || 0) + 1);
+  });
+  const avgAgeByStage = stageData.map((s: any) => {
+    const sum = stageAge.get(s.stage) || 0;
+    const n = stageDealsCount.get(s.stage) || 0;
+    return { stage: s.stage, avgDays: n > 0 ? Math.round(sum / n) : 0 };
+  });
+
+  const largestValueStage = stageData.slice().sort((a: any, b: any) => b.total_value - a.total_value)[0];
+  const mostDealsStage = stageData.slice().sort((a: any, b: any) => b.deal_count - a.deal_count)[0];
+  const oldestStage = avgAgeByStage.slice().sort((a, b) => b.avgDays - a.avgDays)[0];
+
+  // Conversion summary — survival ratio between consecutive stages (snapshot approximation)
+  const conversions = useMemo(() => {
+    const out: Array<{ from: string; to: string; pct: number }> = [];
+    for (let i = 0; i < stageData.length - 1; i++) {
+      const cur = stageData[i];
+      const nxt = stageData[i + 1];
+      if (!cur.deal_count) continue;
+      const passedNext = stageData.slice(i + 1).reduce((s: number, x: any) => s + x.deal_count, 0) + wonCount;
+      const passedCur = cur.deal_count + passedNext;
+      const pct = passedCur > 0 ? Math.round((passedNext / passedCur) * 100) : 0;
+      out.push({ from: cur.stage, to: nxt.stage, pct });
+    }
+    return out;
+  }, [stageData, wonCount]);
+
+  // Forecast
+  const avgProb = openDeals.length > 0
+    ? Math.round(openDeals.reduce((s: number, d: any) => s + (Number(d.probability) || 0), 0) / openDeals.length)
+    : 0;
+  const highConfidence = openDeals.filter((d: any) => (Number(d.probability) || 0) >= 70);
+  const expectedRevenue = totalWeightedPipeline;
+  const quarterEnd = (() => {
+    const d = new Date();
+    const q = Math.floor(d.getMonth() / 3);
+    return new Date(d.getFullYear(), q * 3 + 3, 0);
+  })();
+  const closesThisQuarter = openDeals.filter((d: any) => {
+    if (!d.expected_close_date) return false;
+    const c = new Date(d.expected_close_date);
+    return c <= quarterEnd && c >= new Date();
+  }).length;
+
+  // Insights
+  const insights: string[] = [];
+  if (largestValueStage && totalPipelineValue > 0) {
+    const pct = Math.round((largestValueStage.total_value / totalPipelineValue) * 100);
+    insights.push(`${largestValueStage.stage} contains ${pct}% of pipeline value.`);
+  }
+  if (mostDealsStage && largestValueStage && mostDealsStage.stage !== largestValueStage.stage) {
+    insights.push(`${mostDealsStage.stage} concentrates most opportunities (${mostDealsStage.deal_count}).`);
+  }
+  if (oldestStage && oldestStage.avgDays >= 21) {
+    insights.push(`${oldestStage.stage} deals have aged on average ${oldestStage.avgDays} days.`);
+  }
+  const big = openDeals.filter((d: any) => Number(d.total_value || d.expected_value || 0) >= 25000);
+  if (big.length > 0) insights.push(`${big.length} opportunit${big.length === 1 ? "y exceeds" : "ies exceed"} €25k.`);
+  if (highConfidence.length > 0) insights.push(`${highConfidence.length} high-confidence deal${highConfidence.length !== 1 ? "s" : ""} expected to convert.`);
+  const topInsights = insights.slice(0, 5);
+
+  // Largest opportunities
+  const largest = openDeals
+    .map((d: any) => ({ ...d, _value: Number(d.total_value ?? d.expected_value ?? 0) }))
+    .sort((a: any, b: any) => b._value - a._value)
+    .slice(0, 5);
+
+  const avgDealSize = totalOpenDeals > 0 ? totalPipelineValue / totalOpenDeals : 0;
+
+  return (
+    <>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KPI label="Open Deals" value={String(totalOpenDeals)} />
+        <KPI label="Pipeline Value" value={fmtEuroK(totalPipelineValue)} />
+        <KPI label="Weighted Pipeline" value={fmtEuroK(totalWeightedPipeline)} sub="Probability-adjusted" />
+        <KPI label="Avg Deal Size" value={totalOpenDeals > 0 ? fmtEuroK(avgDealSize) : "—"} />
+      </div>
+
+      {/* Compact stage breakdown */}
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="px-4 py-2.5 border-b flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Pipeline by Stage</h3>
+          <span className="text-[11px] text-muted-foreground">Value · Deals · Avg deal value</span>
+        </div>
+        {stageData.length > 0 ? (
+          <table className="w-full text-sm">
+            <tbody className="divide-y">
+              {stageData.map((s: any) => {
+                const avg = s.deal_count > 0 ? s.total_value / s.deal_count : 0;
+                const pct = totalPipelineValue > 0 ? Math.round((s.total_value / totalPipelineValue) * 100) : 0;
+                return (
+                  <tr key={s.stage} onClick={() => navigate("/pipeline")} className="hover:bg-secondary/40 cursor-pointer">
+                    <td className="px-4 py-2 w-40">
+                      <span className="text-sm font-medium text-foreground">{s.stage}</span>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-xs text-muted-foreground tabular-nums w-10 text-right">{pct}%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums font-semibold text-foreground w-24">{fmtEuroK(s.total_value)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground w-16">{s.deal_count}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground w-24">{avg > 0 ? fmtEuroK(avg) : "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : <EmptyState hint="Create open opportunities to see pipeline analytics." />}
+      </div>
+
+      {/* 2x2 intelligence cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Bottlenecks */}
+        <ExecCard title="Pipeline Bottlenecks" icon={Target} onClick={() => navigate("/pipeline")}>
+          {stageData.length > 0 ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <div>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Largest value</p>
+                <p className="font-semibold text-foreground mt-0.5">{largestValueStage?.stage}</p>
+                <p className="text-xs text-primary tabular-nums">{fmtEuroK(largestValueStage?.total_value || 0)}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Most deals</p>
+                <p className="font-semibold text-foreground mt-0.5">{mostDealsStage?.stage}</p>
+                <p className="text-xs text-muted-foreground tabular-nums">{mostDealsStage?.deal_count} deals</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Longest avg age</p>
+                <p className="font-semibold text-foreground mt-0.5">{oldestStage?.stage || "—"}</p>
+                <p className="text-xs text-muted-foreground tabular-nums">{oldestStage ? `${oldestStage.avgDays} days` : "—"}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Attention</p>
+                <p className="text-xs text-foreground mt-0.5 leading-snug">{largestValueStage?.stage} concentrates the highest commercial exposure.</p>
+              </div>
+            </div>
+          ) : <EmptyState hint="Add open opportunities to detect bottlenecks." />}
+        </ExecCard>
+
+        {/* Conversion */}
+        {conversions.length > 0 && (
+          <ExecCard title="Stage Conversion" icon={GitBranch} onClick={() => navigate("/pipeline")}>
+            <ul className="space-y-2">
+              {conversions.slice(0, 5).map((c, i) => (
+                <li key={i} className="flex items-center gap-3 text-sm">
+                  <span className="flex-1 text-foreground truncate">
+                    <span className="text-muted-foreground">{c.from}</span>
+                    <span className="text-muted-foreground mx-1">→</span>
+                    <span>{c.to}</span>
+                  </span>
+                  <div className="w-24 h-1.5 rounded-full bg-secondary overflow-hidden">
+                    <div className={`h-full ${c.pct >= 60 ? "bg-emerald-500" : c.pct >= 30 ? "bg-amber-500" : "bg-destructive"}`} style={{ width: `${Math.min(100, c.pct)}%` }} />
+                  </div>
+                  <span className="text-xs font-semibold tabular-nums text-foreground w-10 text-right">{c.pct}%</span>
+                </li>
+              ))}
+            </ul>
+          </ExecCard>
+        )}
+
+        {/* Forecast */}
+        <ExecCard title="Forecast" icon={Gauge} onClick={() => navigate("/pipeline")}>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Expected revenue</p>
+              <p className="font-bold text-foreground mt-0.5 tabular-nums">{fmtEuroK(expectedRevenue)}</p>
+              <p className="text-xs text-muted-foreground">Weighted pipeline</p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">High-confidence deals</p>
+              <p className="font-bold text-foreground mt-0.5 tabular-nums">{highConfidence.length}</p>
+              <p className="text-xs text-muted-foreground">≥ 70% probability</p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Average probability</p>
+              <p className="font-bold text-foreground mt-0.5 tabular-nums">{avgProb}%</p>
+            </div>
+            <div>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Closes this quarter</p>
+              <p className="font-bold text-foreground mt-0.5 tabular-nums">{closesThisQuarter}</p>
+            </div>
+          </div>
+        </ExecCard>
+
+        {/* Insights */}
+        <ExecCard title="Commercial Insights" icon={Lightbulb}>
+          {topInsights.length > 0 ? (
+            <ul className="space-y-2 text-sm">
+              {topInsights.map((h, i) => (
+                <li key={i} className="flex items-start gap-2 text-foreground leading-snug">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>{h}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <EmptyState hint="Insights will appear as pipeline grows." />}
+        </ExecCard>
+      </div>
+
+      {/* Largest opportunities */}
+      <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+        <div className="px-4 py-2.5 border-b flex items-center gap-2">
+          <Crown className="h-3.5 w-3.5 text-amber-500" />
+          <h3 className="text-sm font-semibold text-foreground">Largest Open Opportunities</h3>
+          <span className="text-[11px] text-muted-foreground ml-auto">Top {largest.length}</span>
+        </div>
+        {largest.length > 0 ? (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-secondary/40">
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">Company</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">Partner</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">Stage</th>
+                <th className="text-right px-4 py-2 font-medium text-muted-foreground text-xs">Value</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground text-xs">Owner</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {largest.map((d: any) => (
+                <tr key={d.id} onClick={() => navigate(`/deals/${d.id}`)} className="hover:bg-secondary/30 cursor-pointer">
+                  <td className="px-4 py-2 font-medium text-foreground">{d.company_name}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{partnerMap.get(d.partner_id) || "—"}</td>
+                  <td className="px-4 py-2"><Badge variant="outline" className="text-[10px]">{d.stage}</Badge></td>
+                  <td className="px-4 py-2 text-right tabular-nums font-semibold">{fmtEuro(d._value)}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{d.assigned_salesperson || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : <EmptyState hint="Open opportunities will appear here." />}
+      </div>
+    </>
+  );
+}
+
