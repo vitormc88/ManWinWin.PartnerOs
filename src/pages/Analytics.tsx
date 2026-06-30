@@ -1275,3 +1275,384 @@ function SortHeader({ label, k, sortKey, dir, onClick, align }: {
 
 
 
+
+// ---------- Renewals Cockpit (Executive Renewal Command Center) ----------
+import { useClients } from "@/hooks/useClients";
+
+type RenewalQuickFilter = "this_month" | "next_30" | "overdue" | "high_value" | "completed" | "all";
+
+function renewalStatusTone(status: string) {
+  const s = (status || "").toLowerCase();
+  if (s === "overdue" || s === "expired" || s === "lost") return { row: "bg-red-50/60 hover:bg-red-50", dot: "bg-red-500", text: "text-red-700", label: "Overdue" };
+  if (s === "due soon") return { row: "bg-amber-50/50 hover:bg-amber-50", dot: "bg-amber-500", text: "text-amber-700", label: "Due Soon" };
+  if (s === "completed" || s === "won") return { row: "bg-emerald-50/40 hover:bg-emerald-50", dot: "bg-emerald-500", text: "text-emerald-700", label: status || "Completed" };
+  return { row: "bg-sky-50/40 hover:bg-sky-50", dot: "bg-sky-500", text: "text-sky-700", label: status || "Upcoming" };
+}
+
+function daysUntil(dateStr?: string | null) {
+  if (!dateStr) return Number.POSITIVE_INFINITY;
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
+}
+
+function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path: string) => void }) {
+  const renewalsQ = useUnifiedRenewals();
+  const clientsQ = useClients();
+  const partnersQ = usePartners();
+  const profilesQ = useAllProfilesMap();
+
+  const [partnerSort, setPartnerSort] = useState<"value" | "name" | "clients" | "upcoming" | "overdue">("value");
+  const [partnerDir, setPartnerDir] = useState<"asc" | "desc">("desc");
+  const [filter, setFilter] = useState<RenewalQuickFilter>("all");
+
+  const renewals = renewalsQ.data || [];
+  const clientsById = useMemo(() => {
+    const m = new Map<string, any>();
+    (clientsQ.data || []).forEach((c: any) => m.set(c.id, c));
+    return m;
+  }, [clientsQ.data]);
+  const partnersById = useMemo(() => {
+    const m = new Map<string, any>();
+    (partnersQ.data || []).forEach((p: any) => m.set(p.id, p));
+    return m;
+  }, [partnersQ.data]);
+  const profiles = profilesQ.data;
+
+  const now = Date.now();
+  const thisMonth = new Date();
+  const monthStart = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 1).getTime();
+  const monthEnd = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 0).getTime();
+
+  const isOpen = (r: any) => {
+    const s = (r.status || "").toLowerCase();
+    return !["completed", "won", "lost"].includes(s);
+  };
+  const isOverdue = (r: any) => {
+    const s = (r.status || "").toLowerCase();
+    if (s === "overdue" || s === "expired") return true;
+    return isOpen(r) && daysUntil(r.renewal_date) < 0;
+  };
+
+  // ---------- KPIs ----------
+  const openRenewals = renewals.filter(isOpen);
+  const pipelineValue = openRenewals.reduce((s, r) => s + Number(r.estimated_value || 0), 0);
+  const upcoming90 = openRenewals.filter((r) => {
+    const d = daysUntil(r.renewal_date);
+    return d >= 0 && d <= 90;
+  }).length;
+  const overdueCount = openRenewals.filter(isOverdue).length;
+  const overdueValue = openRenewals.filter(isOverdue).reduce((s, r) => s + Number(r.estimated_value || 0), 0);
+  const successRate = summary?.success_rate ?? 0;
+
+  // ---------- Risk bullets ----------
+  const risks: { tone: "red" | "amber" | "blue"; text: string }[] = [];
+  if (overdueValue > 0) risks.push({ tone: "red", text: `${fmtEuroK(overdueValue)} currently overdue` });
+  const criticalOverdue = openRenewals.filter((r) => isOverdue(r) && (r.priority === "Critical" || Number(r.estimated_value || 0) >= 20000)).length;
+  if (criticalOverdue > 0) risks.push({ tone: "red", text: `${criticalOverdue} critical renewal${criticalOverdue !== 1 ? "s" : ""} overdue` });
+  const highValueOpen = openRenewals.filter((r) => Number(r.estimated_value || 0) >= 20000).length;
+  if (highValueOpen > 0) risks.push({ tone: "amber", text: `${highValueOpen} renewal${highValueOpen !== 1 ? "s" : ""} above €20k` });
+  const dueThisWeek = openRenewals.filter((r) => { const d = daysUntil(r.renewal_date); return d >= 0 && d <= 7; }).length;
+  if (dueThisWeek > 0) risks.push({ tone: "amber", text: `${dueThisWeek} renewal${dueThisWeek !== 1 ? "s" : ""} due this week` });
+  const dueThisMonth = openRenewals.filter((r) => { const t = r.renewal_date ? new Date(r.renewal_date).getTime() : 0; return t >= now && t <= monthEnd; }).length;
+  if (dueThisMonth > 0 && dueThisWeek === 0) risks.push({ tone: "blue", text: `${dueThisMonth} renewal${dueThisMonth !== 1 ? "s" : ""} due this month` });
+  if (risks.length === 0) risks.push({ tone: "blue", text: "No immediate renewal risks detected" });
+
+  // ---------- Timeline buckets ----------
+  const buckets: { label: string; items: any[] }[] = [
+    { label: "Next 30 days", items: [] },
+    { label: "31–60 days", items: [] },
+    { label: "61–90 days", items: [] },
+  ];
+  for (const r of openRenewals) {
+    const d = daysUntil(r.renewal_date);
+    if (d < 0 || d > 90) continue;
+    if (d <= 30) buckets[0].items.push(r);
+    else if (d <= 60) buckets[1].items.push(r);
+    else buckets[2].items.push(r);
+  }
+  buckets.forEach((b) => b.items.sort((a, b2) => (a.renewal_date || "").localeCompare(b2.renewal_date || "")));
+  const totalShown = Math.min(10, buckets.reduce((s, b) => s + b.items.length, 0));
+  let budget = 10;
+  const trimmed = buckets.map((b) => {
+    const slice = b.items.slice(0, Math.max(0, budget));
+    budget -= slice.length;
+    return { ...b, items: slice };
+  });
+
+  // ---------- Partner exposure ----------
+  type PRow = { partner_id: string; name: string; value: number; clients: Set<string>; upcoming: number; overdue: number; owner: string | null };
+  const partnerMap = new Map<string, PRow>();
+  for (const r of renewals) {
+    const pid = r.partner_id || "__unassigned__";
+    const partner = pid !== "__unassigned__" ? partnersById.get(pid) : null;
+    const name = partner?.company_name || (pid === "__unassigned__" ? "HQ Direct / Unassigned" : "—");
+    const row = partnerMap.get(pid) || { partner_id: pid, name, value: 0, clients: new Set(), upcoming: 0, overdue: 0, owner: null };
+    if (isOpen(r)) row.value += Number(r.estimated_value || 0);
+    if (r.client_id) row.clients.add(r.client_id);
+    const d = daysUntil(r.renewal_date);
+    if (isOpen(r) && d >= 0 && d <= 90) row.upcoming += 1;
+    if (isOverdue(r)) row.overdue += 1;
+    if (!row.owner) {
+      const ownerId = partner?.account_owner_id || partner?.assigned_manager_id;
+      if (ownerId && profiles) row.owner = profiles.get(ownerId)?.full_name || profiles.get(ownerId)?.email || null;
+    }
+    partnerMap.set(pid, row);
+  }
+  const partnerRows = Array.from(partnerMap.values()).filter((p) => p.value > 0 || p.upcoming > 0 || p.overdue > 0);
+  const sortedPartners = [...partnerRows].sort((a, b) => {
+    const dir = partnerDir === "asc" ? 1 : -1;
+    switch (partnerSort) {
+      case "name": return a.name.localeCompare(b.name) * dir;
+      case "clients": return (a.clients.size - b.clients.size) * dir;
+      case "upcoming": return (a.upcoming - b.upcoming) * dir;
+      case "overdue": return (a.overdue - b.overdue) * dir;
+      default: return (a.value - b.value) * dir;
+    }
+  });
+  const togglePartnerSort = (k: typeof partnerSort) => {
+    if (k === partnerSort) setPartnerDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setPartnerSort(k); setPartnerDir("desc"); }
+  };
+
+  // ---------- Executive insights ----------
+  const insights: string[] = [];
+  const top5Value = sortedPartners.slice(0, 5).reduce((s, p) => s + p.value, 0);
+  const totalPartnerValue = partnerRows.reduce((s, p) => s + p.value, 0);
+  if (totalPartnerValue > 0 && partnerRows.length >= 5) {
+    const pct = Math.round((top5Value / totalPartnerValue) * 100);
+    insights.push(`${pct}% of renewal value belongs to the top five partners.`);
+  }
+  const next30 = buckets[0].items;
+  if (next30.length > 0) {
+    const top = [...next30].sort((a, b) => Number(b.estimated_value || 0) - Number(a.estimated_value || 0))[0];
+    const cName = clientsById.get(top.client_id)?.commercial_name || "A client";
+    insights.push(`${cName} renewal is approaching within 30 days.`);
+  }
+  const overdueList = openRenewals.filter(isOverdue).sort((a, b) => Number(b.estimated_value || 0) - Number(a.estimated_value || 0));
+  if (overdueList.length > 0) {
+    const top = overdueList[0];
+    const cName = clientsById.get(top.client_id)?.commercial_name || "A client";
+    insights.push(`${cName} remains overdue${top.estimated_value ? ` (${fmtEuroK(Number(top.estimated_value))})` : ""}.`);
+  }
+  if (successRate >= 80) insights.push(`Renewal success rate is above target (${successRate}%).`);
+  else if (successRate > 0 && successRate < 60) insights.push(`Renewal success rate is below target (${successRate}%).`);
+  if (highValueOpen >= 3) insights.push(`${highValueOpen} high-value renewals (>€20k) require executive attention.`);
+  if (partnerRows.length > 0 && partnerRows[0].value > 0) {
+    const lead = sortedPartners[0];
+    if (lead && lead.value > 0) insights.push(`${lead.name} carries the largest renewal exposure (${fmtEuroK(lead.value)}).`);
+  }
+
+  // ---------- Largest renewals + filter ----------
+  const filterFn = (r: any) => {
+    const d = daysUntil(r.renewal_date);
+    const t = r.renewal_date ? new Date(r.renewal_date).getTime() : 0;
+    switch (filter) {
+      case "this_month": return isOpen(r) && t >= monthStart && t <= monthEnd;
+      case "next_30": return isOpen(r) && d >= 0 && d <= 30;
+      case "overdue": return isOverdue(r);
+      case "high_value": return isOpen(r) && Number(r.estimated_value || 0) >= 20000;
+      case "completed": return ["completed", "won"].includes((r.status || "").toLowerCase());
+      default: return true;
+    }
+  };
+  const filtered = renewals.filter(filterFn);
+  const largest = [...filtered].sort((a, b) => Number(b.estimated_value || 0) - Number(a.estimated_value || 0)).slice(0, 10);
+
+  const quickFilters: { key: RenewalQuickFilter; label: string }[] = [
+    { key: "this_month", label: "This Month" },
+    { key: "next_30", label: "Next 30 Days" },
+    { key: "overdue", label: "Overdue" },
+    { key: "high_value", label: "High Value" },
+    { key: "completed", label: "Completed" },
+    { key: "all", label: "All" },
+  ];
+
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+  return (
+    <>
+      {/* KPI Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KPI label="Renewal Pipeline" value={fmtEuroK(pipelineValue)} sub="Total commercial renewal value" />
+        <KPI label="Upcoming (90d)" value={String(upcoming90)} sub="Open renewals due in 90 days" />
+        <KPI label="Overdue" value={String(overdueCount)} sub={overdueValue > 0 ? `${fmtEuroK(overdueValue)} at risk` : "No overdue renewals"} trend={overdueCount > 0 ? "down" : undefined} />
+        <KPI label="Renewal Success Rate" value={`${successRate}%`} sub={`${summary?.won ?? 0} won · ${summary?.lost ?? 0} lost`} trend={successRate >= 70 ? "up" : successRate > 0 ? "down" : undefined} />
+      </div>
+
+      {/* Risk + Timeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ExecCard title="Commercial Risk" icon={ShieldAlert} onClick={() => navigate("/renewals")}>
+          <ul className="space-y-2 text-sm">
+            {risks.map((r, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className={`h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${r.tone === "red" ? "bg-red-500" : r.tone === "amber" ? "bg-amber-500" : "bg-sky-500"}`} />
+                <span className="text-foreground">{r.text}</span>
+              </li>
+            ))}
+          </ul>
+        </ExecCard>
+
+        <ExecCard title="Upcoming Timeline" icon={CalendarClock} onClick={() => navigate("/renewals")}>
+          {totalShown === 0 ? (
+            <EmptyState message="No upcoming renewals" hint="Nothing due in the next 90 days." />
+          ) : (
+            <div className="space-y-3">
+              {trimmed.map((b) => b.items.length > 0 && (
+                <div key={b.label}>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{b.label}</p>
+                  <ul className="divide-y">
+                    {b.items.map((r: any) => {
+                      const cName = clientsById.get(r.client_id)?.commercial_name || "—";
+                      const tone = renewalStatusTone(r.status);
+                      return (
+                        <li key={r.id} className="flex items-center justify-between py-1.5 text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${tone.dot}`} />
+                            <span className="truncate text-foreground">{cName}</span>
+                          </div>
+                          <span className="tabular-nums text-foreground font-medium ml-3">
+                            {r.estimated_value ? fmtEuro(Number(r.estimated_value)) : "—"}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </ExecCard>
+      </div>
+
+      {/* Partner Exposure */}
+      <div className="bg-card rounded-xl border shadow-sm">
+        <div className="px-4 py-2.5 border-b flex items-center gap-2">
+          <div className="h-6 w-6 rounded-md bg-accent flex items-center justify-center">
+            <Building2 className="h-3.5 w-3.5 text-accent-foreground" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">Partner Renewal Exposure</h3>
+          <span className="text-xs text-muted-foreground ml-1">{partnerRows.length} partner{partnerRows.length !== 1 ? "s" : ""}</span>
+        </div>
+        <div className="overflow-x-auto">
+          {sortedPartners.length === 0 ? (
+            <div className="p-4"><EmptyState message="No partner renewal exposure" /></div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/40">
+                <tr className="border-b">
+                  <th onClick={() => togglePartnerSort("name")} className="px-4 py-2 text-left font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground">Partner {partnerSort === "name" ? (partnerDir === "asc" ? "↑" : "↓") : ""}</th>
+                  <th onClick={() => togglePartnerSort("value")} className="px-4 py-2 text-right font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground">Renewal Value {partnerSort === "value" ? (partnerDir === "asc" ? "↑" : "↓") : ""}</th>
+                  <th onClick={() => togglePartnerSort("clients")} className="px-4 py-2 text-right font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground">Clients {partnerSort === "clients" ? (partnerDir === "asc" ? "↑" : "↓") : ""}</th>
+                  <th onClick={() => togglePartnerSort("upcoming")} className="px-4 py-2 text-right font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground">Upcoming {partnerSort === "upcoming" ? (partnerDir === "asc" ? "↑" : "↓") : ""}</th>
+                  <th onClick={() => togglePartnerSort("overdue")} className="px-4 py-2 text-right font-medium text-muted-foreground text-xs cursor-pointer select-none hover:text-foreground">Overdue {partnerSort === "overdue" ? (partnerDir === "asc" ? "↑" : "↓") : ""}</th>
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">Owner</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {sortedPartners.slice(0, 12).map((p) => (
+                  <tr
+                    key={p.partner_id}
+                    onClick={() => p.partner_id !== "__unassigned__" && navigate(`/partners/${p.partner_id}`)}
+                    className={`${p.overdue > 0 ? "bg-red-50/40 hover:bg-red-50" : "hover:bg-secondary/40"} ${p.partner_id !== "__unassigned__" ? "cursor-pointer" : ""}`}
+                  >
+                    <td className="px-4 py-2 text-foreground font-medium">{p.name}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-foreground">{fmtEuroK(p.value)}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{p.clients.size}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-foreground">{p.upcoming}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {p.overdue > 0 ? <Badge variant="destructive" className="text-[10px]">{p.overdue}</Badge> : <span className="text-muted-foreground">0</span>}
+                    </td>
+                    <td className="px-4 py-2 text-muted-foreground">{p.owner || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Executive Insights */}
+      <ExecCard title="Executive Insights" icon={Sparkles}>
+        {insights.length === 0 ? (
+          <EmptyState message="No insights yet" hint="Insights appear once renewals exist." />
+        ) : (
+          <ul className="space-y-2 text-sm">
+            {insights.slice(0, 6).map((line, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-primary shrink-0" />
+                <span className="text-foreground">{line}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </ExecCard>
+
+      {/* Largest Renewals + Filters */}
+      <div className="bg-card rounded-xl border shadow-sm">
+        <div className="px-4 py-2.5 border-b flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-md bg-accent flex items-center justify-center">
+              <ListChecks className="h-3.5 w-3.5 text-accent-foreground" />
+            </div>
+            <h3 className="text-sm font-semibold text-foreground">Largest Renewals</h3>
+            <span className="text-xs text-muted-foreground">Top 10 · filtered</span>
+          </div>
+          <div className="flex items-center gap-1 flex-wrap">
+            {quickFilters.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${filter === f.key ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/70"}`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          {largest.length === 0 ? (
+            <div className="p-4"><EmptyState message="No renewals match this filter" /></div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="bg-secondary/40">
+                <tr className="border-b">
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">Client</th>
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">Partner</th>
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">Renewal Date</th>
+                  <th className="px-4 py-2 text-right font-medium text-muted-foreground text-xs">Value</th>
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">Status</th>
+                  <th className="px-4 py-2 text-left font-medium text-muted-foreground text-xs">Owner</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {largest.map((r) => {
+                  const cName = clientsById.get(r.client_id)?.commercial_name || "—";
+                  const partner = r.partner_id ? partnersById.get(r.partner_id) : null;
+                  const tone = renewalStatusTone(r.status);
+                  const ownerName = r.assigned_owner && profiles ? (profiles.get(r.assigned_owner)?.full_name || profiles.get(r.assigned_owner)?.email) : null;
+                  return (
+                    <tr
+                      key={r.id}
+                      onClick={() => navigate("/renewals")}
+                      className={`cursor-pointer ${tone.row}`}
+                    >
+                      <td className="px-4 py-2 text-foreground font-medium">{cName}</td>
+                      <td className="px-4 py-2 text-muted-foreground">{partner?.company_name || "—"}</td>
+                      <td className="px-4 py-2 text-muted-foreground tabular-nums">{fmtDate(r.renewal_date)}</td>
+                      <td className="px-4 py-2 text-right tabular-nums text-foreground font-medium">{r.estimated_value ? fmtEuro(Number(r.estimated_value)) : "—"}</td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${tone.text}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} /> {tone.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-muted-foreground">{ownerName || "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
