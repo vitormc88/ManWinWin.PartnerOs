@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
 } from "recharts";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles } from "lucide-react";
 import { PIPELINE_STAGES } from "@/data/pipeline-stages";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -21,7 +23,7 @@ function KPI({ label, value, sub, trend }: { label: string; value: string; sub?:
   return (
     <div className="bg-card rounded-xl border shadow-sm p-4">
       <p className="text-xs text-muted-foreground font-medium">{label}</p>
-      <p className="text-xl font-bold tabular-nums mt-1 text-foreground">{value}</p>
+      <p className="text-2xl font-bold tabular-nums mt-1 text-foreground tracking-tight">{value}</p>
       {sub && (
         <p className={`text-[11px] font-medium mt-1 ${trend === "up" ? "text-emerald-600" : trend === "down" ? "text-destructive" : "text-muted-foreground"}`}>
           {trend === "up" && "↑ "}{trend === "down" && "↓ "}{sub}
@@ -33,9 +35,34 @@ function KPI({ label, value, sub, trend }: { label: string; value: string; sub?:
 
 function EmptyState({ message = "No analytics data available yet", hint }: { message?: string; hint?: string }) {
   return (
-    <div className="text-center py-12 px-4">
+    <div className="text-center py-8 px-4">
       <p className="text-sm font-medium text-foreground">{message}</p>
       {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+function ExecCard({
+  title, icon: Icon, onClick, children,
+}: { title: string; icon: any; onClick?: () => void; children: React.ReactNode }) {
+  return (
+    <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === "Enter") onClick(); } : undefined}
+      className={`group text-left bg-card rounded-xl border shadow-sm transition-all flex flex-col ${onClick ? "cursor-pointer hover:shadow-md hover:border-primary/40" : ""}`}
+    >
+      <div className="px-4 py-2.5 border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="h-6 w-6 rounded-md bg-accent flex items-center justify-center">
+            <Icon className="h-3.5 w-3.5 text-accent-foreground" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        </div>
+        {onClick && <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />}
+      </div>
+      <div className="p-4 flex-1 min-h-0">{children}</div>
     </div>
   );
 }
