@@ -61,23 +61,50 @@ export function ClientSummaryBar({ client, ownerName, nextRenewalDate, onEdit }:
         )}
       </div>
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 px-5 py-3">
-        <Cell label="Partner" value={partner} />
+        <Cell
+          label="Partner"
+          value={
+            <span className="inline-flex items-center gap-1">
+              {partnerLabel}
+              {partnerIdentity.needsAttention && (
+                <span
+                  className="text-[10px] text-muted-foreground"
+                  title={
+                    partnerIdentity.state === "conflict"
+                      ? `Legacy reference (${partnerIdentity.legacyRef}) differs from the linked partner`
+                      : "Only a legacy partner reference exists on this record"
+                  }
+                >
+                  {partnerIdentity.state === "conflict" ? "(conflict)" : "(legacy)"}
+                </span>
+              )}
+            </span>
+          }
+        />
         <Cell label="Owner" value={owner} />
         <Cell label="Phone" value={client?.phone} />
         <Cell label="Email" value={client?.email} />
         <Cell
           label="Customer Since"
           value={
-            <span className="inline-flex items-center gap-1">
-              {fmtDate(customerSince)}
-              {customerSinceEstimated && (
-                <span className="text-[10px] text-muted-foreground" title="No first installation date on record — showing record creation date">
-                  (record)
-                </span>
-              )}
-            </span>
+            customerSince.value ? (
+              <span className="inline-flex items-center gap-1">
+                {fmtDate(customerSince.value)}
+                {customerSince.isEstimated && (
+                  <span
+                    className="text-[10px] text-muted-foreground"
+                    title={`Estimated from: ${customerSinceSourceLabel(customerSince.source)}`}
+                  >
+                    (estimated)
+                  </span>
+                )}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">{customerSince.unknownLabel}</span>
+            )
           }
         />
+
         <Cell label="Next Renewal" value={fmtDate(nextRenewalDate)} />
       </div>
     </Card>
