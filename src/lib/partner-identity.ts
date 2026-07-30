@@ -14,7 +14,8 @@
  *  - A canonical uuid that disagrees with the legacy text is reported as
  *    `conflict` — never merged with `||` truthiness.
  *  - Writes only ever set the canonical column; the legacy value is preserved
- *    untouched unless the user explicitly changes the partner.
+ *    untouched unless the user explicitly changes the partner, in which case
+ *    the stale legacy text is cleared together with the new canonical value.
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -156,13 +157,21 @@ export interface PartnerUpdateInput {
  * Build the partner portion of an UPDATE payload.
  *  - Untouched partner → returns `{}`: both the canonical and the legacy raw
  *    values stay exactly as stored.
- *  - Explicit change → writes the canonical column only; the legacy text column
- *    is never rewritten or cleared by this layer.
+ *  - Explicit change → writes the canonical column AND clears the legacy text
+ *    column, so the row cannot keep an obsolete/conflicting legacy reference.
+ *    This clearing is only allowed because it is the direct result of an
+ *    explicit partner change made by the user.
+ *  - Explicit HQ Direct → both columns are set to null so the record really
+ *    resolves as HQ Direct instead of `legacy_unresolved`.
  */
 export function buildPartnerUpdatePayload({
   partnerChanged,
   nextPartnerId,
-}: PartnerUpdateInput): { partner_uuid?: string | null } {
+}: PartnerUpdateInput): { partner_uuid?: string | null; partner_id?: string | null } {
   if (!partnerChanged) return {};
-  return { partner_uuid: isUuid(nextPartnerId) ? String(nextPartnerId).trim() : null };
+  return {
+    partner_uuid: isUuid(nextPartnerId) ? String(nextPartnerId).trim() : null,
+    partner_id: null,
+  };
 }
+

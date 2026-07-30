@@ -2,6 +2,10 @@
 -- PHASE 3 — REVIEW ONLY BACKFILL TEMPLATE. NOT EXECUTABLE AS-IS.
 -- No name-matching SQL. Every write requires an explicit, reviewed ID list.
 -- Requires phase3_01_historical_dates_and_identity.sql to be applied first.
+--
+-- Nothing in this file has been executed. RLS, grants and Data API exposure
+-- of the affected tables must be validated in production immediately before
+-- running anything derived from this template.
 -- =========================================================================
 
 -- ---------- STEP 1: PREVIEW ONLY — partner identity states ---------------
@@ -11,19 +15,22 @@
 --   count(*) FILTER (WHERE partner_uuid IS NULL AND nullif(btrim(partner_id),'') IS NULL)     AS hq_direct
 -- FROM public.clients;
 
--- Rows where the legacy text is a uuid that disagrees with the canonical FK:
+-- Rows where the legacy text is a uuid that disagrees with the canonical FK.
+-- Text comparison only — no ::uuid cast, so invalid legacy text can never
+-- raise an error:
 -- SELECT id, commercial_name, partner_uuid, partner_id
 -- FROM public.clients
 -- WHERE partner_uuid IS NOT NULL
 --   AND partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
---   AND lower(partner_id) <> lower(partner_uuid::text);
+--   AND lower(btrim(partner_id)) <> lower(partner_uuid::text);
 
--- Legacy-only rows that WOULD resolve, for manual confidence review:
+-- Legacy-only rows that WOULD resolve, for manual confidence review.
+-- The join compares text to text (p.id::text), never text::uuid:
 -- SELECT c.id, c.commercial_name, c.partner_id, p.id AS candidate_partner, p.company_name
 -- FROM public.clients c
 -- LEFT JOIN public.partners p
 --   ON c.partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
---  AND p.id = c.partner_id::uuid
+--  AND lower(btrim(c.partner_id)) = lower(p.id::text)
 -- WHERE c.partner_uuid IS NULL AND nullif(btrim(c.partner_id),'') IS NOT NULL;
 
 -- Confidence criteria for including a client id in STEP 2:
@@ -33,24 +40,48 @@
 -- Only HIGH and MEDIUM ids may be listed below, one reviewed id at a time.
 
 -- ---------- STEP 2: TEMPLATE — canonical partner assignment --------------
+-- 2.1 BEFORE the change, capture the counts and the current values of every
+--     row you intend to touch, and paste them into STEP 3 of a *reviewed and
+--     stored* rollback SQL file. A TEMP TABLE is NOT a rollback: it disappears
+--     with the session and cannot be used after COMMIT.
+--
+-- SELECT id, partner_uuid, partner_id FROM public.clients WHERE id IN (
+--   -- '00000000-0000-0000-0000-000000000000'::uuid  -- reviewed id
+-- );
+-- SELECT count(*) AS rows_before FROM public.clients WHERE partner_uuid IS NOT NULL;
+--
+-- 2.2 Apply inside an explicit transaction. ROLLBACK is only available while
+--     the transaction is still open.
 -- BEGIN;
--- CREATE TEMP TABLE phase3_partner_rollback AS
---   SELECT id, partner_uuid FROM public.clients WHERE id IN (
---     -- '00000000-0000-0000-0000-000000000000'::uuid  -- reviewed id
---   );
 -- UPDATE public.clients c
 --    SET partner_uuid = v.partner_uuid
 --   FROM (VALUES
 --     -- ('<client_id>'::uuid, '<partner_id>'::uuid)
 --   ) AS v(id, partner_uuid)
 --  WHERE c.id = v.id AND c.partner_uuid IS DISTINCT FROM v.partner_uuid;
+-- -- expected: rowcount == number of reviewed ids
+-- SELECT count(*) AS rows_after FROM public.clients WHERE partner_uuid IS NOT NULL;
 -- -- verify, then COMMIT; or ROLLBACK;
 -- ROLLBACK;
--- Rollback after commit:
---   UPDATE public.clients c SET partner_uuid = r.partner_uuid
---     FROM phase3_partner_rollback r WHERE c.id = r.id;
 
--- ---------- STEP 3: PREVIEW ONLY — Customer Since ------------------------
+-- ---------- STEP 3: TEMPLATE — durable post-COMMIT rollback --------------
+-- Fill this from the snapshot captured in 2.1 BEFORE committing, and keep the
+-- filled version in review as its own SQL file. Without that snapshot there is
+-- no rollback path.
+-- BEGIN;
+-- UPDATE public.clients c
+--    SET partner_uuid = v.previous_partner_uuid,
+--        partner_id   = v.previous_partner_id
+--   FROM (VALUES
+--     -- ('<client_id>'::uuid, '<previous_partner_uuid>'::uuid, '<previous_partner_id>'::text)
+--     -- use NULL::uuid / NULL::text for values that were null
+--   ) AS v(id, previous_partner_uuid, previous_partner_id)
+--  WHERE c.id = v.id;
+-- SELECT count(*) AS rows_restored FROM public.clients WHERE partner_uuid IS NOT NULL;
+-- -- verify, then COMMIT; or ROLLBACK;
+-- ROLLBACK;
+
+-- ---------- STEP 4: PREVIEW ONLY — Customer Since ------------------------
 -- SELECT
 --   count(*) FILTER (WHERE first_installation_date IS NOT NULL) AS factual,
 --   count(*) FILTER (WHERE first_installation_date IS NULL)     AS unknown
@@ -58,12 +89,15 @@
 --
 -- FORBIDDEN: any UPDATE setting customer_since from created_at, updated_at,
 -- imported_at, or a sync timestamp. Only explicit reviewed (id, date, source)
--- tuples are allowed, using the same VALUES + rollback-table pattern as STEP 2.
+-- tuples are allowed, using the same VALUES + snapshot/rollback pattern above.
 
--- ---------- STEP 4: PREVIEW ONLY — lifecycle event provenance ------------
+-- ---------- STEP 5: PREVIEW ONLY — lifecycle event provenance ------------
 -- SELECT count(*) AS events_sharing_occurred_and_created
 -- FROM public.lifecycle_events
 -- WHERE date_trunc('second', occurred_at) = date_trunc('second', created_at);
 --
--- These are candidates for occurred_at_known = false, but only after the
--- import batch that produced them has been positively identified in production.
+-- Technical import events (event_type = 'client_imported') are already treated
+-- in application code as import acts, never as historical business dates, so
+-- no data change is required for them. Setting occurred_at_known = false on
+-- other rows is only allowed after the import batch that produced them has
+-- been positively identified in production.

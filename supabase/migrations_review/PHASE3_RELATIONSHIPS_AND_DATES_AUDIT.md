@@ -95,11 +95,26 @@ Rollback: every statement is `ADD COLUMN IF NOT EXISTS`; rollback is a
 `DROP COLUMN` of the exact new columns listed in the file header. No legacy
 column is renamed or removed in this phase.
 
-RLS / grants / Data API impact: all proposed columns live on existing tables
-(`clients`, `lifecycle_events`), so existing policies and grants apply
-unchanged; no new table, function, trigger or policy is required. Adding
-columns does expose them through PostgREST to roles that already read those
-tables — reviewed and accepted, since they contain no sensitive data.
+RLS / grants / Data API impact — **not validated, must be checked in production**:
+all proposed columns live on existing tables (`clients`, `lifecycle_events`),
+whose policies are visible in the repository migrations; the effective RLS
+state, the actual grants to `anon` / `authenticated` / `service_role`, and the
+Data API (PostgREST) exposure of those tables were **not** verified here and
+must be validated in production immediately before applying the migration.
+Adding a column creates no new policy, but it does become readable by any role
+that already holds a broad `SELECT` on the table, so column-level sensitivity
+must be assessed against the grants observed at that moment.
+
+### 5.1 Timeline columns consumed by the code today
+
+`resolveTimelineDates` already reads `effective_date`, `imported_at` and
+`occurred_at_known` as first-class optional columns, falling back to the legacy
+`metadata` keys. Because the fields are optional and the query is `select("*")`,
+the UI keeps working before and after the migration is applied.
+
+`event_type` is now part of the resolver input: `client_imported` is a
+technical import act, so its `occurred_at` / `created_at` is surfaced as
+*Imported on …* and never as a historical business date or Customer Since.
 
 ## 6. Risks found
 
@@ -122,11 +137,23 @@ tables — reviewed and accepted, since they contain no sensitive data.
 4. Phase 3d — only after (3c) reports zero unresolved rows: consider retiring
    the legacy text columns.
 
-## 8. Only confirmable in production
+## 8. Read-only findings already confirmed in production
 
-- Actual `information_schema` type of `clients.partner_id` / `renewals.partner_id`.
-- Number of rows in each identity state (`resolved`, `legacy_unresolved`, `conflict`).
-- Whether Watsons (`01fbe90e-d3ea-4635-96aa-8e04060b8182`) has a populated
-  `partner_uuid` pointing at FITC, or only a legacy reference.
-- Distribution of `first_installation_date` vs unknown across clients.
-- Whether any `lifecycle_events.metadata` already carries import provenance.
+Obtained with read-only inspection; no write, migration or backfill was run.
+
+- `clients.partner_id` = `text`; `clients.partner_uuid` = `uuid` with FK to `partners.id`.
+- `renewals.partner_id` = `text`; `renewals.partner_uuid` = `uuid`.
+- Watsons (`01fbe90e-d3ea-4635-96aa-8e04060b8182`) is linked to FITC through
+  `partner_uuid` (canonical relation, not a legacy-only reference).
+- Watsons `first_installation_date` = `2022-07-19`.
+- Current identity distribution: 1 client, 0 legacy-only rows, 0 uuid conflicts.
+- 3 `lifecycle_events`; none carries `metadata.imported_at`,
+  `metadata.effective_date` or `metadata.occurred_at_known`.
+- The `client_imported` event has `occurred_at === created_at` — handled in code
+  as a technical import act.
+
+## 9. Still only confirmable at apply time
+
+- Effective RLS, grants and Data API exposure of `clients` / `lifecycle_events`.
+- Identity-state counts at the moment of the migration (data keeps changing).
+- Provenance of any future imported `lifecycle_events` rows.

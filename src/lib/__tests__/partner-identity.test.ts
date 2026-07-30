@@ -9,9 +9,13 @@ import {
   LEGACY_UNRESOLVED_LABEL,
 } from "@/lib/partner-identity";
 
+// Synthetic UUIDs for unit fixtures (not production values).
 const FITC = "3f0b1d2e-4a5b-4c6d-8e9f-0a1b2c3d4e5f";
 const OTHER = "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d";
+// Read-only regression snapshot of confirmed production identifiers.
+// Used as inert literals — no query is performed at runtime.
 const WATSONS_CLIENT_ID = "01fbe90e-d3ea-4635-96aa-8e04060b8182";
+const FITC_PARTNER_ID = "db1b15b7-38af-40cd-939f-c3f56a7e102a";
 
 describe("partner identity — canonical resolution", () => {
   it("resolves the correct partner from the canonical uuid", () => {
@@ -50,7 +54,7 @@ describe("partner identity — canonical resolution", () => {
     expect(resolvePartnerIdentity({}).label).toBe(HQ_DIRECT_LABEL);
   });
 
-  it("production-shaped Watsons/FITC fixture resolves without mutating data", () => {
+  it("synthetic Watsons/FITC-shaped fixture resolves without mutating data", () => {
     const row = Object.freeze({
       id: WATSONS_CLIENT_ID,
       commercial_name: "Watsons",
@@ -68,6 +72,23 @@ describe("partner identity — canonical resolution", () => {
     expect(isUuid(FITC)).toBe(true);
     expect(isUuid("FITC")).toBe(false);
     expect(isUuid(null)).toBe(false);
+  });
+});
+
+describe("partner identity — Watsons/FITC regression snapshot (read-only)", () => {
+  it("resolves the confirmed Watsons row to FITC without touching legacy data", () => {
+    const row = Object.freeze({
+      id: WATSONS_CLIENT_ID,
+      commercial_name: "Watsons",
+      partner_uuid: FITC_PARTNER_ID,
+      partner_id: FITC_PARTNER_ID,
+    });
+    const id = resolvePartnerIdentity(row, { [FITC_PARTNER_ID]: "FITC" });
+    expect(id.state).toBe("resolved");
+    expect(id.partnerId).toBe(FITC_PARTNER_ID);
+    expect(id.partnerName).toBe("FITC");
+    expect(id.needsAttention).toBe(false);
+    expect(row.partner_id).toBe(FITC_PARTNER_ID);
   });
 });
 
@@ -106,21 +127,22 @@ describe("partner identity — write payloads", () => {
     expect("partner_id" in payload).toBe(false);
   });
 
-  it("explicit partner change writes only the canonical column", () => {
+  it("explicit partner change writes the canonical column and clears stale legacy text", () => {
     const payload = buildPartnerUpdatePayload({
       current: { partner_uuid: null, partner_id: "OLD-KEY" },
       partnerChanged: true,
       nextPartnerId: FITC,
     });
-    expect(payload).toEqual({ partner_uuid: FITC });
+    expect(payload).toEqual({ partner_uuid: FITC, partner_id: null });
   });
 
-  it("explicit unlink sets the canonical column to null and leaves legacy untouched", () => {
+  it("explicit unlink resolves the row as real HQ Direct", () => {
     const payload = buildPartnerUpdatePayload({
       current: { partner_uuid: FITC, partner_id: "OLD-KEY" },
       partnerChanged: true,
       nextPartnerId: null,
     });
-    expect(payload).toEqual({ partner_uuid: null });
+    expect(payload).toEqual({ partner_uuid: null, partner_id: null });
+    expect(resolvePartnerIdentity({ ...payload }).state).toBe("unlinked");
   });
 });
