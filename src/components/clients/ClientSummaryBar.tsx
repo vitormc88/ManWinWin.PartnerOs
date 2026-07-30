@@ -32,6 +32,8 @@ export function ClientSummaryBar({ client, ownerName, nextRenewalDate, onEdit }:
   const partner = client?.partner?.name || "HQ Direct";
   const owner = ownerName || client?.manager_owner || "—";
   const location = [client?.country, client?.sector].filter(Boolean).join(" • ") || "—";
+  const customerSince = client?.first_installation_date || client?.created_at;
+  const customerSinceEstimated = !client?.first_installation_date && !!client?.created_at;
 
   return (
     <Card className="border-border/60 shadow-sm">
@@ -58,7 +60,19 @@ export function ClientSummaryBar({ client, ownerName, nextRenewalDate, onEdit }:
         <Cell label="Owner" value={owner} />
         <Cell label="Phone" value={client?.phone} />
         <Cell label="Email" value={client?.email} />
-        <Cell label="Customer Since" value={fmtDate(client?.created_at)} />
+        <Cell
+          label="Customer Since"
+          value={
+            <span className="inline-flex items-center gap-1">
+              {fmtDate(customerSince)}
+              {customerSinceEstimated && (
+                <span className="text-[10px] text-muted-foreground" title="No first installation date on record — showing record creation date">
+                  (record)
+                </span>
+              )}
+            </span>
+          }
+        />
         <Cell label="Next Renewal" value={fmtDate(nextRenewalDate)} />
       </div>
     </Card>

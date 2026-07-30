@@ -31,6 +31,7 @@ import { CommercialIntelligenceDashboard } from "@/components/clients/Commercial
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { ContactsCard } from "@/components/clients/ContactsCard";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
+import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -169,8 +170,12 @@ export default function ClientDetail() {
     enabled: !!id,
   });
 
-  // Filter out invalid/broken licenses
-  const validLicenses = useMemo(() => licenses.filter(l => isValidLicenseProduct(l.product)), [licenses]);
+  // All licenses are listed. Ones with a product outside the supported catalogue are
+  // flagged for review instead of being silently hidden.
+  const validLicenses = useMemo(
+    () => [...licenses].sort((a, b) => Number(isValidLicenseProduct(b.product)) - Number(isValidLicenseProduct(a.product))),
+    [licenses]
+  );
 
   const { data: modules = [] } = useQuery({
     queryKey: ["licensed_modules", id, validLicenses],
@@ -181,7 +186,9 @@ export default function ClientDetail() {
   // Derived data
   const primaryLicense = validLicenses[0] || null;
   const primaryContract = contracts[0] || null;
-  const renewalEndDate = primaryContract?.contract_end_date || primaryLicense?.license_end_date || null;
+  const { data: intelligence } = useClientCommercialIntelligence(id);
+  // Single source of truth for renewal timing: scheduled renewal → contract end → license end.
+  const renewalEndDate = intelligence?.next_renewal_date || primaryContract?.contract_end_date || primaryLicense?.license_end_date || null;
   const renewalInfo = useMemo(() => getRenewalInfo(renewalEndDate), [renewalEndDate]);
 
   // Parsed license info
@@ -943,13 +950,19 @@ export default function ClientDetail() {
                 </div>
               ) : validLicenses.map(lic => {
                 const { family: licFam, variant: licVar } = parseLicenseProduct(lic.product);
+                const needsReview = !isValidLicenseProduct(lic.product);
                 return (
                 <div key={lic.id} className="space-y-4 border-b border-border/40 last:border-0 pb-4 last:pb-0 mb-4 last:mb-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{licFam}</Badge>
-                      <Badge variant="secondary">{getVariantLabel(licVar)}</Badge>
+                      <Badge variant="outline">{licFam || "Unknown family"}</Badge>
+                      <Badge variant="secondary">{getVariantLabel(licVar) || "Unspecified product"}</Badge>
                       <Badge variant="secondary" className="text-xs">{lic.version || "—"}</Badge>
+                      {needsReview && (
+                        <Badge variant="outline" className="text-xs gap-1 border-warning text-warning">
+                          <AlertTriangle className="h-3 w-3" /> Needs review
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       {editingLicenseId === lic.id ? (

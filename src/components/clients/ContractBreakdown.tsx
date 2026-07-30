@@ -7,17 +7,19 @@ const LINE_TYPE_LABELS: Record<string, string> = {
   mww_web: "MWW Web",
   hosting: "Hosting",
   sat: "S&AT",
+  service: "Service",
   module: "Module",
   plugin: "Plugin",
   implementation: "Implementation",
   training: "Training",
   discount: "Discount",
   other: "Other",
+  unclassified: "Other (unclassified)",
 };
 
 const LINE_TYPE_ORDER = [
-  "license", "mww_web", "hosting", "sat",
-  "module", "plugin", "implementation", "training", "discount", "other",
+  "license", "mww_web", "hosting", "sat", "service",
+  "module", "plugin", "implementation", "training", "discount", "other", "unclassified",
 ];
 
 function formatMoney(amount: number, currency: string) {
