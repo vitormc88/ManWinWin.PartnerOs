@@ -32,11 +32,13 @@ function Cell({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function ClientSummaryBar({ client, ownerName, nextRenewalDate, onEdit }: Props) {
-  const partner = client?.partner?.name || "HQ Direct";
+  const partnerIdentity = resolvePartnerIdentity(client, () => client?.partner?.name);
+  const partnerLabel = client?.partner?.name || (partnerIdentity.state === "unlinked" ? HQ_DIRECT_LABEL : partnerIdentity.label);
   const owner = ownerName || client?.manager_owner || "—";
   const location = [client?.country, client?.sector].filter(Boolean).join(" • ") || "—";
-  const customerSince = client?.first_installation_date || client?.created_at;
-  const customerSinceEstimated = !client?.first_installation_date && !!client?.created_at;
+  // Technical timestamps (created_at / imported_at) are never a factual Customer Since.
+  const customerSince = resolveCustomerSince({ client });
+
 
   return (
     <Card className="border-border/60 shadow-sm">
