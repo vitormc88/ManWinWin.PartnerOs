@@ -1064,7 +1064,7 @@ export default function ClientDetail() {
                       ) : (
                         <>
                           {canWrite && <Button variant="ghost" size="sm" onClick={() => startEditLicense(lic)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>}
-                          <AlertDialog>
+                          {canWrite && <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete</Button>
                             </AlertDialogTrigger>
@@ -1078,7 +1078,7 @@ export default function ClientDetail() {
                                 <AlertDialogAction onClick={() => handleDeleteLicense(lic.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
-                          </AlertDialog>
+                          </AlertDialog>}
                         </>
                       )}
                     </div>
