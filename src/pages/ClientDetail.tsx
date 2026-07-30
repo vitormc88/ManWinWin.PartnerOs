@@ -413,8 +413,8 @@ export default function ClientDetail() {
     setLicenseForm({
       _family: family,
       product: variant,
-      version: "8.0",
-      license_model: family,
+      version: DEFAULT_LICENSE_VERSION,
+      license_model: normalizeLicenseModel(variant),
       periodicity: "Annual",
       database_type: defaults.database_type,
       backoffice_users: defaults.backoffice_users,
@@ -428,13 +428,17 @@ export default function ClientDetail() {
   };
 
   const startEditLicense = (lic: any) => {
-    const { family } = parseLicenseProduct(lic.product);
+    const vocab = readLicenseVocabulary(lic, client?.cloud_onpremise);
     setLicEditForm({
-      _family: family,
-      product: lic.product || "",
-      version: lic.version || "",
-      database_type: lic.database_type || "",
-      license_model: lic.license_model || "",
+      _family: vocab.product.family,
+      // Legacy/unmapped products are preserved verbatim so nothing is lost on open.
+      product: vocab.product.value || "",
+      _rawProduct: lic.product || "",
+      version: vocab.version,
+      // Deployment: canonical value when recognised, otherwise the raw legacy label.
+      database_type: vocab.deployment.value || vocab.deployment.raw || "",
+      license_model: vocab.licenseModel || lic.license_model || "",
+
       periodicity: lic.periodicity || "",
       license_start_date: lic.license_start_date || "",
       license_end_date: lic.license_end_date || "",
