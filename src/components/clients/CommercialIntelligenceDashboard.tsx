@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { readLicenseVocabulary } from "@/lib/licensing";
 import {
   Activity,
   AlertTriangle,
@@ -353,6 +354,12 @@ function CommercialSnapshotSection({
   const modulesCount = (data.active_modules ?? []).length;
   const pluginsCount = (data.active_plugins ?? []).length;
   const billingLabel = billing || (data.recurring_items?.[0]?.billing_frequency as string | undefined) || "Annual";
+  // Canonical licensing vocabulary (legacy-tolerant).
+  const licenseView = readLicenseVocabulary({
+    product: data.license_family,
+    deployment_type: data.deployment_type,
+    version: null,
+  });
 
   return (
     <Card className="border-border/60 shadow-sm">
@@ -363,9 +370,10 @@ function CommercialSnapshotSection({
       </CardHeader>
       <CardContent className="pt-4 space-y-3">
         {/* Licensing setup */}
-        <SnapshotRow label="Product Family" value={data.license_family} />
-        <SnapshotRow label="Variant" value={data.license_variant} />
-        <SnapshotRow label="Deployment" value={data.deployment_type} />
+        <SnapshotRow label="Product Family" value={licenseView.product.family || licenseView.product.label || "—"} />
+        <SnapshotRow label="Product / Variant" value={licenseView.product.fullLabel || data.license_variant || "—"} />
+        <SnapshotRow label="License Model" value={licenseView.licenseModel || "—"} />
+        <SnapshotRow label="Deployment / Hosting" value={licenseView.deployment.label} />
         <Separator />
         {/* Commercial structure */}
         <SnapshotRow label="Contract Status" value={contractLabel} />

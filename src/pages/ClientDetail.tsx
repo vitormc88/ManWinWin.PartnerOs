@@ -32,6 +32,18 @@ import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { ContactsCard } from "@/components/clients/ContactsCard";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
 import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
+import {
+  type LicenseFamily,
+  VARIANT_OPTIONS,
+  DEPLOYMENT_OPTIONS,
+  DEFAULT_LICENSE_VERSION,
+  normalizeLicenseProduct,
+  normalizeLicenseModel,
+  normalizeDeployment,
+  readLicenseVocabulary,
+  isCanonicalProduct,
+  getVariantLabel,
+} from "@/lib/licensing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -82,38 +94,14 @@ const RenewalIcon = ({ status }: { status: string }) => {
   }
 };
 
-/* ─── License two-level model ─── */
-type LicenseFamily = "Business" | "Professional";
-
-const VARIANT_OPTIONS: Record<LicenseFamily, { value: string; label: string }[]> = {
-  Business: [
-    { value: "Business UseIT", label: "UseIT" },
-    { value: "Business KeepIT", label: "KeepIT" },
-  ],
-  Professional: [
-    { value: "Professional 1", label: "Professional 1" },
-    { value: "Professional 2", label: "Professional 2" },
-    { value: "Professional 3", label: "Professional 3" },
-  ],
-};
-
+/* ─── License vocabulary (canonical, see src/lib/licensing.ts) ─── */
 function parseLicenseProduct(product: string | null | undefined): { family: LicenseFamily | ""; variant: string } {
-  if (!product) return { family: "", variant: "" };
-  if (product.startsWith("Business")) return { family: "Business", variant: product };
-  if (product.startsWith("Professional")) return { family: "Professional", variant: product };
-  return { family: "", variant: product };
-}
-
-function getVariantLabel(variant: string): string {
-  if (variant === "Business UseIT") return "UseIT";
-  if (variant === "Business KeepIT") return "KeepIT";
-  return variant;
+  const n = normalizeLicenseProduct(product);
+  return { family: n.family, variant: n.variant };
 }
 
 function isValidLicenseProduct(product: string | null | undefined): boolean {
-  if (!product) return false;
-  const validValues = ["Business UseIT", "Business KeepIT", "Professional 1", "Professional 2", "Professional 3"];
-  return validValues.includes(product);
+  return isCanonicalProduct(product);
 }
 
 const PROFESSIONAL_MODULES: Record<string, string[]> = {
@@ -137,6 +125,7 @@ function getLicenseDefaults(variant: string) {
     database_type: isPro ? "SaaS" : "On-Premise",
   };
 }
+
 
 /* ─── main component ─── */
 export default function ClientDetail() {
@@ -196,7 +185,8 @@ export default function ClientDetail() {
   const { family: licenseFamily, variant: licenseVariant } = useMemo(() => parseLicenseProduct(licenseProduct), [licenseProduct]);
   const isProfessional = licenseFamily === "Professional";
   const isBusiness = licenseFamily === "Business";
-  const hasValidLicense = !!primaryLicense && isValidLicenseProduct(primaryLicense.product);
+  // Any existing license row is workable — legacy products are flagged, never hidden.
+  const hasValidLicense = !!primaryLicense;
 
   // Edit states
   const [editingClient, setEditingClient] = useState(false);
@@ -362,8 +352,9 @@ export default function ClientDetail() {
       ...f,
       _family: family,
       product: firstVariant,
-      license_model: family,
-      database_type: defaults.database_type,
+      license_model: normalizeLicenseModel(firstVariant),
+      // Never overwrite an existing deployment value (avoids SaaS → On-Premise drift on edit).
+      database_type: f.database_type || defaults.database_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
@@ -373,18 +364,18 @@ export default function ClientDetail() {
 
   const handleVariantChange = (variant: string, formSetter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
     const defaults = getLicenseDefaults(variant);
-    const family = variant.startsWith("Professional") ? "Professional" : "Business";
     formSetter(f => ({
       ...f,
       product: variant,
-      license_model: family,
-      database_type: defaults.database_type,
+      license_model: normalizeLicenseModel(variant),
+      database_type: f.database_type || defaults.database_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
       api_access: defaults.api_access,
     }));
   };
+
 
   const handleAddLicense = async () => {
     if (!licenseForm.product || !isValidLicenseProduct(licenseForm.product)) {
@@ -396,8 +387,9 @@ export default function ClientDetail() {
         client_id: client.id,
         product: licenseForm.product,
         version: licenseForm.version || null,
-        license_model: licenseForm.license_model || null,
+        license_model: normalizeLicenseModel(licenseForm.product, licenseForm.license_model) || null,
         database_type: licenseForm.database_type || null,
+        deployment_type: licenseForm.database_type || null,
         periodicity: licenseForm.periodicity || null,
         license_start_date: licenseForm.license_start_date || null,
         license_end_date: licenseForm.license_end_date || null,
@@ -422,8 +414,8 @@ export default function ClientDetail() {
     setLicenseForm({
       _family: family,
       product: variant,
-      version: "8.0",
-      license_model: family,
+      version: DEFAULT_LICENSE_VERSION,
+      license_model: normalizeLicenseModel(variant),
       periodicity: "Annual",
       database_type: defaults.database_type,
       backoffice_users: defaults.backoffice_users,
@@ -437,13 +429,17 @@ export default function ClientDetail() {
   };
 
   const startEditLicense = (lic: any) => {
-    const { family } = parseLicenseProduct(lic.product);
+    const vocab = readLicenseVocabulary(lic, client?.cloud_onpremise);
     setLicEditForm({
-      _family: family,
-      product: lic.product || "",
-      version: lic.version || "",
-      database_type: lic.database_type || "",
-      license_model: lic.license_model || "",
+      _family: vocab.product.family,
+      // Legacy/unmapped products are preserved verbatim so nothing is lost on open.
+      product: vocab.product.value || "",
+      _rawProduct: lic.product || "",
+      version: vocab.version,
+      // Deployment: canonical value when recognised, otherwise the raw legacy label.
+      database_type: vocab.deployment.value || vocab.deployment.raw || "",
+      license_model: vocab.licenseModel || lic.license_model || "",
+
       periodicity: lic.periodicity || "",
       license_start_date: lic.license_start_date || "",
       license_end_date: lic.license_end_date || "",
@@ -464,15 +460,20 @@ export default function ClientDetail() {
 
   const saveLicense = async () => {
     if (!editingLicenseId) return;
-    if (!licEditForm.product || !isValidLicenseProduct(licEditForm.product)) {
-      toast.error("Please select a valid License Family and Variant");
+    // New values must be canonical; an untouched legacy value may be saved as-is
+    // so unrelated edits (dates, users, S&AT) are never blocked by old data.
+    const keepsLegacyProduct =
+      !!licEditForm.product && licEditForm.product === (licEditForm._rawProduct || "");
+    if (!licEditForm.product || (!isValidLicenseProduct(licEditForm.product) && !keepsLegacyProduct)) {
+      toast.error("Please select a valid Product / License Variant");
       return;
     }
     try {
       const {
-        _family, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
+        _family, _rawProduct, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
         sat_start_date, sat_end_date, ...rest
       } = licEditForm;
+
 
       // S&AT date defaulting:
       // - If S&AT is active and dates are empty, default to license window.
@@ -494,6 +495,9 @@ export default function ClientDetail() {
       await updateLicense.mutateAsync({
         id: editingLicenseId,
         ...rest,
+        license_model: normalizeLicenseModel(rest.product, rest.license_model) || null,
+        // Keep both deployment columns in sync so reads never disagree.
+        deployment_type: rest.database_type || null,
         sat_start_date: nextSatStart,
         sat_end_date: nextSatEnd,
       } as any);
@@ -671,7 +675,11 @@ export default function ClientDetail() {
   // Module helpers for licensing tab
   const activeModuleNames = modules.filter(m => m.enabled).map(m => m.module_name);
   const presetModules = isProfessional ? (PROFESSIONAL_MODULES[licenseVariant] || []) : [];
-  const deploymentDisplay = primaryLicense?.database_type || client.cloud_onpremise || (isProfessional ? "SaaS" : "—");
+  const deploymentDisplay = normalizeDeployment(
+    (primaryLicense as any)?.deployment_type,
+    primaryLicense?.database_type,
+    client.cloud_onpremise
+  ).label;
 
   // License Family/Variant form rendering helper
   const renderLicenseFamilyVariantFields = (form: Record<string, any>, setter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
@@ -689,15 +697,20 @@ export default function ClientDetail() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">License Variant *</Label>
+          <Label className="text-xs">Product / License Variant *</Label>
           <Select
             value={form.product || ""}
             onValueChange={(v) => handleVariantChange(v, setter)}
-            disabled={!currentFamily}
           >
             <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select variant..." /></SelectTrigger>
             <SelectContent>
-              {currentFamily && VARIANT_OPTIONS[currentFamily as LicenseFamily]?.map(o => (
+              {/* Legacy value kept selectable so an unmapped product is never silently dropped. */}
+              {form.product && !isCanonicalProduct(form.product) && (
+                <SelectItem value={form.product}>{form.product} (legacy)</SelectItem>
+              )}
+              {(currentFamily ? VARIANT_OPTIONS[currentFamily as LicenseFamily] : [
+                ...VARIANT_OPTIONS.Business, ...VARIANT_OPTIONS.Professional,
+              ]).map(o => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>
@@ -949,18 +962,21 @@ export default function ClientDetail() {
                   </Button>
                 </div>
               ) : validLicenses.map(lic => {
-                const { family: licFam, variant: licVar } = parseLicenseProduct(lic.product);
-                const needsReview = !isValidLicenseProduct(lic.product);
+                const licVocab = readLicenseVocabulary(lic, client.cloud_onpremise);
+                const licFam = licVocab.product.family;
+                const licVar = licVocab.product.variant;
+                const needsReview = licVocab.needsReview;
                 return (
                 <div key={lic.id} className="space-y-4 border-b border-border/40 last:border-0 pb-4 last:pb-0 mb-4 last:mb-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{licFam || "Unknown family"}</Badge>
-                      <Badge variant="secondary">{getVariantLabel(licVar) || "Unspecified product"}</Badge>
-                      <Badge variant="secondary" className="text-xs">{lic.version || "—"}</Badge>
+                      <Badge variant="outline">{licFam || "Legacy product"}</Badge>
+                      <Badge variant="secondary">{licVocab.product.label || "Unspecified product"}</Badge>
+                      {licVocab.licenseModel && <Badge variant="outline" className="text-xs">{licVocab.licenseModel}</Badge>}
+                      <Badge variant="secondary" className="text-xs">{licVocab.version || "—"}</Badge>
                       {needsReview && (
                         <Badge variant="outline" className="text-xs gap-1 border-warning text-warning">
-                          <AlertTriangle className="h-3 w-3" /> Needs review
+                          <AlertTriangle className="h-3 w-3" /> Legacy / unmapped
                         </Badge>
                       )}
                     </div>
@@ -998,16 +1014,19 @@ export default function ClientDetail() {
                       {renderLicenseFamilyVariantFields(licEditForm, setLicEditForm)}
                       <EditField label="Version" value={licEditForm.version} onChange={v => setLicEditForm(f => ({...f, version: v}))} />
                       <div>
-                        <Label className="text-xs">Deployment</Label>
+                        <Label className="text-xs">Deployment / Hosting</Label>
                         <Select
-                          value={licEditForm.database_type || "On-Premise"}
+                          value={licEditForm.database_type || ""}
                           onValueChange={v => setLicEditForm(f => ({...f, database_type: v}))}
-                          disabled={licEditForm._family === "Professional"}
                         >
-                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="SaaS">SaaS</SelectItem>
-                            <SelectItem value="On-Premise">On-Premise</SelectItem>
+                            {licEditForm.database_type && !DEPLOYMENT_OPTIONS.some(o => o.value === licEditForm.database_type) && (
+                              <SelectItem value={licEditForm.database_type}>{licEditForm.database_type} (legacy)</SelectItem>
+                            )}
+                            {DEPLOYMENT_OPTIONS.map(o => (
+                              <SelectItem key={o.value} value={o.value}>{o.label} — {o.hint}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1047,9 +1066,10 @@ export default function ClientDetail() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                       <div className="space-y-0">
-                        <FieldRow label="License Family" value={licFam} />
-                        <FieldRow label="Variant" value={licVar ? getVariantLabel(licVar) : "—"} />
-                        <FieldRow label="Deployment" value={lic.database_type} />
+                        <FieldRow label="License Family" value={licFam || "Legacy"} />
+                        <FieldRow label="Product / Variant" value={licVar ? licVocab.product.fullLabel : "—"} />
+                        <FieldRow label="License Model" value={licVocab.licenseModel || "—"} />
+                        <FieldRow label="Deployment / Hosting" value={licVocab.deployment.label} />
                         <FieldRow label="License Start" value={lic.license_start_date} />
                         <FieldRow label="License End" value={lic.license_end_date} />
                       </div>
@@ -1342,16 +1362,16 @@ export default function ClientDetail() {
             <div className="grid grid-cols-2 gap-3">
               <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} />
               <div>
-                <Label className="text-xs">Deployment</Label>
+                <Label className="text-xs">Deployment / Hosting</Label>
                 <Select
-                  value={licenseForm.database_type || "On-Premise"}
+                  value={licenseForm.database_type || ""}
                   onValueChange={v => setLicenseForm(f => ({...f, database_type: v}))}
-                  disabled={licenseForm._family === "Professional"}
                 >
-                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SaaS">SaaS</SelectItem>
-                    <SelectItem value="On-Premise">On-Premise</SelectItem>
+                    {DEPLOYMENT_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label} — {o.hint}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

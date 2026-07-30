@@ -6,6 +6,10 @@ import {
   Check, ChevronLeft, ChevronRight, Plus, Trash2, User as UserIcon,
   Save, Loader2, Building2, Users, Boxes, FileText, ListChecks,
 } from "lucide-react";
+import {
+  VARIANT_OPTIONS, DEPLOYMENT_OPTIONS, DEFAULT_LICENSE_VERSION,
+  normalizeLicenseProduct, normalizeLicenseModel, getVariantLabel,
+} from "@/lib/licensing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,9 +47,10 @@ const CONTACT_ROLES = [
 // Types & draft
 // ─────────────────────────────────────────────────────────────
 type Family = "" | "Business" | "Professional";
-const VARIANTS: Record<string, string[]> = {
-  Business: ["UseIT", "KeepIT"],
-  Professional: ["Professional 1", "Professional 2", "Professional 3"],
+// Canonical vocabulary lives in src/lib/licensing.ts — variant values are full product labels.
+const VARIANTS: Record<string, { value: string; label: string }[]> = {
+  Business: VARIANT_OPTIONS.Business,
+  Professional: VARIANT_OPTIONS.Professional,
 };
 
 type ContactForm = {
@@ -93,7 +98,7 @@ const initialDraft: Draft = {
   },
   contacts: [{ ...emptyContact }],
   license: {
-    family: "", variant: "", deployment_type: "SaaS", version: "",
+    family: "", variant: "", deployment_type: "SaaS", version: DEFAULT_LICENSE_VERSION,
     backoffice_users: 0, web_accesses: 0, api_access: false,
     module_ids: [], plugin_ids: [],
   },
@@ -225,10 +230,10 @@ export default function ClientOnboardingWizard() {
     try {
       const partnerId = userPartnerId || draft.client.partner_id || null;
       // Compose canonical license product label
+      // Variant already carries the full canonical product label (e.g. "Business KeepIT").
       const variant = draft.license.variant;
-      const product = draft.license.family === "Business" && variant
-        ? `Business ${variant}`
-        : (variant || draft.license.family || null);
+      const product = normalizeLicenseProduct(variant || draft.license.family).value || null;
+      const licenseModel = normalizeLicenseModel(product);
       // 1. Client
       const { data: client, error: cErr } = await supabase.from("clients").insert({
         client_code: draft.client.client_code.trim(),
@@ -279,8 +284,9 @@ export default function ClientOnboardingWizard() {
       const { data: license, error: lErr } = await supabase.from("licenses").insert({
         client_id: client.id,
         product,
-        edition: variant || null,
-        version: draft.license.version || null,
+        edition: variant ? getVariantLabel(variant) : null,
+        license_model: licenseModel || null,
+        version: draft.license.version?.trim() || DEFAULT_LICENSE_VERSION,
         deployment_type: draft.license.deployment_type || null,
         database_type: draft.license.deployment_type || null,
         backoffice_users: draft.license.backoffice_users || 0,
@@ -628,26 +634,26 @@ export default function ClientOnboardingWizard() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Edition / Package *</Label>
+                  <Label>Product / License Variant *</Label>
                   <Select value={draft.license.variant || ""} onValueChange={v => updLicense({ variant: v })} disabled={!draft.license.family}>
-                    <SelectTrigger><SelectValue placeholder={draft.license.family ? "Select edition" : "Pick a product type first"} /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder={draft.license.family ? "Select variant" : "Pick a product type first"} /></SelectTrigger>
                     <SelectContent>
-                      {(VARIANTS[draft.license.family] || []).map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                      {(VARIANTS[draft.license.family] || []).map(v => <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Deployment</Label>
+                  <Label>Deployment / Hosting</Label>
                   <Select value={draft.license.deployment_type} onValueChange={v => updLicense({ deployment_type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SaaS">SaaS</SelectItem>
-                      <SelectItem value="On-Premise">On-Premise</SelectItem>
-                      <SelectItem value="Hybrid">Hybrid</SelectItem>
+                      {DEPLOYMENT_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value}>{o.label} — {o.hint}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Version</Label><Input value={draft.license.version} onChange={e => updLicense({ version: e.target.value })} placeholder="e.g. 7.5" /></div>
+                <div><Label>Version</Label><Input value={draft.license.version} onChange={e => updLicense({ version: e.target.value })} placeholder={`e.g. ${DEFAULT_LICENSE_VERSION}`} /></div>
                 <div><Label>BackOffice Users</Label><Input type="number" min={0} value={draft.license.backoffice_users} onChange={e => updLicense({ backoffice_users: Number(e.target.value) })} /></div>
                 <div><Label>Web Users</Label><Input type="number" min={0} value={draft.license.web_accesses} onChange={e => updLicense({ web_accesses: Number(e.target.value) })} /></div>
                 <div className="flex items-end gap-2"><Switch checked={draft.license.api_access} onCheckedChange={v => updLicense({ api_access: v })} /><Label>API access enabled</Label></div>
@@ -768,7 +774,7 @@ export default function ClientOnboardingWizard() {
                   draft.contacts.filter(c => c.contact_name.trim()).map(c => `${c.contact_name}${c.is_primary ? " (Primary)" : ""}${c.role_function ? ` — ${c.role_function}` : ""}`)
                 },
                 { i: 2, title: "License", lines: [
-                  draft.license.variant ? `Product / License Type: ${draft.license.family} — ${draft.license.variant}` : "—",
+                  draft.license.variant ? `Product / License Type: ${normalizeLicenseProduct(draft.license.variant).fullLabel}` : "—",
                   `${draft.license.backoffice_users} BackOffice Users • ${draft.license.web_accesses} Web Users`,
                   selectedModuleNames.length ? `Modules: ${selectedModuleNames.join(", ")}` : "Modules: none",
                   selectedPluginNames.length ? `Add-ons / Plugins: ${selectedPluginNames.join(", ")}` : "Add-ons / Plugins: none",
