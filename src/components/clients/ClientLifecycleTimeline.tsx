@@ -1,6 +1,7 @@
 import { useLifecycleEvents, type LifecycleEvent } from "@/hooks/useLifecycleEvents";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { buildTimeline, resolveTimelineDates, HISTORICAL_DATE_UNKNOWN_LABEL, type TimelineDates } from "@/lib/timeline-dates";
 import {
   Trophy,
   UserPlus,
@@ -61,14 +62,15 @@ export function ClientLifecycleTimeline({ clientId, limit, onViewAll }: Props) {
     );
   }
 
-  const visible = limit ? events.slice(0, limit) : events;
-  const hasMore = limit ? events.length > limit : false;
+  const ordered = buildTimeline<LifecycleEvent & { metadata?: Record<string, unknown> | null }>(events as any);
+  const visible = limit ? ordered.slice(0, limit) : ordered;
+  const hasMore = limit ? ordered.length > limit : false;
 
   return (
     <div className="space-y-3">
       <ol className="relative border-l border-border ml-3 space-y-3">
-        {visible.map((e) => (
-          <TimelineRow key={e.id} event={e} />
+        {visible.map(({ event, dates }) => (
+          <TimelineRow key={event.id} event={event} dates={dates} />
         ))}
       </ol>
       {hasMore && (
@@ -84,7 +86,8 @@ export function ClientLifecycleTimeline({ clientId, limit, onViewAll }: Props) {
   );
 }
 
-function TimelineRow({ event }: { event: LifecycleEvent }) {
+function TimelineRow({ event, dates }: { event: LifecycleEvent; dates?: TimelineDates }) {
+  const d = dates ?? resolveTimelineDates(event as any);
   const v = eventVisual(event.event_type);
   const Icon = v.icon;
   return (
@@ -95,8 +98,10 @@ function TimelineRow({ event }: { event: LifecycleEvent }) {
       <div className="rounded-lg border bg-card px-3 py-2">
         <div className="flex items-center justify-between gap-2">
           <p className="text-sm font-medium text-foreground">{event.event_title}</p>
-          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-            {new Date(event.occurred_at).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}
+          <span className="text-[10px] whitespace-nowrap text-muted-foreground">
+            {d.hasRealDate
+              ? new Date(d.occurredAt!).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+              : HISTORICAL_DATE_UNKNOWN_LABEL}
           </span>
         </div>
         {event.event_description && (
@@ -105,6 +110,9 @@ function TimelineRow({ event }: { event: LifecycleEvent }) {
         <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
           {event.source_proposal_number && (
             <Badge variant="outline" className="text-[10px]">Proposal {event.source_proposal_number}</Badge>
+          )}
+          {d.technicalLabel && (
+            <span className="text-[10px] text-muted-foreground">{d.technicalLabel}</span>
           )}
           {event.actor_name && (
             <span className="text-[10px] text-muted-foreground">by {event.actor_name}</span>

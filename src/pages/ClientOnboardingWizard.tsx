@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { toast } from "sonner";
+import { buildPartnerCreatePayload } from "@/lib/partner-identity";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePartners } from "@/hooks/usePartners";
@@ -241,8 +242,7 @@ export default function ClientOnboardingWizard() {
         short_name: draft.client.short_name?.trim() || null,
         country: draft.client.country || null,
         sector: draft.client.sector || null,
-        partner_id: partnerId,
-        partner_uuid: partnerId,
+        ...buildPartnerCreatePayload(partnerId),
         license_type: product,
         cloud_onpremise: draft.license.deployment_type || null,
         phone: draft.client.phone?.trim() || null,
@@ -358,8 +358,7 @@ export default function ClientOnboardingWizard() {
       // 7. Annual renewal
       await supabase.from("renewals").insert({
         client_id: client.id,
-        partner_id: partnerId,
-        partner_uuid: partnerId,
+        ...buildPartnerCreatePayload(partnerId),
         contract_id: contract.id,
         license_id: license.id,
         renewal_type: "Contract",
