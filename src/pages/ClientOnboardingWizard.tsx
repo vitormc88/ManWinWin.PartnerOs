@@ -43,9 +43,10 @@ const CONTACT_ROLES = [
 // Types & draft
 // ─────────────────────────────────────────────────────────────
 type Family = "" | "Business" | "Professional";
-const VARIANTS: Record<string, string[]> = {
-  Business: ["UseIT", "KeepIT"],
-  Professional: ["Professional 1", "Professional 2", "Professional 3"],
+// Canonical vocabulary lives in src/lib/licensing.ts — variant values are full product labels.
+const VARIANTS: Record<string, { value: string; label: string }[]> = {
+  Business: VARIANT_OPTIONS.Business,
+  Professional: VARIANT_OPTIONS.Professional,
 };
 
 type ContactForm = {
