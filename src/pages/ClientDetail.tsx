@@ -655,10 +655,12 @@ export default function ClientDetail() {
         const renewalPartnerId = (client as any)?.partner_id || null;
         const renewalOutcome = await createRenewalWorkflowRow<any>({
           fetchExisting: async () => {
-            const { data } = await supabase
+            // Fail-closed: a failed duplicate check must abort the write.
+            const { data, error } = await supabase
               .from("renewals")
               .select(RENEWAL_IDENTITY_SELECT)
               .eq("client_id", client.id);
+            if (error) throw error;
             return (data || []) as any[];
           },
           target: {
