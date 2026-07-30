@@ -32,9 +32,10 @@ export function usePartnershipLevels() {
   });
 }
 
-export function usePartners(filters?: { status?: string; country?: string }) {
+export function usePartners(filters?: { status?: string; country?: string }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["partners", filters],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       let query = supabase.from("partners").select("*").order("company_name");
       if (filters?.status) query = query.eq("status", filters.status);
