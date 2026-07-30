@@ -33,7 +33,7 @@ const empty: ContactForm = {
   contact_name: "", role_function: "", email: "", phone: "", mobile: "", notes: "", is_primary: false,
 };
 
-export function ContactsCard({ clientId }: { clientId: string }) {
+export function ContactsCard({ clientId, readOnly = false }: { clientId: string; readOnly?: boolean }) {
   const { data: contacts = [], refetch } = useClientContacts(clientId);
   const createContact = useCreateContact();
   const updateContact = useUpdateContact();
@@ -129,14 +129,16 @@ export function ContactsCard({ clientId }: { clientId: string }) {
             {contacts.length === 0 ? "No contacts yet" : `${contacts.length} contact${contacts.length === 1 ? "" : "s"}`}
           </p>
         </div>
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> Add Contact
-        </Button>
+        {!readOnly && (
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Contact
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         {sorted.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">
-            Add the people responsible for this client at the customer side.
+            {readOnly ? "No contacts recorded for this client." : "Add the people responsible for this client at the customer side."}
           </p>
         ) : (
           <ul className="divide-y divide-border/40">
@@ -174,7 +176,7 @@ export function ContactsCard({ clientId }: { clientId: string }) {
                   </div>
                   {c.notes && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{c.notes}</p>}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                {!readOnly && <div className="flex items-center gap-1 shrink-0">
                   {!c.is_primary && (
                     <Button
                       variant="ghost"
@@ -198,7 +200,7 @@ export function ContactsCard({ clientId }: { clientId: string }) {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
-                </div>
+                </div>}
               </li>
             ))}
           </ul>
