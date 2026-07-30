@@ -169,8 +169,12 @@ export default function ClientDetail() {
     enabled: !!id,
   });
 
-  // Filter out invalid/broken licenses
-  const validLicenses = useMemo(() => licenses.filter(l => isValidLicenseProduct(l.product)), [licenses]);
+  // All licenses are listed. Ones with a product outside the supported catalogue are
+  // flagged for review instead of being silently hidden.
+  const validLicenses = useMemo(
+    () => [...licenses].sort((a, b) => Number(isValidLicenseProduct(b.product)) - Number(isValidLicenseProduct(a.product))),
+    [licenses]
+  );
 
   const { data: modules = [] } = useQuery({
     queryKey: ["licensed_modules", id, validLicenses],
@@ -181,7 +185,9 @@ export default function ClientDetail() {
   // Derived data
   const primaryLicense = validLicenses[0] || null;
   const primaryContract = contracts[0] || null;
-  const renewalEndDate = primaryContract?.contract_end_date || primaryLicense?.license_end_date || null;
+  const { data: intelligence } = useClientCommercialIntelligence(id);
+  // Single source of truth for renewal timing: scheduled renewal → contract end → license end.
+  const renewalEndDate = intelligence?.next_renewal_date || primaryContract?.contract_end_date || primaryLicense?.license_end_date || null;
   const renewalInfo = useMemo(() => getRenewalInfo(renewalEndDate), [renewalEndDate]);
 
   // Parsed license info
