@@ -82,38 +82,14 @@ const RenewalIcon = ({ status }: { status: string }) => {
   }
 };
 
-/* ─── License two-level model ─── */
-type LicenseFamily = "Business" | "Professional";
-
-const VARIANT_OPTIONS: Record<LicenseFamily, { value: string; label: string }[]> = {
-  Business: [
-    { value: "Business UseIT", label: "UseIT" },
-    { value: "Business KeepIT", label: "KeepIT" },
-  ],
-  Professional: [
-    { value: "Professional 1", label: "Professional 1" },
-    { value: "Professional 2", label: "Professional 2" },
-    { value: "Professional 3", label: "Professional 3" },
-  ],
-};
-
+/* ─── License vocabulary (canonical, see src/lib/licensing.ts) ─── */
 function parseLicenseProduct(product: string | null | undefined): { family: LicenseFamily | ""; variant: string } {
-  if (!product) return { family: "", variant: "" };
-  if (product.startsWith("Business")) return { family: "Business", variant: product };
-  if (product.startsWith("Professional")) return { family: "Professional", variant: product };
-  return { family: "", variant: product };
-}
-
-function getVariantLabel(variant: string): string {
-  if (variant === "Business UseIT") return "UseIT";
-  if (variant === "Business KeepIT") return "KeepIT";
-  return variant;
+  const n = normalizeLicenseProduct(product);
+  return { family: n.family, variant: n.variant };
 }
 
 function isValidLicenseProduct(product: string | null | undefined): boolean {
-  if (!product) return false;
-  const validValues = ["Business UseIT", "Business KeepIT", "Professional 1", "Professional 2", "Professional 3"];
-  return validValues.includes(product);
+  return isCanonicalProduct(product);
 }
 
 const PROFESSIONAL_MODULES: Record<string, string[]> = {
@@ -137,6 +113,7 @@ function getLicenseDefaults(variant: string) {
     database_type: isPro ? "SaaS" : "On-Premise",
   };
 }
+
 
 /* ─── main component ─── */
 export default function ClientDetail() {
