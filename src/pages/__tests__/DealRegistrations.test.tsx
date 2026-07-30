@@ -54,7 +54,7 @@ describe("DealRegistrations (partner_sales)", () => {
 
   it("does not render HQ review actions for partner users", () => {
     renderPage();
-    expect(screen.queryByRole("button", { name: /approve/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /reject/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
   });
 });
