@@ -70,8 +70,10 @@ vi.mock("@/integrations/supabase/client", () => ({
 vi.mock("@/lib/activity-log", () => ({ logSystemActivity: vi.fn() }));
 
 const { findOrCreateClientFromDeal } = await import("@/lib/lifecycle");
+const { buildPartnerCreatePayload } = await import("@/lib/partner-identity");
 
 const PARTNER = "db1b15b7-3333-4333-8333-333333333333";
+const OTHER = "cc44dd55-4444-4444-8444-444444444444";
 
 beforeEach(() => {
   state.clients = [];
@@ -119,5 +121,39 @@ describe("findOrCreateClientFromDeal — canonical partner matching", () => {
       partner_uuid: null,
       partner_id: PARTNER,
     });
+  });
+
+  it("fails closed on a non-uuid partner reference: never returns another partner's homonym", async () => {
+    state.clients = [
+      { id: "c-other", commercial_name: "Watsons", partner_uuid: OTHER, partner_id: null },
+    ];
+    const res = await findOrCreateClientFromDeal({
+      id: "deal-3",
+      company_name: "Watsons",
+      partner_id: "FITC-LEGACY-CODE",
+    } as any);
+
+    expect(res.client.id).not.toBe("c-other");
+    expect(res.created).toBe(true);
+    // Unresolved reference is never promoted into the canonical column.
+    expect(state.inserted[0].partner_uuid).toBeNull();
+    expect("partner_id" in state.inserted[0]).toBe(false);
+  });
+});
+
+describe("PartnerDetail manual client creation payload", () => {
+  it("creates the client with partner_uuid only", () => {
+    const payload = {
+      client_code: "PT-WAT-1234",
+      commercial_name: "Watsons",
+      country: "PT",
+      sector: null,
+      email: null,
+      phone: null,
+      ...buildPartnerCreatePayload(PARTNER),
+    };
+    expect(payload.partner_uuid).toBe(PARTNER);
+    expect("partner_id" in payload).toBe(false);
+    expect(payload.commercial_name).toBe("Watsons");
   });
 });
