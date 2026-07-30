@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
 import { useClients, useCreateClient } from "@/hooks/useClients";
+import { resolvePartnerIdentity, matchesPartnerFilter } from "@/lib/partner-identity";
 import { usePartners } from "@/hooks/usePartners";
 import { useClientAggregates } from "@/hooks/useClientAggregates";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,7 +68,7 @@ export default function ClientsLicenses() {
       list = list.filter(c => c.commercial_name.toLowerCase().includes(q) || c.client_code.toLowerCase().includes(q) || (c.country || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q));
     }
     if (partnerFilter !== "all") {
-      list = list.filter(c => partnerFilter === "hq" ? !c.partner_id : c.partner_id === partnerFilter);
+      list = list.filter(c => matchesPartnerFilter(c as any, partnerFilter));
     }
     if (statusFilter !== "all") {
       list = list.filter(c => c.status === statusFilter);
@@ -137,7 +138,7 @@ export default function ClientsLicenses() {
 
   const handleExport = () => {
     const headers = ["Client Code", "Client Name", "Partner", "Country", "Sector", "License Type", "Version", "Status"];
-    const rows = filtered.map(c => [c.client_code, c.commercial_name, c.partner_id ? (partnerMap[c.partner_id] || "Unknown") : "HQ Direct", c.country, c.sector, c.license_type, c.current_version, c.status]);
+    const rows = filtered.map(c => [c.client_code, c.commercial_name, resolvePartnerIdentity(c as any, partnerMap).label, c.country, c.sector, c.license_type, c.current_version, c.status]);
     const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v || ""}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -270,7 +271,24 @@ export default function ClientsLicenses() {
                       {c.is_premium && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600 bg-amber-50">Premium</Badge>}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">{c.partner_id ? (partnerMap[c.partner_id] || "Unknown") : "HQ Direct"}</TableCell>
+                  <TableCell className="text-sm">
+                    {(() => {
+                      const identity = resolvePartnerIdentity(c as any, partnerMap);
+                      return (
+                        <span className="inline-flex items-center gap-1">
+                          {identity.label}
+                          {identity.needsAttention && (
+                            <span
+                              className="text-[10px] text-muted-foreground"
+                              title={identity.legacyRef ? `Legacy partner reference: ${identity.legacyRef}` : "Partner link not resolvable"}
+                            >
+                              (legacy)
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell className="text-sm">{c.country}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.sector}</TableCell>
                   <TableCell><Badge variant="secondary" className="text-xs font-normal">{getLicenseDisplay(c.license_type)}</Badge></TableCell>
