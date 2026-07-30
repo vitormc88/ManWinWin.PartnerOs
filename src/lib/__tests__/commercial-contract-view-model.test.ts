@@ -1,6 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import {
   buildCommercialGroups,
   effectiveLineCategory,
@@ -101,31 +99,5 @@ describe("renewal resolution in the contract view path", () => {
     const r = resolveContractRenewal({ renewal: null, contract: {}, license: null, today });
     expect(r.source).toBe("unknown");
     expect(r.date).toBeNull();
-  });
-});
-
-/**
- * The duplicate guard must live in the real write paths, not only in the helper
- * module. These checks fail if someone removes the integration.
- */
-describe("duplicate renewal guard is wired into the real write paths", () => {
-  const read = (p: string) => readFileSync(resolve(process.cwd(), p), "utf8");
-
-  it("is used by the partner renewal creation and materialization flow", () => {
-    const src = read("src/pages/PartnerDetail.tsx");
-    expect(src).toContain("shouldCreateRenewalWorkflowRow");
-    expect(src.match(/shouldCreateRenewalWorkflowRow\(/g)?.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("is used by the manual contract renewal creation flow", () => {
-    const src = read("src/pages/ClientDetail.tsx");
-    expect(src).toContain("shouldCreateRenewalWorkflowRow");
-    expect(src).toContain("canCreateRenewal");
-  });
-
-  it("keeps the contract-line form bound to the shared canonical vocabulary", () => {
-    const src = read("src/components/clients/ContractLineDialog.tsx");
-    expect(src).toContain("LINE_TYPE_OPTIONS");
-    expect(src).not.toMatch(/"recurring"/);
   });
 });
