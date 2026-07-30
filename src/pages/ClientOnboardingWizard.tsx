@@ -286,9 +286,10 @@ export default function ClientOnboardingWizard() {
         product,
         edition: variant ? getVariantLabel(variant) : null,
         license_model: licenseModel || null,
-        version: draft.license.version?.trim() || DEFAULT_LICENSE_VERSION,
+        // Free text: an empty version stays empty (no automatic default).
+        version: draft.license.version?.trim() || null,
+        // Hosting only — the database engine is a separate field and is not set here.
         deployment_type: draft.license.deployment_type || null,
-        database_type: draft.license.deployment_type || null,
         backoffice_users: draft.license.backoffice_users || 0,
         web_accesses: draft.license.web_accesses || 0,
         num_users: (draft.license.backoffice_users || 0) + (draft.license.web_accesses || 0),
