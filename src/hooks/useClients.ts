@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { applyPartnerScope, canonicalPartnerScope } from "@/lib/partner-query";
+
 
 export type Client = Tables<"clients">;
 
@@ -12,12 +14,22 @@ const mapError = (error: unknown, action: string) => {
   return error instanceof Error ? error : new Error(`Failed to ${action}`);
 };
 
-export function useClients(filters?: { partner_id?: string; status?: string }) {
+/**
+ * Partner scoping is canonical-only (`clients.partner_uuid`).
+ * A legacy/non-uuid reference never produces a guessed join: the query yields
+ * an empty result instead of silently matching legacy text.
+ */
+export function useClients(filters?: { partner_uuid?: string | null; status?: string }) {
   return useQuery({
     queryKey: ["clients", filters],
     queryFn: async () => {
-      let query = supabase.from("clients").select("*").order("commercial_name");
-      if (filters?.partner_id) query = query.eq("partner_id", filters.partner_id);
+      let query: any = supabase.from("clients").select("*").order("commercial_name");
+      if (filters?.partner_uuid !== undefined) {
+        const scoped = applyPartnerScope<any>(query, canonicalPartnerScope(filters.partner_uuid));
+        if (!scoped) return [] as Client[];
+        query = scoped;
+      }
+
       if (filters?.status) query = query.eq("status", filters.status);
       const { data, error } = await query;
       if (error) throw error;
@@ -25,6 +37,7 @@ export function useClients(filters?: { partner_id?: string; status?: string }) {
     },
   });
 }
+
 
 export function useClient(id: string | undefined) {
   return useQuery({

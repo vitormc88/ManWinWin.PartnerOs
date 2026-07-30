@@ -189,3 +189,47 @@ Functions) is not covered and must be reviewed separately.
 
 Reads were not changed: legacy-only rows remain visible and labelled
 `Legacy / Unresolved`; no historical record is hidden or normalized.
+
+---
+
+## Phase 3D — Read/write symmetry for partner identity (code-only)
+
+Phase 3C made every `clients` / `renewals` write canonical (`partner_uuid`).
+Phase 3D closes the remaining asymmetry on the **read** side.
+
+### Corrected paths
+| Path | Before | After |
+| --- | --- | --- |
+| `src/hooks/useClients.ts` | `.eq("partner_id", filter)` | filter is `partner_uuid`, applied via `applyPartnerScope` |
+| `src/pages/PartnerDetail.tsx` | `useClients({ partner_id: id })`, `r.partner_id === id` | `useClients({ partner_uuid: id })`, `belongsToPartner(r, id)` |
+| `src/lib/lifecycle.ts` (`findOrCreateClientFromDeal`) | name match scoped by legacy `partner_id` | scoped by canonical `partner_uuid` |
+| `src/lib/lifecycle-engine.ts` (`findClientMatches`) | exact + fuzzy match scoped by `partner_id` | scoped by `partner_uuid` |
+
+### Shared helper
+`src/lib/partner-query.ts` (pure, tested):
+- `canonicalPartnerScope(ref)` → `partner` (uuid) | `hq` (explicit null) | `unresolved` (legacy/non-uuid).
+- `applyPartnerScope(query, scope)` → returns `null` for `unresolved`, so callers can never emit a guessed join.
+- `belongsToPartner(record, partnerId)` → in-memory equivalent, built on `resolvePartnerIdentity`.
+
+No new canonical/legacy vocabulary was introduced; `partner-identity.ts` remains the single source.
+
+### Legacy-only behaviour (unchanged guarantee)
+- Legacy-only rows are never joined, promoted, or auto-attached to a partner.
+- They remain visible in unscoped lists as **Legacy / Unresolved** and require explicit human reassignment.
+- When a deal/proposal carries a non-uuid partner reference, client matching degrades to an
+  unscoped name match instead of a wrong partner-scoped one — an existing canonical client is
+  still found, so re-processing the same deal does not duplicate it.
+
+### Not changed (legitimate semantics)
+`profiles.partner_id`, `deals.partner_id`, and partner child tables
+(`partner_certifications`, `partner_notes`, `partner_missions`, …) keep `partner_id` as their
+real relational column. Edge Functions (`admin-create-user`, `ingest-lead`) write
+`profiles.partner_id` / `linked_partner_id` and were left untouched.
+
+### Audit limits
+- Code-only. No SQL, migration, backfill, or data change was executed.
+- Production row-level state was not re-queried in this phase; conclusions about legacy-only
+  volumes come from the earlier read-only Phase 3 audit above.
+- Behavioural coverage is on the real helpers and the real matching function
+  (`src/lib/__tests__/partner-query.test.ts`, `src/lib/__tests__/lifecycle-client-matching.test.ts`)
+  with a fully mocked client — no production query is issued by the tests.
