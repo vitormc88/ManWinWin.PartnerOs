@@ -353,6 +353,12 @@ function CommercialSnapshotSection({
   const modulesCount = (data.active_modules ?? []).length;
   const pluginsCount = (data.active_plugins ?? []).length;
   const billingLabel = billing || (data.recurring_items?.[0]?.billing_frequency as string | undefined) || "Annual";
+  // Canonical licensing vocabulary (legacy-tolerant).
+  const licenseView = readLicenseVocabulary({
+    product: data.license_family,
+    deployment_type: data.deployment_type,
+    version: null,
+  });
 
   return (
     <Card className="border-border/60 shadow-sm">
