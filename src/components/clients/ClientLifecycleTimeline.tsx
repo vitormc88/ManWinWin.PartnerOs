@@ -62,7 +62,7 @@ export function ClientLifecycleTimeline({ clientId, limit, onViewAll }: Props) {
     );
   }
 
-  const ordered = buildTimeline(events as any);
+  const ordered = buildTimeline<LifecycleEvent & { metadata?: Record<string, unknown> | null }>(events as any);
   const visible = limit ? ordered.slice(0, limit) : ordered;
   const hasMore = limit ? ordered.length > limit : false;
 
