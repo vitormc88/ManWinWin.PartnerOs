@@ -80,10 +80,13 @@ export function CommercialContractView({ contract, clientId }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   const [lineDialogOpen, setLineDialogOpen] = useState(false);
   const [editingLine, setEditingLine] = useState<ContractLine | null>(null);
+  const [lineToDelete, setLineToDelete] = useState<ContractLine | null>(null);
 
   const openNewLine = () => { setEditingLine(null); setLineDialogOpen(true); };
   const openEditLine = (l: ContractLine) => { setEditingLine(l); setLineDialogOpen(true); };
-  const removeLine = async (l: ContractLine) => {
+  /** Opens the confirmation dialog — never deletes directly. */
+  const requestRemoveLine = (l: ContractLine) => setLineToDelete(l);
+  const confirmRemoveLine = async (l: { id: string }) => {
     try { await deleteLine.mutateAsync(l.id); toast.success("Contract line removed"); }
     catch (e: any) { toast.error(e?.message || "Failed to remove line"); }
   };
@@ -342,7 +345,7 @@ export function CommercialContractView({ contract, clientId }: Props) {
                     currency={currency}
                     defaultOpen={g.key === "license" || g.key === "needs_review"}
                     onEditLine={openEditLine}
-                    onDeleteLine={removeLine}
+                    onDeleteLine={requestRemoveLine}
                   />
                 ))}
               </div>
@@ -395,6 +398,13 @@ export function CommercialContractView({ contract, clientId }: Props) {
         clientId={clientId}
         defaultCurrency={currency}
         line={editingLine}
+      />
+
+      <ContractLineDeleteDialog
+        line={lineToDelete}
+        open={!!lineToDelete}
+        onOpenChange={(v) => { if (!v) setLineToDelete(null); }}
+        onConfirm={confirmRemoveLine}
       />
 
       {/* ═══ 9. EDIT DRAWER ═══ */}
