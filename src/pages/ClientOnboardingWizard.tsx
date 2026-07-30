@@ -284,8 +284,9 @@ export default function ClientOnboardingWizard() {
       const { data: license, error: lErr } = await supabase.from("licenses").insert({
         client_id: client.id,
         product,
-        edition: variant || null,
-        version: draft.license.version || null,
+        edition: variant ? getVariantLabel(variant) : null,
+        license_model: licenseModel || null,
+        version: draft.license.version?.trim() || DEFAULT_LICENSE_VERSION,
         deployment_type: draft.license.deployment_type || null,
         database_type: draft.license.deployment_type || null,
         backoffice_users: draft.license.backoffice_users || 0,
