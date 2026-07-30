@@ -177,7 +177,8 @@ export default function PartnerDetail() {
         sector: clientForm.sector || null,
         email: clientForm.email || null,
         phone: clientForm.phone || null,
-        partner_id: partner.id,
+        // Canonical partner relation only — legacy text column is never written.
+        ...buildPartnerCreatePayload(partner.id),
       } as any);
       toast.success("Client created and linked to partner");
       setShowAddClient(false);
