@@ -1,0 +1,14 @@
+-- Migration history reconciliation: NO-OP
+--
+-- The public function `get_client_commercial_intelligence(client_uuid uuid)` was
+-- already created and applied from migration version 20260730150504
+-- (phase2_commercial_intelligence_v2). The same function definition was
+-- idempotently re-applied by a later deployment tool run, which added a second
+-- history entry under version 20260730150622.
+--
+-- This file exists solely to align the repository migration set with the
+-- production migration history. It does not contain any executable SQL,
+-- DDL, DML, grants, constraints, indexes, or other database changes.
+--
+-- The actual function definition is authoritative in the earlier migration
+-- file and is intentionally not duplicated here.
