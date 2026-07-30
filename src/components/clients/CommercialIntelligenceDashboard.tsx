@@ -355,11 +355,24 @@ function CommercialSnapshotSection({
   const pluginsCount = (data.active_plugins ?? []).length;
   const billingLabel = billing || (data.recurring_items?.[0]?.billing_frequency as string | undefined) || "Annual";
   // Canonical licensing vocabulary (legacy-tolerant).
+  // The intelligence payload exposes family + variant separately, so the variant
+  // (the real product) is the primary input and the family is only a fallback.
   const licenseView = readLicenseVocabulary({
-    product: data.license_family,
+    product: data.license_variant || data.license_family,
+    edition: data.license_variant,
+    license_model: (data as any).license_model ?? null,
     deployment_type: data.deployment_type,
     version: null,
   });
+  // Never turn faithful source values into a false "Legacy / Unmapped" result.
+  const familyLabel = licenseView.product.family || data.license_family || "—";
+  const variantLabel = licenseView.product.isUnmapped
+    ? (data.license_variant || data.license_family || "—")
+    : (licenseView.product.fullLabel || data.license_variant || "—");
+  const modelLabel = licenseView.licenseModel || (data as any).license_model || "—";
+  const deploymentLabel = licenseView.deployment.isUnmapped
+    ? (data.deployment_type || "—")
+    : licenseView.deployment.label;
 
   return (
     <Card className="border-border/60 shadow-sm">
@@ -370,10 +383,10 @@ function CommercialSnapshotSection({
       </CardHeader>
       <CardContent className="pt-4 space-y-3">
         {/* Licensing setup */}
-        <SnapshotRow label="Product Family" value={licenseView.product.family || licenseView.product.label || "—"} />
-        <SnapshotRow label="Product / Variant" value={licenseView.product.fullLabel || data.license_variant || "—"} />
-        <SnapshotRow label="License Model" value={licenseView.licenseModel || "—"} />
-        <SnapshotRow label="Deployment / Hosting" value={licenseView.deployment.label} />
+        <SnapshotRow label="Product Family" value={familyLabel} />
+        <SnapshotRow label="Product / Variant" value={variantLabel} />
+        <SnapshotRow label="License Model" value={modelLabel} />
+        <SnapshotRow label="Deployment / Hosting" value={deploymentLabel} />
         <Separator />
         {/* Commercial structure */}
         <SnapshotRow label="Contract Status" value={contractLabel} />
