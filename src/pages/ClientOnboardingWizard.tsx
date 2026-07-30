@@ -6,6 +6,10 @@ import {
   Check, ChevronLeft, ChevronRight, Plus, Trash2, User as UserIcon,
   Save, Loader2, Building2, Users, Boxes, FileText, ListChecks,
 } from "lucide-react";
+import {
+  VARIANT_OPTIONS, DEPLOYMENT_OPTIONS, DEFAULT_LICENSE_VERSION,
+  normalizeLicenseProduct, normalizeLicenseModel, getVariantLabel,
+} from "@/lib/licensing";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
