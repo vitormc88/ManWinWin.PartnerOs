@@ -165,10 +165,16 @@ async function findClientMatches(
   const scope = canonicalPartnerScope(partnerId ?? null);
   const canonicalPartnerId = scope.kind === "partner" ? scope.value : null;
 
-  // Exact commercial_name match, scoped by the CANONICAL partner uuid only.
-  // A legacy/non-uuid reference never becomes a join: the match stays unscoped.
+  // FAIL CLOSED: an unresolved (legacy / non-uuid) partner reference produces
+  // no automatic match at all. Matching globally by name could attach a client
+  // that belongs to a different partner.
+  if (scope.kind === "unresolved") return { best: null, candidates: [] };
+
+  // Exact commercial_name match, scoped by the CANONICAL partner uuid only
+  // (or by `partner_uuid IS NULL` for explicit HQ Direct).
   const exactBase = supabase.from("clients").select("*").ilike("commercial_name", name);
-  const exactQ = canonicalPartnerId ? applyPartnerScope<any>(exactBase, scope) ?? exactBase : exactBase;
+  const exactQ = applyPartnerScope<any>(exactBase, scope);
+  if (!exactQ) return { best: null, candidates: [] };
   const { data: exact } = await exactQ.limit(5);
   if (exact && exact.length > 0) candidates.push(...exact);
 
