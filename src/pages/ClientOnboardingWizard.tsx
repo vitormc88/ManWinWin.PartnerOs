@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { buildPartnerCreatePayload } from "@/lib/partner-identity";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { usePartners } from "@/hooks/usePartners";
 import { useAssignableUsers } from "@/hooks/useAssignableUsers";
 import { useQuery } from "@tanstack/react-query";
@@ -174,6 +175,15 @@ function useCatalog(table: "modules_catalog" | "plugins_catalog") {
 export default function ClientOnboardingWizard() {
   const navigate = useNavigate();
   const { isHQ, profile } = useAuth();
+  const { canEdit, isLoading: permsLoading } = useModuleAccess();
+  const canCreateClients = canEdit("clients");
+
+  useEffect(() => {
+    if (!permsLoading && !canCreateClients) {
+      navigate("/clients", { replace: true });
+    }
+  }, [permsLoading, canCreateClients, navigate]);
+
   const userPartnerId = !isHQ ? (profile?.partner_id ?? null) : null;
   const { data: partners = [] } = usePartners();
   const { data: assignableUsers = [], isLoading: assignableUsersLoading } = useAssignableUsers();
