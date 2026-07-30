@@ -3,17 +3,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { getAppUrl, getAppRedirectUrl } from "@/lib/app-url";
+import { getAppRedirectUrl } from "@/lib/app-url";
 import { getAuthFlowState, getResetPasswordTarget } from "@/lib/auth-flow";
 
-type AuthView = "login" | "signup" | "forgot";
+type AuthView = "login" | "forgot";
 
 export default function Auth() {
   const { session, isLoading, isAuthReady, isInviteOrRecoveryFlow } = useAuth();
   const [view, setView] = useState<AuthView>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (isLoading || !isAuthReady) {
@@ -38,27 +37,6 @@ export default function Auth() {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
       toast.success("Signed in successfully");
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName },
-          emailRedirectTo: getAppUrl(),
-        },
-      });
-      if (error) throw error;
-      toast.success("Check your email to confirm your account");
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -93,7 +71,6 @@ export default function Auth() {
           <h1 className="text-xl font-bold text-foreground">ManWinWin PartnerOS</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {view === "login" && "Sign in to your account"}
-            {view === "signup" && "Create your account"}
             {view === "forgot" && "Reset your password"}
           </p>
         </div>
@@ -125,71 +102,47 @@ export default function Auth() {
             </p>
           </form>
         ) : (
-          <>
-            <form onSubmit={view === "signup" ? handleSignUp : handleLogin} className="space-y-4">
-              {view === "signup" && (
-                <div>
-                  <label className="text-sm font-medium text-foreground">Full Name</label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required
-                    className="mt-1 w-full h-10 px-3 rounded-lg border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                    placeholder="Your full name"
-                  />
-                </div>
-              )}
-              <div>
-                <label className="text-sm font-medium text-foreground">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="mt-1 w-full h-10 px-3 rounded-lg border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                  placeholder="you@company.com"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className="mt-1 w-full h-10 px-3 rounded-lg border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                  placeholder="••••••••"
-                />
-              </div>
-              {view === "login" && (
-                <div className="text-right">
-                  <button
-                    type="button"
-                    onClick={() => setView("forgot")}
-                    className="text-xs text-primary hover:underline font-medium"
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
-              )}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="mt-1 w-full h-10 px-3 rounded-lg border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                placeholder="you@company.com"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="mt-1 w-full h-10 px-3 rounded-lg border bg-card text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                placeholder="••••••••"
+              />
+            </div>
+            <div className="text-right">
               <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+                type="button"
+                onClick={() => setView("forgot")}
+                className="text-xs text-primary hover:underline font-medium"
               >
-                {loading ? "Loading..." : view === "signup" ? "Create Account" : "Sign In"}
+                Forgot Password?
               </button>
-            </form>
-
-            <p className="text-center text-sm text-muted-foreground">
-              {view === "signup" ? "Already have an account?" : "Don't have an account?"}{" "}
-              <button onClick={() => setView(view === "signup" ? "login" : "signup")} className="text-primary hover:underline font-medium">
-                {view === "signup" ? "Sign in" : "Sign up"}
-              </button>
-            </p>
-          </>
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {loading ? "Loading..." : "Sign In"}
+            </button>
+          </form>
         )}
       </div>
     </div>
