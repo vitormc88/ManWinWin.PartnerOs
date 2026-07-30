@@ -1364,12 +1364,12 @@ export default function ClientDetail() {
               {renderLicenseFamilyVariantFields(licenseForm, setLicenseForm)}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} />
+              <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} placeholder={`e.g. ${SUGGESTED_LICENSE_VERSION}`} />
               <div>
                 <Label className="text-xs">Deployment / Hosting</Label>
                 <Select
-                  value={licenseForm.database_type || ""}
-                  onValueChange={v => setLicenseForm(f => ({...f, database_type: v}))}
+                  value={licenseForm.deployment_type || ""}
+                  onValueChange={v => setLicenseForm(f => ({...f, deployment_type: v}))}
                 >
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                   <SelectContent>
