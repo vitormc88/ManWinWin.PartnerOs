@@ -31,9 +31,10 @@ export function useDeal(id: string | undefined) {
   });
 }
 
-export function useRenewals(filters?: { status?: string }) {
+export function useRenewals(filters?: { status?: string }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["renewals", filters],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       // Fetch explicit renewal records
       let query = supabase.from("renewals").select("*").order("renewal_date");

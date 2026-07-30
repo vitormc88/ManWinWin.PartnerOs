@@ -52,9 +52,10 @@ interface Props {
   modules: any[];
   notes: any[];
   plugins?: any[];
+  readOnly?: boolean;
 }
 
-export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [] }: Props) {
+export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [], readOnly = false }: Props) {
   const navigate = useNavigate();
   const createNote = useCreateNote();
   const createTask = useCreateManualTask();
@@ -366,7 +367,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   return (
     <div className="space-y-5">
       {/* ─── Commercial Actions ─── */}
-      <Card className="border-border/60 shadow-sm">
+      {!readOnly && <Card className="border-border/60 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-primary" /> Commercial Actions
@@ -409,11 +410,11 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                 })}
               </DropdownMenuContent>
             </DropdownMenu>
-            <ActionButton icon={CalendarPlus} label="Schedule Meeting" hint="Task linked to client" onClick={() => setShowMeeting(true)} />
-            <ActionButton icon={StickyNote} label="Log Commercial Note" hint="Attached to this client" onClick={() => setShowNote(true)} />
+            {!readOnly && <ActionButton icon={CalendarPlus} label="Schedule Meeting" hint="Task linked to client" onClick={() => setShowMeeting(true)} />}
+            {!readOnly && <ActionButton icon={StickyNote} label="Log Commercial Note" hint="Attached to this client" onClick={() => setShowNote(true)} />}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* ─── Recommended Actions ─── */}
       <Card className="border-border/60 shadow-sm">
@@ -429,7 +430,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                 <p className="text-sm font-medium text-foreground">{r.title}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{r.hint}</p>
               </div>
-              {r.action && r.label && (
+              {!readOnly && r.action && r.label && (
                 <Button size="sm" variant="outline" onClick={r.action} className="shrink-0">{r.label}</Button>
               )}
             </div>
@@ -443,9 +444,11 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" /> Proposal History
           </CardTitle>
-          <Button size="sm" variant="ghost" onClick={() => openProposal("other")}>
-            <FilePlus2 className="h-3.5 w-3.5 mr-1" /> New
-          </Button>
+          {!readOnly && (
+            <Button size="sm" variant="ghost" onClick={() => openProposal("other")}>
+              <FilePlus2 className="h-3.5 w-3.5 mr-1" /> New
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {proposals.length === 0 ? (
@@ -521,9 +524,11 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-primary" /> Commercial Notes
           </CardTitle>
-          <Button size="sm" variant="ghost" onClick={() => setShowNote(true)}>
-            <StickyNote className="h-3.5 w-3.5 mr-1" /> Add
-          </Button>
+          {!readOnly && (
+            <Button size="sm" variant="ghost" onClick={() => setShowNote(true)}>
+              <StickyNote className="h-3.5 w-3.5 mr-1" /> Add
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {commercialNotes.length === 0 ? (

@@ -33,6 +33,7 @@ import { resolveRenewal, assessRenewalRisk } from "@/lib/renewal-resolution";
 import { RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
 import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { ContactsCard } from "@/components/clients/ContactsCard";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
 import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
 import {
@@ -148,6 +149,8 @@ export default function ClientDetail() {
   const { data: contracts = [] } = useClientContracts(id);
   const updateClient = useUpdateClient();
   const archiveClient = useArchiveClient();
+  const { canEdit: canEditModule } = useModuleAccess();
+  const canWrite = canEditModule("clients");
   const createContact = useCreateContact();
   const deleteContact = useDeleteContact();
   const createLicense = useCreateLicense();
@@ -904,7 +907,7 @@ export default function ClientDetail() {
                 <AlertTriangle className="h-3 w-3" /> Missing license configuration
               </Badge>
             )}
-            {client.status !== "Archived" && (
+            {canWrite && client.status !== "Archived" && (
               <Button variant="outline" size="sm" onClick={handleArchive} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5 mr-1.5" /> Archive</Button>
             )}
           </div>
@@ -987,9 +990,9 @@ export default function ClientDetail() {
             client={client}
             ownerName={client.manager_owner || client.account_manager}
             nextRenewalDate={renewalEndDate}
-            onEdit={startEditClient}
+            onEdit={canWrite ? startEditClient : undefined}
           />
-          {client?.id && <ContactsCard clientId={client.id} />}
+          {client?.id && <ContactsCard clientId={client.id} readOnly={!canWrite} />}
           {client?.id && (
             <CommercialIntelligenceDashboard
               clientId={client.id}
@@ -1010,6 +1013,7 @@ export default function ClientDetail() {
             primaryContract={primaryContract}
             modules={modules}
             notes={notes}
+            readOnly={!canWrite}
           />
         </TabsContent>
 
@@ -1020,15 +1024,17 @@ export default function ClientDetail() {
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">License Configuration</CardTitle>
-              <Button size="sm" onClick={openAddLicenseWithDefaults}><Plus className="h-4 w-4 mr-1.5" /> Add License</Button>
+              {canWrite && <Button size="sm" onClick={openAddLicenseWithDefaults}><Plus className="h-4 w-4 mr-1.5" /> Add License</Button>}
             </CardHeader>
             <CardContent>
               {validLicenses.length === 0 ? (
                 <div className="py-8 text-center space-y-3">
                   <p className="text-sm text-muted-foreground">No license configuration yet</p>
-                  <Button size="sm" variant="outline" onClick={openAddLicenseWithDefaults}>
-                    <Plus className="h-3.5 w-3.5 mr-1.5" /> Add License Configuration
-                  </Button>
+                  {canWrite && (
+                    <Button size="sm" variant="outline" onClick={openAddLicenseWithDefaults}>
+                      <Plus className="h-3.5 w-3.5 mr-1.5" /> Add License Configuration
+                    </Button>
+                  )}
                 </div>
               ) : validLicenses.map(lic => {
                 const licVocab = readLicenseVocabulary(lic, client.cloud_onpremise);
@@ -1057,8 +1063,8 @@ export default function ClientDetail() {
                         </>
                       ) : (
                         <>
-                          <Button variant="ghost" size="sm" onClick={() => startEditLicense(lic)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
-                          <AlertDialog>
+                          {canWrite && <Button variant="ghost" size="sm" onClick={() => startEditLicense(lic)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>}
+                          {canWrite && <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5 mr-1" /> Delete</Button>
                             </AlertDialogTrigger>
@@ -1072,7 +1078,7 @@ export default function ClientDetail() {
                                 <AlertDialogAction onClick={() => handleDeleteLicense(lic.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
-                          </AlertDialog>
+                          </AlertDialog>}
                         </>
                       )}
                     </div>
@@ -1167,7 +1173,7 @@ export default function ClientDetail() {
                 {isBusiness && <p className="text-xs text-muted-foreground mt-1">Business licenses allow flexible module and plugin selection.</p>}
                 {!hasValidLicense && <p className="text-xs text-muted-foreground mt-1">Add a license configuration to manage modules.</p>}
               </div>
-              {primaryLicense && !editingModules && (
+              {canWrite && primaryLicense && !editingModules && (
                 <Button variant="ghost" size="sm" onClick={startEditModules}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
               )}
               {editingModules && (
@@ -1193,10 +1199,10 @@ export default function ClientDetail() {
         {/* ═══════════════════ CONTRACT TAB ═══════════════════ */}
         <TabsContent value="contract" className="space-y-5 mt-5">
           <div className="flex justify-end">
-            <Button size="sm" onClick={() => { setContractFormData({ currency: "EUR", notice_period_days: 30 }); setShowAddContract(true); }}><Plus className="h-4 w-4 mr-1.5" /> Add Contract</Button>
+            {canWrite && <Button size="sm" onClick={() => { setContractFormData({ currency: "EUR", notice_period_days: 30 }); setShowAddContract(true); }}><Plus className="h-4 w-4 mr-1.5" /> Add Contract</Button>}
           </div>
           {contracts.length === 0 ? (
-            <Card className="border-border/60 shadow-sm"><CardContent className="py-12 text-center text-muted-foreground">No contracts. <button onClick={() => setShowAddContract(true)} className="text-primary hover:underline">Create first contract</button></CardContent></Card>
+            <Card className="border-border/60 shadow-sm"><CardContent className="py-12 text-center text-muted-foreground">No contracts.{canWrite && <> <button onClick={() => setShowAddContract(true)} className="text-primary hover:underline">Create first contract</button></>}</CardContent></Card>
           ) : contracts.map(co => {
             const isGenerated = (co as any).is_imported === false;
             const calcTotal = Number((co as any).calculated_total || 0);
@@ -1232,7 +1238,7 @@ export default function ClientDetail() {
                     <Button size="sm" onClick={saveContract} disabled={updateContract.isPending}><Save className="h-3.5 w-3.5" /></Button>
                   </div>
                 ) : (
-                  <Button variant="ghost" size="sm" onClick={() => startEditContract(co)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>
+                  canWrite ? <Button variant="ghost" size="sm" onClick={() => startEditContract(co)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button> : null
                 )}
               </CardHeader>
               <CardContent>
@@ -1301,7 +1307,7 @@ export default function ClientDetail() {
                   <p className="text-sm text-foreground">{client.observations}</p>
                 </div>
               )}
-              <div className="border rounded-lg p-4 space-y-3">
+              {canWrite && <div className="border rounded-lg p-4 space-y-3">
                 <div className="flex gap-2">
                   <Select value={newNoteType} onValueChange={setNewNoteType}>
                     <SelectTrigger className="w-[140px] h-8"><SelectValue /></SelectTrigger>
@@ -1318,7 +1324,7 @@ export default function ClientDetail() {
                 <div className="flex justify-end">
                   <Button size="sm" onClick={handleAddNote} disabled={createNote.isPending}><Plus className="h-3.5 w-3.5 mr-1" /> Add Note</Button>
                 </div>
-              </div>
+              </div>}
               {notes.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-4">No notes yet</p>
               ) : (
@@ -1346,11 +1352,11 @@ export default function ClientDetail() {
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold">System Credentials</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setShowAddCred(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>
+              {canWrite && <Button variant="ghost" size="sm" onClick={() => setShowAddCred(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Add</Button>}
             </CardHeader>
             <CardContent>
               {credentials.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6">No credentials stored. <button onClick={() => setShowAddCred(true)} className="text-primary hover:underline">Add credentials</button></p>
+                <p className="text-sm text-muted-foreground text-center py-6">No credentials stored.{canWrite && <> <button onClick={() => setShowAddCred(true)} className="text-primary hover:underline">Add credentials</button></>}</p>
               ) : (
                 <div className="space-y-4">
                   {credentials.map((cr: any) => (

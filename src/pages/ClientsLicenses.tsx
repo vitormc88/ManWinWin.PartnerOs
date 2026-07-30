@@ -10,6 +10,7 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
 import { useClients, useCreateClient } from "@/hooks/useClients";
 import { resolvePartnerIdentity, matchesPartnerFilter, buildPartnerCreatePayload } from "@/lib/partner-identity";
@@ -40,6 +41,8 @@ export default function ClientsLicenses() {
   const { data: clients = [], isLoading } = useClients();
   const { data: partners = [] } = usePartners();
   const { data: aggregates } = useClientAggregates();
+  const { canEdit } = useModuleAccess();
+  const canEditClients = canEdit("clients");
   const createClient = useCreateClient();
   const persisted = useMemo(() => loadClientsListState() ?? {}, []);
   const [search, setSearch] = useState<string>(persisted.search ?? "");
@@ -209,8 +212,12 @@ export default function ClientsLicenses() {
           <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
             <Archive className="h-4 w-4 mr-1.5" /> {showArchived ? "Show Active" : "Show Archived"}
           </Button>
-          <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-1.5" /> Export</Button>
-          <Button size="sm" onClick={() => navigate("/clients/new")}><Plus className="h-4 w-4 mr-1.5" /> Add Client</Button>
+          {canEditClients && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4 mr-1.5" /> Export</Button>
+              <Button size="sm" onClick={() => navigate("/clients/new")}><Plus className="h-4 w-4 mr-1.5" /> Add Client</Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -260,7 +267,7 @@ export default function ClientsLicenses() {
               {isLoading ? (
                 <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">Loading clients...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">{showArchived ? "No archived clients." : "No clients match your filters."} <button onClick={() => navigate("/clients/new")} className="text-primary hover:underline">Create client</button></TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">{showArchived ? "No archived clients." : "No clients match your filters."} {canEditClients && <button onClick={() => navigate("/clients/new")} className="text-primary hover:underline">Create client</button>}</TableCell></TableRow>
               ) : filtered.map(c => (
                 <TableRow key={c.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => handleOpenClient(c.id)}>
                   <TableCell className="font-mono text-xs text-muted-foreground">{c.client_code}</TableCell>
