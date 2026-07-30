@@ -950,13 +950,19 @@ export default function ClientDetail() {
                 </div>
               ) : validLicenses.map(lic => {
                 const { family: licFam, variant: licVar } = parseLicenseProduct(lic.product);
+                const needsReview = !isValidLicenseProduct(lic.product);
                 return (
                 <div key={lic.id} className="space-y-4 border-b border-border/40 last:border-0 pb-4 last:pb-0 mb-4 last:mb-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{licFam}</Badge>
-                      <Badge variant="secondary">{getVariantLabel(licVar)}</Badge>
+                      <Badge variant="outline">{licFam || "Unknown family"}</Badge>
+                      <Badge variant="secondary">{getVariantLabel(licVar) || "Unspecified product"}</Badge>
                       <Badge variant="secondary" className="text-xs">{lic.version || "—"}</Badge>
+                      {needsReview && (
+                        <Badge variant="outline" className="text-xs gap-1 border-warning text-warning">
+                          <AlertTriangle className="h-3 w-3" /> Needs review
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       {editingLicenseId === lic.id ? (
