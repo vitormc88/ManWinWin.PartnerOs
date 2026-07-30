@@ -32,6 +32,18 @@ import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { ContactsCard } from "@/components/clients/ContactsCard";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
 import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
+import {
+  type LicenseFamily,
+  VARIANT_OPTIONS,
+  DEPLOYMENT_OPTIONS,
+  DEFAULT_LICENSE_VERSION,
+  normalizeLicenseProduct,
+  normalizeLicenseModel,
+  normalizeDeployment,
+  readLicenseVocabulary,
+  isCanonicalProduct,
+  getVariantLabel,
+} from "@/lib/licensing";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
