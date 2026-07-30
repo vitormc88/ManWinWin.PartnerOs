@@ -2,13 +2,20 @@ import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { useContractLines, type ContractLine } from "@/hooks/useContractLines";
+import { useContractLines, useDeleteContractLine, type ContractLine } from "@/hooks/useContractLines";
 import {
   classifyContractLine,
   computeContractFinancials,
   isRecurringClassifiedLine,
+  UNCLASSIFIED_LABEL,
 } from "@/lib/contract-lines";
-import { resolveRenewal } from "@/lib/renewal-resolution";
+import {
+  buildCommercialGroups,
+  effectiveLineCategory,
+  resolveContractRenewal,
+  type CommercialCategoryKey,
+} from "@/lib/commercial-contract-view-model";
+import { ContractLineDialog } from "./ContractLineDialog";
 import { useLifecycleEvents, type LifecycleEvent } from "@/hooks/useLifecycleEvents";
 import { useUpdateContract } from "@/hooks/useClients";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +32,7 @@ import {
   Sparkles, FileText, Calendar, RefreshCw, ChevronDown, ChevronRight,
   ExternalLink, CheckCircle2, Trophy, Package, UserPlus, Bell,
   Pencil, Info, ArrowDown, KeyRound, Puzzle, Server, LifeBuoy,
-  Wrench, Tag, Minus,
+  Wrench, Tag, Minus, AlertTriangle, Plus, Trash2,
 } from "lucide-react";
 
 interface Props {
@@ -34,24 +41,20 @@ interface Props {
   onEditLegacy?: () => void;
 }
 
-/* ─────────── Category model (commercial, not technical) ─────────── */
+/* ─────────── Category model (shared, commercial not technical) ─────────── */
 
-type CatKey = "license" | "modules" | "plugins" | "hosting" | "support" | "services" | "discounts";
+type CatKey = CommercialCategoryKey;
 
-const CATEGORIES: Array<{ key: CatKey; label: string; types: string[]; icon: any; recurring: boolean }> = [
-  { key: "license",   label: "Core License",         types: ["license"],                          icon: KeyRound,  recurring: true },
-  { key: "modules",   label: "Included Modules",     types: ["module"],                           icon: Package,   recurring: true },
-  { key: "plugins",   label: "Included Plugins",     types: ["plugin"],                           icon: Puzzle,    recurring: true },
-  { key: "hosting",   label: "Hosting",              types: ["hosting"],                          icon: Server,    recurring: true },
-  { key: "support",   label: "Support",              types: ["sat", "mww_web"],                   icon: LifeBuoy,  recurring: true },
-  { key: "services",  label: "Professional Services", types: ["implementation", "training", "other"], icon: Wrench, recurring: false },
-  { key: "discounts", label: "Discounts",            types: ["discount"],                         icon: Tag,       recurring: false },
-];
-
-/** Effective canonical type (legacy-tolerant, read-only classification). */
-function effType(line: ContractLine): string {
-  return classifyContractLine(line).type || "";
-}
+const CATEGORY_ICONS: Record<CatKey, any> = {
+  license: KeyRound,
+  modules: Package,
+  plugins: Puzzle,
+  hosting: Server,
+  support: LifeBuoy,
+  services: Wrench,
+  discounts: Tag,
+  needs_review: AlertTriangle,
+};
 
 function isRecurringLine(line: ContractLine) {
   return isRecurringClassifiedLine(classifyContractLine(line));
@@ -72,8 +75,18 @@ export function CommercialContractView({ contract, clientId }: Props) {
   const { data: lines = [], isLoading: linesLoading } = useContractLines(contract.id);
   const { data: events = [] } = useLifecycleEvents(clientId);
   const updateContract = useUpdateContract();
+  const deleteLine = useDeleteContractLine();
   const currency = contract.currency || "EUR";
   const [editOpen, setEditOpen] = useState(false);
+  const [lineDialogOpen, setLineDialogOpen] = useState(false);
+  const [editingLine, setEditingLine] = useState<ContractLine | null>(null);
+
+  const openNewLine = () => { setEditingLine(null); setLineDialogOpen(true); };
+  const openEditLine = (l: ContractLine) => { setEditingLine(l); setLineDialogOpen(true); };
+  const removeLine = async (l: ContractLine) => {
+    try { await deleteLine.mutateAsync(l.id); toast.success("Contract line removed"); }
+    catch (e: any) { toast.error(e?.message || "Failed to remove line"); }
+  };
 
   const { data: renewal } = useQuery({
     queryKey: ["contract-renewal", contract.id, clientId],
@@ -105,7 +118,7 @@ export function CommercialContractView({ contract, clientId }: Props) {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("licenses")
-        .select("id, initial_contract_value, recurring_contract_value, billing_frequency")
+        .select("id, initial_contract_value, recurring_contract_value, billing_frequency, license_end_date, license_status")
         .eq("contract_id", contract.id).maybeSingle();
       return data;
     },
@@ -143,17 +156,13 @@ export function CommercialContractView({ contract, clientId }: Props) {
   const oneTimePct = year1Value > 0 ? Math.max(0, 100 - recurringPct) : 0;
 
 
-  const groups = useMemo(() => CATEGORIES
-    .map(c => {
-      const items = lines.filter(l => c.types.includes(effType(l)));
-      const subtotal = items.reduce((s, l) => s + Number(l.amount || 0), 0);
-      return { ...c, items, subtotal };
-    })
-    .filter(g => g.items.length > 0),
-  [lines]);
+  const groups = useMemo(
+    () => buildCommercialGroups(lines).map((g) => ({ ...g, icon: CATEGORY_ICONS[g.key] })),
+    [lines]
+  );
 
   // Single renewal source of truth (workflow row → contract end → license end).
-  const resolvedRenewal = resolveRenewal({ renewals: renewal ? [renewal] : [], contract });
+  const resolvedRenewal = resolveContractRenewal({ renewal, contract, license });
   const renewalDate = resolvedRenewal.date;
   const billing = renewal?.billing_frequency || license?.billing_frequency || "Annual";
 
@@ -164,11 +173,11 @@ export function CommercialContractView({ contract, clientId }: Props) {
   const timelineEvents = events.filter(e => timelineTypes.has(e.event_type)).slice().reverse();
 
   /* Renewal preview groups: license/hosting/support get a single ✓; modules/plugins are expandable counts */
-  const renewLicense = recurringLines.filter(l => effType(l) === "license");
-  const renewHosting = recurringLines.filter(l => effType(l) === "hosting");
-  const renewSupport = recurringLines.filter(l => effType(l) === "sat" || effType(l) === "mww_web");
-  const renewModules = recurringLines.filter(l => effType(l) === "module");
-  const renewPlugins = recurringLines.filter(l => effType(l) === "plugin");
+  const renewLicense = recurringLines.filter(l => effectiveLineCategory(l) === "license");
+  const renewHosting = recurringLines.filter(l => effectiveLineCategory(l) === "hosting");
+  const renewSupport = recurringLines.filter(l => ["sat", "mww_web"].includes(effectiveLineCategory(l)));
+  const renewModules = recurringLines.filter(l => effectiveLineCategory(l) === "module");
+  const renewPlugins = recurringLines.filter(l => effectiveLineCategory(l) === "plugin");
 
   return (
     <Card className="border-border/60 shadow-sm overflow-hidden">
@@ -301,8 +310,23 @@ export function CommercialContractView({ contract, clientId }: Props) {
           <section>
             <div className="flex items-center justify-between mb-2.5">
               <SectionTitle inline>Commercial Structure</SectionTitle>
-              <span className="text-xs text-muted-foreground">{lines.length} {lines.length === 1 ? "line" : "lines"}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{lines.length} {lines.length === 1 ? "line" : "lines"}</span>
+                <Button variant="outline" size="sm" className="h-7" onClick={openNewLine}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add line
+                </Button>
+              </div>
             </div>
+            {financials.unclassifiedCount > 0 && (
+              <div className="mb-2.5 flex items-start gap-2 rounded-md border border-warning/50 bg-warning/5 px-3 py-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-warning mt-0.5 shrink-0" />
+                <p className="text-[11px] text-muted-foreground">
+                  {financials.unclassifiedCount} line{financials.unclassifiedCount === 1 ? "" : "s"} could not be
+                  classified. They stay visible under “{UNCLASSIFIED_LABEL}” and are excluded from ARR until a
+                  canonical type is chosen.
+                </p>
+              </div>
+            )}
             {linesLoading ? (
               <p className="text-xs text-muted-foreground">Loading…</p>
             ) : groups.length === 0 ? (
@@ -312,7 +336,14 @@ export function CommercialContractView({ contract, clientId }: Props) {
             ) : (
               <div className="space-y-2">
                 {groups.map(g => (
-                  <StructureGroup key={g.key} group={g} currency={currency} defaultOpen={g.key === "license"} />
+                  <StructureGroup
+                    key={g.key}
+                    group={g}
+                    currency={currency}
+                    defaultOpen={g.key === "license" || g.key === "needs_review"}
+                    onEditLine={openEditLine}
+                    onDeleteLine={removeLine}
+                  />
                 ))}
               </div>
             )}
@@ -356,6 +387,15 @@ export function CommercialContractView({ contract, clientId }: Props) {
 
         </div>
       </CardContent>
+
+      <ContractLineDialog
+        open={lineDialogOpen}
+        onOpenChange={setLineDialogOpen}
+        contractId={contract.id}
+        clientId={clientId}
+        defaultCurrency={currency}
+        line={editingLine}
+      />
 
       {/* ═══ 9. EDIT DRAWER ═══ */}
       <EditCommercialAgreementDrawer
@@ -462,18 +502,25 @@ function RenewCollapse({ label, items, currency }: { label: string; items: Contr
   );
 }
 
-function StructureGroup({ group, currency, defaultOpen }: { group: { key: CatKey; label: string; icon: any; items: ContractLine[]; subtotal: number; recurring: boolean }; currency: string; defaultOpen?: boolean }) {
+function StructureGroup({ group, currency, defaultOpen, onEditLine, onDeleteLine }: {
+  group: { key: CatKey; label: string; icon: any; items: ContractLine[]; subtotal: number; recurring: boolean };
+  currency: string;
+  defaultOpen?: boolean;
+  onEditLine?: (l: ContractLine) => void;
+  onDeleteLine?: (l: ContractLine) => void;
+}) {
+  const unclassified = group.key === "needs_review";
   const [open, setOpen] = useState(!!defaultOpen);
   const Icon = group.icon;
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <div className="rounded-md border border-border/60 bg-card overflow-hidden">
+      <div className={`rounded-md border bg-card overflow-hidden ${unclassified ? "border-warning/50" : "border-border/60"}`}>
         <CollapsibleTrigger asChild>
           <button className="w-full flex items-center justify-between px-3.5 py-2.5 hover:bg-muted/30 transition">
             <div className="flex items-center gap-2.5">
               {open ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-              <Icon className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-sm font-semibold">{group.label}</span>
+              <Icon className={`h-3.5 w-3.5 ${unclassified ? "text-warning" : "text-muted-foreground"}`} />
+              <span className={`text-sm font-semibold ${unclassified ? "text-warning" : ""}`}>{group.label}</span>
               <span className="text-[11px] text-muted-foreground">· {group.items.length} {group.items.length === 1 ? "item" : "items"}</span>
             </div>
             <span className="text-sm font-semibold tabular-nums">{fmt(group.subtotal, currency)}</span>
@@ -484,18 +531,39 @@ function StructureGroup({ group, currency, defaultOpen }: { group: { key: CatKey
             {group.items.map(line => {
               const recurring = isRecurringLine(line);
               return (
-                <div key={line.id} className="grid grid-cols-12 gap-2 items-center px-3.5 py-2 text-xs">
-                  <div className="col-span-7">
-                    <div className="text-sm text-foreground">{line.description}</div>
-                    {line.billing_frequency && (
-                      <div className="text-[10px] text-muted-foreground capitalize mt-0.5">{line.billing_frequency}</div>
-                    )}
+                <div key={line.id} className="grid grid-cols-12 gap-2 items-center px-3.5 py-2 text-xs group/line">
+                  <div className="col-span-6">
+                    <div className="text-sm text-foreground flex items-center gap-1.5 flex-wrap">
+                      {line.description}
+                      {unclassified && (
+                        <span className="text-[10px] text-warning border border-warning/50 rounded px-1" title={`Stored type "${line.line_type || "empty"}"`}>
+                          needs review
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground capitalize mt-0.5">
+                      {line.billing_frequency || "frequency not set"}
+                      {line.start_date ? ` · ${fmtDate(line.start_date)}` : ""}
+                      {line.end_date ? ` → ${fmtDate(line.end_date)}` : ""}
+                    </div>
                   </div>
-                  <div className="col-span-3 text-[10px] text-muted-foreground">
-                    {recurring ? "Included in renewal" : "One-time"}
+                  <div className="col-span-2 text-[10px] text-muted-foreground">
+                    {unclassified ? "Excluded from ARR" : recurring ? "Included in renewal" : "One-time"}
                   </div>
                   <div className="col-span-2 text-right text-sm font-medium tabular-nums">
-                    {fmt(Number(line.amount), line.currency || currency)}
+                    {line.amount == null ? <span className="text-warning">no amount</span> : fmt(Number(line.amount), line.currency || currency)}
+                  </div>
+                  <div className="col-span-2 flex justify-end gap-1">
+                    {onEditLine && (
+                      <Button variant="ghost" size="sm" className="h-6 px-1.5" onClick={() => onEditLine(line)} aria-label="Edit line">
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {onDeleteLine && (
+                      <Button variant="ghost" size="sm" className="h-6 px-1.5 text-muted-foreground hover:text-destructive" onClick={() => onDeleteLine(line)} aria-label="Delete line">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               );

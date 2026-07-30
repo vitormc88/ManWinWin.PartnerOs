@@ -16,6 +16,8 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { canonicalizeLineTypeForWrite } from "@/lib/contract-line-payload";
+import type { ContractLineType } from "@/lib/contract-lines";
 import { logSystemActivity } from "@/lib/activity-log";
 import {
   proposalToLicenseDefaults,
@@ -184,17 +186,12 @@ async function findClientMatches(
 // Map proposal items → contract lines
 // ---------------------------------------------------------------------------
 
-function categoryToLineType(category: string | null | undefined): string {
-  switch ((category || "").toLowerCase()) {
-    case "software":
-      return "Software";
-    case "service":
-      return "Service";
-    case "addon":
-      return "Add-on";
-    default:
-      return "Other";
-  }
+/**
+ * Programmatic writers must persist canonical contract-line types — the shared
+ * vocabulary in `contract-lines.ts`. Never the generic legacy values.
+ */
+function categoryToLineType(category: string | null | undefined): ContractLineType {
+  return canonicalizeLineTypeForWrite(category) ?? "other";
 }
 
 export function buildContractLinesFromProposal(proposal: any, items: any[]): ContractLineDraft[] {
@@ -222,7 +219,7 @@ export function buildContractLinesFromProposal(proposal: any, items: any[]): Con
     const total = Number(proposal.total_year_1 || 0);
     if (total > 0) {
       lines.push({
-        line_type: "Software",
+        line_type: "license",
         description: `Year 1 total — ${proposal.project_name || proposal.client_name}`,
         amount: total,
         currency,

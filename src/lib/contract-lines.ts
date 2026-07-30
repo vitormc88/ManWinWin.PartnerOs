@@ -52,6 +52,17 @@ export const CONTRACT_LINE_TYPES: ContractLineTypeDef[] = [
   { value: "other", label: "Other", nature: "one_time", order: 10 },
 ];
 
+/**
+ * Sentinel effective type for lines whose stored `line_type` could not be
+ * mapped to the canonical vocabulary. It is NEVER an empty string, so that no
+ * view can accidentally treat an unknown line as "no category" and hide it.
+ */
+export const UNCLASSIFIED_LINE_TYPE = "unclassified" as const;
+export type UnclassifiedLineType = typeof UNCLASSIFIED_LINE_TYPE;
+export type EffectiveLineType = ContractLineType | UnclassifiedLineType;
+
+export const UNCLASSIFIED_LABEL = "Unclassified / Needs review";
+
 export const CANONICAL_LINE_TYPES: ContractLineType[] = CONTRACT_LINE_TYPES.map((t) => t.value);
 
 /** Types that contribute to recurring ARR when not explicitly one-time. */
@@ -70,7 +81,7 @@ export function isCanonicalLineType(value: string | null | undefined): value is 
 
 export function lineTypeLabel(value: string | null | undefined): string {
   const def = CONTRACT_LINE_TYPES.find((t) => t.value === (value || "").trim());
-  return def?.label || "Other / Needs review";
+  return def?.label || UNCLASSIFIED_LABEL;
 }
 
 export function lineTypeOrder(value: string | null | undefined): number {
@@ -123,8 +134,13 @@ export interface ClassifiedLine<T extends ClassifiableLine = ClassifiableLine> {
   line: T;
   /** Raw stored value, unchanged. */
   rawType: string;
-  /** Canonical type when known / safely inferred, otherwise "". */
-  type: ContractLineType | "";
+  /**
+   * Effective category: a canonical type, or the explicit `unclassified`
+   * sentinel. Never an empty string.
+   */
+  effectiveType: EffectiveLineType;
+  /** Canonical type when known / safely inferred, otherwise null. */
+  type: ContractLineType | null;
   label: string;
   /** True when the type came from description inference, not from storage. */
   isInferred: boolean;
@@ -144,6 +160,7 @@ export function classifyContractLine<T extends ClassifiableLine>(line: T): Class
     return {
       line,
       rawType,
+      effectiveType: rawType as ContractLineType,
       type: rawType as ContractLineType,
       label: lineTypeLabel(rawType),
       isInferred: false,
@@ -158,6 +175,7 @@ export function classifyContractLine<T extends ClassifiableLine>(line: T): Class
       return {
         line,
         rawType,
+        effectiveType: rule.type,
         type: rule.type,
         label: lineTypeLabel(rule.type),
         isInferred: true,
@@ -169,8 +187,9 @@ export function classifyContractLine<T extends ClassifiableLine>(line: T): Class
   return {
     line,
     rawType,
-    type: "",
-    label: "Other / Needs review",
+    effectiveType: UNCLASSIFIED_LINE_TYPE,
+    type: null,
+    label: UNCLASSIFIED_LABEL,
     isInferred: false,
     isUnclassified: true,
   };
@@ -340,13 +359,13 @@ export interface LineGroup<T extends ClassifiableLine = ClassifiableLine> {
 export function groupContractLines<T extends ClassifiableLine>(lines: T[]): LineGroup<T>[] {
   const groups = new Map<string, LineGroup<T>>();
   for (const c of classifyContractLines(lines || [])) {
-    const key = c.type || "__unclassified";
+    const key = c.effectiveType;
     if (!groups.has(key)) {
       groups.set(key, {
         key,
-        label: c.type ? lineTypeLabel(c.type) : "Other / Needs review",
-        order: c.type ? lineTypeOrder(c.type) : 99,
-        isUnclassified: !c.type,
+        label: c.isUnclassified ? UNCLASSIFIED_LABEL : lineTypeLabel(c.type),
+        order: c.isUnclassified ? 99 : lineTypeOrder(c.type),
+        isUnclassified: c.isUnclassified,
         lines: [],
         subtotal: 0,
       });

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { canonicalizeLineTypeForWrite } from "@/lib/contract-line-payload";
 import { logSystemActivity } from "@/lib/activity-log";
 import { computeBusinessOption, type BusinessConfig, DEFAULT_BUSINESS_CONFIG } from "@/lib/proposal-business-engine";
 import type { PricingRule, ProposalLicenseModel } from "@/types/proposal";
@@ -465,11 +466,8 @@ async function buildLinesForOperationalization(opts: {
         const amount = Number(it.net_total ?? it.total ?? 0);
         if (!Number.isFinite(amount) || amount === 0) return null;
         const cat = (it.category || "").toLowerCase();
-        const type =
-          cat === "software" ? "license" :
-          cat === "service" ? "service" :
-          cat === "addon" ? "module" :
-          "other";
+        // Canonical vocabulary only — see src/lib/contract-lines.ts.
+        const type = canonicalizeLineTypeForWrite(cat) ?? "other";
         return {
           line_type: type,
           description: it.item_name || it.description || it.item_code || "Item",
