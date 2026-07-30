@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { buildRenewalInsertPayload, buildRenewalPartnerPayload } from "@/lib/renewal-payload";
 import { findEquivalentOpenRenewal, RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
 import { belongsToPartner } from "@/lib/partner-query";
+import { buildPartnerCreatePayload } from "@/lib/partner-identity";
 
 import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { useMemo, useState } from "react";
