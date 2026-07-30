@@ -355,7 +355,7 @@ export default function ClientDetail() {
       product: firstVariant,
       license_model: normalizeLicenseModel(firstVariant),
       // Never overwrite an existing deployment value (avoids SaaS → On-Premise drift on edit).
-      database_type: f.database_type || defaults.database_type,
+      deployment_type: f.deployment_type || defaults.deployment_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
