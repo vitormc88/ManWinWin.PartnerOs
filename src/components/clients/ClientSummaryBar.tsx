@@ -32,6 +32,8 @@ export function ClientSummaryBar({ client, ownerName, nextRenewalDate, onEdit }:
   const partner = client?.partner?.name || "HQ Direct";
   const owner = ownerName || client?.manager_owner || "—";
   const location = [client?.country, client?.sector].filter(Boolean).join(" • ") || "—";
+  const customerSince = client?.first_installation_date || client?.created_at;
+  const customerSinceEstimated = !client?.first_installation_date && !!client?.created_at;
 
   return (
     <Card className="border-border/60 shadow-sm">
