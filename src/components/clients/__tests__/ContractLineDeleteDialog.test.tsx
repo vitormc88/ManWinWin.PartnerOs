@@ -48,3 +48,29 @@ describe("ContractLineDeleteDialog", () => {
     await waitFor(() => expect(screen.queryByText(/removing/i)).not.toBeInTheDocument());
   });
 });
+
+describe("ContractLineDeleteDialog — failed deletion", () => {
+  it("(2D) stays open, resets the button and allows a retry", async () => {
+    const onConfirm = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("delete failed"))
+      .mockResolvedValueOnce(undefined);
+    render(<Harness onConfirm={onConfirm} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /remove line/i }));
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+
+    // (a) dialog still open, (b) button back out of "Removing…"
+    await waitFor(() => expect(screen.queryByText(/removing/i)).not.toBeInTheDocument());
+    const retry = await screen.findByRole("button", { name: /remove line/i });
+    expect(retry).toBeEnabled();
+    expect(screen.getByText(/financial element of the contract/i)).toBeInTheDocument();
+
+    // (c) retry works and closes on success
+    await userEvent.click(retry);
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.queryByText(/financial element of the contract/i)).not.toBeInTheDocument()
+    );
+  });
+});
