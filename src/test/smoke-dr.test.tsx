@@ -47,12 +47,12 @@ describe("full app smoke at /deal-registrations", () => {
     const { MemoryRouter } = await import("react-router-dom");
     const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
     const { AuthProvider } = await import("@/contexts/AuthContext");
-    const Page = (await import("@/pages/DealRegistrations")).default;
+    const Layout = (await import("@/components/layout/AppLayout")).default ?? (await import("@/components/layout/AppLayout")).AppLayout;
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={qc}>
         <AuthProvider>
-          <MemoryRouter><Page /></MemoryRouter>
+          <MemoryRouter initialEntries={["/deal-registrations"]}><Layout /></MemoryRouter>
         </AuthProvider>
       </QueryClientProvider>
     );
