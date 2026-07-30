@@ -1020,13 +1020,13 @@ export default function ClientDetail() {
                       <div>
                         <Label className="text-xs">Deployment / Hosting</Label>
                         <Select
-                          value={licEditForm.database_type || ""}
-                          onValueChange={v => setLicEditForm(f => ({...f, database_type: v}))}
+                          value={licEditForm.deployment_type || ""}
+                          onValueChange={v => setLicEditForm(f => ({...f, deployment_type: v}))}
                         >
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                           <SelectContent>
-                            {licEditForm.database_type && !DEPLOYMENT_OPTIONS.some(o => o.value === licEditForm.database_type) && (
-                              <SelectItem value={licEditForm.database_type}>{licEditForm.database_type} (legacy)</SelectItem>
+                            {licEditForm.deployment_type && !DEPLOYMENT_OPTIONS.some(o => o.value === licEditForm.deployment_type) && (
+                              <SelectItem value={licEditForm.deployment_type}>{licEditForm.deployment_type} (legacy)</SelectItem>
                             )}
                             {DEPLOYMENT_OPTIONS.map(o => (
                               <SelectItem key={o.value} value={o.value}>{o.label} — {o.hint}</SelectItem>
