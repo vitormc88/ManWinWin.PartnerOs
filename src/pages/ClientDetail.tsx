@@ -460,8 +460,12 @@ export default function ClientDetail() {
 
   const saveLicense = async () => {
     if (!editingLicenseId) return;
-    if (!licEditForm.product || !isValidLicenseProduct(licEditForm.product)) {
-      toast.error("Please select a valid License Family and Variant");
+    // New values must be canonical; an untouched legacy value may be saved as-is
+    // so unrelated edits (dates, users, S&AT) are never blocked by old data.
+    const keepsLegacyProduct =
+      !!licEditForm.product && licEditForm.product === (licEditForm._rawProduct || "");
+    if (!licEditForm.product || (!isValidLicenseProduct(licEditForm.product) && !keepsLegacyProduct)) {
+      toast.error("Please select a valid Product / License Variant");
       return;
     }
     try {
