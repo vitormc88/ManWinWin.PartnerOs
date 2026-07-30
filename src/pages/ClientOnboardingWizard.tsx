@@ -440,6 +440,8 @@ export default function ClientOnboardingWizard() {
   };
 
   // ─────────────────────────────────────────────────────────
+  if (permsLoading || !canCreateClients) return null;
+
   return (
     <div className="max-w-[1100px] mx-auto pb-20">
       {/* Header */}
