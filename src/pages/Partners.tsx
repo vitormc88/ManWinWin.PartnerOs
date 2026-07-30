@@ -34,10 +34,42 @@ export default function Partners() {
   const [showCreate, setShowCreate] = useState(false);
   const initialForm = { company_name: "", country: "", partnership_level: "", status: "Active", first_name: "", last_name: "", primary_contact_email: "", notes: "" };
   const [form, setForm] = useState(initialForm);
+  const [sortKey, setSortKey] = useState<SortKey>("company");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const filtered = partners
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const baseFiltered = partners
     .filter(p => showArchived ? p.status === "Archived" : p.status !== "Archived")
     .filter(p => p.company_name.toLowerCase().includes(search.toLowerCase()) || (p.country || "").toLowerCase().includes(search.toLowerCase()));
+
+  const filtered = useMemo(() => {
+    const numeric = sortKey === "revenue" || sortKey === "pipeline" || sortKey === "health" || sortKey === "clients";
+    const value = (p: Partner): string | number => {
+      const m = metrics[p.id];
+      switch (sortKey) {
+        case "company": return p.company_name ?? "";
+        case "country": return p.country ? (COUNTRY_NAME_BY_CODE[p.country] ?? p.country) : "";
+        case "level": return p.partnership_level ?? "";
+        case "status": return p.status ?? "";
+        case "revenue": return m?.revenue ?? 0;
+        case "pipeline": return m?.pipeline ?? 0;
+        case "health": return m?.health_score ?? 0;
+        case "clients": return m?.clients ?? 0;
+      }
+    };
+    const sorted = [...baseFiltered].sort((a, b) => {
+      const va = value(a), vb = value(b);
+      const cmp = numeric
+        ? (va as number) - (vb as number)
+        : String(va).localeCompare(String(vb), undefined, { sensitivity: "base" });
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [baseFiltered, metrics, sortKey, sortDir]);
 
   const handleCreate = async () => {
     if (!form.company_name.trim()) { toast.error("Company name is required"); return; }
