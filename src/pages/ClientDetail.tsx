@@ -36,10 +36,10 @@ import {
   type LicenseFamily,
   VARIANT_OPTIONS,
   DEPLOYMENT_OPTIONS,
-  DEFAULT_LICENSE_VERSION,
+  SUGGESTED_LICENSE_VERSION,
   normalizeLicenseProduct,
   normalizeLicenseModel,
-  normalizeDeployment,
+  readDeployment,
   readLicenseVocabulary,
   isCanonicalProduct,
   getVariantLabel,
@@ -122,7 +122,8 @@ function getLicenseDefaults(variant: string) {
     web_accesses: 1,
     sat_active: isUseIT,
     api_access: variant === "Professional 3",
-    database_type: isPro ? "SaaS" : "On-Premise",
+    // Hosting/deployment only — never the database engine.
+    deployment_type: isPro ? "SaaS" : "On-Premise",
   };
 }
 
@@ -354,7 +355,7 @@ export default function ClientDetail() {
       product: firstVariant,
       license_model: normalizeLicenseModel(firstVariant),
       // Never overwrite an existing deployment value (avoids SaaS → On-Premise drift on edit).
-      database_type: f.database_type || defaults.database_type,
+      deployment_type: f.deployment_type || defaults.deployment_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
@@ -368,7 +369,7 @@ export default function ClientDetail() {
       ...f,
       product: variant,
       license_model: normalizeLicenseModel(variant),
-      database_type: f.database_type || defaults.database_type,
+      deployment_type: f.deployment_type || defaults.deployment_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
@@ -386,10 +387,11 @@ export default function ClientDetail() {
       await createLicense.mutateAsync({
         client_id: client.id,
         product: licenseForm.product,
-        version: licenseForm.version || null,
+        // Version stays free text: empty means empty (never auto-filled).
+        version: licenseForm.version?.trim() || null,
         license_model: normalizeLicenseModel(licenseForm.product, licenseForm.license_model) || null,
-        database_type: licenseForm.database_type || null,
-        deployment_type: licenseForm.database_type || null,
+        // Hosting only. `database_type` (engine) is a separate concept and is not written here.
+        deployment_type: licenseForm.deployment_type || null,
         periodicity: licenseForm.periodicity || null,
         license_start_date: licenseForm.license_start_date || null,
         license_end_date: licenseForm.license_end_date || null,
@@ -400,7 +402,7 @@ export default function ClientDetail() {
         sat_end_date: licenseForm.sat_active ? (licenseForm.sat_end_date || licenseForm.license_end_date || null) : null,
         api_access: licenseForm.api_access ?? false,
       } as any);
-      await updateClient.mutateAsync({ id: client.id, license_type: licenseForm.product, cloud_onpremise: licenseForm.database_type });
+      await updateClient.mutateAsync({ id: client.id, license_type: licenseForm.product, cloud_onpremise: licenseForm.deployment_type });
       toast.success("License created");
       setShowAddLicense(false);
       setLicenseForm({});
@@ -414,10 +416,11 @@ export default function ClientDetail() {
     setLicenseForm({
       _family: family,
       product: variant,
-      version: DEFAULT_LICENSE_VERSION,
+      // Left empty on purpose — the input only shows the suggested version as a placeholder.
+      version: "",
       license_model: normalizeLicenseModel(variant),
       periodicity: "Annual",
-      database_type: defaults.database_type,
+      deployment_type: defaults.deployment_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
@@ -436,8 +439,9 @@ export default function ClientDetail() {
       product: vocab.product.value || "",
       _rawProduct: lic.product || "",
       version: vocab.version,
-      // Deployment: canonical value when recognised, otherwise the raw legacy label.
-      database_type: vocab.deployment.value || vocab.deployment.raw || "",
+      // Hosting: canonical value when recognised, otherwise the raw legacy label.
+      deployment_type: vocab.deployment.value || vocab.deployment.raw || "",
+      _origDeployment: vocab.deployment.value || vocab.deployment.raw || "",
       license_model: vocab.licenseModel || lic.license_model || "",
 
       periodicity: lic.periodicity || "",
@@ -470,8 +474,8 @@ export default function ClientDetail() {
     }
     try {
       const {
-        _family, _rawProduct, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
-        sat_start_date, sat_end_date, ...rest
+        _family, _rawProduct, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd, _origDeployment,
+        sat_start_date, sat_end_date, version, ...rest
       } = licEditForm;
 
 
@@ -492,17 +496,21 @@ export default function ClientDetail() {
         }
       }
 
+      // Hosting is only written when the user actually changed the selector; the
+      // database engine (`database_type`) is never part of this payload.
+      const deploymentChanged = (rest.deployment_type || "") !== (_origDeployment || "");
+
       await updateLicense.mutateAsync({
         id: editingLicenseId,
         ...rest,
+        version: version?.trim() || null,
         license_model: normalizeLicenseModel(rest.product, rest.license_model) || null,
-        // Keep both deployment columns in sync so reads never disagree.
-        deployment_type: rest.database_type || null,
+        deployment_type: deploymentChanged ? (rest.deployment_type || null) : (_origDeployment || null),
         sat_start_date: nextSatStart,
         sat_end_date: nextSatEnd,
       } as any);
       if (licEditForm.product) {
-        await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.database_type || client.cloud_onpremise });
+        await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.deployment_type || client.cloud_onpremise });
       }
       toast.success("License updated");
       setEditingLicenseId(null);
@@ -675,11 +683,7 @@ export default function ClientDetail() {
   // Module helpers for licensing tab
   const activeModuleNames = modules.filter(m => m.enabled).map(m => m.module_name);
   const presetModules = isProfessional ? (PROFESSIONAL_MODULES[licenseVariant] || []) : [];
-  const deploymentDisplay = normalizeDeployment(
-    (primaryLicense as any)?.deployment_type,
-    primaryLicense?.database_type,
-    client.cloud_onpremise
-  ).label;
+  const deploymentDisplay = readDeployment(primaryLicense as any, client.cloud_onpremise).label;
 
   // License Family/Variant form rendering helper
   const renderLicenseFamilyVariantFields = (form: Record<string, any>, setter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
@@ -1016,13 +1020,13 @@ export default function ClientDetail() {
                       <div>
                         <Label className="text-xs">Deployment / Hosting</Label>
                         <Select
-                          value={licEditForm.database_type || ""}
-                          onValueChange={v => setLicEditForm(f => ({...f, database_type: v}))}
+                          value={licEditForm.deployment_type || ""}
+                          onValueChange={v => setLicEditForm(f => ({...f, deployment_type: v}))}
                         >
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                           <SelectContent>
-                            {licEditForm.database_type && !DEPLOYMENT_OPTIONS.some(o => o.value === licEditForm.database_type) && (
-                              <SelectItem value={licEditForm.database_type}>{licEditForm.database_type} (legacy)</SelectItem>
+                            {licEditForm.deployment_type && !DEPLOYMENT_OPTIONS.some(o => o.value === licEditForm.deployment_type) && (
+                              <SelectItem value={licEditForm.deployment_type}>{licEditForm.deployment_type} (legacy)</SelectItem>
                             )}
                             {DEPLOYMENT_OPTIONS.map(o => (
                               <SelectItem key={o.value} value={o.value}>{o.label} — {o.hint}</SelectItem>
@@ -1360,12 +1364,12 @@ export default function ClientDetail() {
               {renderLicenseFamilyVariantFields(licenseForm, setLicenseForm)}
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} />
+              <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} placeholder={`e.g. ${SUGGESTED_LICENSE_VERSION}`} />
               <div>
                 <Label className="text-xs">Deployment / Hosting</Label>
                 <Select
-                  value={licenseForm.database_type || ""}
-                  onValueChange={v => setLicenseForm(f => ({...f, database_type: v}))}
+                  value={licenseForm.deployment_type || ""}
+                  onValueChange={v => setLicenseForm(f => ({...f, deployment_type: v}))}
                 >
                   <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                   <SelectContent>

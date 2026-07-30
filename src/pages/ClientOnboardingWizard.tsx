@@ -7,7 +7,7 @@ import {
   Save, Loader2, Building2, Users, Boxes, FileText, ListChecks,
 } from "lucide-react";
 import {
-  VARIANT_OPTIONS, DEPLOYMENT_OPTIONS, DEFAULT_LICENSE_VERSION,
+  VARIANT_OPTIONS, DEPLOYMENT_OPTIONS, SUGGESTED_LICENSE_VERSION,
   normalizeLicenseProduct, normalizeLicenseModel, getVariantLabel,
 } from "@/lib/licensing";
 import { Button } from "@/components/ui/button";
@@ -98,7 +98,7 @@ const initialDraft: Draft = {
   },
   contacts: [{ ...emptyContact }],
   license: {
-    family: "", variant: "", deployment_type: "SaaS", version: DEFAULT_LICENSE_VERSION,
+    family: "", variant: "", deployment_type: "SaaS", version: "",
     backoffice_users: 0, web_accesses: 0, api_access: false,
     module_ids: [], plugin_ids: [],
   },
@@ -286,9 +286,10 @@ export default function ClientOnboardingWizard() {
         product,
         edition: variant ? getVariantLabel(variant) : null,
         license_model: licenseModel || null,
-        version: draft.license.version?.trim() || DEFAULT_LICENSE_VERSION,
+        // Free text: an empty version stays empty (no automatic default).
+        version: draft.license.version?.trim() || null,
+        // Hosting only — the database engine is a separate field and is not set here.
         deployment_type: draft.license.deployment_type || null,
-        database_type: draft.license.deployment_type || null,
         backoffice_users: draft.license.backoffice_users || 0,
         web_accesses: draft.license.web_accesses || 0,
         num_users: (draft.license.backoffice_users || 0) + (draft.license.web_accesses || 0),
@@ -653,7 +654,7 @@ export default function ClientOnboardingWizard() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Version</Label><Input value={draft.license.version} onChange={e => updLicense({ version: e.target.value })} placeholder={`e.g. ${DEFAULT_LICENSE_VERSION}`} /></div>
+                <div><Label>Version</Label><Input value={draft.license.version} onChange={e => updLicense({ version: e.target.value })} placeholder={`e.g. ${SUGGESTED_LICENSE_VERSION}`} /></div>
                 <div><Label>BackOffice Users</Label><Input type="number" min={0} value={draft.license.backoffice_users} onChange={e => updLicense({ backoffice_users: Number(e.target.value) })} /></div>
                 <div><Label>Web Users</Label><Input type="number" min={0} value={draft.license.web_accesses} onChange={e => updLicense({ web_accesses: Number(e.target.value) })} /></div>
                 <div className="flex items-end gap-2"><Switch checked={draft.license.api_access} onCheckedChange={v => updLicense({ api_access: v })} /><Label>API access enabled</Label></div>
