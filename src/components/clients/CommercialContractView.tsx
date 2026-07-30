@@ -87,9 +87,13 @@ export function CommercialContractView({ contract, clientId }: Props) {
   const openEditLine = (l: ContractLine) => { setEditingLine(l); setLineDialogOpen(true); };
   /** Opens the confirmation dialog — never deletes directly. */
   const requestRemoveLine = (l: ContractLine) => setLineToDelete(l);
+  /**
+   * Rejects when the deletion fails so the confirmation dialog stays open and
+   * the user can retry. The toast here is the single error message.
+   */
   const confirmRemoveLine = async (l: { id: string }) => {
     try { await deleteLine.mutateAsync(l.id); toast.success("Contract line removed"); }
-    catch (e: any) { toast.error(e?.message || "Failed to remove line"); }
+    catch (e: any) { toast.error(e?.message || "Failed to remove line"); throw e; }
   };
 
   const { data: renewal } = useQuery({
