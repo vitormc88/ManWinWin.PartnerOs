@@ -48,8 +48,16 @@ export interface ResolvedRenewal {
   label: string;
 }
 
+/** Accepts only real ISO-like dates (YYYY-MM-DD...) that parse. Invalid values never win precedence. */
+export function isValidDateString(value: string | null | undefined): boolean {
+  const v = (value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}/.test(v)) return false;
+  const d = new Date(`${v.slice(0, 10)}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v.slice(0, 10);
+}
+
 export function isOpenRenewal(r: RenewalRecordLike | null | undefined): boolean {
-  if (!r || !r.renewal_date) return false;
+  if (!r || !isValidDateString(r.renewal_date)) return false;
   return !CLOSED_RENEWAL_STATUSES.has((r.status || "").trim().toLowerCase());
 }
 
@@ -94,16 +102,16 @@ export function resolveRenewal(input: ResolveRenewalInput): ResolvedRenewal {
   });
 
   if (open.length) {
-    return build(String(open[0].renewal_date), "renewal_record", open[0], "Scheduled renewal");
+    return build(String(open[0].renewal_date).slice(0, 10), "renewal_record", open[0], "Scheduled renewal");
   }
 
-  const contractEnd = (input.contract?.contract_end_date || "").trim();
-  if (contractEnd) {
+  const contractEnd = (input.contract?.contract_end_date || "").trim().slice(0, 10);
+  if (isValidDateString(contractEnd)) {
     return build(contractEnd, "contract_end", null, "Contract end date");
   }
 
-  const licenseEnd = (input.license?.license_end_date || "").trim();
-  if (licenseEnd) {
+  const licenseEnd = (input.license?.license_end_date || "").trim().slice(0, 10);
+  if (isValidDateString(licenseEnd)) {
     return build(licenseEnd, "license_end", null, "License end date");
   }
 

@@ -29,7 +29,7 @@ import { CommercialContractView } from "@/components/clients/CommercialContractV
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
 import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
-import { resolveRenewal, assessRenewalRisk } from "@/lib/renewal-resolution";
+import { resolveRenewal, assessRenewalRisk, shouldCreateRenewalWorkflowRow } from "@/lib/renewal-resolution";
 import { ContactsCard } from "@/components/clients/ContactsCard";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
 import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
@@ -646,10 +646,22 @@ export default function ClientDetail() {
         } as any);
         if (lErr) throw lErr;
 
-        // 3) Create the primary contract-level renewal.
+        // 3) Create the primary contract-level renewal (guarded against duplicates).
+        const { data: existingRenewals } = await supabase
+          .from("renewals")
+          .select("id, client_id, renewal_date, status, target_type, target_id")
+          .eq("client_id", client.id);
+        const canCreateRenewal = shouldCreateRenewalWorkflowRow((existingRenewals || []) as any[], {
+          client_id: client.id,
+          renewal_date: cf.contract_end_date,
+          target_type: "contract",
+          target_id: newContract.id,
+        });
         const renewalPartnerUuid = (client as any)?.partner_uuid || null;
         const renewalPartnerId = (client as any)?.partner_id || null;
-        const { data: ren, error: rErr } = await supabase
+        const { data: ren, error: rErr } = !canCreateRenewal
+          ? { data: null, error: null }
+          : await supabase
           .from("renewals")
           .insert({
             client_id: client.id,

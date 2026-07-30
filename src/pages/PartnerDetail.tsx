@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ArrowLeft, Pencil, Archive, Save, X, Plus, Info, Trash2, MoreHorizontal, CheckCircle2, ExternalLink, CalendarClock } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { shouldCreateRenewalWorkflowRow } from "@/lib/renewal-resolution";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
@@ -223,6 +224,16 @@ export default function PartnerDetail() {
         if (error) throw error;
         toast.success("Renewal updated");
       } else {
+        // Duplicate guard: never create a second open workflow row for the same
+        // client / target / date.
+        const existing = await fetchOpenRenewals(renewalForm.client_id);
+        if (!shouldCreateRenewalWorkflowRow(existing, {
+          client_id: renewalForm.client_id,
+          renewal_date: renewalForm.renewal_date,
+        })) {
+          toast.error("A renewal already exists for this client on that date");
+          return;
+        }
         const { error } = await supabase.from("renewals").insert(payload);
         if (error) throw error;
         toast.success("Renewal added");
@@ -232,6 +243,15 @@ export default function PartnerDetail() {
       resetRenewalForm();
       queryClient.invalidateQueries({ queryKey: ["renewals"] });
     } catch (e: any) { toast.error(e?.message || "Failed to save renewal"); }
+  };
+
+  /** Open (non-closed) renewal rows currently stored for a client. */
+  const fetchOpenRenewals = async (clientId: string) => {
+    const { data } = await supabase
+      .from("renewals")
+      .select("id, client_id, renewal_date, status, target_type, target_id")
+      .eq("client_id", clientId);
+    return (data || []) as any[];
   };
 
   /** Materialize a derived (license/contract/SAT) renewal into a real row, return new id. */
@@ -248,6 +268,18 @@ export default function PartnerDetail() {
     if (typeof r.id === "string") {
       if (r.id.startsWith("derived-license-")) payload.license_id = r.id.replace("derived-license-", "");
       else if (r.id.startsWith("derived-sat-")) payload.license_id = r.id.replace("derived-sat-", "");
+    }
+    // Reuse an equivalent existing workflow row instead of creating a duplicate.
+    const existing = await fetchOpenRenewals(r.client_id);
+    const target = {
+      client_id: r.client_id,
+      renewal_date: r.renewal_date,
+      target_type: payload.target_type ?? null,
+      target_id: payload.target_id ?? null,
+    };
+    if (!shouldCreateRenewalWorkflowRow(existing, target)) {
+      const match = existing.find((e) => String(e.renewal_date) === String(r.renewal_date));
+      return match?.id || null;
     }
     const { data, error } = await supabase.from("renewals").insert(payload).select("id").single();
     if (error) throw error;
