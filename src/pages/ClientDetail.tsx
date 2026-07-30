@@ -369,7 +369,7 @@ export default function ClientDetail() {
       ...f,
       product: variant,
       license_model: normalizeLicenseModel(variant),
-      database_type: f.database_type || defaults.database_type,
+      deployment_type: f.deployment_type || defaults.deployment_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
