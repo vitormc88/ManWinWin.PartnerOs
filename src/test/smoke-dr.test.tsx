@@ -44,19 +44,9 @@ vi.mock("@/integrations/supabase/client", () => ({
 describe("full app smoke at /deal-registrations", () => {
   it("renders the page", async () => {
     window.history.pushState({}, "", "/deal-registrations");
-    const { MemoryRouter } = await import("react-router-dom");
-    const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
-    const { AuthProvider } = await import("@/contexts/AuthContext");
-    const Layout = (await import("@/components/layout/AppLayout")).default ?? (await import("@/components/layout/AppLayout")).AppLayout;
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={qc}>
-        <AuthProvider>
-          <MemoryRouter initialEntries={["/deal-registrations"]}><Layout /></MemoryRouter>
-        </AuthProvider>
-      </QueryClientProvider>
-    );
+    const App = (await import("@/App")).default;
+    render(<App />);
     await new Promise((r) => setTimeout(r, 1500));
-    console.log("DOM>>>", document.body.innerHTML.slice(0, 3000));
-  });
+    console.log("DOM>>>", document.body.innerHTML.slice(0, 2000));
+  }, 60000);
 });
