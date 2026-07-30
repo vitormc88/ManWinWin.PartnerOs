@@ -1358,16 +1358,16 @@ export default function ClientDetail() {
             <div className="grid grid-cols-2 gap-3">
               <EditField label="Version" value={licenseForm.version || ""} onChange={v => setLicenseForm(f => ({...f, version: v}))} />
               <div>
-                <Label className="text-xs">Deployment</Label>
+                <Label className="text-xs">Deployment / Hosting</Label>
                 <Select
-                  value={licenseForm.database_type || "On-Premise"}
+                  value={licenseForm.database_type || ""}
                   onValueChange={v => setLicenseForm(f => ({...f, database_type: v}))}
-                  disabled={licenseForm._family === "Professional"}
                 >
-                  <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="SaaS">SaaS</SelectItem>
-                    <SelectItem value="On-Premise">On-Premise</SelectItem>
+                    {DEPLOYMENT_OPTIONS.map(o => (
+                      <SelectItem key={o.value} value={o.value}>{o.label} — {o.hint}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
