@@ -139,14 +139,14 @@ export default function Partners() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-secondary/50">
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Company</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Country</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Level</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-right px-5 py-3 font-medium text-muted-foreground">Revenue</th>
-                <th className="text-right px-5 py-3 font-medium text-muted-foreground">Pipeline</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Health</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Clients</th>
+                <SortHeader label="Company" sortKey="company" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Country" sortKey="country" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Level" sortKey="level" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Status" sortKey="status" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Revenue" sortKey="revenue" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                <SortHeader label="Pipeline" sortKey="pipeline" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                <SortHeader label="Health" sortKey="health" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Clients" sortKey="clients" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <th className="text-right px-5 py-3 font-medium text-muted-foreground w-10"></th>
               </tr>
             </thead>
