@@ -17,6 +17,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { buildPartnerCreatePayload } from "@/lib/partner-identity";
+import { applyPartnerScope, canonicalPartnerScope } from "@/lib/partner-query";
 import { buildRenewalInsertPayload } from "@/lib/renewal-payload";
 import { canonicalizeLineTypeForWrite } from "@/lib/contract-line-payload";
 import type { ContractLineType } from "@/lib/contract-lines";
