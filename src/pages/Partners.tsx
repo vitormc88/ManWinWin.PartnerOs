@@ -2,8 +2,8 @@ import { usePartners, useCreatePartner, useArchivePartner, useRestorePartner, ty
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Search, Plus, Archive, RotateCcw, MoreHorizontal } from "lucide-react";
-import { useState } from "react";
+import { Search, Plus, Archive, RotateCcw, MoreHorizontal, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
