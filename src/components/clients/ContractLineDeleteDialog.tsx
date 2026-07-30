@@ -47,7 +47,10 @@ export function ContractLineDeleteDialog({ line, open, onOpenChange, onConfirm }
     setPending(true);
     try {
       await onConfirm(line);
-      onOpenChange(false);
+      onOpenChange(false); // success only
+    } catch {
+      // Failure: keep the dialog open and recoverable. The error message is
+      // surfaced by the parent (single toast, no duplicate here).
     } finally {
       setPending(false);
     }

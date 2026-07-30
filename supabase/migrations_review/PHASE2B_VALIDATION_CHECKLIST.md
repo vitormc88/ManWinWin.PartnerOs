@@ -70,3 +70,17 @@ verified here:
 migration**. Exact `contract_lines.id` values are not available from the repository,
 so no executable matching SQL was generated. It must be completed by hand, with the
 IDs read from production, before any review.
+
+## Concurrency limitation (Phase 2D note)
+
+The renewal duplicate guard (`renewal-identity.ts` / `renewal-workflow.ts`) is an
+**application-level** protection: it reads existing renewals and only inserts when no
+equivalent open row is found. It does **not** fully eliminate a race condition between
+two simultaneous writes — two concurrent requests can both read "no duplicate" before
+either insert lands.
+
+An absolute guarantee would require a proper uniqueness constraint/partial unique index
+in Postgres, designed only after validating the real renewal states and identity columns
+(client_id + renewal_date + contract_id/license_id/target, restricted to open statuses).
+
+This is documentation only — no constraint, index, or SQL has been created or applied.

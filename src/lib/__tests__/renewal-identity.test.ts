@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   findEquivalentOpenRenewal,
   isEquivalentRenewal,
@@ -137,5 +137,36 @@ describe("createRenewalWorkflowRow — real write path", () => {
       insert: async () => { inserts++; return { id: "new" }; },
     });
     expect(inserts).toBe(1);
+  });
+});
+
+describe("createRenewalWorkflowRow — fail-closed duplicate check", () => {
+  it("(2D) rejects and never inserts when fetchExisting fails", async () => {
+    const insert = vi.fn(async () => ({ id: "new" }));
+    const boom = new Error("network down");
+    await expect(
+      createRenewalWorkflowRow<any>({
+        fetchExisting: async () => { throw boom; },
+        target: contractTarget,
+        insert,
+      })
+    ).rejects.toThrow("network down");
+    expect(insert).toHaveBeenCalledTimes(0);
+  });
+
+  it("(2D) a rejected duplicate check never yields a 'created' outcome", async () => {
+    const insert = vi.fn(async () => ({ id: "new" }));
+    let outcome: any = null;
+    try {
+      outcome = await createRenewalWorkflowRow<any>({
+        fetchExisting: () => Promise.reject(new Error("permission denied")),
+        target: contractTarget,
+        insert,
+      });
+    } catch (e: any) {
+      expect(e.message).toBe("permission denied");
+    }
+    expect(outcome).toBeNull();
+    expect(insert).not.toHaveBeenCalled();
   });
 });
