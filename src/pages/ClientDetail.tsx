@@ -1061,9 +1061,10 @@ export default function ClientDetail() {
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
                       <div className="space-y-0">
-                        <FieldRow label="License Family" value={licFam} />
-                        <FieldRow label="Variant" value={licVar ? getVariantLabel(licVar) : "—"} />
-                        <FieldRow label="Deployment" value={lic.database_type} />
+                        <FieldRow label="License Family" value={licFam || "Legacy"} />
+                        <FieldRow label="Product / Variant" value={licVar ? licVocab.product.fullLabel : "—"} />
+                        <FieldRow label="License Model" value={licVocab.licenseModel || "—"} />
+                        <FieldRow label="Deployment / Hosting" value={licVocab.deployment.label} />
                         <FieldRow label="License Start" value={lic.license_start_date} />
                         <FieldRow label="License End" value={lic.license_end_date} />
                       </div>
