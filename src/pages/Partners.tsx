@@ -2,8 +2,8 @@ import { usePartners, useCreatePartner, useArchivePartner, useRestorePartner, ty
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Search, Plus, Archive, RotateCcw, MoreHorizontal } from "lucide-react";
-import { useState } from "react";
+import { Search, Plus, Archive, RotateCcw, MoreHorizontal, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,37 @@ const statusVariant: Record<string, "success" | "secondary" | "warning" | "destr
   Active: "success", Inactive: "secondary", Negotiation: "warning", Archived: "secondary",
 };
 
+type SortKey = "company" | "country" | "level" | "status" | "revenue" | "pipeline" | "health" | "clients";
+
+function SortHeader({ label, sortKey, activeKey, dir, onSort, align = "left" }: {
+  label: string;
+  sortKey: SortKey;
+  activeKey: SortKey;
+  dir: "asc" | "desc";
+  onSort: (key: SortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = activeKey === sortKey;
+  const Icon = active ? (dir === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={`px-5 py-3 font-medium text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        aria-label={`Sort by ${label} (${active ? (dir === "asc" ? "currently ascending" : "currently descending") : "not sorted"})`}
+        className={`inline-flex items-center gap-1 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${active ? "text-foreground" : ""} ${align === "right" ? "flex-row-reverse" : ""}`}
+      >
+        <span>{label}</span>
+        <Icon className={`h-3.5 w-3.5 ${active ? "opacity-100" : "opacity-40"}`} aria-hidden="true" />
+      </button>
+    </th>
+  );
+}
+
 export default function Partners() {
   const { data: partners = [], isLoading } = usePartners();
   const { data: metrics = {} } = usePartnerMetrics();
@@ -34,10 +65,42 @@ export default function Partners() {
   const [showCreate, setShowCreate] = useState(false);
   const initialForm = { company_name: "", country: "", partnership_level: "", status: "Active", first_name: "", last_name: "", primary_contact_email: "", notes: "" };
   const [form, setForm] = useState(initialForm);
+  const [sortKey, setSortKey] = useState<SortKey>("company");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const filtered = partners
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDir(d => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  const baseFiltered = partners
     .filter(p => showArchived ? p.status === "Archived" : p.status !== "Archived")
     .filter(p => p.company_name.toLowerCase().includes(search.toLowerCase()) || (p.country || "").toLowerCase().includes(search.toLowerCase()));
+
+  const filtered = useMemo(() => {
+    const numeric = sortKey === "revenue" || sortKey === "pipeline" || sortKey === "health" || sortKey === "clients";
+    const value = (p: Partner): string | number => {
+      const m = metrics[p.id];
+      switch (sortKey) {
+        case "company": return p.company_name ?? "";
+        case "country": return p.country ? (COUNTRY_NAME_BY_CODE[p.country] ?? p.country) : "";
+        case "level": return p.partnership_level ?? "";
+        case "status": return p.status ?? "";
+        case "revenue": return m?.revenue ?? 0;
+        case "pipeline": return m?.pipeline ?? 0;
+        case "health": return m?.health_score ?? 0;
+        case "clients": return m?.clients ?? 0;
+      }
+    };
+    const sorted = [...baseFiltered].sort((a, b) => {
+      const va = value(a), vb = value(b);
+      const cmp = numeric
+        ? (va as number) - (vb as number)
+        : String(va).localeCompare(String(vb), undefined, { sensitivity: "base" });
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [baseFiltered, metrics, sortKey, sortDir]);
 
   const handleCreate = async () => {
     if (!form.company_name.trim()) { toast.error("Company name is required"); return; }
@@ -105,14 +168,14 @@ export default function Partners() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b bg-secondary/50">
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Company</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Country</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Level</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Status</th>
-                <th className="text-right px-5 py-3 font-medium text-muted-foreground">Revenue</th>
-                <th className="text-right px-5 py-3 font-medium text-muted-foreground">Pipeline</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Health</th>
-                <th className="text-left px-5 py-3 font-medium text-muted-foreground">Clients</th>
+                <SortHeader label="Company" sortKey="company" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Country" sortKey="country" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Level" sortKey="level" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Status" sortKey="status" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Revenue" sortKey="revenue" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                <SortHeader label="Pipeline" sortKey="pipeline" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                <SortHeader label="Health" sortKey="health" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
+                <SortHeader label="Clients" sortKey="clients" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
                 <th className="text-right px-5 py-3 font-medium text-muted-foreground w-10"></th>
               </tr>
             </thead>
