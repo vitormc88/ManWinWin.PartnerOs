@@ -654,7 +654,7 @@ export default function ClientOnboardingWizard() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Version</Label><Input value={draft.license.version} onChange={e => updLicense({ version: e.target.value })} placeholder={`e.g. ${DEFAULT_LICENSE_VERSION}`} /></div>
+                <div><Label>Version</Label><Input value={draft.license.version} onChange={e => updLicense({ version: e.target.value })} placeholder={`e.g. ${SUGGESTED_LICENSE_VERSION}`} /></div>
                 <div><Label>BackOffice Users</Label><Input type="number" min={0} value={draft.license.backoffice_users} onChange={e => updLicense({ backoffice_users: Number(e.target.value) })} /></div>
                 <div><Label>Web Users</Label><Input type="number" min={0} value={draft.license.web_accesses} onChange={e => updLicense({ web_accesses: Number(e.target.value) })} /></div>
                 <div className="flex items-end gap-2"><Switch checked={draft.license.api_access} onCheckedChange={v => updLicense({ api_access: v })} /><Label>API access enabled</Label></div>
