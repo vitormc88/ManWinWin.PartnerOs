@@ -387,10 +387,11 @@ export default function ClientDetail() {
       await createLicense.mutateAsync({
         client_id: client.id,
         product: licenseForm.product,
-        version: licenseForm.version || null,
+        // Version stays free text: empty means empty (never auto-filled).
+        version: licenseForm.version?.trim() || null,
         license_model: normalizeLicenseModel(licenseForm.product, licenseForm.license_model) || null,
-        database_type: licenseForm.database_type || null,
-        deployment_type: licenseForm.database_type || null,
+        // Hosting only. `database_type` (engine) is a separate concept and is not written here.
+        deployment_type: licenseForm.deployment_type || null,
         periodicity: licenseForm.periodicity || null,
         license_start_date: licenseForm.license_start_date || null,
         license_end_date: licenseForm.license_end_date || null,
@@ -401,7 +402,7 @@ export default function ClientDetail() {
         sat_end_date: licenseForm.sat_active ? (licenseForm.sat_end_date || licenseForm.license_end_date || null) : null,
         api_access: licenseForm.api_access ?? false,
       } as any);
-      await updateClient.mutateAsync({ id: client.id, license_type: licenseForm.product, cloud_onpremise: licenseForm.database_type });
+      await updateClient.mutateAsync({ id: client.id, license_type: licenseForm.product, cloud_onpremise: licenseForm.deployment_type });
       toast.success("License created");
       setShowAddLicense(false);
       setLicenseForm({});
