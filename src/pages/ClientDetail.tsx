@@ -185,7 +185,8 @@ export default function ClientDetail() {
   const { family: licenseFamily, variant: licenseVariant } = useMemo(() => parseLicenseProduct(licenseProduct), [licenseProduct]);
   const isProfessional = licenseFamily === "Professional";
   const isBusiness = licenseFamily === "Business";
-  const hasValidLicense = !!primaryLicense && isValidLicenseProduct(primaryLicense.product);
+  // Any existing license row is workable — legacy products are flagged, never hidden.
+  const hasValidLicense = !!primaryLicense;
 
   // Edit states
   const [editingClient, setEditingClient] = useState(false);
