@@ -41,6 +41,8 @@ export default function ClientsLicenses() {
   const { data: clients = [], isLoading } = useClients();
   const { data: partners = [] } = usePartners();
   const { data: aggregates } = useClientAggregates();
+  const { canEdit } = useModuleAccess();
+  const canEditClients = canEdit("clients");
   const createClient = useCreateClient();
   const persisted = useMemo(() => loadClientsListState() ?? {}, []);
   const [search, setSearch] = useState<string>(persisted.search ?? "");
