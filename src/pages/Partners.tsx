@@ -21,6 +21,8 @@ const statusVariant: Record<string, "success" | "secondary" | "warning" | "destr
   Active: "success", Inactive: "secondary", Negotiation: "warning", Archived: "secondary",
 };
 
+type SortKey = "company" | "country" | "level" | "status" | "revenue" | "pipeline" | "health" | "clients";
+
 export default function Partners() {
   const { data: partners = [], isLoading } = usePartners();
   const { data: metrics = {} } = usePartnerMetrics();
