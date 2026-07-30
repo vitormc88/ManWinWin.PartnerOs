@@ -3,6 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useContractLines, type ContractLine } from "@/hooks/useContractLines";
+import {
+  classifyContractLine,
+  computeContractFinancials,
+  isRecurringClassifiedLine,
+} from "@/lib/contract-lines";
+import { resolveRenewal } from "@/lib/renewal-resolution";
 import { useLifecycleEvents, type LifecycleEvent } from "@/hooks/useLifecycleEvents";
 import { useUpdateContract } from "@/hooks/useClients";
 import { Badge } from "@/components/ui/badge";
@@ -42,14 +48,15 @@ const CATEGORIES: Array<{ key: CatKey; label: string; types: string[]; icon: any
   { key: "discounts", label: "Discounts",            types: ["discount"],                         icon: Tag,       recurring: false },
 ];
 
-const ONE_TIME_TYPES = new Set(["implementation", "training", "other"]);
+/** Effective canonical type (legacy-tolerant, read-only classification). */
+function effType(line: ContractLine): string {
+  return classifyContractLine(line).type || "";
+}
 
 function isRecurringLine(line: ContractLine) {
-  const f = (line.billing_frequency || "").toLowerCase();
-  if (f === "one-time" || f === "one_time" || f === "once") return false;
-  if (ONE_TIME_TYPES.has(line.line_type)) return false;
-  return ["license", "hosting", "sat", "mww_web", "module", "plugin"].includes(line.line_type);
+  return isRecurringClassifiedLine(classifyContractLine(line));
 }
+
 
 function fmt(amount: number, currency = "EUR") {
   return new Intl.NumberFormat(undefined, { style: "currency", currency: currency || "EUR", maximumFractionDigits: 0 }).format(amount || 0);
@@ -104,37 +111,50 @@ export function CommercialContractView({ contract, clientId }: Props) {
     },
   });
 
-  /* Values — never recalculated. Use stored values with safe fallbacks. */
+  /* Values — structured contract lines are the calculation source when reliable.
+     Legacy header fields and stored proposal/license totals are only fallbacks
+     and are never summed together with the lines (no double counting). */
+  const financials = useMemo(() => computeContractFinancials(lines), [lines]);
+
   const year1Value = useMemo(() => {
+    if (financials.hasReliableLines) return financials.year1Value;
     if (proposal?.total_year_1) return Number(proposal.total_year_1);
     if (license?.initial_contract_value) return Number(license.initial_contract_value);
-    const calc = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
-    return calc || Number(contract.calculated_total || contract.contract_value || 0);
-  }, [proposal, license, lines, contract]);
+    return Number(contract.calculated_total || contract.contract_value || 0);
+  }, [financials, proposal, license, contract]);
 
   const recurringValue = useMemo(() => {
+    if (financials.hasReliableLines) return financials.recurringArr;
     if (renewal?.estimated_value) return Number(renewal.estimated_value);
     if (proposal?.total_recurring) return Number(proposal.total_recurring);
     if (license?.recurring_contract_value) return Number(license.recurring_contract_value);
-    return lines.filter(isRecurringLine).reduce((s, l) => s + Number(l.amount || 0), 0);
-  }, [renewal, proposal, license, lines]);
+    return 0;
+  }, [financials, renewal, proposal, license]);
 
-  const oneTimeValue = Math.max(0, year1Value - recurringValue);
+  /** True when the displayed figures are not an exact line-based calculation. */
+  const isEstimated = !financials.hasReliableLines;
+
+  const oneTimeValue = financials.hasReliableLines
+    ? financials.oneTimeValue
+    : Math.max(0, year1Value - recurringValue);
   const recurringLines = lines.filter(isRecurringLine);
   const oneTimeLines = lines.filter(l => !isRecurringLine(l));
   const recurringPct = year1Value > 0 ? Math.round((recurringValue / year1Value) * 100) : 0;
   const oneTimePct = year1Value > 0 ? Math.max(0, 100 - recurringPct) : 0;
 
+
   const groups = useMemo(() => CATEGORIES
     .map(c => {
-      const items = lines.filter(l => c.types.includes(l.line_type));
+      const items = lines.filter(l => c.types.includes(effType(l)));
       const subtotal = items.reduce((s, l) => s + Number(l.amount || 0), 0);
       return { ...c, items, subtotal };
     })
     .filter(g => g.items.length > 0),
   [lines]);
 
-  const renewalDate = renewal?.renewal_date || contract.contract_end_date;
+  // Single renewal source of truth (workflow row → contract end → license end).
+  const resolvedRenewal = resolveRenewal({ renewals: renewal ? [renewal] : [], contract });
+  const renewalDate = resolvedRenewal.date;
   const billing = renewal?.billing_frequency || license?.billing_frequency || "Annual";
 
   const timelineTypes = new Set([
@@ -144,11 +164,11 @@ export function CommercialContractView({ contract, clientId }: Props) {
   const timelineEvents = events.filter(e => timelineTypes.has(e.event_type)).slice().reverse();
 
   /* Renewal preview groups: license/hosting/support get a single ✓; modules/plugins are expandable counts */
-  const renewLicense = recurringLines.filter(l => l.line_type === "license");
-  const renewHosting = recurringLines.filter(l => l.line_type === "hosting");
-  const renewSupport = recurringLines.filter(l => l.line_type === "sat" || l.line_type === "mww_web");
-  const renewModules = recurringLines.filter(l => l.line_type === "module");
-  const renewPlugins = recurringLines.filter(l => l.line_type === "plugin");
+  const renewLicense = recurringLines.filter(l => effType(l) === "license");
+  const renewHosting = recurringLines.filter(l => effType(l) === "hosting");
+  const renewSupport = recurringLines.filter(l => effType(l) === "sat" || effType(l) === "mww_web");
+  const renewModules = recurringLines.filter(l => effType(l) === "module");
+  const renewPlugins = recurringLines.filter(l => effType(l) === "plugin");
 
   return (
     <Card className="border-border/60 shadow-sm overflow-hidden">
@@ -175,7 +195,7 @@ export function CommercialContractView({ contract, clientId }: Props) {
             <div className="hidden md:flex justify-center text-muted-foreground/40">
               <ArrowDown className="h-5 w-5 -rotate-90" />
             </div>
-            <HeroMetric label="Annual Renewal (ARR)" value={fmt(recurringValue, currency)} sub={fmtDate(renewalDate)} accent />
+            <HeroMetric label={isEstimated ? "Annual Renewal (estimated)" : "Annual Renewal (ARR)"} value={fmt(recurringValue, currency)} sub={fmtDate(renewalDate)} accent />
             <div className="hidden md:block w-px h-12 bg-border/60" />
             <HeroMetric label="Billing" value={billing} muted />
           </div>

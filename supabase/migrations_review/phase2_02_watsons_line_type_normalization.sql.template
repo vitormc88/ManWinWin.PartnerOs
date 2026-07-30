@@ -1,0 +1,68 @@
+-- =====================================================================
+-- NON-EXECUTABLE REVIEW TEMPLATE — Watsons contract-line normalization
+-- File extension is intentionally `.sql.template` so it can never be applied.
+--
+-- Why a template and not a migration:
+-- The only identifier available from repository fixtures is the client id
+-- 01fbe90e-d3ea-4635-96aa-8e04060b8182. The contract id and the three
+-- contract_line ids are NOT known here, and this phase forbids querying the
+-- database. Guessing ids, or writing broad description-matching UPDATEs, is
+-- unsafe. A reviewer must run STEP 1, paste the real ids into STEP 2, and only
+-- then convert this file into a timestamped migration.
+--
+-- STEP 1 — discovery (read-only, run manually):
+--
+--   SELECT cl.id, cl.contract_id, cl.line_type, cl.description,
+--          cl.amount, cl.billing_frequency, ct.contract_end_date
+--   FROM public.contract_lines cl
+--   JOIN public.contracts ct ON ct.id = cl.contract_id
+--   WHERE ct.client_id = '01fbe90e-d3ea-4635-96aa-8e04060b8182'
+--   ORDER BY cl.amount DESC;
+--
+--   Expected: 3 recurring lines, contract 2026-07-19 → 2027-07-19
+--     S&AT                          2301.60
+--     SaaS Hosting                  1200.00
+--     ManWinWin Web — 10 accesses    720.00
+--
+-- STEP 2 — guarded, idempotent updates (replace <LINE_ID_*> with real ids).
+-- Each statement asserts the current value AND the amount, so it is a no-op if
+-- the row has already been normalized or does not match the expectation.
+--
+--   UPDATE public.contract_lines
+--      SET line_type = 'sat'
+--    WHERE id = '<LINE_ID_SAT>'
+--      AND line_type = 'recurring'
+--      AND amount = 2301.60
+--      AND description ILIKE '%S&AT%';
+--
+--   UPDATE public.contract_lines
+--      SET line_type = 'hosting'
+--    WHERE id = '<LINE_ID_HOSTING>'
+--      AND line_type = 'recurring'
+--      AND amount = 1200.00
+--      AND description ILIKE '%hosting%';
+--
+--   UPDATE public.contract_lines
+--      SET line_type = 'mww_web'
+--    WHERE id = '<LINE_ID_MWW_WEB>'
+--      AND line_type = 'recurring'
+--      AND amount = 720.00
+--      AND description ILIKE '%web%';
+--
+-- No INSERTs: no contract line and no renewal row is created by this template.
+--
+-- STEP 3 — verification (read-only):
+--
+--   SELECT line_type, description, amount FROM public.contract_lines
+--   WHERE contract_id = '<CONTRACT_ID>' ORDER BY amount DESC;
+--   -- expect sat / hosting / mww_web, amounts unchanged, still 3 rows
+--
+--   SELECT recurring_arr, year1_value, next_renewal_date, renewal_risk
+--   FROM public.get_client_commercial_intelligence('01fbe90e-d3ea-4635-96aa-8e04060b8182');
+--   -- expect 4221.60 / 4221.60 / 2027-07-19 / low
+--
+-- ROLLBACK:
+--   UPDATE public.contract_lines SET line_type = 'recurring'
+--   WHERE id IN ('<LINE_ID_SAT>','<LINE_ID_HOSTING>','<LINE_ID_MWW_WEB>');
+--   (line_type is the only column touched; amounts/descriptions are untouched.)
+-- =====================================================================

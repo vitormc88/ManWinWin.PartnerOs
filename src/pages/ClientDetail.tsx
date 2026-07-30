@@ -29,6 +29,7 @@ import { CommercialContractView } from "@/components/clients/CommercialContractV
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
 import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
+import { resolveRenewal, assessRenewalRisk } from "@/lib/renewal-resolution";
 import { ContactsCard } from "@/components/clients/ContactsCard";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
 import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
@@ -182,9 +183,22 @@ export default function ClientDetail() {
   const primaryLicense = validLicenses[0] || null;
   const primaryContract = contracts[0] || null;
   const { data: intelligence } = useClientCommercialIntelligence(id);
-  // Single source of truth for renewal timing: scheduled renewal → contract end → license end.
-  const renewalEndDate = intelligence?.next_renewal_date || primaryContract?.contract_end_date || primaryLicense?.license_end_date || null;
+  // Single source of truth for renewal timing (Phase 2):
+  // open workflow renewal → contract end date → license end date → unknown.
+  const resolvedRenewal = useMemo(
+    () =>
+      resolveRenewal({
+        renewals: intelligence?.next_renewal_date
+          ? [{ renewal_date: intelligence.next_renewal_date, status: "Open" }]
+          : [],
+        contract: primaryContract,
+        license: primaryLicense,
+      }),
+    [intelligence?.next_renewal_date, primaryContract, primaryLicense]
+  );
+  const renewalEndDate = resolvedRenewal.date;
   const renewalInfo = useMemo(() => getRenewalInfo(renewalEndDate), [renewalEndDate]);
+
 
   // Parsed license info
   const licenseProduct = primaryLicense?.product || "";
@@ -960,6 +974,7 @@ export default function ClientDetail() {
               ownerName={client.manager_owner || client.account_manager}
               contractStatus={(primaryContract as any)?.status || null}
               billing={(primaryContract as any)?.billing_frequency || null}
+              resolvedRenewal={resolvedRenewal}
             />
           )}
         </TabsContent>
