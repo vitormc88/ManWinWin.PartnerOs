@@ -41,6 +41,8 @@ interface Props {
   /** Shared renewal resolution (workflow row → contract end → license end). */
   resolvedRenewal?: ResolvedRenewal | null;
   onViewFullTimeline?: () => void;
+  /** Read-only mode: intelligence stays readable, action CTAs are hidden. */
+  readOnly?: boolean;
 }
 
 const fmtCurrency = (n: number | null | undefined, currency = "EUR") => {
@@ -107,6 +109,7 @@ export function CommercialIntelligenceDashboard({
   billing,
   resolvedRenewal,
   onViewFullTimeline,
+  readOnly = false,
 }: Props) {
   const { data, isLoading } = useClientCommercialIntelligence(clientId);
 
@@ -131,10 +134,10 @@ export function CommercialIntelligenceDashboard({
   return (
     <div className="space-y-5">
       <CommercialHealthSection data={data} resolvedRenewal={resolvedRenewal} />
-      <RecommendedActionsSection data={data} clientId={clientId} />
+      <RecommendedActionsSection data={data} clientId={clientId} readOnly={readOnly} />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
         <div className="xl:col-span-2 space-y-5">
-          <ExpansionOpportunitiesSection data={data} clientId={clientId} />
+          <ExpansionOpportunitiesSection data={data} clientId={clientId} readOnly={readOnly} />
           <CommercialTimelineSection clientId={clientId} onViewAll={onViewFullTimeline} />
         </div>
         <div className="space-y-5">
@@ -274,9 +277,11 @@ function actionIcon(type: string) {
 function RecommendedActionsSection({
   data,
   clientId,
+  readOnly = false,
 }: {
   data: ClientCommercialIntelligence;
   clientId: string;
+  readOnly?: boolean;
 }) {
   const navigate = useNavigate();
   const actions = (data.recommended_actions ?? []).slice().sort((a, b) => a.priority - b.priority);
@@ -302,7 +307,7 @@ function RecommendedActionsSection({
       <CardContent className="pt-4">
         <ul className="space-y-2">
           {actions.map((a) => (
-            <ActionRow key={a.id} action={a} clientId={clientId} navigate={navigate} />
+            <ActionRow key={a.id} action={a} clientId={clientId} navigate={navigate} readOnly={readOnly} />
           ))}
         </ul>
       </CardContent>
@@ -314,10 +319,12 @@ function ActionRow({
   action,
   clientId,
   navigate,
+  readOnly = false,
 }: {
   action: CommercialRecommendedAction;
   clientId: string;
   navigate: ReturnType<typeof useNavigate>;
+  readOnly?: boolean;
 }) {
   const Icon = actionIcon(action.action_type);
   return (
@@ -338,14 +345,16 @@ function ActionRow({
           <p className="text-[11px] text-muted-foreground/80 mt-0.5 italic">{action.reason}</p>
         )}
       </div>
-      <Button
-        size="sm"
-        variant="outline"
-        className="shrink-0"
-        onClick={() => navigate(action.related_route || `/clients/${clientId}`)}
-      >
-        Open <ArrowUpRight className="h-3 w-3 ml-1" />
-      </Button>
+      {!readOnly && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="shrink-0"
+          onClick={() => navigate(action.related_route || `/clients/${clientId}`)}
+        >
+          Open <ArrowUpRight className="h-3 w-3 ml-1" />
+        </Button>
+      )}
     </li>
   );
 }
@@ -467,9 +476,11 @@ function confidenceStars(confidence: string) {
 function ExpansionOpportunitiesSection({
   data,
   clientId,
+  readOnly = false,
 }: {
   data: ClientCommercialIntelligence;
   clientId: string;
+  readOnly?: boolean;
 }) {
   const navigate = useNavigate();
   const upsell = data.upsell_opportunities ?? [];
@@ -498,7 +509,7 @@ function ExpansionOpportunitiesSection({
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {upsell.map((o) => (
-                <OpportunityCard key={o.id} opp={o} clientId={clientId} navigate={navigate} />
+                <OpportunityCard key={o.id} opp={o} clientId={clientId} navigate={navigate} readOnly={readOnly} />
               ))}
             </div>
           </div>
@@ -585,10 +596,12 @@ function OpportunityCard({
   opp,
   clientId,
   navigate,
+  readOnly = false,
 }: {
   opp: CommercialOpportunity;
   clientId: string;
   navigate: ReturnType<typeof useNavigate>;
+  readOnly?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-border/60 p-3 hover:border-primary/40 transition-colors">
@@ -609,14 +622,16 @@ function OpportunityCard({
       <p className="text-[11px] text-muted-foreground/80 mt-1 italic line-clamp-2">{opp.reason}</p>
       <div className="flex items-center justify-between mt-3">
         <Badge variant="outline" className="text-[10px] capitalize">{opp.priority} priority</Badge>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 px-2 text-xs"
-          onClick={() => navigate(`/clients/${clientId}?tab=contract`)}
-        >
-          <Zap className="h-3 w-3 mr-1" /> Act
-        </Button>
+        {!readOnly && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            onClick={() => navigate(`/clients/${clientId}?tab=contract`)}
+          >
+            <Zap className="h-3 w-3 mr-1" /> Act
+          </Button>
+        )}
       </div>
     </div>
   );

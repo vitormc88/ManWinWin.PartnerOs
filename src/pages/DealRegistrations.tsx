@@ -20,11 +20,18 @@ const unknownStatus = { variant: "secondary" as const, icon: HelpCircle };
 export default function DealRegistrations() {
   const [filter, setFilter] = useState<"all" | "Pending" | "Approved" | "Rejected">("all");
   const { data: registrations, isLoading, isError, error } = useDealRegistrations();
-  const { isHQ, profile } = useAuth();
+  const auth = useAuth() ?? ({} as any);
+  const profile = auth.profile ?? null;
+  const roles: string[] = Array.isArray(auth.roles) ? auth.roles : [];
+  // Never assume a specific AuthContext shape: derive HQ from the profile flag
+  // with a role-based fallback.
+  const isHQUser = profile?.is_hq === true || roles.some((r) => typeof r === "string" && r.startsWith("hq_"));
+  const ownPartnerId: string | null =
+    (profile as any)?.partner_id ?? (profile as any)?.partner_uuid ?? null;
   const { canEdit, canAdmin } = useModuleAccess();
-  const canReview = isHQ && (canEdit("deal_registrations") || canAdmin("deal_registrations"));
+  const canReview = isHQUser && (canEdit("deal_registrations") || canAdmin("deal_registrations"));
   // Partner users must never depend on the full partners table being readable.
-  const { data: partners } = usePartners(undefined, { enabled: isHQ });
+  const { data: partners } = usePartners(undefined, { enabled: isHQUser });
   const queryClient = useQueryClient();
 
   const rows = useMemo(() => (Array.isArray(registrations) ? registrations : []), [registrations]);
@@ -38,7 +45,7 @@ export default function DealRegistrations() {
     if (!partnerId) return "—";
     const known = partnerMap.get(partnerId);
     if (known) return known;
-    if (profile?.partner_id && partnerId === profile.partner_id) return "Your organisation";
+    if (ownPartnerId && partnerId === ownPartnerId) return "Your organisation";
     return "—";
   };
 
