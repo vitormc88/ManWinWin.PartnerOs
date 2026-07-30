@@ -230,10 +230,10 @@ export default function ClientOnboardingWizard() {
     try {
       const partnerId = userPartnerId || draft.client.partner_id || null;
       // Compose canonical license product label
+      // Variant already carries the full canonical product label (e.g. "Business KeepIT").
       const variant = draft.license.variant;
-      const product = draft.license.family === "Business" && variant
-        ? `Business ${variant}`
-        : (variant || draft.license.family || null);
+      const product = normalizeLicenseProduct(variant || draft.license.family).value || null;
+      const licenseModel = normalizeLicenseModel(product);
       // 1. Client
       const { data: client, error: cErr } = await supabase.from("clients").insert({
         client_code: draft.client.client_code.trim(),
