@@ -692,15 +692,20 @@ export default function ClientDetail() {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">License Variant *</Label>
+          <Label className="text-xs">Product / License Variant *</Label>
           <Select
             value={form.product || ""}
             onValueChange={(v) => handleVariantChange(v, setter)}
-            disabled={!currentFamily}
           >
             <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select variant..." /></SelectTrigger>
             <SelectContent>
-              {currentFamily && VARIANT_OPTIONS[currentFamily as LicenseFamily]?.map(o => (
+              {/* Legacy value kept selectable so an unmapped product is never silently dropped. */}
+              {form.product && !isCanonicalProduct(form.product) && (
+                <SelectItem value={form.product}>{form.product} (legacy)</SelectItem>
+              )}
+              {(currentFamily ? VARIANT_OPTIONS[currentFamily as LicenseFamily] : [
+                ...VARIANT_OPTIONS.Business, ...VARIANT_OPTIONS.Professional,
+              ]).map(o => (
                 <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
               ))}
             </SelectContent>
