@@ -774,7 +774,7 @@ export default function ClientOnboardingWizard() {
                   draft.contacts.filter(c => c.contact_name.trim()).map(c => `${c.contact_name}${c.is_primary ? " (Primary)" : ""}${c.role_function ? ` — ${c.role_function}` : ""}`)
                 },
                 { i: 2, title: "License", lines: [
-                  draft.license.variant ? `Product / License Type: ${draft.license.family} — ${draft.license.variant}` : "—",
+                  draft.license.variant ? `Product / License Type: ${normalizeLicenseProduct(draft.license.variant).fullLabel}` : "—",
                   `${draft.license.backoffice_users} BackOffice Users • ${draft.license.web_accesses} Web Users`,
                   selectedModuleNames.length ? `Modules: ${selectedModuleNames.join(", ")}` : "Modules: none",
                   selectedPluginNames.length ? `Add-ons / Plugins: ${selectedPluginNames.join(", ")}` : "Add-ons / Plugins: none",
