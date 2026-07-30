@@ -1238,7 +1238,7 @@ export default function ClientDetail() {
                     <Button size="sm" onClick={saveContract} disabled={updateContract.isPending}><Save className="h-3.5 w-3.5" /></Button>
                   </div>
                 ) : (
-                  {canWrite && <Button variant="ghost" size="sm" onClick={() => startEditContract(co)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button>}
+                  canWrite ? <Button variant="ghost" size="sm" onClick={() => startEditContract(co)}><Pencil className="h-3.5 w-3.5 mr-1" /> Edit</Button> : null
                 )}
               </CardHeader>
               <CardContent>
