@@ -490,6 +490,9 @@ export default function ClientDetail() {
       await updateLicense.mutateAsync({
         id: editingLicenseId,
         ...rest,
+        license_model: normalizeLicenseModel(rest.product, rest.license_model) || null,
+        // Keep both deployment columns in sync so reads never disagree.
+        deployment_type: rest.database_type || null,
         sat_start_date: nextSatStart,
         sat_end_date: nextSatEnd,
       } as any);
