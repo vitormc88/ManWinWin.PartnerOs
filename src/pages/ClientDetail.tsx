@@ -474,8 +474,8 @@ export default function ClientDetail() {
     }
     try {
       const {
-        _family, _rawProduct, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
-        sat_start_date, sat_end_date, ...rest
+        _family, _rawProduct, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd, _origDeployment,
+        sat_start_date, sat_end_date, version, ...rest
       } = licEditForm;
 
 
@@ -496,17 +496,21 @@ export default function ClientDetail() {
         }
       }
 
+      // Hosting is only written when the user actually changed the selector; the
+      // database engine (`database_type`) is never part of this payload.
+      const deploymentChanged = (rest.deployment_type || "") !== (_origDeployment || "");
+
       await updateLicense.mutateAsync({
         id: editingLicenseId,
         ...rest,
+        version: version?.trim() || null,
         license_model: normalizeLicenseModel(rest.product, rest.license_model) || null,
-        // Keep both deployment columns in sync so reads never disagree.
-        deployment_type: rest.database_type || null,
+        deployment_type: deploymentChanged ? (rest.deployment_type || null) : (_origDeployment || null),
         sat_start_date: nextSatStart,
         sat_end_date: nextSatEnd,
       } as any);
       if (licEditForm.product) {
-        await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.database_type || client.cloud_onpremise });
+        await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.deployment_type || client.cloud_onpremise });
       }
       toast.success("License updated");
       setEditingLicenseId(null);
