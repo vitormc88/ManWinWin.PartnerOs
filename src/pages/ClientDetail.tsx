@@ -670,7 +670,11 @@ export default function ClientDetail() {
   // Module helpers for licensing tab
   const activeModuleNames = modules.filter(m => m.enabled).map(m => m.module_name);
   const presetModules = isProfessional ? (PROFESSIONAL_MODULES[licenseVariant] || []) : [];
-  const deploymentDisplay = primaryLicense?.database_type || client.cloud_onpremise || (isProfessional ? "SaaS" : "—");
+  const deploymentDisplay = normalizeDeployment(
+    (primaryLicense as any)?.deployment_type,
+    primaryLicense?.database_type,
+    client.cloud_onpremise
+  ).label;
 
   // License Family/Variant form rendering helper
   const renderLicenseFamilyVariantFields = (form: Record<string, any>, setter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
