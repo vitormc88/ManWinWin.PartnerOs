@@ -367,7 +367,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   return (
     <div className="space-y-5">
       {/* ─── Commercial Actions ─── */}
-      <Card className="border-border/60 shadow-sm">
+      {!readOnly && <Card className="border-border/60 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-primary" /> Commercial Actions
@@ -414,7 +414,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
             {!readOnly && <ActionButton icon={StickyNote} label="Log Commercial Note" hint="Attached to this client" onClick={() => setShowNote(true)} />}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
 
       {/* ─── Recommended Actions ─── */}
       <Card className="border-border/60 shadow-sm">
