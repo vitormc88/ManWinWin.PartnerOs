@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
 import { useClients, useCreateClient } from "@/hooks/useClients";
-import { resolvePartnerIdentity, matchesPartnerFilter } from "@/lib/partner-identity";
+import { resolvePartnerIdentity, matchesPartnerFilter, buildPartnerCreatePayload } from "@/lib/partner-identity";
 import { usePartners } from "@/hooks/usePartners";
 import { useClientAggregates } from "@/hooks/useClientAggregates";
 import { useAuth } from "@/contexts/AuthContext";
@@ -171,10 +171,9 @@ export default function ClientsLicenses() {
         short_name: form.short_name?.trim() || null,
         country: form.country || null,
         sector: form.sector || null,
-        partner_id: partnerId,
-        // Single source of truth for partner display is clients.partner_uuid.
-        // Persist it whenever a partner is selected (HQ form) or the user is a partner.
-        partner_uuid: partnerId,
+        // Canonical partner relation only (clients.partner_uuid -> partners.id).
+        // The legacy text column `partner_id` is never written by new records.
+        ...buildPartnerCreatePayload(partnerId),
         license_type: licenseType,
         status: form.status || "Active",
       } as any);
