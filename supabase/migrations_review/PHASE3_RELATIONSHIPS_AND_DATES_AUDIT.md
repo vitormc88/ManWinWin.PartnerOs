@@ -216,9 +216,11 @@ No new canonical/legacy vocabulary was introduced; `partner-identity.ts` remains
 ### Legacy-only behaviour (unchanged guarantee)
 - Legacy-only rows are never joined, promoted, or auto-attached to a partner.
 - They remain visible in unscoped lists as **Legacy / Unresolved** and require explicit human reassignment.
-- When a deal/proposal carries a non-uuid partner reference, client matching degrades to an
-  unscoped name match instead of a wrong partner-scoped one — an existing canonical client is
-  still found, so re-processing the same deal does not duplicate it.
+- **Fail closed (3E):** when a deal/proposal carries a non-uuid (unresolved) partner reference,
+  no automatic client matching is performed at all — matching globally by name could attach a
+  client belonging to a different partner. A new client is created for explicit human review.
+  A valid uuid still matches on `partner_uuid`; explicit HQ Direct still matches on
+  `partner_uuid IS NULL`, so canonical-only clients are never duplicated.
 
 ### Not changed (legitimate semantics)
 `profiles.partner_id`, `deals.partner_id`, and partner child tables
@@ -233,3 +235,16 @@ real relational column. Edge Functions (`admin-create-user`, `ingest-lead`) writ
 - Behavioural coverage is on the real helpers and the real matching function
   (`src/lib/__tests__/partner-query.test.ts`, `src/lib/__tests__/lifecycle-client-matching.test.ts`)
   with a fully mocked client — no production query is issued by the tests.
+
+### Phase 3 conclusion (closed at 3E)
+Final invariant, verified across every executed write and relational read of `clients` /
+`renewals`:
+- new writes set **`partner_uuid` only** (`PartnerDetail.handleAddClient` was the last offender,
+  now on `buildPartnerCreatePayload`);
+- relational reads/filters/matching use **`partner_uuid` only**, and fail closed on unresolved
+  references;
+- `clients.partner_id` / `renewals.partner_id` remain **display/audit only** — never an
+  automatic association, never promoted, never silently cleared.
+
+`partner_id` on `deals`, `profiles` and partner child tables stays canonical and untouched.
+Phase 3 is closed; no SQL, migration, backfill, data or infrastructure change was ever executed.
