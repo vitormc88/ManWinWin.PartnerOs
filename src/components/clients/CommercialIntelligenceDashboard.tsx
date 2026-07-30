@@ -30,6 +30,7 @@ import {
   type CommercialRecommendedAction,
 } from "@/hooks/useClientCommercialIntelligence";
 import { ClientLifecycleTimeline } from "./ClientLifecycleTimeline";
+import { assessRenewalRisk, type ResolvedRenewal } from "@/lib/renewal-resolution";
 
 interface Props {
   clientId: string;
@@ -37,6 +38,8 @@ interface Props {
   ownerName?: string | null;
   contractStatus?: string | null;
   billing?: string | null;
+  /** Shared renewal resolution (workflow row → contract end → license end). */
+  resolvedRenewal?: ResolvedRenewal | null;
   onViewFullTimeline?: () => void;
 }
 
@@ -102,6 +105,7 @@ export function CommercialIntelligenceDashboard({
   ownerName,
   contractStatus,
   billing,
+  resolvedRenewal,
   onViewFullTimeline,
 }: Props) {
   const { data, isLoading } = useClientCommercialIntelligence(clientId);
@@ -126,7 +130,7 @@ export function CommercialIntelligenceDashboard({
 
   return (
     <div className="space-y-5">
-      <CommercialHealthSection data={data} />
+      <CommercialHealthSection data={data} resolvedRenewal={resolvedRenewal} />
       <RecommendedActionsSection data={data} clientId={clientId} />
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5 items-start">
         <div className="xl:col-span-2 space-y-5">
@@ -140,6 +144,7 @@ export function CommercialIntelligenceDashboard({
             ownerName={ownerName}
             contractStatus={contractStatus}
             billing={billing}
+            resolvedRenewal={resolvedRenewal}
           />
         </div>
       </div>
@@ -148,11 +153,21 @@ export function CommercialIntelligenceDashboard({
 }
 
 /* ---------------- Section: Health ---------------- */
-function CommercialHealthSection({ data }: { data: ClientCommercialIntelligence }) {
+function CommercialHealthSection({
+  data,
+  resolvedRenewal,
+}: {
+  data: ClientCommercialIntelligence;
+  resolvedRenewal?: ResolvedRenewal | null;
+}) {
   const score = data.commercial_score ?? 0;
   const s = scoreTone(score);
-  const risk = deriveRisk(data);
+  // The resolved renewal (contract end included) wins over the workflow-only view.
+  const assessment = resolvedRenewal ? assessRenewalRisk(resolvedRenewal) : null;
+  const risk = assessment ? assessment.level : deriveRisk(data);
   const r = riskTone(risk);
+  const renewalDate = resolvedRenewal?.date ?? data.next_renewal_date;
+  const daysTo = resolvedRenewal?.daysTo ?? data.days_to_renewal;
 
   return (
     <Card className="border-border/60 shadow-sm overflow-hidden">
@@ -178,16 +193,16 @@ function CommercialHealthSection({ data }: { data: ClientCommercialIntelligence 
             label="Renewal Risk"
             primary={<span className={`text-2xl font-bold ${r.tone}`}>{r.label}</span>}
             sub={
-              data.next_renewal_date ? (
-                <span className="text-xs text-muted-foreground">
-                  {data.days_to_renewal != null && data.days_to_renewal >= 0
-                    ? `In ${data.days_to_renewal} days`
-                    : data.days_to_renewal != null
-                    ? `${Math.abs(data.days_to_renewal)} days overdue`
+              renewalDate ? (
+                <span className="text-xs text-muted-foreground" title={assessment?.reasons.join(" · ")}>
+                  {daysTo != null && daysTo >= 0
+                    ? `In ${daysTo} days`
+                    : daysTo != null
+                    ? `${Math.abs(daysTo)} days overdue`
                     : "—"}
                 </span>
               ) : (
-                <span className="text-xs text-muted-foreground">No renewal scheduled</span>
+                <span className="text-xs text-muted-foreground">No renewal date on record</span>
               )
             }
             bg={r.bg}
@@ -341,15 +356,17 @@ function CommercialSnapshotSection({
   client,
   contractStatus,
   billing,
+  resolvedRenewal,
 }: {
   data: ClientCommercialIntelligence;
+  resolvedRenewal?: ResolvedRenewal | null;
   client?: any;
   ownerName?: string | null;
   contractStatus?: string | null;
   billing?: string | null;
 }) {
   const isPremium = !!client?.is_premium;
-  const renewal = data.next_renewal_date;
+  const renewal = resolvedRenewal?.date ?? data.next_renewal_date;
   const contractLabel = contractStatus || (data.has_contract ? `${data.active_contract_count} active` : "None");
   const modulesCount = (data.active_modules ?? []).length;
   const pluginsCount = (data.active_plugins ?? []).length;
