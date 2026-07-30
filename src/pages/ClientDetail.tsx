@@ -957,18 +957,21 @@ export default function ClientDetail() {
                   </Button>
                 </div>
               ) : validLicenses.map(lic => {
-                const { family: licFam, variant: licVar } = parseLicenseProduct(lic.product);
-                const needsReview = !isValidLicenseProduct(lic.product);
+                const licVocab = readLicenseVocabulary(lic, client.cloud_onpremise);
+                const licFam = licVocab.product.family;
+                const licVar = licVocab.product.variant;
+                const needsReview = licVocab.needsReview;
                 return (
                 <div key={lic.id} className="space-y-4 border-b border-border/40 last:border-0 pb-4 last:pb-0 mb-4 last:mb-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline">{licFam || "Unknown family"}</Badge>
-                      <Badge variant="secondary">{getVariantLabel(licVar) || "Unspecified product"}</Badge>
-                      <Badge variant="secondary" className="text-xs">{lic.version || "—"}</Badge>
+                      <Badge variant="outline">{licFam || "Legacy product"}</Badge>
+                      <Badge variant="secondary">{licVocab.product.label || "Unspecified product"}</Badge>
+                      {licVocab.licenseModel && <Badge variant="outline" className="text-xs">{licVocab.licenseModel}</Badge>}
+                      <Badge variant="secondary" className="text-xs">{licVocab.version || "—"}</Badge>
                       {needsReview && (
                         <Badge variant="outline" className="text-xs gap-1 border-warning text-warning">
-                          <AlertTriangle className="h-3 w-3" /> Needs review
+                          <AlertTriangle className="h-3 w-3" /> Legacy / unmapped
                         </Badge>
                       )}
                     </div>
