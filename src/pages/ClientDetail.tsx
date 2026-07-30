@@ -44,6 +44,11 @@ import {
   isCanonicalProduct,
   getVariantLabel,
 } from "@/lib/licensing";
+import {
+  buildClientSummaryUpdate,
+  resolveLicenseWriteValues,
+  type LicenseEditState,
+} from "@/lib/license-edit-payload";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -345,7 +350,9 @@ export default function ClientDetail() {
     catch (e: any) { toast.error(e?.message || "Failed"); }
   };
 
-  // License family/variant helpers for forms
+  // License family/variant helpers for forms.
+  // Both are only reachable from a user interaction with a selector, so they
+  // flag the product as explicitly changed (see Phase 1C legacy preservation).
   const handleFamilyChange = (family: LicenseFamily, formSetter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
     const firstVariant = VARIANT_OPTIONS[family][0].value;
     const defaults = getLicenseDefaults(firstVariant);
@@ -353,6 +360,7 @@ export default function ClientDetail() {
       ...f,
       _family: family,
       product: firstVariant,
+      _productChanged: true,
       license_model: normalizeLicenseModel(firstVariant),
       // Never overwrite an existing deployment value (avoids SaaS → On-Premise drift on edit).
       deployment_type: f.deployment_type || defaults.deployment_type,
@@ -368,6 +376,7 @@ export default function ClientDetail() {
     formSetter(f => ({
       ...f,
       product: variant,
+      _productChanged: true,
       license_model: normalizeLicenseModel(variant),
       deployment_type: f.deployment_type || defaults.deployment_type,
       backoffice_users: defaults.backoffice_users,
@@ -376,6 +385,7 @@ export default function ClientDetail() {
       api_access: defaults.api_access,
     }));
   };
+
 
 
   const handleAddLicense = async () => {
@@ -435,13 +445,17 @@ export default function ClientDetail() {
     const vocab = readLicenseVocabulary(lic, client?.cloud_onpremise);
     setLicEditForm({
       _family: vocab.product.family,
-      // Legacy/unmapped products are preserved verbatim so nothing is lost on open.
+      // Displayed/selected value is the canonical one when the legacy value is
+      // unambiguously mapped; the raw stored values are kept separately and are
+      // what gets written back unless the user explicitly picks something else.
       product: vocab.product.value || "",
       _rawProduct: lic.product || "",
+      _productChanged: false,
       version: vocab.version,
       // Hosting: canonical value when recognised, otherwise the raw legacy label.
       deployment_type: vocab.deployment.value || vocab.deployment.raw || "",
-      _origDeployment: vocab.deployment.value || vocab.deployment.raw || "",
+      _rawDeployment: lic.deployment_type || "",
+      _deploymentChanged: false,
       license_model: vocab.licenseModel || lic.license_model || "",
 
       periodicity: lic.periodicity || "",
@@ -466,18 +480,26 @@ export default function ClientDetail() {
     if (!editingLicenseId) return;
     // New values must be canonical; an untouched legacy value may be saved as-is
     // so unrelated edits (dates, users, S&AT) are never blocked by old data.
-    const keepsLegacyProduct =
-      !!licEditForm.product && licEditForm.product === (licEditForm._rawProduct || "");
+    const keepsLegacyProduct = !licEditForm._productChanged;
     if (!licEditForm.product || (!isValidLicenseProduct(licEditForm.product) && !keepsLegacyProduct)) {
       toast.error("Please select a valid Product / License Variant");
       return;
     }
     try {
       const {
-        _family, _rawProduct, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd, _origDeployment,
-        sat_start_date, sat_end_date, version, ...rest
+        _family, _rawProduct, _rawDeployment, _productChanged, _deploymentChanged,
+        _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
+        sat_start_date, sat_end_date, version, product, deployment_type, ...rest
       } = licEditForm;
 
+      const editState: LicenseEditState = {
+        rawProduct: _rawProduct || "",
+        rawDeployment: _rawDeployment || "",
+        selectedProduct: product || "",
+        selectedDeployment: deployment_type || "",
+        productChanged: !!_productChanged,
+        deploymentChanged: !!_deploymentChanged,
+      };
 
       // S&AT date defaulting:
       // - If S&AT is active and dates are empty, default to license window.
@@ -496,26 +518,31 @@ export default function ClientDetail() {
         }
       }
 
-      // Hosting is only written when the user actually changed the selector; the
-      // database engine (`database_type`) is never part of this payload.
-      const deploymentChanged = (rest.deployment_type || "") !== (_origDeployment || "");
+      // Product and hosting are only rewritten when the user explicitly changed
+      // the selector; the database engine (`database_type`) is never written here.
+      const writeValues = resolveLicenseWriteValues(editState);
 
       await updateLicense.mutateAsync({
         id: editingLicenseId,
         ...rest,
+        product: writeValues.product,
+        deployment_type: writeValues.deployment_type,
         version: version?.trim() || null,
-        license_model: normalizeLicenseModel(rest.product, rest.license_model) || null,
-        deployment_type: deploymentChanged ? (rest.deployment_type || null) : (_origDeployment || null),
+        license_model: normalizeLicenseModel(writeValues.product, rest.license_model) || null,
         sat_start_date: nextSatStart,
         sat_end_date: nextSatEnd,
       } as any);
-      if (licEditForm.product) {
-        await updateClient.mutateAsync({ id: client.id, license_type: licEditForm.product, cloud_onpremise: licEditForm.deployment_type || client.cloud_onpremise });
+
+      // Client summary fields mirror only what the user explicitly changed.
+      const clientUpdate = buildClientSummaryUpdate(editState);
+      if (clientUpdate) {
+        await updateClient.mutateAsync({ id: client.id, ...clientUpdate } as any);
       }
       toast.success("License updated");
       setEditingLicenseId(null);
     } catch (e: any) { toast.error(e?.message || "Failed to update license"); }
   };
+
 
   const handleDeleteLicense = async (licenseId: string) => {
     try {
@@ -1021,7 +1048,7 @@ export default function ClientDetail() {
                         <Label className="text-xs">Deployment / Hosting</Label>
                         <Select
                           value={licEditForm.deployment_type || ""}
-                          onValueChange={v => setLicEditForm(f => ({...f, deployment_type: v}))}
+                          onValueChange={v => setLicEditForm(f => ({...f, deployment_type: v, _deploymentChanged: true}))}
                         >
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                           <SelectContent>
