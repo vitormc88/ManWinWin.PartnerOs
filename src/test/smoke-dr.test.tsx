@@ -47,6 +47,6 @@ describe("full app smoke at /deal-registrations", () => {
     const App = (await import("@/App")).default;
     render(<App />);
     await new Promise((r) => setTimeout(r, 1500));
-    console.log("DOM>>>", document.body.innerHTML.slice(0, 2000));
+    console.log("DOM>>>", (document.querySelector("main")?.innerHTML ?? "NO MAIN").slice(0, 1500));
   }, 60000);
 });
