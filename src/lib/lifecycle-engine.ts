@@ -16,6 +16,8 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { buildPartnerCreatePayload } from "@/lib/partner-identity";
+import { buildRenewalInsertPayload } from "@/lib/renewal-payload";
 import { canonicalizeLineTypeForWrite } from "@/lib/contract-line-payload";
 import type { ContractLineType } from "@/lib/contract-lines";
 import { logSystemActivity } from "@/lib/activity-log";
@@ -347,7 +349,8 @@ export async function convertProposalToCustomer(
       commercial_name: draft.commercial_name,
       short_name: draft.commercial_name.slice(0, 32),
       country: draft.country,
-      partner_id: partnerId,
+      // Canonical partner relation only; legacy text column never written.
+      ...buildPartnerCreatePayload(partnerId),
       source_proposal_id: proposalId,
       source_deal_id: proposal.lead_id,
       status: "Active",
@@ -504,14 +507,12 @@ export async function convertProposalToCustomer(
     const recurring = Number(licenseDefaults.recurring_contract_value || 0);
     const { data: ren, error: rErr } = await (supabase as any)
       .from("renewals")
-      .insert({
+      .insert(buildRenewalInsertPayload({
         client_id: client.id,
         contract_id: contract.id,
         license_id: license.id,
         target_type: "contract",
         target_id: contract.id,
-        partner_id: partnerId,
-        partner_uuid: partnerId,
         renewal_type: "Contract Renewal",
         renewal_date: contractEndDate,
         notice_period_days: noticeDays,
@@ -520,7 +521,7 @@ export async function convertProposalToCustomer(
         billing_frequency: licenseDefaults.billing_frequency,
         status: "Upcoming",
         source_proposal_id: proposalId,
-      })
+      }, { partner_uuid: partnerId }))
       .select()
       .single();
     if (rErr) throw rErr;

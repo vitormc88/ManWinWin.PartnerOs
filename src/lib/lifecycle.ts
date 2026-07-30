@@ -1,4 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
+import { buildPartnerCreatePayload } from "@/lib/partner-identity";
+import { buildRenewalInsertPayload } from "@/lib/renewal-payload";
 import { canonicalizeLineTypeForWrite } from "@/lib/contract-line-payload";
 import { logSystemActivity } from "@/lib/activity-log";
 import { computeBusinessOption, type BusinessConfig, DEFAULT_BUSINESS_CONFIG } from "@/lib/proposal-business-engine";
@@ -698,7 +700,7 @@ export async function createLicenseAndRenewal(
         status: computeRenewalStatus(renewalDate),
         notes: payload.notes ?? null,
         source_proposal_id: payload.source_proposal_id ?? null,
-      } as any)
+      }, client as any) as any)
       .select()
       .single();
     if (renErr) throw renErr;

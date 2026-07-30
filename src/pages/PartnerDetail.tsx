@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ArrowLeft, Pencil, Archive, Save, X, Plus, Info, Trash2, MoreHorizontal, CheckCircle2, ExternalLink, CalendarClock } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { buildRenewalInsertPayload, buildRenewalPartnerPayload } from "@/lib/renewal-payload";
 import { findEquivalentOpenRenewal, RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
 import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { useMemo, useState } from "react";
@@ -210,9 +211,10 @@ export default function PartnerDetail() {
   const handleSaveRenewal = async () => {
     if (!renewalForm.client_id || !renewalForm.renewal_date) { toast.error("Client and renewal date are required"); return; }
     try {
+      // Partner columns are NOT part of the shared payload: an edit of an
+      // existing renewal must never rewrite its stored partner references.
       const payload: any = {
         client_id: renewalForm.client_id,
-        partner_id: partner.id,
         renewal_type: renewalForm.renewal_type,
         renewal_date: renewalForm.renewal_date,
         estimated_value: renewalForm.estimated_value || null,
@@ -233,7 +235,11 @@ export default function PartnerDetail() {
           fetchExisting: () => fetchRenewalsForClient(renewalForm.client_id),
           target: { client_id: renewalForm.client_id, renewal_date: renewalForm.renewal_date },
           insert: async () => {
-            const { data, error } = await supabase.from("renewals").insert(payload).select("id").single();
+            const { data, error } = await supabase
+              .from("renewals")
+              .insert(buildRenewalInsertPayload(payload, { partner_uuid: partner.id }))
+              .select("id")
+              .single();
             if (error) throw error;
             return data as any;
           },
@@ -268,7 +274,7 @@ export default function PartnerDetail() {
   const materializeDerivedRenewal = async (r: any): Promise<string | null> => {
     const payload: any = {
       client_id: r.client_id,
-      partner_id: r.partner_id || partner.id,
+      ...buildRenewalPartnerPayload({ partner_uuid: r.partner_uuid || partner.id }),
       renewal_type: r.renewal_type,
       renewal_date: r.renewal_date,
       estimated_value: r.estimated_value || null,
