@@ -251,12 +251,16 @@ export default function PartnerDetail() {
     } catch (e: any) { toast.error(e?.message || "Failed to save renewal"); }
   };
 
-  /** Renewal rows stored for a client, with every identity column needed for dedup. */
+  /**
+   * Renewal rows stored for a client, with every identity column needed for dedup.
+   * Fail-closed: a failed read throws so the caller never treats it as "no renewals".
+   */
   const fetchRenewalsForClient = async (clientId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("renewals")
       .select(RENEWAL_IDENTITY_SELECT)
       .eq("client_id", clientId);
+    if (error) throw error;
     return (data || []) as any[];
   };
 
