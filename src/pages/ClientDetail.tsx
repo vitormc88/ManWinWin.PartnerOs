@@ -351,8 +351,9 @@ export default function ClientDetail() {
       ...f,
       _family: family,
       product: firstVariant,
-      license_model: family,
-      database_type: defaults.database_type,
+      license_model: normalizeLicenseModel(firstVariant),
+      // Never overwrite an existing deployment value (avoids SaaS → On-Premise drift on edit).
+      database_type: f.database_type || defaults.database_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
@@ -362,18 +363,18 @@ export default function ClientDetail() {
 
   const handleVariantChange = (variant: string, formSetter: (fn: (f: Record<string, any>) => Record<string, any>) => void) => {
     const defaults = getLicenseDefaults(variant);
-    const family = variant.startsWith("Professional") ? "Professional" : "Business";
     formSetter(f => ({
       ...f,
       product: variant,
-      license_model: family,
-      database_type: defaults.database_type,
+      license_model: normalizeLicenseModel(variant),
+      database_type: f.database_type || defaults.database_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
       api_access: defaults.api_access,
     }));
   };
+
 
   const handleAddLicense = async () => {
     if (!licenseForm.product || !isValidLicenseProduct(licenseForm.product)) {
