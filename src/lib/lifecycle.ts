@@ -337,7 +337,8 @@ export async function findOrCreateClientFromDeal(
     short_name: name.slice(0, 32),
     country: deal.country || null,
     sector: deal.sector || deal.industry || null,
-    partner_id: deal.partner_id || null,
+    // Canonical partner relation only; legacy text column never written.
+    ...buildPartnerCreatePayload(deal.partner_id || null),
     account_manager: deal.assigned_salesperson || null,
     manager_owner: deal.assigned_salesperson || null,
     email: deal.contact_email || null,
@@ -591,7 +592,7 @@ export async function createLicenseAndRenewal(
   if (!payload.is_draft && !opts.skipContractAutoCreate) {
     const { data: clientRow } = await supabase
       .from("clients")
-      .select("partner_id")
+      .select("partner_uuid, partner_id")
       .eq("id", payload.client_id)
       .maybeSingle();
     const partnerId = (clientRow as any)?.partner_id || null;
@@ -675,7 +676,7 @@ export async function createLicenseAndRenewal(
   if (opts.createRenewal && renewalDate && shouldCreateRenewal(payload.product_family, payload.proposal_mode ?? null)) {
     const { data: client } = await supabase
       .from("clients")
-      .select("partner_id")
+      .select("partner_uuid, partner_id")
       .eq("id", payload.client_id)
       .maybeSingle();
 
@@ -683,13 +684,12 @@ export async function createLicenseAndRenewal(
 
     const { data: ren, error: renErr } = await supabase
       .from("renewals")
-      .insert({
+      .insert(buildRenewalInsertPayload({
         client_id: payload.client_id,
         license_id: license.id,
         contract_id: contract?.id ?? null,
         target_type: contract ? "contract" : "license",
         target_id: contract?.id ?? license.id,
-        partner_id: (client as any)?.partner_id || null,
         renewal_type: renewalType,
         renewal_date: renewalDate,
         // ARR / renewals always use recurring values only (Year 2+)
