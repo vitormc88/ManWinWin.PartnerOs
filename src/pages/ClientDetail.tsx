@@ -465,9 +465,10 @@ export default function ClientDetail() {
     }
     try {
       const {
-        _family, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
+        _family, _rawProduct, _origLicStart, _origLicEnd, _origSatStart, _origSatEnd,
         sat_start_date, sat_end_date, ...rest
       } = licEditForm;
+
 
       // S&AT date defaulting:
       // - If S&AT is active and dates are empty, default to license window.
