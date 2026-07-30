@@ -29,7 +29,9 @@ import { CommercialContractView } from "@/components/clients/CommercialContractV
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
 import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
-import { resolveRenewal, assessRenewalRisk, shouldCreateRenewalWorkflowRow } from "@/lib/renewal-resolution";
+import { resolveRenewal, assessRenewalRisk } from "@/lib/renewal-resolution";
+import { RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
+import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { ContactsCard } from "@/components/clients/ContactsCard";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
 import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
@@ -647,39 +649,49 @@ export default function ClientDetail() {
         if (lErr) throw lErr;
 
         // 3) Create the primary contract-level renewal (guarded against duplicates).
-        const { data: existingRenewals } = await supabase
-          .from("renewals")
-          .select("id, client_id, renewal_date, status, target_type, target_id")
-          .eq("client_id", client.id);
-        const canCreateRenewal = shouldCreateRenewalWorkflowRow((existingRenewals || []) as any[], {
-          client_id: client.id,
-          renewal_date: cf.contract_end_date,
-          target_type: "contract",
-          target_id: newContract.id,
-        });
+        //    Identity = client + contract + date, so a renewal for a different
+        //    contract on the same date is still allowed.
         const renewalPartnerUuid = (client as any)?.partner_uuid || null;
         const renewalPartnerId = (client as any)?.partner_id || null;
-        const { data: ren, error: rErr } = !canCreateRenewal
-          ? { data: null, error: null }
-          : await supabase
-          .from("renewals")
-          .insert({
+        const renewalOutcome = await createRenewalWorkflowRow<any>({
+          fetchExisting: async () => {
+            const { data } = await supabase
+              .from("renewals")
+              .select(RENEWAL_IDENTITY_SELECT)
+              .eq("client_id", client.id);
+            return (data || []) as any[];
+          },
+          target: {
             client_id: client.id,
+            renewal_date: cf.contract_end_date,
             contract_id: newContract.id,
-            partner_id: renewalPartnerId,
-            partner_uuid: renewalPartnerUuid,
             target_type: "contract",
             target_id: newContract.id,
-            renewal_type: "Contract",
-            renewal_date: cf.contract_end_date,
-            estimated_value: recurringAmount,
-            billing_frequency: "Annual",
-            status: "Upcoming",
-            notes: "Annual Contract Renewal — auto-created from manual legacy agreement",
-          } as any)
-          .select()
-          .single();
-        if (rErr) throw rErr;
+          },
+          insert: async () => {
+            const { data, error } = await supabase
+              .from("renewals")
+              .insert({
+                client_id: client.id,
+                contract_id: newContract.id,
+                partner_id: renewalPartnerId,
+                partner_uuid: renewalPartnerUuid,
+                target_type: "contract",
+                target_id: newContract.id,
+                renewal_type: "Contract",
+                renewal_date: cf.contract_end_date,
+                estimated_value: recurringAmount,
+                billing_frequency: "Annual",
+                status: "Upcoming",
+                notes: "Annual Contract Renewal — auto-created from manual legacy agreement",
+              } as any)
+              .select()
+              .single();
+            if (error) throw error;
+            return data as any;
+          },
+        });
+        const ren = renewalOutcome.row;
 
         // 4) Suppress duplicate license-only €0 renewals for the same client/date.
         await supabase

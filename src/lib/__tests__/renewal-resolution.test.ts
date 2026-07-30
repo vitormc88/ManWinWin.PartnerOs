@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   assessRenewalRisk,
   resolveRenewal,
-  shouldCreateRenewalWorkflowRow,
 } from "@/lib/renewal-resolution";
 
 const today = new Date("2026-07-30T00:00:00Z");
@@ -90,33 +89,5 @@ describe("assessRenewalRisk", () => {
 
   it("returns unknown with a deterministic code when no date exists", () => {
     expect(assessRenewalRisk(resolveRenewal({ today })).code).toBe("renewal_date_unknown");
-  });
-});
-
-describe("shouldCreateRenewalWorkflowRow", () => {
-  const target = {
-    client_id: "01fbe90e-d3ea-4635-96aa-8e04060b8182",
-    target_type: "contract",
-    target_id: "c1",
-    renewal_date: "2027-07-19",
-  };
-
-  it("creates the row when nothing equivalent exists", () => {
-    expect(shouldCreateRenewalWorkflowRow([], target)).toBe(true);
-  });
-
-  it("does not duplicate on repeated saves", () => {
-    const existing = [
-      { id: "r1", client_id: target.client_id, target_type: "contract", target_id: "c1", renewal_date: "2027-07-19", status: "Open" },
-    ];
-    expect(shouldCreateRenewalWorkflowRow(existing, target)).toBe(false);
-    expect(shouldCreateRenewalWorkflowRow([...existing, ...existing], target)).toBe(false);
-  });
-
-  it("still creates a row when the only match is closed", () => {
-    const existing = [
-      { id: "r1", client_id: target.client_id, target_type: "contract", target_id: "c1", renewal_date: "2027-07-19", status: "Completed" },
-    ];
-    expect(shouldCreateRenewalWorkflowRow(existing, target)).toBe(true);
   });
 });
