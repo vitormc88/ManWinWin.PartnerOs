@@ -60,7 +60,19 @@ export function ClientSummaryBar({ client, ownerName, nextRenewalDate, onEdit }:
         <Cell label="Owner" value={owner} />
         <Cell label="Phone" value={client?.phone} />
         <Cell label="Email" value={client?.email} />
-        <Cell label="Customer Since" value={fmtDate(client?.created_at)} />
+        <Cell
+          label="Customer Since"
+          value={
+            <span className="inline-flex items-center gap-1">
+              {fmtDate(customerSince)}
+              {customerSinceEstimated && (
+                <span className="text-[10px] text-muted-foreground" title="No first installation date on record — showing record creation date">
+                  (record)
+                </span>
+              )}
+            </span>
+          }
+        />
         <Cell label="Next Renewal" value={fmtDate(nextRenewalDate)} />
       </div>
     </Card>
