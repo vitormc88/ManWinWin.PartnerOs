@@ -17,7 +17,11 @@
 --   * NOT NULL / CHECK constraints that would reject historical rows
 --   * any UPDATE derived from created_at / updated_at / import timestamps
 --   * any new table, function, trigger, policy or grant
--- RLS/grants: both tables already have RLS enabled and grants in place; new
+-- RLS/grants: NOT VALIDATED HERE. Policies for both tables exist in the
+-- repository migrations, but effective RLS, the actual grants and the Data API
+-- exposure must be verified in production immediately before applying this
+-- file. Adding a column creates no policy, but it becomes readable by any role
+-- that already holds a broad SELECT on the table. Historically: new
 -- columns inherit them. Data API exposure reviewed: non-sensitive.
 -- =========================================================================
 
