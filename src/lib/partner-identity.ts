@@ -16,7 +16,7 @@
  *  - Writes only ever set the canonical column; the legacy value is preserved
  *    untouched unless the user explicitly changes the partner, in which case
  *    the stale legacy text is cleared together with the new canonical value.
-
+ */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
