@@ -157,3 +157,35 @@ Obtained with read-only inspection; no write, migration or backfill was run.
 - Effective RLS, grants and Data API exposure of `clients` / `lifecycle_events`.
 - Identity-state counts at the moment of the migration (data keeps changing).
 - Provenance of any future imported `lifecycle_events` rows.
+
+## 10. Phase 3C — audited write paths for `clients` / `renewals`
+
+Scope: only `public.clients` and `public.renewals`, where `partner_id` is a
+LEGACY TEXT column and `partner_uuid` is the canonical FK to `partners.id`.
+`partner_id` remains legitimate and canonical in other tables (`profiles`,
+`partner_notes`, `partner_certifications`, `deals`, `partner_*` children) and
+was deliberately left untouched there.
+
+Write paths inspected in the repository (frontend; no Edge Function writes to
+these two tables exist in the repo):
+
+| Path | Table | Before | After |
+| --- | --- | --- | --- |
+| `src/pages/ClientDetail.tsx` — legacy contract → renewal | renewals INSERT | copied `partner_uuid` **and** legacy `partner_id` | canonical only, via `buildRenewalInsertPayload` |
+| `src/lib/lifecycle.ts` — client from won deal | clients INSERT | wrote legacy `partner_id` | `buildPartnerCreatePayload` (uuid only) |
+| `src/lib/lifecycle.ts` — renewal from license/contract | renewals INSERT | wrote legacy `partner_id` from client | `buildRenewalInsertPayload(client)` |
+| `src/lib/lifecycle-engine.ts` — client from proposal | clients INSERT | wrote legacy `partner_id` | `buildPartnerCreatePayload` |
+| `src/lib/lifecycle-engine.ts` — contract renewal | renewals INSERT | wrote both columns | canonical only |
+| `src/pages/PartnerDetail.tsx` — manual renewal form | renewals INSERT/UPDATE | shared payload wrote `partner_id` on insert *and* on edit | partner columns removed from the shared payload; insert adds canonical uuid; edit no longer rewrites partner references |
+| `src/pages/PartnerDetail.tsx` — materialize derived renewal | renewals INSERT | `partner_id` fallback | canonical `partner_uuid` |
+| `src/pages/ClientOnboardingWizard.tsx` | clients + renewals INSERT | already canonical | unchanged |
+| `src/pages/ClientsLicenses.tsx` | clients INSERT | already canonical | unchanged |
+| `src/hooks/useClients.ts` (`update`, archive, reactivate) | clients UPDATE | passes caller fields / status only | unchanged — never touches partner columns |
+| `src/pages/ClientDetail.tsx` — client save | clients UPDATE | `buildPartnerUpdatePayload` (Phase 3B) | unchanged |
+
+Not claimed: this table covers the repository code only. Any write performed
+outside this repository (SQL console, external integrations, future Edge
+Functions) is not covered and must be reviewed separately.
+
+Reads were not changed: legacy-only rows remain visible and labelled
+`Legacy / Unresolved`; no historical record is hidden or normalized.

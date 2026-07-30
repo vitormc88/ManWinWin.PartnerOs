@@ -55,6 +55,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { buildRenewalInsertPayload } from "@/lib/renewal-payload";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
@@ -651,8 +652,6 @@ export default function ClientDetail() {
         // 3) Create the primary contract-level renewal (guarded against duplicates).
         //    Identity = client + contract + date, so a renewal for a different
         //    contract on the same date is still allowed.
-        const renewalPartnerUuid = (client as any)?.partner_uuid || null;
-        const renewalPartnerId = (client as any)?.partner_id || null;
         const renewalOutcome = await createRenewalWorkflowRow<any>({
           fetchExisting: async () => {
             // Fail-closed: a failed duplicate check must abort the write.
@@ -673,11 +672,9 @@ export default function ClientDetail() {
           insert: async () => {
             const { data, error } = await supabase
               .from("renewals")
-              .insert({
+              .insert(buildRenewalInsertPayload({
                 client_id: client.id,
                 contract_id: newContract.id,
-                partner_id: renewalPartnerId,
-                partner_uuid: renewalPartnerUuid,
                 target_type: "contract",
                 target_id: newContract.id,
                 renewal_type: "Contract",
@@ -686,7 +683,7 @@ export default function ClientDetail() {
                 billing_frequency: "Annual",
                 status: "Upcoming",
                 notes: "Annual Contract Renewal — auto-created from manual legacy agreement",
-              } as any)
+              }, client as any) as any)
               .select()
               .single();
             if (error) throw error;
