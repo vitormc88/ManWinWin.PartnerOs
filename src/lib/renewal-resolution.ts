@@ -185,29 +185,6 @@ export function assessRenewalRisk(
   return { level: "low", code: "renewal_future", reasons };
 }
 
-/* ───────────────────────── Workflow materialization safety ───────────────────────── */
-
-export interface RenewalWorkflowTarget {
-  client_id: string;
-  target_type?: string | null;
-  target_id?: string | null;
-  renewal_date: string;
-}
-
-/**
- * True only when no equivalent open workflow row already exists.
- * Prevents duplicate renewal rows on repeated saves.
- */
-export function shouldCreateRenewalWorkflowRow(
-  existing: RenewalRecordLike[] | null | undefined,
-  target: RenewalWorkflowTarget
-): boolean {
-  const rows = (existing || []).filter(isOpenRenewal);
-  return !rows.some(
-    (r) =>
-      (r.client_id ?? target.client_id) === target.client_id &&
-      (target.target_id ? r.target_id === target.target_id : true) &&
-      (target.target_type ? (r.target_type ?? target.target_type) === target.target_type : true) &&
-      String(r.renewal_date) === target.renewal_date
-  );
-}
+/* ───────────────────────── Workflow materialization safety ─────────────────────────
+ * Duplicate detection now lives in `renewal-identity.ts` (single pure source of
+ * truth for equivalence) and `renewal-workflow.ts` (write path). */

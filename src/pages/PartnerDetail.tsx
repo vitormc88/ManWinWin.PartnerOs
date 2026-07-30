@@ -23,7 +23,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ArrowLeft, Pencil, Archive, Save, X, Plus, Info, Trash2, MoreHorizontal, CheckCircle2, ExternalLink, CalendarClock } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { shouldCreateRenewalWorkflowRow } from "@/lib/renewal-resolution";
+import { findEquivalentOpenRenewal, RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
+import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
@@ -224,18 +225,23 @@ export default function PartnerDetail() {
         if (error) throw error;
         toast.success("Renewal updated");
       } else {
-        // Duplicate guard: never create a second open workflow row for the same
-        // client / target / date.
-        const existing = await fetchOpenRenewals(renewalForm.client_id);
-        if (!shouldCreateRenewalWorkflowRow(existing, {
-          client_id: renewalForm.client_id,
-          renewal_date: renewalForm.renewal_date,
-        })) {
+        // Duplicate guard on the real write path. This manual form has no
+        // contract/license identity, so it is treated as a target-less renewal
+        // and only compared against other target-less renewals (conservative:
+        // it never blocks a renewal that belongs to a specific contract/license).
+        const outcome = await createRenewalWorkflowRow<any>({
+          fetchExisting: () => fetchRenewalsForClient(renewalForm.client_id),
+          target: { client_id: renewalForm.client_id, renewal_date: renewalForm.renewal_date },
+          insert: async () => {
+            const { data, error } = await supabase.from("renewals").insert(payload).select("id").single();
+            if (error) throw error;
+            return data as any;
+          },
+        });
+        if (!outcome.created) {
           toast.error("A renewal already exists for this client on that date");
           return;
         }
-        const { error } = await supabase.from("renewals").insert(payload);
-        if (error) throw error;
         toast.success("Renewal added");
       }
       setShowAddRenewal(false);
@@ -245,11 +251,11 @@ export default function PartnerDetail() {
     } catch (e: any) { toast.error(e?.message || "Failed to save renewal"); }
   };
 
-  /** Open (non-closed) renewal rows currently stored for a client. */
-  const fetchOpenRenewals = async (clientId: string) => {
+  /** Renewal rows stored for a client, with every identity column needed for dedup. */
+  const fetchRenewalsForClient = async (clientId: string) => {
     const { data } = await supabase
       .from("renewals")
-      .select("id, client_id, renewal_date, status, target_type, target_id")
+      .select(RENEWAL_IDENTITY_SELECT)
       .eq("client_id", clientId);
     return (data || []) as any[];
   };
@@ -268,22 +274,30 @@ export default function PartnerDetail() {
     if (typeof r.id === "string") {
       if (r.id.startsWith("derived-license-")) payload.license_id = r.id.replace("derived-license-", "");
       else if (r.id.startsWith("derived-sat-")) payload.license_id = r.id.replace("derived-sat-", "");
+      else if (r.id.startsWith("derived-contract-")) payload.contract_id = r.id.replace("derived-contract-", "");
     }
-    // Reuse an equivalent existing workflow row instead of creating a duplicate.
-    const existing = await fetchOpenRenewals(r.client_id);
-    const target = {
-      client_id: r.client_id,
-      renewal_date: r.renewal_date,
-      target_type: payload.target_type ?? null,
-      target_id: payload.target_id ?? null,
-    };
-    if (!shouldCreateRenewalWorkflowRow(existing, target)) {
-      const match = existing.find((e) => String(e.renewal_date) === String(r.renewal_date));
-      return match?.id || null;
-    }
-    const { data, error } = await supabase.from("renewals").insert(payload).select("id").single();
-    if (error) throw error;
-    return data?.id || null;
+    if (r.contract_id) payload.contract_id = payload.contract_id ?? r.contract_id;
+    if (r.license_id) payload.license_id = payload.license_id ?? r.license_id;
+
+    // Reuse the EXACT equivalent workflow row (client + date + same logical
+    // target) instead of creating a duplicate.
+    const outcome = await createRenewalWorkflowRow<any>({
+      fetchExisting: () => fetchRenewalsForClient(r.client_id),
+      target: {
+        client_id: r.client_id,
+        renewal_date: r.renewal_date,
+        contract_id: payload.contract_id ?? null,
+        license_id: payload.license_id ?? null,
+        target_type: payload.target_type ?? null,
+        target_id: payload.target_id ?? null,
+      },
+      insert: async () => {
+        const { data, error } = await supabase.from("renewals").insert(payload).select("id").single();
+        if (error) throw error;
+        return data as any;
+      },
+    });
+    return outcome.id;
   };
 
   const updateRenewalStatus = async (renewal: any, status: string) => {
