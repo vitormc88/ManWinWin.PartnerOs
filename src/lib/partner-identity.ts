@@ -156,13 +156,21 @@ export interface PartnerUpdateInput {
  * Build the partner portion of an UPDATE payload.
  *  - Untouched partner → returns `{}`: both the canonical and the legacy raw
  *    values stay exactly as stored.
- *  - Explicit change → writes the canonical column only; the legacy text column
- *    is never rewritten or cleared by this layer.
+ *  - Explicit change → writes the canonical column AND clears the legacy text
+ *    column, so the row cannot keep an obsolete/conflicting legacy reference.
+ *    This clearing is only allowed because it is the direct result of an
+ *    explicit partner change made by the user.
+ *  - Explicit HQ Direct → both columns are set to null so the record really
+ *    resolves as HQ Direct instead of `legacy_unresolved`.
  */
 export function buildPartnerUpdatePayload({
   partnerChanged,
   nextPartnerId,
-}: PartnerUpdateInput): { partner_uuid?: string | null } {
+}: PartnerUpdateInput): { partner_uuid?: string | null; partner_id?: string | null } {
   if (!partnerChanged) return {};
-  return { partner_uuid: isUuid(nextPartnerId) ? String(nextPartnerId).trim() : null };
+  return {
+    partner_uuid: isUuid(nextPartnerId) ? String(nextPartnerId).trim() : null,
+    partner_id: null,
+  };
 }
+
