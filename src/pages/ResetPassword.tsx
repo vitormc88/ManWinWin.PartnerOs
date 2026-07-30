@@ -194,7 +194,8 @@ export default function ResetPassword() {
           ? "Password set successfully! Welcome to ManWinWin PartnerOS."
           : "Password updated successfully."
       );
-      setTimeout(() => navigate("/dashboard", { replace: true }), 1200);
+      // Force a full reload so the protected app rehydrates the updated auth session.
+      window.location.replace("/");
     } catch (error: any) {
       toast.error(error.message || "Failed to update password");
     } finally {
