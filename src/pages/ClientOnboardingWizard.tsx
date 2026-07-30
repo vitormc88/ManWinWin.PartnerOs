@@ -7,7 +7,7 @@ import {
   Save, Loader2, Building2, Users, Boxes, FileText, ListChecks,
 } from "lucide-react";
 import {
-  VARIANT_OPTIONS, DEPLOYMENT_OPTIONS, DEFAULT_LICENSE_VERSION,
+  VARIANT_OPTIONS, DEPLOYMENT_OPTIONS, SUGGESTED_LICENSE_VERSION,
   normalizeLicenseProduct, normalizeLicenseModel, getVariantLabel,
 } from "@/lib/licensing";
 import { Button } from "@/components/ui/button";
