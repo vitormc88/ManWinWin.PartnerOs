@@ -237,7 +237,7 @@ export default function PartnerDetail() {
           insert: async () => {
             const { data, error } = await supabase
               .from("renewals")
-              .insert(buildRenewalInsertPayload(payload, { partner_uuid: partner.id }))
+              .insert(buildRenewalInsertPayload(payload, { partner_uuid: partner.id }) as any)
               .select("id")
               .single();
             if (error) throw error;
