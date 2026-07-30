@@ -44,6 +44,11 @@ import {
   isCanonicalProduct,
   getVariantLabel,
 } from "@/lib/licensing";
+import {
+  buildClientSummaryUpdate,
+  resolveLicenseWriteValues,
+  type LicenseEditState,
+} from "@/lib/license-edit-payload";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -1043,7 +1048,7 @@ export default function ClientDetail() {
                         <Label className="text-xs">Deployment / Hosting</Label>
                         <Select
                           value={licEditForm.deployment_type || ""}
-                          onValueChange={v => setLicEditForm(f => ({...f, deployment_type: v}))}
+                          onValueChange={v => setLicEditForm(f => ({...f, deployment_type: v, _deploymentChanged: true}))}
                         >
                           <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                           <SelectContent>
