@@ -122,7 +122,8 @@ function getLicenseDefaults(variant: string) {
     web_accesses: 1,
     sat_active: isUseIT,
     api_access: variant === "Professional 3",
-    database_type: isPro ? "SaaS" : "On-Premise",
+    // Hosting/deployment only — never the database engine.
+    deployment_type: isPro ? "SaaS" : "On-Premise",
   };
 }
 
