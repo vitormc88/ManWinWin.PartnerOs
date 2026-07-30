@@ -31,6 +31,7 @@ import { CommercialIntelligenceDashboard } from "@/components/clients/Commercial
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { ContactsCard } from "@/components/clients/ContactsCard";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
+import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
