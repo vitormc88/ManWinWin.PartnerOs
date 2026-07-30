@@ -1009,16 +1009,19 @@ export default function ClientDetail() {
                       {renderLicenseFamilyVariantFields(licEditForm, setLicEditForm)}
                       <EditField label="Version" value={licEditForm.version} onChange={v => setLicEditForm(f => ({...f, version: v}))} />
                       <div>
-                        <Label className="text-xs">Deployment</Label>
+                        <Label className="text-xs">Deployment / Hosting</Label>
                         <Select
-                          value={licEditForm.database_type || "On-Premise"}
+                          value={licEditForm.database_type || ""}
                           onValueChange={v => setLicEditForm(f => ({...f, database_type: v}))}
-                          disabled={licEditForm._family === "Professional"}
                         >
-                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select deployment..." /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="SaaS">SaaS</SelectItem>
-                            <SelectItem value="On-Premise">On-Premise</SelectItem>
+                            {licEditForm.database_type && !DEPLOYMENT_OPTIONS.some(o => o.value === licEditForm.database_type) && (
+                              <SelectItem value={licEditForm.database_type}>{licEditForm.database_type} (legacy)</SelectItem>
+                            )}
+                            {DEPLOYMENT_OPTIONS.map(o => (
+                              <SelectItem key={o.value} value={o.value}>{o.label} — {o.hint}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
