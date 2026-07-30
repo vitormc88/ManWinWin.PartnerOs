@@ -439,8 +439,9 @@ export default function ClientDetail() {
       product: vocab.product.value || "",
       _rawProduct: lic.product || "",
       version: vocab.version,
-      // Deployment: canonical value when recognised, otherwise the raw legacy label.
-      database_type: vocab.deployment.value || vocab.deployment.raw || "",
+      // Hosting: canonical value when recognised, otherwise the raw legacy label.
+      deployment_type: vocab.deployment.value || vocab.deployment.raw || "",
+      _origDeployment: vocab.deployment.value || vocab.deployment.raw || "",
       license_model: vocab.licenseModel || lic.license_model || "",
 
       periodicity: lic.periodicity || "",
