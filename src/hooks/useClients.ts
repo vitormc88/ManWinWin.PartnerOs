@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { applyPartnerScope, canonicalPartnerScope } from "@/lib/partner-query";
+
 
 export type Client = Tables<"clients">;
 
