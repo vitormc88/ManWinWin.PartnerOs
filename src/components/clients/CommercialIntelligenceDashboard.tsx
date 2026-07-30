@@ -41,6 +41,8 @@ interface Props {
   /** Shared renewal resolution (workflow row → contract end → license end). */
   resolvedRenewal?: ResolvedRenewal | null;
   onViewFullTimeline?: () => void;
+  /** Read-only mode: intelligence stays readable, action CTAs are hidden. */
+  readOnly?: boolean;
 }
 
 const fmtCurrency = (n: number | null | undefined, currency = "EUR") => {

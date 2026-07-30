@@ -1001,6 +1001,7 @@ export default function ClientDetail() {
               contractStatus={(primaryContract as any)?.status || null}
               billing={(primaryContract as any)?.billing_frequency || null}
               resolvedRenewal={resolvedRenewal}
+              readOnly={!canWrite}
             />
           )}
         </TabsContent>
