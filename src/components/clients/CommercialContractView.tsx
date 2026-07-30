@@ -16,6 +16,7 @@ import {
   type CommercialCategoryKey,
 } from "@/lib/commercial-contract-view-model";
 import { ContractLineDialog } from "./ContractLineDialog";
+import { ContractLineDeleteDialog } from "./ContractLineDeleteDialog";
 import { useLifecycleEvents, type LifecycleEvent } from "@/hooks/useLifecycleEvents";
 import { useUpdateContract } from "@/hooks/useClients";
 import { Badge } from "@/components/ui/badge";
