@@ -135,7 +135,6 @@ BEGIN
         WHEN lower(coalesce(s.line_type,'')) IN ('','recurring','one_time','one-time','once',
                                                  'service','unclassified','unknown','generic')
           THEN CASE
-            WHEN lower(coalesce(s.description,'')) ~ '(s&at|支)' THEN 'sat'
             WHEN lower(coalesce(s.description,'')) ~ '(s&at|\ysat\y|support\s*(&|and)\s*assist)' THEN 'sat'
             WHEN lower(coalesce(s.description,'')) ~ '(hosting|saas)' THEN 'hosting'
             WHEN lower(coalesce(s.description,'')) ~ '(manwinwin\s*web|mww\s*web|web\s*access)' THEN 'mww_web'
