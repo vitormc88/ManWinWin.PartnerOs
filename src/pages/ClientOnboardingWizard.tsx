@@ -98,7 +98,7 @@ const initialDraft: Draft = {
   },
   contacts: [{ ...emptyContact }],
   license: {
-    family: "", variant: "", deployment_type: "SaaS", version: "",
+    family: "", variant: "", deployment_type: "SaaS", version: DEFAULT_LICENSE_VERSION,
     backoffice_users: 0, web_accesses: 0, api_access: false,
     module_ids: [], plugin_ids: [],
   },
