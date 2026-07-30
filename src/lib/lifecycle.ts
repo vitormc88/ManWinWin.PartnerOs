@@ -318,10 +318,14 @@ export async function findOrCreateClientFromDeal(
   const name = (deal.company_name || "").trim();
   if (!name) throw new Error("Deal has no company name");
 
-  let q = supabase.from("clients").select("*").ilike("commercial_name", name);
-  if (deal.partner_id) q = q.eq("partner_id", deal.partner_id);
-  else q = q.is("partner_id", null);
+  // Canonical partner scoping only. A legacy/non-uuid deal reference is never
+  // promoted to a join: we fall back to an unscoped name match so an existing
+  // canonical client is still found instead of creating a duplicate.
+  const nameQuery = supabase.from("clients").select("*").ilike("commercial_name", name);
+  const scope = canonicalPartnerScope(deal.partner_id ?? null);
+  const q = applyPartnerScope<any>(nameQuery, scope) ?? nameQuery;
   const { data: matches } = await q.limit(1);
+
   if (matches && matches.length > 0) {
     const existing = matches[0];
     await supabase.from("deals").update({ client_id: existing.id }).eq("id", deal.id);

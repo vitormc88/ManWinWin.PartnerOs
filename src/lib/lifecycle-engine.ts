@@ -161,25 +161,29 @@ async function findClientMatches(
   if (!name) return { best: null, candidates: [] };
 
   const candidates: any[] = [];
+  const scope = canonicalPartnerScope(partnerId ?? null);
+  const canonicalPartnerId = scope.kind === "partner" ? scope.value : null;
 
-  // Exact commercial_name match (scoped by partner when known).
-  let q = supabase.from("clients").select("*").ilike("commercial_name", name);
-  if (partnerId) q = q.eq("partner_id", partnerId);
-  const { data: exact } = await q.limit(5);
+  // Exact commercial_name match, scoped by the CANONICAL partner uuid only.
+  // A legacy/non-uuid reference never becomes a join: the match stays unscoped.
+  const exactBase = supabase.from("clients").select("*").ilike("commercial_name", name);
+  const exactQ = canonicalPartnerId ? applyPartnerScope<any>(exactBase, scope) ?? exactBase : exactBase;
+  const { data: exact } = await exactQ.limit(5);
   if (exact && exact.length > 0) candidates.push(...exact);
 
-  // Fuzzy match within partner.
-  if (partnerId && candidates.length < 5) {
+  // Fuzzy match within the canonical partner.
+  if (canonicalPartnerId && candidates.length < 5) {
     const { data: fuzzy } = await supabase
       .from("clients")
       .select("*")
       .ilike("commercial_name", `%${name}%`)
-      .eq("partner_id", partnerId)
+      .eq("partner_uuid", canonicalPartnerId)
       .limit(5);
     for (const c of fuzzy || []) {
       if (!candidates.find((x) => x.id === c.id)) candidates.push(c);
     }
   }
+
 
   return { best: candidates[0] || null, candidates };
 }
