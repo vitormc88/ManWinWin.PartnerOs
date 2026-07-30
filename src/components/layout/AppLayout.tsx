@@ -1,9 +1,11 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 import { NotificationBell } from "./NotificationBell";
+import { RouteErrorBoundary } from "./RouteErrorBoundary";
 
 export function AppLayout() {
+  const location = useLocation();
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -18,7 +20,9 @@ export function AppLayout() {
             </div>
           </header>
           <main className="flex-1 overflow-auto p-6 bg-background">
-            <Outlet />
+            <RouteErrorBoundary key={location.pathname}>
+              <Outlet />
+            </RouteErrorBoundary>
           </main>
         </div>
       </div>
