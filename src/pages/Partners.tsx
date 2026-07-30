@@ -23,6 +23,35 @@ const statusVariant: Record<string, "success" | "secondary" | "warning" | "destr
 
 type SortKey = "company" | "country" | "level" | "status" | "revenue" | "pipeline" | "health" | "clients";
 
+function SortHeader({ label, sortKey, activeKey, dir, onSort, align = "left" }: {
+  label: string;
+  sortKey: SortKey;
+  activeKey: SortKey;
+  dir: "asc" | "desc";
+  onSort: (key: SortKey) => void;
+  align?: "left" | "right";
+}) {
+  const active = activeKey === sortKey;
+  const Icon = active ? (dir === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={`px-5 py-3 font-medium text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}
+    >
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        aria-label={`Sort by ${label} (${active ? (dir === "asc" ? "currently ascending" : "currently descending") : "not sorted"})`}
+        className={`inline-flex items-center gap-1 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${active ? "text-foreground" : ""} ${align === "right" ? "flex-row-reverse" : ""}`}
+      >
+        <span>{label}</span>
+        <Icon className={`h-3.5 w-3.5 ${active ? "opacity-100" : "opacity-40"}`} aria-hidden="true" />
+      </button>
+    </th>
+  );
+}
+
 export default function Partners() {
   const { data: partners = [], isLoading } = usePartners();
   const { data: metrics = {} } = usePartnerMetrics();
