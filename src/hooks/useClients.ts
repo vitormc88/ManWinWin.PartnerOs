@@ -23,13 +23,13 @@ export function useClients(filters?: { partner_uuid?: string | null; status?: st
   return useQuery({
     queryKey: ["clients", filters],
     queryFn: async () => {
-      const base = supabase.from("clients").select("*").order("commercial_name");
-      let query = base;
+      let query: any = supabase.from("clients").select("*").order("commercial_name");
       if (filters?.partner_uuid !== undefined) {
-        const scoped = applyPartnerScope(base, canonicalPartnerScope(filters.partner_uuid));
+        const scoped = applyPartnerScope<any>(query, canonicalPartnerScope(filters.partner_uuid));
         if (!scoped) return [] as Client[];
         query = scoped;
       }
+
       if (filters?.status) query = query.eq("status", filters.status);
       const { data, error } = await query;
       if (error) throw error;

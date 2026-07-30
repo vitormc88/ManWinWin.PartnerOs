@@ -25,6 +25,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { buildRenewalInsertPayload, buildRenewalPartnerPayload } from "@/lib/renewal-payload";
 import { findEquivalentOpenRenewal, RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
+import { belongsToPartner } from "@/lib/partner-query";
+
 import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -49,7 +51,7 @@ export default function PartnerDetail() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: partner, isLoading } = usePartner(id);
-  const { data: clients = [] } = useClients({ partner_id: id });
+  const { data: clients = [] } = useClients({ partner_uuid: id });
   const { data: deals = [] } = useDeals({ partner_id: id });
   const { data: renewals = [] } = useRenewals();
   const { data: metricsMap = {} } = usePartnerMetrics();
@@ -72,7 +74,10 @@ export default function PartnerDetail() {
     enabled: !!id,
   });
 
-  const partnerRenewals = renewals.filter((r: any) => r.partner_id === id);
+  // Canonical partner relation only: legacy-only renewals stay unresolved and
+  // are never auto-attached to this partner.
+  const partnerRenewals = renewals.filter((r: any) => belongsToPartner(r, id));
+
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, any>>({});
   const [showAddClient, setShowAddClient] = useState(false);
