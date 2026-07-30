@@ -17,6 +17,10 @@ export interface LifecycleEvent {
   metadata: Record<string, unknown>;
   occurred_at: string;
   created_at: string;
+  /** Proposed Phase 3 columns — optional until the review-only migration is applied. */
+  effective_date?: string | null;
+  imported_at?: string | null;
+  occurred_at_known?: boolean | null;
 }
 
 export function useLifecycleEvents(clientId: string | null | undefined) {
