@@ -416,10 +416,11 @@ export default function ClientDetail() {
     setLicenseForm({
       _family: family,
       product: variant,
-      version: DEFAULT_LICENSE_VERSION,
+      // Left empty on purpose — the input only shows the suggested version as a placeholder.
+      version: "",
       license_model: normalizeLicenseModel(variant),
       periodicity: "Annual",
-      database_type: defaults.database_type,
+      deployment_type: defaults.deployment_type,
       backoffice_users: defaults.backoffice_users,
       web_accesses: defaults.web_accesses,
       sat_active: defaults.sat_active,
