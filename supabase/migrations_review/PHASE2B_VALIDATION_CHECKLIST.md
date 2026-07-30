@@ -8,6 +8,8 @@ decision outside this phase.
 
 ## 1. Static review performed in the repository
 
+Repository-only review. There was **no connection to any Postgres database**, so
+nothing here was compared against a deployed/production function definition.
 Checked against `supabase/migrations/` and `src/integrations/supabase/types.ts`:
 
 - [x] Table names exist: `clients`, `contracts`, `contract_lines`, `licenses`, `renewals`.
@@ -16,8 +18,10 @@ Checked against `supabase/migrations/` and `src/integrations/supabase/types.ts`:
       `contract_lines.amount`, `contract_lines.billing_frequency`, `contracts.contract_end_date`,
       `licenses.license_end_date`, `renewals.renewal_date`, `renewals.status`).
 - [x] Function signature preserved: `get_client_commercial_intelligence(client_uuid uuid)`.
-- [x] Return shape (column names, order and types) unchanged versus the currently
-      deployed definition, so `useClientCommercialIntelligence` needs no typed change.
+- [x] Return shape (column names, order and declared types) matches the definition
+      committed in this repository and the expectations of its consumers
+      (`useClientCommercialIntelligence` and its callers), so no typed application
+      change is required. Not compared against any deployed database object.
 - [x] Lines are joined through `contract_id` and are **not** dropped when
       `contract_lines.client_id IS NULL`.
 - [x] No broad dynamic string-replacement `DO` block; the function is defined in full.
@@ -33,12 +37,16 @@ verified here:
 - [ ] The function compiles (`plpgsql` / SQL parse errors, ambiguous column refs).
 - [ ] Runtime types match the declared `RETURNS TABLE` exactly (Postgres is strict:
       `numeric` vs `integer` vs `text` mismatches only surface at execution).
-- [ ] Actual owner/`search_path`/permissions after `CREATE OR REPLACE`.
+- [ ] Actual owner/`search_path`/permissions/grants after `CREATE OR REPLACE`.
 - [ ] Query plan and performance on the real data volume.
 - [ ] Real Watsons output equals EUR 4,221.60 ARR and renewal 2027-07-19.
+- [ ] That the object currently living in staging/production matches the definition
+      in this repository at all.
 
 ## 3. Suggested manual validation sequence (for whoever applies it)
 
+0. This SQL has never been executed. Everything below must be run by a human,
+   starting on a staging/branch database.
 1. Snapshot the current definition:
    `SELECT pg_get_functiondef('public.get_client_commercial_intelligence(uuid)'::regprocedure);`
    Store it — this is the rollback artefact.
