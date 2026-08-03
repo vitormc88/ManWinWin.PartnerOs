@@ -184,13 +184,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = roles.includes("hq_admin") && profile?.is_hq === true;
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Reset scoped state first so nothing from this identity can be rendered
+    // (or refetched) while the sign-out request is in flight.
     setProfile(null);
     setRoles([]);
-    // Clear all permission caches on logout so next login starts fresh
-    queryClient.removeQueries({ queryKey: ["my-permissions"] });
-    queryClient.removeQueries({ queryKey: ["user-permissions"] });
+    setSession(null);
+    setUser(null);
+    setQueryScope(null, queryClient);
+    await supabase.auth.signOut();
   };
+
 
   return (
     <AuthContext.Provider value={{ session, user, profile, roles, isLoading, isAuthReady, isInviteOrRecoveryFlow, isHQ, isAdmin, signOut, refreshProfile }}>
