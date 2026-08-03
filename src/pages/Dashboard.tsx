@@ -12,6 +12,7 @@ import { useDeals, useRenewals, useNotifications } from "@/hooks/useDeals";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { getStageProbability, isActivePipelineStage } from "@/data/pipeline-stages";
+import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
 
 export default function Dashboard() {
   const { isHQ, profile } = useAuth();
