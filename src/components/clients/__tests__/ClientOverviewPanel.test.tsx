@@ -71,7 +71,7 @@ describe("ClientOverviewPanel", () => {
     expect(screen.getByText(/renewal due in 5 days/i)).toBeInTheDocument();
     expect(screen.getByText(/no recurring revenue recorded/i)).toBeInTheDocument();
     expect(screen.getByText(/year 1 value/i)).toBeInTheDocument();
-    expect(screen.getByText("€1,656")).toBeInTheDocument();
+    expect(screen.getByText("€1,656.00")).toBeInTheDocument();
     expect(screen.getByText(/no contacts yet/i)).toBeInTheDocument();
     // Only a single attention item is rendered.
     expect(screen.queryByText(/no contact on record/i)).not.toBeInTheDocument();
