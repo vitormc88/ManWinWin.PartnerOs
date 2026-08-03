@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { getAuthFlowState } from "@/lib/auth-flow";
+import { setQueryScope } from "@/lib/query-scope";
+
 
 interface Profile {
   id: string;
@@ -88,6 +90,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         const flow = syncAuthFlow();
+        // Synchronously discard every cache entry + derived state belonging to
+        // the previous identity BEFORE the next protected render happens.
+        const scopeChanged = setQueryScope(session?.user?.id ?? null, queryClient);
+        if (scopeChanged) {
+          setProfile(null);
+          setRoles([]);
+          if (session?.user) {
+            setIsLoading(true);
+            setIsAuthReady(false);
+          }
+        }
         setSession(session);
         setUser(session?.user ?? null);
 
@@ -135,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       syncAuthFlow();
+      setQueryScope(session?.user?.id ?? null, queryClient);
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -150,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAuthReady(true);
       }
     });
+
 
     const handleUrlChange = () => {
       syncAuthFlow();
@@ -169,13 +184,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAdmin = roles.includes("hq_admin") && profile?.is_hq === true;
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Reset scoped state first so nothing from this identity can be rendered
+    // (or refetched) while the sign-out request is in flight.
     setProfile(null);
     setRoles([]);
-    // Clear all permission caches on logout so next login starts fresh
-    queryClient.removeQueries({ queryKey: ["my-permissions"] });
-    queryClient.removeQueries({ queryKey: ["user-permissions"] });
+    setSession(null);
+    setUser(null);
+    setQueryScope(null, queryClient);
+    await supabase.auth.signOut();
   };
+
 
   return (
     <AuthContext.Provider value={{ session, user, profile, roles, isLoading, isAuthReady, isInviteOrRecoveryFlow, isHQ, isAdmin, signOut, refreshProfile }}>
