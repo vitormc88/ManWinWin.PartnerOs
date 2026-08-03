@@ -4,8 +4,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthScopeBoundary } from "@/components/AuthScopeBoundary";
+import { scopedQueryKeyHashFn } from "@/lib/query-scope";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Tasks from "@/pages/Tasks";
