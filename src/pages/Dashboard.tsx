@@ -145,7 +145,8 @@ export default function Dashboard() {
                 </div>
               );
             })}
-            {urgentRenewals.length === 0 && <p className="text-xs text-muted-foreground">No urgent renewals</p>}
+            {!renewalsReady && <p className="text-xs text-muted-foreground animate-pulse">Loading renewals…</p>}
+            {renewalsReady && urgentRenewals.length === 0 && <p className="text-xs text-muted-foreground">No urgent renewals</p>}
           </div>
         </div>}
 
@@ -161,12 +162,15 @@ export default function Dashboard() {
               { label: "Overdue", value: overdueRenewals.length, color: "text-destructive" },
             ].map(item => (
               <div key={item.label} className="text-center p-2 rounded-lg bg-secondary/50">
-                <p className={`text-lg font-bold tabular-nums ${item.color}`}>{item.value}</p>
+                <p className={`text-lg font-bold tabular-nums ${renewalsReady ? item.color : "text-muted-foreground animate-pulse"}`} aria-busy={!renewalsReady || undefined}>
+                  {renewalsReady ? item.value : LOADING_PLACEHOLDER}
+                </p>
                 <p className="text-[11px] text-muted-foreground">{item.label}</p>
               </div>
             ))}
           </div>
         </div>}
+
 
         {showNotifications && <div className="bg-card rounded-xl border shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">
