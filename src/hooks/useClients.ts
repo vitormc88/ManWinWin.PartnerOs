@@ -19,10 +19,15 @@ const mapError = (error: unknown, action: string) => {
  * A legacy/non-uuid reference never produces a guessed join: the query yields
  * an empty result instead of silently matching legacy text.
  */
-export function useClients(filters?: { partner_uuid?: string | null; status?: string }) {
+export function useClients(
+  filters?: { partner_uuid?: string | null; status?: string },
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: ["clients", filters],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
+
       let query: any = supabase.from("clients").select("*").order("commercial_name");
       if (filters?.partner_uuid !== undefined) {
         const scoped = applyPartnerScope<any>(query, canonicalPartnerScope(filters.partner_uuid));
