@@ -15,18 +15,26 @@ import { getStageProbability, isActivePipelineStage } from "@/data/pipeline-stag
 
 export default function Dashboard() {
   const { isHQ, profile } = useAuth();
-  const { canView } = useModuleAccess();
-  const showPartners = canView("partners");
-  const showRenewals = canView("renewals");
-  const showNotifications = canView("notifications");
-  const showAnnouncements = canView("announcements");
-  const showClients = canView("clients");
-  const showPipeline = canView("pipeline");
-  const { data: partners = [] } = usePartners(undefined, { enabled: showPartners });
-  const { data: clients = [] } = useClients();
-  const { data: deals = [] } = useDeals();
-  const { data: renewals = [] } = useRenewals(undefined, { enabled: showRenewals });
+  const { canView, isLoading: accessLoading } = useModuleAccess();
+  const accessReady = !accessLoading;
+  const allow = (key: string) => accessReady && canView(key);
+  const showPartners = allow("partners");
+  const showRenewals = allow("renewals");
+  const showNotifications = allow("notifications");
+  const showAnnouncements = allow("announcements");
+  const showClients = allow("clients");
+  const showPipeline = allow("pipeline");
+  const { data: partners = [], isLoading: partnersLoading } = usePartners(undefined, { enabled: showPartners });
+  const { data: clients = [], isLoading: clientsLoading } = useClients(undefined, { enabled: showClients });
+  const { data: deals = [], isLoading: dealsLoading } = useDeals(undefined, { enabled: showPipeline });
+  const { data: renewals = [], isLoading: renewalsLoading } = useRenewals(undefined, { enabled: showRenewals });
   const { data: notifications = [] } = useNotifications(showNotifications);
+
+  const partnersReady = showPartners && !partnersLoading;
+  const clientsReady = showClients && !clientsLoading;
+  const dealsReady = showPipeline && !dealsLoading;
+  const renewalsReady = showRenewals && !renewalsLoading;
+
 
   const clientMap = useMemo(() => {
     const m: Record<string, { client_code: string; commercial_name: string; short_name?: string | null }> = {};
