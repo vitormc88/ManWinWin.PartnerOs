@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Mail, Phone, User as UserIcon, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
