@@ -21,7 +21,7 @@ export function useDealRegistrations() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("deal_registrations")
-        .select("*, deals(company_name, country, expected_value, partner_id, created_at)")
+        .select("*, deals!deal_registrations_deal_id_fkey(company_name, country, expected_value, partner_id, created_at)")
         .order("submitted_at", { ascending: false });
       if (error) throw error;
       return data;
