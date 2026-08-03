@@ -1019,6 +1019,8 @@ export default function ClientDetail() {
             modules={modules}
             notes={notes}
             readOnly={!canWrite}
+            intelligence={intelligence as any}
+            resolvedRenewal={resolvedRenewal}
           />
         </TabsContent>
 
