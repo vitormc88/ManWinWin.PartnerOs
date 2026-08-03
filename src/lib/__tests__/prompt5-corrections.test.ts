@@ -3,7 +3,7 @@ import { resolvePartnerLeadDefaults, normalizeCountryName } from "@/lib/lead-def
 import { deriveWorkGuidance } from "@/lib/task-guidance";
 import { formatDateOnly, isSameLocalDay } from "@/lib/date-format";
 import { resolveProposalLifecycle, isProposalSent } from "@/lib/proposal-lifecycle";
-import { countClientsDueWithin } from "@/hooks/useClientAggregates";
+import { countClientsDueWithin } from "@/lib/renewal-kpi";
 
 describe("partner lead defaults", () => {
   it("preselects the authenticated user and normalized partner country", () => {
@@ -44,7 +44,7 @@ describe("renewal counting and dates", () => {
       { client_id: "aps", renewal_date: "2026-08-08", status: "Upcoming" },
       { client_id: "aps", renewal_date: "2026-08-08", status: "Upcoming" },
     ];
-    expect(countClientsDueWithin(rows, "2026-08-01", "2026-08-31")).toBe(1);
+    expect(countClientsDueWithin(rows, 30, null, new Date(2026, 7, 3))).toBe(1);
   });
 
   it("ignores closed renewals and out-of-window dates", () => {
@@ -52,7 +52,7 @@ describe("renewal counting and dates", () => {
       { client_id: "a", renewal_date: "2026-08-08", status: "Won" },
       { client_id: "b", renewal_date: "2027-01-01", status: "Upcoming" },
     ];
-    expect(countClientsDueWithin(rows, "2026-08-01", "2026-08-31")).toBe(0);
+    expect(countClientsDueWithin(rows, 30, null, new Date(2026, 7, 3))).toBe(0);
   });
 
   it("formats date-only values without timezone day shift", () => {
