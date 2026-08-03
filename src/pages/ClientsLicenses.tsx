@@ -16,6 +16,8 @@ import { useClients, useCreateClient } from "@/hooks/useClients";
 import { resolvePartnerIdentity, matchesPartnerFilter, buildPartnerCreatePayload } from "@/lib/partner-identity";
 import { usePartners } from "@/hooks/usePartners";
 import { useClientAggregates } from "@/hooks/useClientAggregates";
+import { useRenewals } from "@/hooks/useDeals";
+import { countClientsDueWithin } from "@/lib/renewal-kpi";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadClientsListState, saveClientsListState, type FilterChip } from "@/lib/clients-list-state";
 import { toast } from "sonner";
@@ -89,6 +91,18 @@ export default function ClientsLicenses() {
   }, [clients, search, partnerFilter, statusFilter, sortField, sortDir, showArchived]);
 
   const activeCount = filtered.filter(c => c.status === "Active").length;
+
+  // "Due in 30 days" reuses the canonical consolidated commercial renewals
+  // (same source as the Renewals Pipeline), counting DISTINCT active clients.
+  const { data: consolidatedRenewals = [] } = useRenewals();
+  const activeClientIds = useMemo(
+    () => new Set(clients.filter(c => c.status !== "Archived").map(c => c.id)),
+    [clients]
+  );
+  const renewals30 = useMemo(
+    () => countClientsDueWithin(consolidatedRenewals as any, 30, activeClientIds),
+    [consolidatedRenewals, activeClientIds]
+  );
   const premiumCount = filtered.filter(c => c.is_premium).length;
 
   // Build filter chips for the Client Detail context bar
@@ -222,7 +236,7 @@ export default function ClientsLicenses() {
       </div>
 
       <div className="animate-reveal-up" style={{ animationDelay: "60ms" }}>
-        <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} totalValue={aggregates?.totalContractValue ?? 0} renewals30={aggregates?.renewals30 ?? 0} overdue={aggregates?.overdue ?? 0} />
+        <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} totalValue={aggregates?.totalContractValue ?? 0} renewals30={renewals30} overdue={aggregates?.overdue ?? 0} />
       </div>
 
       <div className="animate-reveal-up flex flex-wrap items-center gap-3" style={{ animationDelay: "120ms" }}>
