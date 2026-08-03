@@ -28,6 +28,14 @@ import {
   resolveLicenseId,
   type CommercialActionId,
 } from "@/lib/license-evolution";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
+import { resolveRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
+import {
+  buildCommercialSummary,
+  buildHistory,
+  openProposals,
+  type UrgencyTone,
+} from "@/lib/client-overview";
 
 const PROPOSAL_MODES: Record<CommercialActionId, {
   mode: CommercialProposalMode;
@@ -53,10 +61,16 @@ interface Props {
   notes: any[];
   plugins?: any[];
   readOnly?: boolean;
+  /** Canonical commercial intelligence payload (never recomputed here). */
+  intelligence?: { recurring_arr?: number | null; year1_value?: number | null; active_contract_count?: number | null } | null;
+  /** Canonical renewal resolution shared with the Overview tab. */
+  resolvedRenewal?: ResolvedRenewal | null;
 }
 
-export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [], readOnly = false }: Props) {
+export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [], readOnly = false, intelligence = null, resolvedRenewal = null }: Props) {
   const navigate = useNavigate();
+  const { canEdit: canEditModule } = useModuleAccess();
+  const canCreateTask = canEditModule("tasks");
   const createNote = useCreateNote();
   const createTask = useCreateManualTask();
 
@@ -280,55 +294,56 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     setShowProposal(true);
   };
 
-  // Recommended actions (deterministic, lightweight)
-  const recommendations = useMemo(() => {
-    const recs: { title: string; hint: string; action?: () => void; label?: string }[] = [];
-    const renewalDate = primaryContract?.contract_end_date || primaryLicense?.license_end_date;
-    if (renewalDate) {
-      const days = Math.ceil((new Date(renewalDate).getTime() - Date.now()) / 86400000);
-      if (days < 0) {
-        recs.push({
-          title: "Renewal overdue",
-          hint: `Contract ended ${Math.abs(days)}d ago — prepare renewal now.`,
-          label: "Prepare Renewal",
-          action: () => openProposal("renew_agreement"),
-        });
-      } else if (days <= 90) {
-        recs.push({
-          title: `Renewal due in ${days}d`,
-          hint: "Kick off renewal conversation and prepare pricing.",
-          label: "Prepare Renewal",
-          action: () => openProposal("renew_agreement"),
-        });
-      }
-    }
-    if (proposals.length === 0) {
-      recs.push({
-        title: "No commercial proposals on file",
-        hint: "Create the first proposal to formalize the relationship.",
-        label: "New Proposal",
-        action: () => openProposal("other"),
-      });
-    }
-    if (commercialNotes.length === 0) {
-      recs.push({
-        title: "Log the last commercial touchpoint",
-        hint: "Capture context so the next AM continues seamlessly.",
-        label: "Log Note",
-        action: () => setShowNote(true),
-      });
-    }
-    if (!recs.length) {
-      recs.push({
-        title: "Account is on track",
-        hint: "Schedule a quarterly check-in to sustain momentum.",
-        label: "Schedule Meeting",
-        action: () => setShowMeeting(true),
-      });
-    }
-    return recs.slice(0, 3);
-  }, [primaryContract, primaryLicense, proposals, commercialNotes]);
+  // ── Canonical derived state (no divergent recalculation) ──────────────
+  const effectiveRenewal = useMemo(
+    () => resolvedRenewal ?? resolveRenewal({ contract: primaryContract, license: primaryLicense }),
+    [resolvedRenewal, primaryContract, primaryLicense],
+  );
+  const summary = useMemo(
+    () =>
+      buildCommercialSummary({
+        intelligence,
+        resolvedRenewal: effectiveRenewal,
+        contractStatus: (primaryContract as any)?.status || null,
+        activeContractCount: primaryContract ? 1 : 0,
+      }),
+    [intelligence, effectiveRenewal, primaryContract],
+  );
 
+  // Real opportunities only: persisted proposals that are still commercially open.
+  // Missing modules / plugins / disabled API are NOT opportunities.
+  const realOpportunities = useMemo(() => openProposals(proposals as any[]), [proposals]);
+
+  const history = useMemo(
+    () =>
+      buildHistory([
+        ...(proposals || []).map((p: any) => ({
+          key: `proposal-${p.id}`,
+          kind: "proposal" as const,
+          title: `Proposal — ${p.project_name || p.client_name}`,
+          meta: p.status ? `Status: ${p.status}` : null,
+          eventDate: p.proposal_date || p.created_at,
+          recordedAt: p.created_at,
+        })),
+        ...(commercialNotes || []).map((n: any) => ({
+          key: `note-${n.id}`,
+          kind: "note" as const,
+          title: "Commercial note",
+          meta: (n.content || "").slice(0, 120),
+          eventDate: n.created_at,
+        })),
+        ...(events || []).map((e: any) => ({
+          key: `event-${e.id}`,
+          kind: "event" as const,
+          rawType: e.event_type,
+          title: e.event_title || null,
+          meta: e.event_description || null,
+          eventDate: e.effective_date || e.occurred_at || e.created_at,
+          recordedAt: e.imported_at || e.created_at,
+        })),
+      ]).slice(0, 20),
+    [proposals, commercialNotes, events],
+  );
 
   const handleCreateMeeting = async () => {
     if (!meetingTitle.trim()) { toast.error("Add a meeting title"); return; }
