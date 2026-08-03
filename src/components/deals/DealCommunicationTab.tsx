@@ -20,6 +20,7 @@ import {
   ACTIVITY_TYPE_OPTIONS, ACTIVITY_TYPE_LABELS, ACTIVITY_TAGS, TAG_STYLE,
   isSystemActivity, logDealActivity,
 } from "@/lib/activity-log";
+import { activityStreamSummary } from "@/lib/activity-stream";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyEffectivePermissions } from "@/hooks/useRoleTemplates";
 import { canEdit } from "@/lib/permissions";
