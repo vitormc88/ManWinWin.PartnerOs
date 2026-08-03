@@ -41,7 +41,15 @@ import Settings, { SettingsComingSoon } from "@/pages/Settings";
 import RolesPermissions from "@/pages/RolesPermissions";
 import NotFound from "@/pages/NotFound";
 
-const queryClient = new QueryClient();
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Namespaces every cache entry by the authenticated scope, so cached
+      // results can never leak across users.
+      queryKeyHashFn: scopedQueryKeyHashFn,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -53,7 +61,8 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route element={<AuthScopeBoundary><ProtectedRoute><AppLayout /></ProtectedRoute></AuthScopeBoundary>}>
+
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/tasks" element={<Tasks />} />
