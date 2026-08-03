@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { formatMoney } from "@/lib/money";
 import { AlertTriangle, CheckCircle2, Mail, Phone, User as UserIcon, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,7 @@ interface Props {
 
 const fmtCurrency = (n: number) => {
   try {
-    return new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+    return formatMoney(n);
   } catch {
     return `€${Math.round(n)}`;
   }
