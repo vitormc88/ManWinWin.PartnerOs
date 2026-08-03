@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { getAuthFlowState } from "@/lib/auth-flow";
+import { setQueryScope } from "@/lib/query-scope";
+
 
 interface Profile {
   id: string;
