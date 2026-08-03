@@ -278,7 +278,17 @@ export default function DealDetail() {
       </div>
 
 
-      {deal.status === "Open" && <DealHealthBanner deal={deal} />}
+      {deal.status === "Open" && (
+        <DealHealthBanner
+          deal={deal}
+          onAssignOwner={() => {
+            setEditing(true);
+            setTimeout(() => {
+              document.getElementById("deal-owner-field")?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 50);
+          }}
+        />
+      )}
       {deal.stage === "Lost" && <LossBanner dealId={deal.id} />}
 
       <QualificationSnapshot dealId={deal.id} />
@@ -321,7 +331,7 @@ export default function DealDetail() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div id="deal-owner-field">
                   <Label>Assigned To</Label>
                   <Select
                     value={editForm.assigned_user_id || "none"}

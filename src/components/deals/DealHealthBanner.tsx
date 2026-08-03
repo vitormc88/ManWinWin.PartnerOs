@@ -67,7 +67,7 @@ export function DealHealthBanner({ deal, onAssignOwner }: { deal: Deal; onAssign
     hasOverdueTask: data.hasOverdueTask,
     latestProposalAt: data.latestProposalAt ? new Date(data.latestProposalAt) : null,
     proposalSent: data.proposalSent,
-    hasOwner: !!(deal.assigned_salesperson && deal.assigned_salesperson.trim()),
+    hasOwner: !!((deal.assigned_salesperson && deal.assigned_salesperson.trim()) || (deal as any).assigned_user_id),
     baseProbability: (deal as any).probability ?? null,
   });
 
