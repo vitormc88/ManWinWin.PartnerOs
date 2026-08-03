@@ -19,6 +19,7 @@ import { useUsers } from "@/hooks/useUsers";
 import { useAssignableUsers } from "@/hooks/useAssignableUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { EntityCombobox } from "@/components/tasks/EntityCombobox";
+import { deriveWorkGuidance } from "@/lib/task-guidance";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1090,48 +1091,10 @@ function PriorityFocus({ tasks }: { tasks: UnifiedTask[] }) {
 }
 
 function WorkGuidance({ tasks }: { tasks: UnifiedTask[] }) {
-  const lines = useMemo(() => {
-    const open = tasks.filter((t) => t.status !== "done");
-    if (open.length === 0) return ["Inbox clear — no open work to interpret."];
-
-    const now = new Date();
-    const overdue = open.filter((t) => t.due_date && isPast(parseISO(t.due_date)) && !isToday(parseISO(t.due_date)));
-    const critical = open.filter((t) => t.priority === "Critical");
-
-    // distribution by source
-    const bySource = new Map<TaskSource, { count: number; revenue: number }>();
-    for (const t of open) {
-      const cur = bySource.get(t.source) || { count: 0, revenue: 0 };
-      cur.count += 1;
-      cur.revenue += t.revenue_impact || 0;
-      bySource.set(t.source, cur);
-    }
-    const ranked = Array.from(bySource.entries()).sort((a, b) => b[1].count - a[1].count);
-    const top = ranked[0];
-
-    const out: string[] = [];
-    if (top && top[1].count >= 2) {
-      out.push(`Most urgent work is concentrated in ${SOURCE_LABEL[top[0]]} (${top[1].count} tasks).`);
-    }
-
-    const overdueRevenue = overdue.reduce((s, t) => s + (t.revenue_impact || 0), 0);
-    const totalRevenue = open.reduce((s, t) => s + (t.revenue_impact || 0), 0);
-    if (critical.length > 0 && overdue.length > 0 && critical.some((t) => overdue.includes(t))) {
-      out.push("Critical overdue tasks represent most of today's revenue at stake.");
-    } else if (overdueRevenue > 0 && totalRevenue > 0 && overdueRevenue / totalRevenue > 0.5) {
-      out.push("Overdue tasks hold the majority of revenue at stake — prioritize them.");
-    }
-
-    const overdueRenewals = overdue.filter((t) => t.source === "renewal");
-    if (overdueRenewals.length >= 2) {
-      out.push("Renewal work is accumulating — review overdue renewals first.");
-    }
-
-    if (out.length === 0) {
-      out.push("Workload is balanced. Focus on closing critical items.");
-    }
-    return out.slice(0, 2);
-  }, [tasks]);
+  const lines = useMemo(
+    () => deriveWorkGuidance(tasks as any, (s) => SOURCE_LABEL[s as TaskSource] || s),
+    [tasks]
+  );
 
   return (
     <Card>

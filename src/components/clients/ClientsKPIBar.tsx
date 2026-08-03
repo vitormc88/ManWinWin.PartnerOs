@@ -15,7 +15,7 @@ export function ClientsKPIBar({ active, total, premium, totalValue, renewals30, 
     { label: "Active Clients", value: `${active}`, sub: `of ${total}`, icon: Building2, color: "text-primary" },
     { label: "Premium", value: `${premium}`, sub: "clients", icon: Star, color: "text-amber-600" },
     { label: "Contract Value", value: `€${(totalValue / 1000).toFixed(0)}k`, sub: "total", icon: DollarSign, color: "text-emerald-600" },
-    { label: "Due in 30 days", value: `${renewals30}`, sub: "renewals", icon: CalendarClock, color: "text-orange-600" },
+    { label: "Due in 30 days", value: `${renewals30}`, sub: "clients", icon: CalendarClock, color: "text-orange-600" },
     { label: "Overdue", value: `${overdue}`, sub: "expired", icon: ShieldAlert, color: "text-red-600" },
   ];
 
