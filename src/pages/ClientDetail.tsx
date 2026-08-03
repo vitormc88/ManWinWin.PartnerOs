@@ -992,19 +992,22 @@ export default function ClientDetail() {
             nextRenewalDate={renewalEndDate}
             onEdit={canWrite ? startEditClient : undefined}
           />
-          {client?.id && <ContactsCard clientId={client.id} readOnly={!canWrite} />}
           {client?.id && (
-            <CommercialIntelligenceDashboard
+            <ClientOverviewPanel
               clientId={client.id}
               client={client}
-              ownerName={client.manager_owner || client.account_manager}
-              contractStatus={(primaryContract as any)?.status || null}
-              billing={(primaryContract as any)?.billing_frequency || null}
+              intelligence={intelligence as any}
               resolvedRenewal={resolvedRenewal}
+              contractStatus={(primaryContract as any)?.status || null}
+              hasLicense={hasValidLicense}
               readOnly={!canWrite}
+              onOpenTab={setActiveTab}
+              onViewContacts={() => setShowAllContacts(true)}
             />
           )}
+          {client?.id && showAllContacts && <ContactsCard clientId={client.id} readOnly={!canWrite} />}
         </TabsContent>
+
 
         {/* ═══════════════════ COMMERCIAL TAB ═══════════════════ */}
         <TabsContent value="commercial" className="mt-5">
