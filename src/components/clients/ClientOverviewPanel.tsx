@@ -202,7 +202,7 @@ export function ClientOverviewPanel({
   );
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+function Row({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3">
       <span className="text-xs text-muted-foreground">{label}</span>
