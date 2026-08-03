@@ -105,10 +105,10 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {showPipeline && <KPICard title="Total Revenue" value={totalRevenue > 0 ? `€${totalRevenue.toLocaleString()}` : "€0"} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""}`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={DollarSign} delay={60} />}
-        {showPartners && <KPICard title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={120} />}
-        {showPipeline && <KPICard title="Pipeline Value" value={totalPipeline > 0 ? `€${totalPipeline.toLocaleString()}` : "€0"} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={180} />}
-        {showClients && <KPICard title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={240} />}
+        {showPipeline && <KPICard loading={!dealsReady} title="Total Revenue" value={formatMoney(totalRevenue)} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""}`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={DollarSign} delay={60} />}
+        {showPartners && <KPICard loading={!partnersReady} title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={120} />}
+        {showPipeline && <KPICard loading={!dealsReady} title="Pipeline Value" value={formatMoney(totalPipeline)} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={180} />}
+        {showClients && <KPICard loading={!clientsReady} title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={240} />}
       </div>
 
       {/* Renewals Urgency */}
@@ -117,8 +117,8 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="font-semibold text-foreground text-sm">Renewals Due Soon</h3>
-              {totalDueSoonValue > 0 && (
-                <p className="text-xs text-muted-foreground mt-0.5">Total: €{totalDueSoonValue.toLocaleString()}</p>
+              {renewalsReady && totalDueSoonValue > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">Total: {formatMoney(totalDueSoonValue)}</p>
               )}
             </div>
             <Link to="/renewals" className="text-xs text-primary hover:underline">View all →</Link>
@@ -132,8 +132,9 @@ export default function Dashboard() {
                 <div key={r.id} className="flex items-center justify-between">
                   <div className="min-w-0 flex-1 mr-2">
                     <Link to={`/clients/${r.client_id}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate block">{label}</Link>
-                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}{value > 0 ? ` · €${value.toLocaleString()}` : ""}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}{value > 0 ? ` · ${formatMoney(value)}` : ""}</p>
                   </div>
+
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-xs tabular-nums font-semibold ${r._days < 0 ? "text-destructive" : "text-warning-foreground"}`}>
                       {r._days < 0 ? `${Math.abs(r._days)}d ago` : `${r._days}d`}
