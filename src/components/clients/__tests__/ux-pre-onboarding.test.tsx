@@ -49,7 +49,7 @@ describe("KPIs never flash false zeroes", () => {
   it("renders resolved values once loading completes", () => {
     render(<ClientsKPIBar active={3} total={4} premium={1} totalValue={4221.6} renewals30={1} overdue={0} />);
     expect(screen.getByText("€4.2k")).toBeTruthy();
-    expect(screen.getByText("1")).toBeTruthy();
+    expect(screen.getAllByText("1").length).toBeGreaterThan(0);
     expect(screen.queryByText(LOADING_PLACEHOLDER)).toBeNull();
   });
 });
