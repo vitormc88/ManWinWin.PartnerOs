@@ -4,10 +4,15 @@ import type { Tables } from "@/integrations/supabase/types";
 
 export type Deal = Tables<"deals">;
 
-export function useDeals(filters?: { stage?: string; partner_id?: string }) {
+export function useDeals(
+  filters?: { stage?: string; partner_id?: string },
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: ["deals", filters],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
+
       let query = supabase.from("deals").select("*").order("created_at", { ascending: false });
       if (filters?.stage) query = query.eq("stage", filters.stage);
       if (filters?.partner_id) query = query.eq("partner_id", filters.partner_id);

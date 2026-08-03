@@ -15,6 +15,7 @@ import {
   TrendingUp, Sparkles, ArrowUpRight, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatMoney } from "@/lib/money";
 import { formatDateOnly } from "@/lib/date-format";
 import { useCreateNote } from "@/hooks/useClients";
 import { useCreateManualTask } from "@/hooks/useTasks";
@@ -371,9 +372,9 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           <Metric label="Contract status" value={summary.contractLabel} />
           <Metric
             label="Recurring revenue (ARR)"
-            value={summary.arrZeroWithYear1 ? "No recurring revenue recorded" : `€${summary.arr.toLocaleString("en-GB")} / year`}
+            value={summary.arrZeroWithYear1 ? "No recurring revenue recorded" : `${formatMoney(summary.arr)} / year`}
           />
-          <Metric label="Year 1 value" value={`€${summary.year1.toLocaleString("en-GB")}`} />
+          <Metric label="Year 1 value" value={formatMoney(summary.year1)} />
           <Metric
             label="Next renewal"
             value={summary.renewalLabel}
@@ -406,8 +407,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                     <p className="text-sm font-medium text-foreground truncate">{p.project_name || p.client_name}</p>
                     <p className="text-xs text-muted-foreground break-words">
                       {p.proposal_date ? formatDateOnly(p.proposal_date) : "—"}
-                      {p.total_year_1 ? ` · Year 1 €${Number(p.total_year_1).toLocaleString("en-GB")}` : ""}
-                      {p.total_recurring ? ` · Recurring €${Number(p.total_recurring).toLocaleString("en-GB")}` : ""}
+                      {p.total_year_1 ? ` · Year 1 ${formatMoney(p.total_year_1)}` : ""}
+                      {p.total_recurring ? ` · Recurring ${formatMoney(p.total_recurring)}` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">

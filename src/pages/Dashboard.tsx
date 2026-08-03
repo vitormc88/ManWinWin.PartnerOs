@@ -12,21 +12,30 @@ import { useDeals, useRenewals, useNotifications } from "@/hooks/useDeals";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { getStageProbability, isActivePipelineStage } from "@/data/pipeline-stages";
+import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
 
 export default function Dashboard() {
   const { isHQ, profile } = useAuth();
-  const { canView } = useModuleAccess();
-  const showPartners = canView("partners");
-  const showRenewals = canView("renewals");
-  const showNotifications = canView("notifications");
-  const showAnnouncements = canView("announcements");
-  const showClients = canView("clients");
-  const showPipeline = canView("pipeline");
-  const { data: partners = [] } = usePartners(undefined, { enabled: showPartners });
-  const { data: clients = [] } = useClients();
-  const { data: deals = [] } = useDeals();
-  const { data: renewals = [] } = useRenewals(undefined, { enabled: showRenewals });
+  const { canView, isLoading: accessLoading } = useModuleAccess();
+  const accessReady = !accessLoading;
+  const allow = (key: string) => accessReady && canView(key);
+  const showPartners = allow("partners");
+  const showRenewals = allow("renewals");
+  const showNotifications = allow("notifications");
+  const showAnnouncements = allow("announcements");
+  const showClients = allow("clients");
+  const showPipeline = allow("pipeline");
+  const { data: partners = [], isLoading: partnersLoading } = usePartners(undefined, { enabled: showPartners });
+  const { data: clients = [], isLoading: clientsLoading } = useClients(undefined, { enabled: showClients });
+  const { data: deals = [], isLoading: dealsLoading } = useDeals(undefined, { enabled: showPipeline });
+  const { data: renewals = [], isLoading: renewalsLoading } = useRenewals(undefined, { enabled: showRenewals });
   const { data: notifications = [] } = useNotifications(showNotifications);
+
+  const partnersReady = showPartners && !partnersLoading;
+  const clientsReady = showClients && !clientsLoading;
+  const dealsReady = showPipeline && !dealsLoading;
+  const renewalsReady = showRenewals && !renewalsLoading;
+
 
   const clientMap = useMemo(() => {
     const m: Record<string, { client_code: string; commercial_name: string; short_name?: string | null }> = {};
@@ -97,10 +106,10 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {showPipeline && <KPICard title="Total Revenue" value={totalRevenue > 0 ? `€${totalRevenue.toLocaleString()}` : "€0"} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""}`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={DollarSign} delay={60} />}
-        {showPartners && <KPICard title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={120} />}
-        {showPipeline && <KPICard title="Pipeline Value" value={totalPipeline > 0 ? `€${totalPipeline.toLocaleString()}` : "€0"} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={180} />}
-        {showClients && <KPICard title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={240} />}
+        {showPipeline && <KPICard loading={!dealsReady} title="Total Revenue" value={formatMoney(totalRevenue)} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""}`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={DollarSign} delay={60} />}
+        {showPartners && <KPICard loading={!partnersReady} title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={120} />}
+        {showPipeline && <KPICard loading={!dealsReady} title="Pipeline Value" value={formatMoney(totalPipeline)} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={180} />}
+        {showClients && <KPICard loading={!clientsReady} title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={240} />}
       </div>
 
       {/* Renewals Urgency */}
@@ -109,8 +118,8 @@ export default function Dashboard() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="font-semibold text-foreground text-sm">Renewals Due Soon</h3>
-              {totalDueSoonValue > 0 && (
-                <p className="text-xs text-muted-foreground mt-0.5">Total: €{totalDueSoonValue.toLocaleString()}</p>
+              {renewalsReady && totalDueSoonValue > 0 && (
+                <p className="text-xs text-muted-foreground mt-0.5">Total: {formatMoney(totalDueSoonValue)}</p>
               )}
             </div>
             <Link to="/renewals" className="text-xs text-primary hover:underline">View all →</Link>
@@ -124,8 +133,9 @@ export default function Dashboard() {
                 <div key={r.id} className="flex items-center justify-between">
                   <div className="min-w-0 flex-1 mr-2">
                     <Link to={`/clients/${r.client_id}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate block">{label}</Link>
-                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}{value > 0 ? ` · €${value.toLocaleString()}` : ""}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}{value > 0 ? ` · ${formatMoney(value)}` : ""}</p>
                   </div>
+
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-xs tabular-nums font-semibold ${r._days < 0 ? "text-destructive" : "text-warning-foreground"}`}>
                       {r._days < 0 ? `${Math.abs(r._days)}d ago` : `${r._days}d`}
@@ -135,7 +145,8 @@ export default function Dashboard() {
                 </div>
               );
             })}
-            {urgentRenewals.length === 0 && <p className="text-xs text-muted-foreground">No urgent renewals</p>}
+            {!renewalsReady && <p className="text-xs text-muted-foreground animate-pulse">Loading renewals…</p>}
+            {renewalsReady && urgentRenewals.length === 0 && <p className="text-xs text-muted-foreground">No urgent renewals</p>}
           </div>
         </div>}
 
@@ -151,12 +162,15 @@ export default function Dashboard() {
               { label: "Overdue", value: overdueRenewals.length, color: "text-destructive" },
             ].map(item => (
               <div key={item.label} className="text-center p-2 rounded-lg bg-secondary/50">
-                <p className={`text-lg font-bold tabular-nums ${item.color}`}>{item.value}</p>
+                <p className={`text-lg font-bold tabular-nums ${renewalsReady ? item.color : "text-muted-foreground animate-pulse"}`} aria-busy={!renewalsReady || undefined}>
+                  {renewalsReady ? item.value : LOADING_PLACEHOLDER}
+                </p>
                 <p className="text-[11px] text-muted-foreground">{item.label}</p>
               </div>
             ))}
           </div>
         </div>}
+
 
         {showNotifications && <div className="bg-card rounded-xl border shadow-sm p-5">
           <div className="flex items-center justify-between mb-3">

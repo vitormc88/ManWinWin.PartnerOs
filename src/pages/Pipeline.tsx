@@ -16,6 +16,8 @@ import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 import { DealHealthBadge } from "@/components/deals/DealHealthBadge";
 import { cn } from "@/lib/utils";
 import { logSystemActivity } from "@/lib/activity-log";
+import { formatMoney } from "@/lib/money";
+import { isPartnerScopedView } from "@/lib/partner-scope";
 
 function formatDaysAgo(d: Date | null): string {
   if (!d) return "—";
@@ -49,6 +51,7 @@ export default function Pipeline() {
   const queryClient = useQueryClient();
 
   const partnerMap = new Map(partners.map(p => [p.id, p.company_name]));
+  const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
   const partnerNames = [...new Set(deals.map(d => partnerMap.get(d.partner_id || "") || "Unknown"))].filter(Boolean);
 
   const filtered = deals.filter(d => {
@@ -124,7 +127,7 @@ export default function Pipeline() {
       <div className="flex items-center justify-between animate-reveal-up">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Sales Pipeline</h1>
-          <p className="text-sm text-muted-foreground mt-1">{open.length} open leads · €{(totalPipeline / 1000).toFixed(0)}k pipeline · {hotDeals} hot</p>
+          <p className="text-sm text-muted-foreground mt-1">{open.length} open leads · {formatMoney(totalPipeline, { compact: true })} pipeline · {hotDeals} hot</p>
         </div>
         <Button size="sm" onClick={() => setShowCreate(true)}><Plus className="h-4 w-4 mr-1.5" /> New Lead</Button>
       </div>
@@ -132,8 +135,8 @@ export default function Pipeline() {
       {/* Commercial KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-reveal-up" style={{ animationDelay: "60ms" }}>
         {[
-          { label: "Pipeline Value", value: `€${(totalPipeline / 1000).toFixed(0)}k`, icon: TrendingUp, accent: "text-primary" },
-          { label: "Weighted Pipeline", value: `€${(weightedPipeline / 1000).toFixed(0)}k`, icon: Target, accent: "text-foreground" },
+          { label: "Pipeline Value", value: formatMoney(totalPipeline, { compact: true }), icon: TrendingUp, accent: "text-primary" },
+          { label: "Weighted Pipeline", value: formatMoney(weightedPipeline, { compact: true }), icon: Target, accent: "text-foreground" },
           { label: "Win Rate", value: closedCount > 0 ? `${winRate}%` : "—", icon: Trophy, accent: "text-emerald-600" },
           { label: "Open Leads", value: String(open.length), icon: Clock, accent: "text-foreground" },
         ].map(kpi => (
@@ -191,10 +194,12 @@ export default function Pipeline() {
           <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <input type="text" placeholder="Search leads..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-sm outline-none w-full placeholder:text-muted-foreground" />
         </div>
+        {!partnerScoped && (
         <select value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)} className="h-9 px-3 rounded-lg border bg-card text-sm text-muted-foreground">
           <option value="all">All Partners</option>
           {partnerNames.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
+        )}
         <select value={healthFilter} onChange={e => setHealthFilter(e.target.value)} className="h-9 px-3 rounded-lg border bg-card text-sm text-muted-foreground">
           <option value="all">All Health</option>
           <option value="Hot">Hot</option>
@@ -219,7 +224,7 @@ export default function Pipeline() {
                     <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{stage.label}</h3>
                     <Badge variant="outline" className="text-[10px] tabular-nums px-1.5 py-0">{stageDeals.length}</Badge>
                   </div>
-                  {stageValue > 0 && <span className="text-[10px] text-muted-foreground tabular-nums font-medium">€{(stageValue / 1000).toFixed(0)}k</span>}
+                  {stageValue > 0 && <span className="text-[10px] text-muted-foreground tabular-nums font-medium">{formatMoney(stageValue, { compact: true })}</span>}
                 </div>
                 <div className="space-y-1.5">
                   {stageDeals.map(deal => {
@@ -234,14 +239,14 @@ export default function Pipeline() {
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-foreground leading-tight truncate">{deal.company_name}</p>
-                            <p className="text-[10.5px] text-muted-foreground truncate">{partnerMap.get(deal.partner_id || "") || "—"}</p>
+                            {!partnerScoped && <p className="text-[10.5px] text-muted-foreground truncate">{partnerMap.get(deal.partner_id || "") || "—"}</p>}
                           </div>
                           <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
                         </div>
 
                         {(deal.expected_value || 0) > 0 && (
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-bold text-foreground tabular-nums">€{(deal.expected_value || 0).toLocaleString()}</span>
+                            <span className="text-sm font-bold text-foreground tabular-nums">{formatMoney(deal.expected_value)}</span>
                             <Badge variant="outline" className="text-[10px] px-1.5 py-0">{resolveDealProbability(deal)}%</Badge>
                           </div>
                         )}
@@ -302,9 +307,9 @@ export default function Pipeline() {
                   <Link key={deal.id} to={`/deals/${deal.id}`} className="flex items-center justify-between bg-card rounded-lg border p-3 hover:shadow-sm transition-shadow">
                     <div>
                       <p className="text-sm font-medium text-foreground">{deal.company_name}</p>
-                      <p className="text-[11px] text-muted-foreground">{partnerMap.get(deal.partner_id || "") || "—"} · {getOwnerDisplay(deal as any, profilesMap)}</p>
+                      <p className="text-[11px] text-muted-foreground">{partnerScoped ? getOwnerDisplay(deal as any, profilesMap) : `${partnerMap.get(deal.partner_id || "") || "—"} · ${getOwnerDisplay(deal as any, profilesMap)}`}</p>
                     </div>
-                    <span className="text-sm font-semibold tabular-nums text-foreground">€{(deal.total_value || deal.expected_value || 0).toLocaleString()}</span>
+                    <span className="text-sm font-semibold tabular-nums text-foreground">{formatMoney(deal.total_value || deal.expected_value || 0)}</span>
                   </Link>
                 ))}
                 {stageDeals.length === 0 && <p className="text-xs text-muted-foreground">No {stage.toLowerCase()} deals</p>}

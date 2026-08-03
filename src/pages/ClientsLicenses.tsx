@@ -21,6 +21,7 @@ import { countClientsDueWithin } from "@/lib/renewal-kpi";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadClientsListState, saveClientsListState, type FilterChip } from "@/lib/clients-list-state";
 import { toast } from "sonner";
+import { isPartnerScopedView, clientsSubtitle } from "@/lib/partner-scope";
 
 type LicenseFamily = "Business" | "Professional" | "";
 
@@ -40,9 +41,9 @@ export default function ClientsLicenses() {
   const navigate = useNavigate();
   const { isHQ, isAdmin, profile } = useAuth();
   const userPartnerId = !isHQ ? profile?.partner_id : null;
-  const { data: clients = [], isLoading } = useClients();
-  const { data: partners = [] } = usePartners();
-  const { data: aggregates } = useClientAggregates();
+  const { data: clients = [], isLoading, isError: clientsError } = useClients();
+  const { data: partners = [], isLoading: partnersLoading } = usePartners();
+  const { data: aggregates, isLoading: aggregatesLoading, isError: aggregatesError } = useClientAggregates();
   const { canEdit } = useModuleAccess();
   const canEditClients = canEdit("clients");
   const createClient = useCreateClient();
@@ -94,7 +95,7 @@ export default function ClientsLicenses() {
 
   // "Due in 30 days" reuses the canonical consolidated commercial renewals
   // (same source as the Renewals Pipeline), counting DISTINCT active clients.
-  const { data: consolidatedRenewals = [] } = useRenewals();
+  const { data: consolidatedRenewals = [], isLoading: renewalsLoading, isError: renewalsError } = useRenewals();
   const activeClientIds = useMemo(
     () => new Set(clients.filter(c => c.status !== "Archived").map(c => c.id)),
     [clients]
@@ -104,6 +105,14 @@ export default function ClientsLicenses() {
     [consolidatedRenewals, activeClientIds]
   );
   const premiumCount = filtered.filter(c => c.is_premium).length;
+
+  // Partner-scoped presentation: hide the partner dimension when the user can
+  // only ever see one partner. Query/RLS scope is untouched.
+  const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
+
+  // Never render a KPI before every source it depends on has resolved.
+  const kpisLoading = isLoading || partnersLoading || aggregatesLoading || renewalsLoading;
+  const kpisError = clientsError || aggregatesError || renewalsError;
 
   // Build filter chips for the Client Detail context bar
   const filterChips: FilterChip[] = useMemo(() => {
@@ -220,7 +229,7 @@ export default function ClientsLicenses() {
       <div className="animate-reveal-up flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Clients & Licenses</h1>
-          <p className="text-sm text-muted-foreground mt-1">Centralized license management across all partners</p>
+          <p className="text-sm text-muted-foreground mt-1">{clientsSubtitle(partnerScoped)}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
@@ -236,7 +245,7 @@ export default function ClientsLicenses() {
       </div>
 
       <div className="animate-reveal-up" style={{ animationDelay: "60ms" }}>
-        <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} totalValue={aggregates?.totalContractValue ?? 0} renewals30={renewals30} overdue={aggregates?.overdue ?? 0} />
+        <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} totalValue={aggregates?.totalContractValue ?? 0} renewals30={renewals30} overdue={aggregates?.overdue ?? 0} loading={kpisLoading} error={!!kpisError} />
       </div>
 
       <div className="animate-reveal-up flex flex-wrap items-center gap-3" style={{ animationDelay: "120ms" }}>
@@ -244,6 +253,7 @@ export default function ClientsLicenses() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search clients..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
+        {!partnerScoped && (
         <Select value={partnerFilter} onValueChange={setPartnerFilter}>
           <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="All Partners" /></SelectTrigger>
           <SelectContent>
@@ -252,6 +262,7 @@ export default function ClientsLicenses() {
             {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
           </SelectContent>
         </Select>
+        )}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="All Status" /></SelectTrigger>
           <SelectContent>
@@ -269,7 +280,7 @@ export default function ClientsLicenses() {
               <TableRow className="bg-muted/30">
                 <SortHeader field="client_code">Code</SortHeader>
                 <SortHeader field="commercial_name">Client</SortHeader>
-                <TableHead>Partner</TableHead>
+                {!partnerScoped && <TableHead>Partner</TableHead>}
                 <SortHeader field="country">Country</SortHeader>
                 <SortHeader field="sector">Sector</SortHeader>
                 <TableHead>License</TableHead>
@@ -279,9 +290,9 @@ export default function ClientsLicenses() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">Loading clients...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={partnerScoped ? 7 : 8} className="h-32 text-center text-muted-foreground">Loading clients...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="h-32 text-center text-muted-foreground">{showArchived ? "No archived clients." : "No clients match your filters."} {canEditClients && <button onClick={() => navigate("/clients/new")} className="text-primary hover:underline">Create client</button>}</TableCell></TableRow>
+                <TableRow><TableCell colSpan={partnerScoped ? 7 : 8} className="h-32 text-center text-muted-foreground">{showArchived ? "No archived clients." : "No clients match your filters."} {canEditClients && <button onClick={() => navigate("/clients/new")} className="text-primary hover:underline">Create client</button>}</TableCell></TableRow>
               ) : filtered.map(c => (
                 <TableRow key={c.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => handleOpenClient(c.id)}>
                   <TableCell className="font-mono text-xs text-muted-foreground">{c.client_code}</TableCell>
@@ -291,7 +302,7 @@ export default function ClientsLicenses() {
                       {c.is_premium && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600 bg-amber-50">Premium</Badge>}
                     </div>
                   </TableCell>
-                  <TableCell className="text-sm">
+                  {!partnerScoped && <TableCell className="text-sm">
                     {(() => {
                       const identity = resolvePartnerIdentity(c as any, partnerMap);
                       return (
@@ -308,7 +319,7 @@ export default function ClientsLicenses() {
                         </span>
                       );
                     })()}
-                  </TableCell>
+                  </TableCell>}
                   <TableCell className="text-sm">{c.country}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.sector}</TableCell>
                   <TableCell><Badge variant="secondary" className="text-xs font-normal">{getLicenseDisplay(c.license_type)}</Badge></TableCell>
