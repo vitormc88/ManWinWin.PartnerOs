@@ -8,6 +8,9 @@ import { useClients } from "@/hooks/useClients";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { formatDateOnly } from "@/lib/date-format";
+import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
+import { useAuth } from "@/contexts/AuthContext";
+import { isPartnerScopedView } from "@/lib/partner-scope";
 
 const statusColors: Record<string, string> = {
   "Upcoming": "bg-info/10 text-info border-info/20",
@@ -27,9 +30,11 @@ const priorityColors: Record<string, string> = {
 };
 
 export default function Renewals() {
-  const { data: renewals = [], isLoading } = useRenewals();
-  const { data: partners = [] } = usePartners();
-  const { data: clients = [] } = useClients();
+  const { isHQ, profile } = useAuth();
+  const { data: renewals = [], isLoading, isError } = useRenewals();
+  const { data: partners = [], isLoading: partnersLoading } = usePartners();
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
+  const kpisReady = !isLoading && !partnersLoading && !clientsLoading && !isError;
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [partnerFilter, setPartnerFilter] = useState<string>("all");
@@ -75,6 +80,8 @@ export default function Renewals() {
     totalValue: enriched.reduce((s, r) => s + Number(r.estimated_value || 0), 0),
   }), [enriched]);
 
+  const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
+
   const detail = selectedId ? enriched.find(r => r.id === selectedId) : null;
 
   return (
@@ -93,11 +100,11 @@ export default function Renewals() {
           { label: "In Progress", value: stats.inProgress, color: "text-purple-600" },
           { label: "At Risk", value: stats.atRisk, color: "text-destructive" },
           { label: "Expired", value: stats.expired, color: "text-muted-foreground" },
-          { label: "Pipeline Value", value: `€${(stats.totalValue / 1000).toFixed(0)}k`, color: "text-foreground" },
+          { label: "Pipeline Value", value: formatMoney(stats.totalValue, { compact: true }), color: "text-foreground" },
         ].map((kpi, i) => (
           <div key={i} className="bg-card rounded-xl border shadow-sm p-4">
             <p className="text-xs text-muted-foreground font-medium">{kpi.label}</p>
-            <p className={`text-xl font-bold tabular-nums mt-1 ${kpi.color}`}>{kpi.value}</p>
+            <p className={`text-xl font-bold tabular-nums mt-1 ${kpisReady ? kpi.color : "text-muted-foreground animate-pulse"}`} aria-busy={!kpisReady || undefined}>{kpisReady ? kpi.value : LOADING_PLACEHOLDER}</p>
           </div>
         ))}
       </div>
@@ -114,6 +121,7 @@ export default function Renewals() {
             {["Upcoming", "Due Soon", "In Negotiation", "Quoted", "Won", "Lost", "Expired"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
+        {!partnerScoped && (
         <Select value={partnerFilter} onValueChange={setPartnerFilter}>
           <SelectTrigger className="w-[180px] h-9"><SelectValue placeholder="Partner" /></SelectTrigger>
           <SelectContent>
@@ -121,6 +129,7 @@ export default function Renewals() {
             {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
           </SelectContent>
         </Select>
+        )}
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm overflow-hidden animate-reveal-up stagger-3">
@@ -129,7 +138,7 @@ export default function Renewals() {
             <thead><tr className="border-b bg-secondary/50">
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Partner</th>
+              {!partnerScoped && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Partner</th>}
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Renewal Date</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Days</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
@@ -138,18 +147,18 @@ export default function Renewals() {
             </tr></thead>
             <tbody className="divide-y">
               {isLoading ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Loading renewals...</td></tr>
+                <tr><td colSpan={partnerScoped ? 7 : 8} className="px-4 py-8 text-center text-muted-foreground">Loading renewals...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No renewals found.</td></tr>
+                <tr><td colSpan={partnerScoped ? 7 : 8} className="px-4 py-8 text-center text-muted-foreground">No renewals found.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id} className="hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => setSelectedId(r.id)}>
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityColors[r.priority || "Medium"] || ""}`}>{r.priority}</span></td>
                   <td className="px-4 py-3"><Link to={`/clients/${r.client_id}`} className="font-medium text-foreground hover:text-primary" onClick={e => e.stopPropagation()}>{r.clientCode}</Link><p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.clientName}</p></td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{r.partnerName}</td>
+                  {!partnerScoped && <td className="px-4 py-3 text-muted-foreground text-xs">{r.partnerName}</td>}
                   <td className="px-4 py-3 tabular-nums text-xs">{formatDateOnly(r.renewal_date)}</td>
                   <td className="px-4 py-3"><span className={`tabular-nums text-xs font-semibold ${r.daysUntil < 0 ? "text-destructive" : r.daysUntil <= 30 ? "text-amber-600" : "text-muted-foreground"}`}>{r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `${r.daysUntil}d`}</span></td>
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusColors[r.status] || ""}`}>{r.status}</span></td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium">€{Number(r.estimated_value || 0).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right tabular-nums font-medium">{formatMoney(r.estimated_value)}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{r.assigned_owner}</td>
                 </tr>
               ))}
@@ -172,7 +181,7 @@ export default function Renewals() {
                   <div><span className="text-muted-foreground">Priority</span><p className="font-medium mt-0.5">{detail.priority}</p></div>
                   <div><span className="text-muted-foreground">Renewal Date</span><p className="font-medium mt-0.5 tabular-nums">{detail.renewal_date}</p></div>
                   <div><span className="text-muted-foreground">Days Until</span><p className="font-medium mt-0.5 tabular-nums">{detail.daysUntil < 0 ? `${Math.abs(detail.daysUntil)} overdue` : `${detail.daysUntil} days`}</p></div>
-                  <div><span className="text-muted-foreground">Estimated Value</span><p className="font-medium mt-0.5 tabular-nums">€{Number(detail.estimated_value || 0).toLocaleString()}</p></div>
+                  <div><span className="text-muted-foreground">Estimated Value</span><p className="font-medium mt-0.5 tabular-nums">{formatMoney(detail.estimated_value)}</p></div>
                   <div><span className="text-muted-foreground">Owner</span><p className="font-medium mt-0.5">{detail.assigned_owner || "—"}</p></div>
                 </div>
                 {detail.included_services?.length > 0 && (
