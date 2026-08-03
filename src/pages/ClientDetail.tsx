@@ -27,7 +27,7 @@ import {
 import { ContractBreakdown } from "@/components/clients/ContractBreakdown";
 import { CommercialContractView } from "@/components/clients/CommercialContractView";
 import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTimeline";
-import { CommercialIntelligenceDashboard } from "@/components/clients/CommercialIntelligenceDashboard";
+import { ClientOverviewPanel } from "@/components/clients/ClientOverviewPanel";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { resolveRenewal, assessRenewalRisk } from "@/lib/renewal-resolution";
 import { RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
@@ -218,6 +218,7 @@ export default function ClientDetail() {
   const [editingClient, setEditingClient] = useState(false);
   const [clientForm, setClientForm] = useState<Record<string, any>>({});
   const [showAddContact, setShowAddContact] = useState(false);
+  const [showAllContacts, setShowAllContacts] = useState(false);
   const [contactForm, setContactForm] = useState({ contact_name: "", role_function: "", phone: "", mobile: "", email: "", notes: "" });
   const [showAddLicense, setShowAddLicense] = useState(false);
   const [licenseForm, setLicenseForm] = useState<Record<string, any>>({});
