@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isProposalSent } from "@/lib/proposal-lifecycle";
 import { computeDealHealth, type DealHealthResult } from "@/lib/deal-health";
 import type { Deal } from "@/hooks/useDeals";
 
@@ -36,7 +37,7 @@ export function useDealsHealth(deals: Deal[]) {
           .in("deal_id", dealIds),
         supabase
           .from("proposals")
-          .select("lead_id, created_at")
+          .select("lead_id, created_at, status")
           .in("lead_id", dealIds)
           .order("created_at", { ascending: false }),
       ]);
@@ -68,8 +69,13 @@ export function useDealsHealth(deals: Deal[]) {
       });
 
       const latestProposal = new Map<string, string>();
+      const proposalSent = new Set<string>();
       (proposalsRes.data || []).forEach((p: any) => {
         if (!latestProposal.has(p.lead_id)) latestProposal.set(p.lead_id, p.created_at);
+        if (isProposalSent(p)) proposalSent.add(p.lead_id);
+      });
+      (activitiesRes.data || []).forEach((a: any) => {
+        if (a.activity_type === "proposal_sent") proposalSent.add(a.deal_id);
       });
 
       const map = new Map<string, DealHealthMapEntry>();
@@ -101,7 +107,8 @@ export function useDealsHealth(deals: Deal[]) {
           nextFollowUpAt: followUpStr ? new Date(followUpStr) : null,
           hasOverdueTask: overdue.has(d.id),
           latestProposalAt: proposalStr ? new Date(proposalStr) : null,
-          hasOwner: !!(d.assigned_salesperson && d.assigned_salesperson.trim()),
+          proposalSent: proposalSent.has(d.id),
+          hasOwner: !!((d.assigned_salesperson && d.assigned_salesperson.trim()) || (d as any).assigned_user_id),
           baseProbability: (d as any).probability ?? null,
         });
 

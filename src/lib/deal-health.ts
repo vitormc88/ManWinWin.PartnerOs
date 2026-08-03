@@ -14,6 +14,8 @@ export interface DealHealthInputs {
   nextFollowUpAt: Date | null;
   hasOverdueTask: boolean;
   latestProposalAt: Date | null;
+  /** Explicit "sent" signal only — never inferred from proposal existence/DOCX. */
+  proposalSent?: boolean;
   hasOwner: boolean;
   baseProbability?: number | null;
 }
@@ -85,7 +87,8 @@ export function computeDealHealth(input: DealHealthInputs): DealHealthResult {
     daysSinceProposal > cfg.no_followup_days &&
     !hasFutureFollowUp;
   if (veryInactive) reasons.push(`No activity for ${daysSinceActivity}d`);
-  if (proposalAging) { reasons.push(`Proposal sent ${daysSinceProposal}d ago, no follow-up`); warnings.push(`Proposal ${daysSinceProposal}d old`); }
+  const proposalVerb = input.proposalSent ? "sent" : "generated";
+  if (proposalAging) { reasons.push(`Proposal ${proposalVerb} ${daysSinceProposal}d ago, no follow-up`); warnings.push(`Proposal ${daysSinceProposal}d old`); }
 
   // ── Follow-up grace window — recent activity / proposal / stage move
   // suppresses the "no follow-up" warning to avoid CRM bureaucracy.
@@ -126,7 +129,7 @@ export function computeDealHealth(input: DealHealthInputs): DealHealthResult {
   let hotScore = 0;
   if (recentActivity)        { hotScore += w.recentActivity;        positives.push(`Activity ${daysSinceActivity ?? 0}d ago`); }
   if (hasFutureFollowUp)     { hotScore += w.futureFollowUp;        positives.push("Follow-up scheduled"); }
-  if (recentProposal)        { hotScore += w.recentProposal;        positives.push(`Proposal sent ${daysSinceProposal}d ago`); }
+  if (recentProposal)        { hotScore += w.recentProposal;        positives.push(`Proposal ${proposalVerb} ${daysSinceProposal}d ago`); }
   if (highProb)              { hotScore += w.highProbability;       positives.push(`Probability ${input.baseProbability}%`); }
   if (recentlyEnteredStage)  { hotScore += w.recentlyEnteredStage;  positives.push(`Entered stage ${daysInStage}d ago`); }
 
@@ -162,6 +165,7 @@ export function computeDealHealth(input: DealHealthInputs): DealHealthResult {
     hasOverdueTask: input.hasOverdueTask,
     hasFutureFollowUp,
     hasProposal: !!input.latestProposalAt,
+    proposalSent: !!input.proposalSent,
     daysSinceActivity,
     daysSinceProposal,
     daysInStage,

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { isMeaningfulCustomerInteraction, isSystemActivity, TAG_STYLE } from "@/lib/activity-log";
 import { MessageSquare, Tag as TagIcon, FileText, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveProposalLifecycle } from "@/lib/proposal-lifecycle";
 
 interface Props { dealId: string; }
 
@@ -33,11 +34,14 @@ export function RelationshipSummary({ dealId }: Props) {
     const t = new Date(a.activity_date || a.created_at).getTime();
     return Date.now() - t < 30 * 86400000;
   });
-  const humanCount = last30.filter((a: any) => !isSystemActivity(a.activity_type)).length;
+  // Customer interaction count excludes internal/system events (lead, task,
+  // stage change, proposal generated) — those stay visible in activity history.
+  const humanCount = last30.filter((a: any) => isMeaningfulCustomerInteraction(a.activity_type)).length;
 
   const latestProposal = [...proposals]
     .filter((p: any) => p.status !== "Lost")
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+  const lifecycle = resolveProposalLifecycle(proposals as any, activities as any);
 
   const Item = ({ icon, label, value, muted = false }: any) => (
     <div className="flex items-start gap-2 min-w-0">
@@ -55,7 +59,7 @@ export function RelationshipSummary({ dealId }: Props) {
     <div className="bg-card rounded-xl border shadow-sm p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-foreground">Relationship Summary</h3>
-        <span className="text-[10px] text-muted-foreground">last 30d · {humanCount} interactions</span>
+        <span className="text-[10px] text-muted-foreground">last 30d · {humanCount} customer interactions</span>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Item
@@ -76,9 +80,11 @@ export function RelationshipSummary({ dealId }: Props) {
         />
         <Item
           icon={<FileText className="h-3.5 w-3.5 text-indigo-500" />}
-          label="Latest proposal"
+          label={lifecycle.state === "sent" ? "Proposal sent" : "Proposal generated"}
           value={latestProposal
-            ? `v${latestProposal.version || 1} · ${relTime(new Date(latestProposal.created_at))}`
+            ? `v${latestProposal.version || 1} · ${lifecycle.state === "sent" ? "sent" : "ready"} · ${relTime(
+                lifecycle.state === "sent" && lifecycle.sentAt ? lifecycle.sentAt : new Date(latestProposal.created_at)
+              )}`
             : "No proposal yet"}
           muted={!latestProposal}
         />

@@ -92,6 +92,8 @@ export function applyHealthAdjustment(baseProbability: number, health: DealHealt
 export interface SuggestedAction {
   label: string;
   hint?: string;
+  /** "assign_owner" should open owner editing instead of creating a task. */
+  kind?: "assign_owner" | "task";
 }
 
 export interface SuggestActionInputs {
@@ -100,6 +102,8 @@ export interface SuggestActionInputs {
   hasOverdueTask: boolean;
   hasFutureFollowUp: boolean;
   hasProposal: boolean;
+  /** Explicit sent signal (status Sent / sent_at / proposal_sent activity). */
+  proposalSent?: boolean;
   daysSinceActivity: number | null;
   daysSinceProposal: number | null;
   daysInStage: number;
@@ -108,7 +112,7 @@ export interface SuggestActionInputs {
 
 export function suggestNextAction(i: SuggestActionInputs): SuggestedAction | null {
   // Hard blockers first
-  if (!i.hasOwner) return { label: "Assign an owner", hint: "Deal has no salesperson" };
+  if (!i.hasOwner) return { label: "Assign an owner", hint: "Deal has no salesperson", kind: "assign_owner" };
   if (i.hasOverdueTask) return { label: "Resolve overdue tasks", hint: "Clear backlog before progressing" };
 
   const inactive = (i.daysSinceActivity ?? 0) > 7;
@@ -130,6 +134,7 @@ export function suggestNextAction(i: SuggestActionInputs): SuggestedAction | nul
 
     case "Proposal Sent":
       if (!i.hasProposal) return { label: "Send the proposal", hint: "Stage requires a proposal" };
+      if (!i.proposalSent) return { label: "Send the generated proposal", hint: "Proposal is ready but not sent yet" };
       if ((i.daysSinceProposal ?? 0) > 7)
         return { label: "Follow up proposal feedback", hint: `Sent ${i.daysSinceProposal}d ago` };
       return { label: "Confirm evaluation timeline", hint: "Set expectations for next step" };

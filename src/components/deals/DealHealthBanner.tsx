@@ -11,8 +11,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useMyEffectivePermissions } from "@/hooks/useRoleTemplates";
 import { canEdit } from "@/lib/permissions";
 import { defaultsFromSuggestion, followUpDefaultsForStage } from "@/lib/followup-defaults";
+import { isProposalSent } from "@/lib/proposal-lifecycle";
 
-export function DealHealthBanner({ deal }: { deal: Deal }) {
+export function DealHealthBanner({ deal, onAssignOwner }: { deal: Deal; onAssignOwner?: () => void }) {
   const { user } = useAuth();
   const { data: perms } = useMyEffectivePermissions();
   const canEditPipeline = canEdit(perms, "pipeline");
@@ -23,9 +24,9 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
     queryFn: async () => {
       const todayIso = new Date().toISOString().slice(0, 10);
       const [a, t, p] = await Promise.all([
-        supabase.from("deal_activities").select("created_at").eq("deal_id", deal.id).order("created_at", { ascending: false }).limit(1),
+        supabase.from("deal_activities").select("created_at, activity_type").eq("deal_id", deal.id).order("created_at", { ascending: false }).limit(1),
         supabase.from("deal_tasks").select("due_date, status, is_completed").eq("deal_id", deal.id),
-        supabase.from("proposals").select("created_at").eq("lead_id", deal.id).order("created_at", { ascending: false }).limit(1),
+        supabase.from("proposals").select("created_at, status").eq("lead_id", deal.id).order("created_at", { ascending: false }).limit(1),
       ]);
       let nextFollowUp: string | null = null;
       let overdue = false;
@@ -40,6 +41,9 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
         nextFollowUpAt: nextFollowUp,
         hasOverdueTask: overdue,
         latestProposalAt: p.data?.[0]?.created_at ?? null,
+        proposalSent:
+          (p.data || []).some((row: any) => isProposalSent(row)) ||
+          (a.data || []).some((row: any) => row.activity_type === "proposal_sent"),
       };
     },
   });
@@ -62,7 +66,8 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
     nextFollowUpAt: data.nextFollowUpAt ? new Date(data.nextFollowUpAt) : null,
     hasOverdueTask: data.hasOverdueTask,
     latestProposalAt: data.latestProposalAt ? new Date(data.latestProposalAt) : null,
-    hasOwner: !!(deal.assigned_salesperson && deal.assigned_salesperson.trim()),
+    proposalSent: data.proposalSent,
+    hasOwner: !!((deal.assigned_salesperson && deal.assigned_salesperson.trim()) || (deal as any).assigned_user_id),
     baseProbability: (deal as any).probability ?? null,
   });
 
@@ -129,7 +134,17 @@ export function DealHealthBanner({ deal }: { deal: Deal }) {
               {result.suggestedAction.hint && <span className="opacity-70"> · {result.suggestedAction.hint}</span>}
             </p>
           </div>
-          {canEditPipeline && (
+          {canEditPipeline && result.suggestedAction.kind === "assign_owner" && onAssignOwner && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs shrink-0"
+              onClick={onAssignOwner}
+            >
+              Assign owner
+            </Button>
+          )}
+          {canEditPipeline && !(result.suggestedAction.kind === "assign_owner" && onAssignOwner) && (
             <Button
               size="sm"
               variant="outline"

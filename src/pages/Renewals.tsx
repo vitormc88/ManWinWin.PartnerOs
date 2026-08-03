@@ -7,6 +7,7 @@ import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { formatDateOnly } from "@/lib/date-format";
 
 const statusColors: Record<string, string> = {
   "Upcoming": "bg-info/10 text-info border-info/20",
@@ -145,7 +146,7 @@ export default function Renewals() {
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityColors[r.priority || "Medium"] || ""}`}>{r.priority}</span></td>
                   <td className="px-4 py-3"><Link to={`/clients/${r.client_id}`} className="font-medium text-foreground hover:text-primary" onClick={e => e.stopPropagation()}>{r.clientCode}</Link><p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.clientName}</p></td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{r.partnerName}</td>
-                  <td className="px-4 py-3 tabular-nums text-xs">{r.renewal_date}</td>
+                  <td className="px-4 py-3 tabular-nums text-xs">{formatDateOnly(r.renewal_date)}</td>
                   <td className="px-4 py-3"><span className={`tabular-nums text-xs font-semibold ${r.daysUntil < 0 ? "text-destructive" : r.daysUntil <= 30 ? "text-amber-600" : "text-muted-foreground"}`}>{r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `${r.daysUntil}d`}</span></td>
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusColors[r.status] || ""}`}>{r.status}</span></td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium">€{Number(r.estimated_value || 0).toLocaleString()}</td>

@@ -31,6 +31,7 @@ import { buildPartnerCreatePayload } from "@/lib/partner-identity";
 import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { formatDateOnly } from "@/lib/date-format";
 import { CreateLeadDialog } from "@/components/leads/CreateLeadDialog";
 import { CountryCodeCombobox } from "@/components/partners/CountryCodeCombobox";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
@@ -44,7 +45,7 @@ import { PartnerBriefCard } from "@/components/partners/PartnerBriefCard";
 import { buildPartnerBrief } from "@/lib/partner-brief";
 
 
-const fmt = (d?: string | null) => d ? new Date(d).toLocaleDateString() : "—";
+const fmt = (d?: string | null) => formatDateOnly(d);
 const fmtDateTime = (d?: string | null) => d ? new Date(d).toLocaleString() : "—";
 
 export default function PartnerDetail() {

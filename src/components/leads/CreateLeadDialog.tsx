@@ -7,13 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { usePartners } from "@/hooks/usePartners";
+import { usePartners, usePartner } from "@/hooks/usePartners";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { getStageProbability } from "@/data/pipeline-stages";
+import { resolvePartnerLeadDefaults } from "@/lib/lead-defaults";
 
 const JOB_ROLE_OPTIONS = [
   "Maintenance Manager",
@@ -56,22 +57,61 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
 
   const [form, setForm] = useState({ ...defaultForm, partner_id: effectivePartnerId });
   const [creating, setCreating] = useState(false);
-  const { data: partners = [] } = usePartners();
+  // HQ users pick from the partner list; partner users never load the full table.
+  const { data: partners = [] } = usePartners(undefined, { enabled: isHQ });
   const { data: partnerUsers = [] } = usePartnerUsers(form.partner_id || userPartnerId || null);
+  // Scoped single-partner read (RLS) — used only to derive the default country.
+  const { data: linkedPartner } = usePartner(effectivePartnerId || undefined);
   const queryClient = useQueryClient();
+
+  const partnerDefaults = resolvePartnerLeadDefaults({
+    profileId: profile?.id,
+    partnerCountry: (linkedPartner as any)?.country,
+  });
+  const applyPartnerDefaults = !isHQ || !!lockedPartnerId;
+
+  // Ensure the authenticated user is always selectable as owner.
+  const ownerOptions = (() => {
+    const list = [...partnerUsers];
+    if (profile?.id && !list.some(u => u.id === profile.id)) {
+      list.unshift({ id: profile.id, full_name: profile.full_name, email: profile.email } as any);
+    }
+    return list;
+  })();
 
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      setForm({ ...defaultForm, partner_id: effectivePartnerId });
+      setForm({
+        ...defaultForm,
+        partner_id: effectivePartnerId,
+        ...(applyPartnerDefaults
+          ? { assigned_to: partnerDefaults.assignedUserId, country: partnerDefaults.country }
+          : {}),
+      });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, effectivePartnerId]);
+
+  // Partner country may resolve after the dialog opened — fill it in once,
+  // without overriding a value the user already typed.
+  useEffect(() => {
+    if (!open || !applyPartnerDefaults) return;
+    setForm(f => ({
+      ...f,
+      country: f.country || partnerDefaults.country,
+      assigned_to: f.assigned_to || partnerDefaults.assignedUserId,
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, applyPartnerDefaults, partnerDefaults.country, partnerDefaults.assignedUserId]);
 
   const handleCreate = async () => {
     if (!form.company_name) { toast.error("Company Name is required"); return; }
     setCreating(true);
     try {
-      const assignedUser = partnerUsers.find(u => u.id === form.assigned_to);
+      const assignedUser = ownerOptions.find(u => u.id === form.assigned_to);
+      const assignedId = assignedUser?.id || (form.assigned_to === profile?.id ? profile?.id : null) || null;
+      const assignedName = assignedUser?.full_name || (form.assigned_to === profile?.id ? profile?.full_name : null) || null;
       const { data: created, error } = await supabase.from("deals").insert({
         company_name: form.company_name,
         contact_person_name: form.contact_person_name || null,
@@ -81,8 +121,8 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
         stage: "Open Lead",
         expected_value: 0,
         probability: getStageProbability("Open Lead"),
-        assigned_user_id: assignedUser?.id || null,
-        assigned_salesperson: assignedUser?.full_name || null,
+        assigned_user_id: assignedId,
+        assigned_salesperson: assignedName,
         lead_source: form.lead_source || "Partner (Outbound)",
         notes: form.notes || null,
         status: "Open",
@@ -98,7 +138,7 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
       if (created?.id) {
         try {
           const { logSystemActivity } = await import("@/lib/activity-log");
-          logSystemActivity(created.id, "Lead created", `Lead "${form.company_name}" was created${assignedUser?.full_name ? ` and assigned to ${assignedUser.full_name}` : ""}.`);
+          logSystemActivity(created.id, "Lead created", `Lead "${form.company_name}" was created${assignedName ? ` and assigned to ${assignedName}` : ""}.`);
         } catch { /* noop */ }
       }
       toast.success("Lead created successfully");
@@ -153,10 +193,10 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
                 <SelectTrigger><SelectValue placeholder={!form.partner_id && !userPartnerId && !lockedPartnerId ? "Select a partner first" : "Select user"} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— None —</SelectItem>
-                  {partnerUsers.length === 0 && (form.partner_id || userPartnerId || lockedPartnerId) && (
+                  {ownerOptions.length === 0 && (form.partner_id || userPartnerId || lockedPartnerId) && (
                     <div className="px-2 py-1.5 text-sm text-muted-foreground">No users available for this partner</div>
                   )}
-                  {partnerUsers.map(u => (
+                  {ownerOptions.map(u => (
                     <SelectItem key={u.id} value={u.id}>{u.full_name || u.email || "Unnamed"}</SelectItem>
                   ))}
                 </SelectContent>

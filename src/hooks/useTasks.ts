@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isSameLocalDay } from "@/lib/date-format";
 
 export type TaskSource =
   | "manual"
@@ -135,10 +136,9 @@ export function useTodaysFocus() {
       const { data, error } = await q;
       if (error) throw error;
       const rows = (data || []) as any[];
-      const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-      const endOfToday = new Date(startOfToday); endOfToday.setDate(endOfToday.getDate() + 1);
-
-      const dueToday = rows.filter(r => r.due_date && new Date(r.due_date) >= startOfToday && new Date(r.due_date) < endOfToday);
+      // Open = all open scoped tasks; Critical = open critical;
+      // Due today = open tasks whose date-only due_date is the LOCAL calendar today.
+      const dueToday = rows.filter(r => isSameLocalDay(r.due_date));
       const critical = rows.filter(r => r.priority === "Critical").length;
       const revenue = rows.reduce((s, r) => s + (Number(r.revenue_impact) || 0), 0);
       const estMin = rows.reduce((s, r) => s + estimateMinutes(r.task_type), 0);
