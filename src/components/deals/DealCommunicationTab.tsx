@@ -215,9 +215,10 @@ export function DealCommunicationTab({ dealId, dealStage, defaultAssigneeId }: P
       {/* Timeline */}
       <div className="bg-card rounded-xl border shadow-sm p-4">
         <div className="mb-3">
-          <h3 className="text-sm font-semibold text-foreground">Relationship Timeline</h3>
+          <h3 className="text-sm font-semibold text-foreground">Activity Timeline</h3>
           <p className="text-xs text-muted-foreground">
-            Historical record of customer interactions, decisions and context. Use the Tasks tab for upcoming work.
+            Full audit stream — {activityStreamSummary(activities as any)}. System activity is
+            recorded automatically and does not count as a customer interaction.
           </p>
         </div>
 

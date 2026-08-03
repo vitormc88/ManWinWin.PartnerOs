@@ -36,6 +36,7 @@ import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";
 import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
 import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
 import { DealCommunicationTab } from "@/components/deals/DealCommunicationTab";
+import { activityTabLabel } from "@/lib/activity-stream";
 import { RelationshipSummary } from "@/components/deals/RelationshipSummary";
 import { QualificationSnapshot } from "@/components/deals/QualificationSnapshot";
 
@@ -298,7 +299,7 @@ export default function DealDetail() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tasks">Tasks ({dealTasks.length})</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
-          <TabsTrigger value="communication">Communication ({activities.length})</TabsTrigger>
+          <TabsTrigger value="communication">{activityTabLabel(activities as any)}</TabsTrigger>
           <TabsTrigger value="proposals">Proposals ({proposals.length})</TabsTrigger>
         </TabsList>
 
