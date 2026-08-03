@@ -15,6 +15,7 @@ import {
   TrendingUp, Sparkles, ArrowUpRight, MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateOnly } from "@/lib/date-format";
 import { useCreateNote } from "@/hooks/useClients";
 import { useCreateManualTask } from "@/hooks/useTasks";
 import { useLifecycleEvents } from "@/hooks/useLifecycleEvents";
@@ -28,6 +29,14 @@ import {
   resolveLicenseId,
   type CommercialActionId,
 } from "@/lib/license-evolution";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
+import { resolveRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
+import {
+  buildCommercialSummary,
+  buildHistory,
+  openProposals,
+  type UrgencyTone,
+} from "@/lib/client-overview";
 
 const PROPOSAL_MODES: Record<CommercialActionId, {
   mode: CommercialProposalMode;
@@ -53,10 +62,16 @@ interface Props {
   notes: any[];
   plugins?: any[];
   readOnly?: boolean;
+  /** Canonical commercial intelligence payload (never recomputed here). */
+  intelligence?: { recurring_arr?: number | null; year1_value?: number | null; active_contract_count?: number | null } | null;
+  /** Canonical renewal resolution shared with the Overview tab. */
+  resolvedRenewal?: ResolvedRenewal | null;
 }
 
-export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [], readOnly = false }: Props) {
+export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [], readOnly = false, intelligence = null, resolvedRenewal = null }: Props) {
   const navigate = useNavigate();
+  const { canEdit: canEditModule } = useModuleAccess();
+  const canCreateTask = canEditModule("tasks");
   const createNote = useCreateNote();
   const createTask = useCreateManualTask();
 
@@ -99,31 +114,6 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
 
   // Lifecycle events → commercial timeline
   const { data: events = [] } = useLifecycleEvents(client?.id);
-  const timeline = useMemo(() => {
-    const proposalEvents = (proposals || []).map((p: any) => ({
-      when: p.created_at || p.proposal_date,
-      title: `Proposal — ${p.project_name || p.client_name}`,
-      meta: p.status ? `Status: ${p.status}` : null,
-      icon: FileText as any,
-    }));
-    const noteEvents = (commercialNotes || []).map((n: any) => ({
-      when: n.created_at,
-      title: "Commercial note",
-      meta: (n.content || "").slice(0, 90),
-      icon: MessageSquare as any,
-    }));
-    const lifeEvents = (events || []).map((e: any) => ({
-      when: e.created_at,
-      title: e.event_type || "Lifecycle event",
-      meta: e.description || null,
-      icon: Sparkles as any,
-    }));
-    return [...proposalEvents, ...noteEvents, ...lifeEvents]
-      .filter((x) => x.when)
-      .sort((a, b) => new Date(b.when).getTime() - new Date(a.when).getTime())
-      .slice(0, 12);
-  }, [proposals, commercialNotes, events]);
-
   // ─── Existing Customer Context (Sprint I.6) ───────────────────────────────
   // Normalize the real client commercial configuration into a single source of
   // truth for the Proposal Builder wizards. Mirrors field usage of the
@@ -280,55 +270,56 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     setShowProposal(true);
   };
 
-  // Recommended actions (deterministic, lightweight)
-  const recommendations = useMemo(() => {
-    const recs: { title: string; hint: string; action?: () => void; label?: string }[] = [];
-    const renewalDate = primaryContract?.contract_end_date || primaryLicense?.license_end_date;
-    if (renewalDate) {
-      const days = Math.ceil((new Date(renewalDate).getTime() - Date.now()) / 86400000);
-      if (days < 0) {
-        recs.push({
-          title: "Renewal overdue",
-          hint: `Contract ended ${Math.abs(days)}d ago — prepare renewal now.`,
-          label: "Prepare Renewal",
-          action: () => openProposal("renew_agreement"),
-        });
-      } else if (days <= 90) {
-        recs.push({
-          title: `Renewal due in ${days}d`,
-          hint: "Kick off renewal conversation and prepare pricing.",
-          label: "Prepare Renewal",
-          action: () => openProposal("renew_agreement"),
-        });
-      }
-    }
-    if (proposals.length === 0) {
-      recs.push({
-        title: "No commercial proposals on file",
-        hint: "Create the first proposal to formalize the relationship.",
-        label: "New Proposal",
-        action: () => openProposal("other"),
-      });
-    }
-    if (commercialNotes.length === 0) {
-      recs.push({
-        title: "Log the last commercial touchpoint",
-        hint: "Capture context so the next AM continues seamlessly.",
-        label: "Log Note",
-        action: () => setShowNote(true),
-      });
-    }
-    if (!recs.length) {
-      recs.push({
-        title: "Account is on track",
-        hint: "Schedule a quarterly check-in to sustain momentum.",
-        label: "Schedule Meeting",
-        action: () => setShowMeeting(true),
-      });
-    }
-    return recs.slice(0, 3);
-  }, [primaryContract, primaryLicense, proposals, commercialNotes]);
+  // ── Canonical derived state (no divergent recalculation) ──────────────
+  const effectiveRenewal = useMemo(
+    () => resolvedRenewal ?? resolveRenewal({ contract: primaryContract, license: primaryLicense }),
+    [resolvedRenewal, primaryContract, primaryLicense],
+  );
+  const summary = useMemo(
+    () =>
+      buildCommercialSummary({
+        intelligence,
+        resolvedRenewal: effectiveRenewal,
+        contractStatus: (primaryContract as any)?.status || null,
+        activeContractCount: primaryContract ? 1 : 0,
+      }),
+    [intelligence, effectiveRenewal, primaryContract],
+  );
 
+  // Real opportunities only: persisted proposals that are still commercially open.
+  // Missing modules / plugins / disabled API are NOT opportunities.
+  const realOpportunities = useMemo(() => openProposals(proposals as any[]), [proposals]);
+
+  const history = useMemo(
+    () =>
+      buildHistory([
+        ...(proposals || []).map((p: any) => ({
+          key: `proposal-${p.id}`,
+          kind: "proposal" as const,
+          title: `Proposal — ${p.project_name || p.client_name}`,
+          meta: p.status ? `Status: ${p.status}` : null,
+          eventDate: p.proposal_date || p.created_at,
+          recordedAt: p.created_at,
+        })),
+        ...(commercialNotes || []).map((n: any) => ({
+          key: `note-${n.id}`,
+          kind: "note" as const,
+          title: "Commercial note",
+          meta: (n.content || "").slice(0, 120),
+          eventDate: n.created_at,
+        })),
+        ...(events || []).map((e: any) => ({
+          key: `event-${e.id}`,
+          kind: "event" as const,
+          rawType: e.event_type,
+          title: e.event_title || null,
+          meta: e.event_description || null,
+          eventDate: e.effective_date || e.occurred_at || e.created_at,
+          recordedAt: e.imported_at || e.created_at,
+        })),
+      ]).slice(0, 20),
+    [proposals, commercialNotes, events],
+  );
 
   const handleCreateMeeting = async () => {
     if (!meetingTitle.trim()) { toast.error("Add a meeting title"); return; }
@@ -364,111 +355,59 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     }
   };
 
+  const toneClass = (tone: UrgencyTone) =>
+    tone === "critical" ? "text-destructive" : tone === "warning" ? "text-amber-700" : tone === "calm" ? "text-emerald-700" : "text-muted-foreground";
+
   return (
     <div className="space-y-5">
-      {/* ─── Commercial Actions ─── */}
-      {!readOnly && <Card className="border-border/60 shadow-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" /> Commercial Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="group flex flex-col items-start gap-2 rounded-xl border border-primary/40 bg-primary/5 p-4 text-left hover:border-primary hover:bg-primary/10 transition-colors">
-                  <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-                    <FilePlus2 className="h-4 w-4" />
-                  </div>
-                  <div className="w-full flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">New Proposal</p>
-                      <p className="text-[11px] text-muted-foreground">Existing customer commercial action</p>
-                    </div>
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
-                <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Commercial Proposal Type
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {allowedActions.map((id) => {
-                  const m = PROPOSAL_MODES[id];
-                  const Icon = m.icon;
-                  return (
-                    <DropdownMenuItem key={m.mode} onClick={() => openProposal(m.mode)} className="gap-2">
-                      <Icon className="h-4 w-4 text-primary" />
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">{m.label}</div>
-                        <div className="text-[11px] text-muted-foreground">{m.hint}</div>
-                      </div>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {!readOnly && <ActionButton icon={CalendarPlus} label="Schedule Meeting" hint="Task linked to client" onClick={() => setShowMeeting(true)} />}
-            {!readOnly && <ActionButton icon={StickyNote} label="Log Commercial Note" hint="Attached to this client" onClick={() => setShowNote(true)} />}
-          </div>
-        </CardContent>
-      </Card>}
-
-      {/* ─── Recommended Actions ─── */}
+      {/* ─── A. Renewal & revenue ─── */}
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> Recommended Actions
+            <TrendingUp className="h-4 w-4 text-primary" /> Renewal and revenue
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {recommendations.map((r, i) => (
-            <div key={i} className="flex items-start justify-between gap-3 rounded-lg border border-border/50 bg-secondary/30 p-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{r.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{r.hint}</p>
-              </div>
-              {!readOnly && r.action && r.label && (
-                <Button size="sm" variant="outline" onClick={r.action} className="shrink-0">{r.label}</Button>
-              )}
-            </div>
-          ))}
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Metric label="Contract status" value={summary.contractLabel} />
+          <Metric
+            label="Recurring revenue (ARR)"
+            value={summary.arrZeroWithYear1 ? "No recurring revenue recorded" : `€${summary.arr.toLocaleString("en-GB")} / year`}
+          />
+          <Metric label="Year 1 value" value={`€${summary.year1.toLocaleString("en-GB")}`} />
+          <Metric
+            label="Next renewal"
+            value={summary.renewalLabel}
+            hint={<span className={toneClass(summary.urgency.tone)}>{summary.urgency.label}</span>}
+          />
         </CardContent>
       </Card>
 
-      {/* ─── Proposal History ─── */}
+      {/* ─── B. Opportunities ─── */}
       <Card className="border-border/60 shadow-sm">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" /> Proposal History
+            <Sparkles className="h-4 w-4 text-primary" /> Opportunities
           </CardTitle>
-          {!readOnly && (
-            <Button size="sm" variant="ghost" onClick={() => openProposal("other")}>
-              <FilePlus2 className="h-3.5 w-3.5 mr-1" /> New
-            </Button>
-          )}
         </CardHeader>
         <CardContent>
-          {proposals.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No commercial proposals yet.</p>
+          {realOpportunities.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No open commercial opportunities recorded for this client.
+            </p>
           ) : (
             <div className="space-y-2">
-              {proposals.slice(0, 8).map((p: any) => (
+              {realOpportunities.slice(0, 8).map((p: any) => (
                 <button
                   key={p.id}
                   onClick={() => navigate(`/proposals/${p.id}`)}
                   className="w-full flex items-center justify-between gap-3 rounded-lg border border-border/50 p-3 hover:bg-secondary/40 transition-colors text-left"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {p.project_name || p.client_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.proposal_date ? new Date(p.proposal_date).toLocaleDateString() : "—"}
-                      {p.total_year_1 ? ` · Year 1 €${Number(p.total_year_1).toLocaleString()}` : ""}
-                      {p.total_recurring ? ` · Recurring €${Number(p.total_recurring).toLocaleString()}` : ""}
+                    <p className="text-sm font-medium text-foreground truncate">{p.project_name || p.client_name}</p>
+                    <p className="text-xs text-muted-foreground break-words">
+                      {p.proposal_date ? formatDateOnly(p.proposal_date) : "—"}
+                      {p.total_year_1 ? ` · Year 1 €${Number(p.total_year_1).toLocaleString("en-GB")}` : ""}
+                      {p.total_recurring ? ` · Recurring €${Number(p.total_recurring).toLocaleString("en-GB")}` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -482,70 +421,101 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         </CardContent>
       </Card>
 
-      {/* ─── Commercial Timeline ─── */}
+      {/* ─── C. Actions ─── */}
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Clock className="h-4 w-4 text-primary" /> Commercial Timeline
+            <FilePlus2 className="h-4 w-4 text-primary" /> Actions
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {timeline.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No commercial activity yet.</p>
+          {readOnly ? (
+            <p className="text-sm text-muted-foreground">
+              You have read-only access to this client. Commercial actions are handled by your account owner.
+            </p>
           ) : (
-            <div className="space-y-3">
-              {timeline.map((e, i) => {
-                const Icon = e.icon;
-                return (
-                  <div key={i} className="flex gap-3">
-                    <div className="mt-0.5 h-7 w-7 shrink-0 rounded-full bg-secondary flex items-center justify-center">
-                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="group flex flex-col items-start gap-2 rounded-xl border border-primary/40 bg-primary/5 p-4 text-left hover:border-primary hover:bg-primary/10 transition-colors">
+                    <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+                      <FilePlus2 className="h-4 w-4" />
                     </div>
-                    <div className="min-w-0 flex-1 border-b border-border/40 pb-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
-                        <span className="text-[11px] text-muted-foreground shrink-0">
-                          {new Date(e.when).toLocaleDateString()}
-                        </span>
+                    <div className="w-full flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Create proposal</p>
+                        <p className="text-[11px] text-muted-foreground">Existing customer commercial action</p>
                       </div>
-                      {e.meta && <p className="text-xs text-muted-foreground mt-0.5 truncate">{e.meta}</p>}
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     </div>
-                  </div>
-                );
-              })}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    Commercial proposal type
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {allowedActions.map((id) => {
+                    const m = PROPOSAL_MODES[id];
+                    const Icon = m.icon;
+                    return (
+                      <DropdownMenuItem key={m.mode} onClick={() => openProposal(m.mode)} className="gap-2">
+                        <Icon className="h-4 w-4 text-primary" />
+                        <div className="flex-1">
+                          <div className="text-sm font-medium">{m.label}</div>
+                          <div className="text-[11px] text-muted-foreground">{m.hint}</div>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {canCreateTask && (
+                <ActionButton icon={CalendarPlus} label="Create task" hint="Meeting or follow-up linked to this client" onClick={() => setShowMeeting(true)} />
+              )}
+              <ActionButton icon={StickyNote} label="Log touchpoint" hint="Commercial note on this client" onClick={() => setShowNote(true)} />
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* ─── Commercial Notes ─── */}
+      {/* ─── D. History ─── */}
       <Card className="border-border/60 shadow-sm">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-primary" /> Commercial Notes
+            <Clock className="h-4 w-4 text-primary" /> History
           </CardTitle>
-          {!readOnly && (
-            <Button size="sm" variant="ghost" onClick={() => setShowNote(true)}>
-              <StickyNote className="h-3.5 w-3.5 mr-1" /> Add
-            </Button>
-          )}
         </CardHeader>
         <CardContent>
-          {commercialNotes.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">No commercial notes yet.</p>
+          {history.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No commercial history recorded yet.</p>
           ) : (
-            <div className="space-y-2">
-              {commercialNotes.map((n: any) => (
-                <div key={n.id} className="rounded-lg border border-border/50 p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <Badge variant="outline" className="text-[10px]">commercial</Badge>
-                    <span className="text-[11px] text-muted-foreground">
-                      {new Date(n.created_at).toLocaleDateString()}
-                    </span>
+            <div className="space-y-3">
+              {history.map((e) => {
+                const Icon = e.kind === "proposal" ? FileText : e.kind === "note" ? MessageSquare : Sparkles;
+                return (
+                  <div key={e.key} className="flex gap-3">
+                    <div className="mt-0.5 h-7 w-7 shrink-0 rounded-full bg-secondary flex items-center justify-center">
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <div className="min-w-0 flex-1 border-b border-border/40 pb-3">
+                      <div className="flex items-start justify-between gap-2 flex-wrap">
+                        <p className="text-sm font-medium text-foreground break-words">{e.title}</p>
+                        <span className="text-[11px] text-muted-foreground shrink-0">{e.eventDateLabel}</span>
+                      </div>
+                      {e.meta && <p className="text-xs text-muted-foreground mt-0.5 break-words">{e.meta}</p>}
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge variant="secondary" className="text-[10px]">
+                          {e.isSystem ? "System activity" : "Customer interaction"}
+                        </Badge>
+                        {e.recordedLabel && (
+                          <span className="text-[10px] text-muted-foreground">{e.recordedLabel}</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-sm text-foreground whitespace-pre-wrap">{n.content}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -655,5 +625,15 @@ function ActionButton({
         <p className="text-[11px] text-muted-foreground">{hint}</p>
       </div>
     </button>
+  );
+}
+
+function Metric({ label, value, hint }: { label: string; value: React.ReactNode; hint?: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
+      <p className="text-sm font-semibold text-foreground mt-1 break-words">{value}</p>
+      {hint && <p className="text-[11px] mt-0.5 break-words">{hint}</p>}
+    </div>
   );
 }
