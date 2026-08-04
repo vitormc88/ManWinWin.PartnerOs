@@ -27,18 +27,19 @@ const APS = "c-aps";
 const BARCINO = "c-barcino";
 
 const PRODUCTION_ROWS: RevenueHistoryRow[] = [
-  // FITC — Watsons: 33,079.90 historical + 4,221.60 billed in 2026
+  // FITC — Watsons: 33,079.90 historical + 4,221.60 billed in 2026 = 37,301.50
   { client_id: WATSONS, partner_uuid: FITC, partner_name: "FITC", country: "Philippines", amount: 33079.9, revenue_date: "2025-07-19" },
   { client_id: WATSONS, partner_uuid: FITC, partner_name: "FITC", country: "Philippines", amount: 4221.6, revenue_date: "2026-07-19" },
-  // Raven — APS
+  // Raven — APS: 4,257.00 historical + 1,656.00 in 2026 = 5,913.00
   { client_id: APS, partner_uuid: RAVEN, partner_name: "Raven", country: "Portugal", amount: 2601.0, revenue_date: "2024-08-08" },
-  { client_id: APS, partner_uuid: RAVEN, partner_name: "Raven", country: "Portugal", amount: 1656.0, revenue_date: "2025-08-08" },
+  { client_id: APS, partner_uuid: RAVEN, partner_name: "Raven", country: "Portugal", amount: 1000.0, revenue_date: "2025-02-08" },
+  { client_id: APS, partner_uuid: RAVEN, partner_name: "Raven", country: "Portugal", amount: 656.0, revenue_date: "2025-08-08" },
   { client_id: APS, partner_uuid: RAVEN, partner_name: "Raven", country: "Portugal", amount: 1656.0, revenue_date: "2026-08-08" },
-  // Raven — Transportes Barcino
-  { client_id: BARCINO, partner_uuid: RAVEN, partner_name: "Raven", country: "Spain", amount: 675.0, revenue_date: "2025-04-14" },
+  // Raven — Transportes Barcino: 36,706.00, all billed in 2026
   { client_id: BARCINO, partner_uuid: RAVEN, partner_name: "Raven", country: "Spain", amount: 22675.0, revenue_date: "2026-04-14" },
   { client_id: BARCINO, partner_uuid: RAVEN, partner_name: "Raven", country: "Spain", amount: 14031.0, revenue_date: "2026-01-14" },
 ];
+
 
 describe("revenue-metrics — historical revenue summary", () => {
   it("computes HQ lifetime, YTD, entry count and distinct clients", () => {
