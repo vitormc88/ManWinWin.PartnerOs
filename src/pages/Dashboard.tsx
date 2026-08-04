@@ -115,11 +115,16 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {showPipeline && <KPICard loading={!dealsReady} title="Total Revenue" value={formatMoney(totalRevenue)} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""}`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={DollarSign} delay={60} />}
-        {showPartners && <KPICard loading={!partnersReady} title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={120} />}
-        {showPipeline && <KPICard loading={!dealsReady} title="Pipeline Value" value={formatMoney(totalPipeline)} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={180} />}
-        {showClients && <KPICard loading={!clientsReady} title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={240} />}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Billed customer revenue — client_revenue_history. Not deals, not ARR. */}
+        {showClients && <KPICard loading={!revenueReady} title={LIFETIME_REVENUE_LABEL} value={formatMoney(revenueSummary?.lifetime_revenue)} change={`${revenueSummary?.clients_with_revenue ?? 0} client${(revenueSummary?.clients_with_revenue ?? 0) !== 1 ? "s" : ""} billed`} changeType="neutral" icon={DollarSign} delay={60} />}
+        {showClients && <KPICard loading={!revenueReady} title={REVENUE_YTD_LABEL} value={formatMoney(revenueSummary?.revenue_ytd)} change={`Calendar year ${currentYear}`} changeType={(revenueSummary?.revenue_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
+        {/* Sales metric — explicitly labelled so it is never read as revenue. */}
+        {showPipeline && <KPICard loading={!dealsReady} title={WON_DEAL_VALUE_LABEL} value={formatMoney(wonDealTotal)} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""} · new business`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={Trophy} delay={180} />}
+        {showPipeline && <KPICard loading={!dealsReady} title="Pipeline Value" value={formatMoney(totalPipeline)} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={240} />}
+        {showPartners && <KPICard loading={!partnersReady} title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={300} />}
+        {showClients && <KPICard loading={!clientsReady} title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={360} />}
+
       </div>
 
       {/* Renewals Urgency */}
