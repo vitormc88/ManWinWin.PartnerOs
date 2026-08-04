@@ -998,6 +998,8 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   const leadsQ = useIncomingLeads();
   const renewalsQ = useUnifiedRenewals();
   const profilesQ = useAllProfilesMap();
+  // Billed revenue per canonical partner (client_revenue_history), RLS-scoped.
+  const revenueEntriesQ = useRevenueHistory();
 
   const metrics = metricsQ.data || {};
   const partnersFull = partnersFullQ.data || [];
@@ -1005,7 +1007,14 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   const renewals = renewalsQ.data || [];
   const profiles = profilesQ.data;
 
+  const billedByPartner = useMemo(() => {
+    const m = new Map<string, number>();
+    historicalRevenueByPartner(revenueEntriesQ.data).forEach(g => m.set(g.key, g.revenue));
+    return m;
+  }, [revenueEntriesQ.data]);
+
   const fullById = new Map(partnersFull.map((p: any) => [p.id, p]));
+
 
   // Aggregations per partner
   const openLeadStatuses = new Set(["New", "Active Qualification", "Nurture"]);
