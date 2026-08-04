@@ -14,6 +14,7 @@ import {
 import { buildInvestmentSummaryRows } from "./proposal-business-summary";
 import { tBusiness } from "./proposal-business-i18n";
 import { formatEuro } from "./proposal-i18n";
+import { assertBusinessOptionsComputable } from "./proposal-business-readiness";
 
 const esc = (v: any) =>
   String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -47,6 +48,7 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
   const s = tBusiness(lang);
   const models = resolveModels(proposal);
   const out = computeBusinessOptions(rules, cfg, models);
+  assertBusinessOptionsComputable(out, { cfg, rules, models });
   const showK = !!out.keepit;
   const showU = !!out.useit;
   const primary = (out.keepit || out.useit) as BusinessOptionTotals;

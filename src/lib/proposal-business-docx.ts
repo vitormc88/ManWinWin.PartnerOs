@@ -30,6 +30,7 @@ import {
   type BusinessOptionTotals,
   ONSITE_RATES,
 } from "./proposal-business-engine";
+import { assertBusinessOptionsComputable } from "./proposal-business-readiness";
 import { buildInvestmentSummaryRows, type SummaryRow } from "./proposal-business-summary";
 import { tBusiness, type BusinessStrings } from "./proposal-business-i18n";
 import { formatEuro } from "./proposal-i18n";
@@ -475,6 +476,7 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   const s = tBusiness(lang);
   const models = resolveModels(proposal);
   const out = computeBusinessOptions(rules, cfg, models);
+  assertBusinessOptionsComputable(out, { cfg, rules, models });
   const showKeepit = !!out.keepit;
   const showUseit = !!out.useit;
   const primary = out.keepit || out.useit!;
