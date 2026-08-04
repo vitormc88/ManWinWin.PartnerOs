@@ -42,6 +42,15 @@ import type {
   ProposalDeployment,
 } from "@/types/proposal";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePartner } from "@/hooks/usePartners";
+import {
+  getDiscountLimits,
+  clampDiscountPct,
+  validateProfessionalItems,
+  validateBusinessDiscounts,
+  effectiveDiscountPct,
+  lineDiscountKind,
+} from "@/lib/proposal-discount-policy";
 import {
   BusinessSoftwareStep,
   BusinessServicesStep,
@@ -140,7 +149,16 @@ interface Props {
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
 export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null }: Props) {
-  const { user } = useAuth();
+  const { user, profile, isHQ } = useAuth();
+  const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
+  // Conservative limits while partner data is still missing/loading.
+  const discountLimits = useMemo(
+    () =>
+      isHQ
+        ? getDiscountLimits({ isHQ: true })
+        : getDiscountLimits({ isHQ: false, partnershipLevel: actorPartner?.partnership_level ?? null }),
+    [isHQ, actorPartner?.partnership_level],
+  );
   const qc = useQueryClient();
   const { data: rules = [] } = usePricingRules();
 
@@ -465,6 +483,44 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     });
   };
 
+  /** Clamp a per-line discount input to the actor's maximum for that line kind. */
+  const clampLineDiscountValue = (item: ProposalItem, raw: unknown) => {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) return 0;
+    const max =
+      lineDiscountKind(item.category) === "services"
+        ? discountLimits.services
+        : discountLimits.software;
+    if ((item.discount_type || "none") === "percent") return clampDiscountPct(value, max);
+    if ((item.discount_type || "none") === "fixed") {
+      const gross = Number(item.gross_total ?? getItemBaseTotal(item)) || 0;
+      if (gross <= 0) return 0;
+      return Math.min(value, +((gross * max) / 100).toFixed(2));
+    }
+    return value;
+  };
+
+  /** Fail-closed discount authorization check, run before every persist path. */
+  const assertDiscountsAllowed = (): boolean => {
+    const res = isBusiness
+      ? validateBusinessDiscounts(businessConfig.discounts as any, discountLimits)
+      : validateProfessionalItems(
+          previewItems.map((it) => ({
+            item_name: it.item_name,
+            category: it.category,
+            discount_type: it.discount_type,
+            discount_value: it.discount_value,
+            gross_total: it.gross_total,
+          })),
+          discountLimits,
+        );
+    if (!res.ok) {
+      toast.error(res.message || "Discount exceeds your authorization limit");
+      return false;
+    }
+    return true;
+  };
+
   const removeItem = (idx: number) => {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   };
@@ -505,6 +561,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   };
 
   const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
+    if (!assertDiscountsAllowed()) return null;
     setSaving(true);
     try {
       // Auto-assign version on first save (new proposal). Editing keeps existing version.
@@ -970,6 +1027,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
               config={businessConfig}
               onChange={setBusinessConfig}
               proposalMode={proposalMode}
+              softwareDiscountMax={discountLimits.software}
+              servicesDiscountMax={discountLimits.services}
             />
           )}
           {step === 1 && !isBusiness && (
@@ -1007,21 +1066,21 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
               <div className="bg-card border rounded-lg p-3 space-y-3">
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <Label className="text-xs">Professional plan discount %</Label>
-                    <Input type="number" min={0} max={100} value={planDiscountPct} onChange={(e) => setPlanDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <Label className="text-xs">Professional plan discount % (max {discountLimits.software}%)</Label>
+                    <Input type="number" min={0} max={discountLimits.software} value={planDiscountPct} onChange={(e) => setPlanDiscountPct(clampDiscountPct(e.target.value, discountLimits.software))} />
                     <div className="flex items-center justify-between mt-2">
                       <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
                       <Switch checked={planDiscountRenews} onCheckedChange={setPlanDiscountRenews} disabled={planDiscountPct <= 0} />
                     </div>
                   </div>
                   <div className={!includeRequests ? "opacity-50 pointer-events-none" : ""}>
-                    <Label className="text-xs">Requests Module discount %</Label>
+                    <Label className="text-xs">Requests Module discount % (max {discountLimits.software}%)</Label>
                     <Input
                       type="number"
                       min={0}
-                      max={100}
+                      max={discountLimits.software}
                       value={includeRequests ? requestsDiscountPct : 0}
-                      onChange={(e) => setRequestsDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                      onChange={(e) => setRequestsDiscountPct(clampDiscountPct(e.target.value, discountLimits.software))}
                       disabled={!includeRequests}
                     />
                     <div className="flex items-center justify-between mt-2">
@@ -1033,8 +1092,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                     )}
                   </div>
                   <div>
-                    <Label className="text-xs">Web/Mobile users discount %</Label>
-                    <Input type="number" min={0} max={100} value={webUsersDiscountPct} onChange={(e) => setWebUsersDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                    <Label className="text-xs">Web/Mobile users discount % (max {discountLimits.software}%)</Label>
+                    <Input type="number" min={0} max={discountLimits.software} value={webUsersDiscountPct} onChange={(e) => setWebUsersDiscountPct(clampDiscountPct(e.target.value, discountLimits.software))} />
                     <div className="flex items-center justify-between mt-2">
                       <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
                       <Switch checked={webUsersDiscountRenews} onCheckedChange={setWebUsersDiscountRenews} disabled={webUsersDiscountPct <= 0} />
@@ -1059,6 +1118,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
               config={businessConfig}
               onChange={setBusinessConfig}
               proposalMode={proposalMode}
+              softwareDiscountMax={discountLimits.software}
+              servicesDiscountMax={discountLimits.services}
             />
           )}
           {step === 2 && !isBusiness && (
@@ -1076,9 +1137,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   </Select>
                 </div>
                 <div>
-                  <Label>Services discount %</Label>
-                  <Input type="number" min={0} max={100} value={servicesDiscountPct}
-                    onChange={(e) => setServicesDiscountPct(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} />
+                  <Label>Services discount % (max {discountLimits.services}%)</Label>
+                  <Input type="number" min={0} max={discountLimits.services} value={servicesDiscountPct}
+                    onChange={(e) => setServicesDiscountPct(clampDiscountPct(e.target.value, discountLimits.services))} />
                 </div>
               </div>
               {implType === "Onsite" && (
@@ -1220,7 +1281,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                               <SelectItem value="fixed">€</SelectItem>
                             </SelectContent>
                           </Select>
-                          <Input type="number" className="h-8" value={it.discount_value || 0} onChange={(e) => updateItem(idx, { discount_value: Number(e.target.value) || 0 })} />
+                          <Input
+                            type="number"
+                            className="h-8"
+                            value={it.discount_value || 0}
+                            onChange={(e) => updateItem(idx, { discount_value: clampLineDiscountValue(it, e.target.value) })}
+                          />
                         </div>
                         <p className={`mt-1 text-[10px] ${effectiveDiscount.source === "line" ? "text-foreground" : "text-muted-foreground"}`}>{discountSourceLabel}</p>
                       </div>
