@@ -13,11 +13,20 @@ import {
   useSalesPerformance,
   usePartnerAnalytics,
   useRenewalsAnalytics,
-  useRevenueByCountry,
   useOutcomes,
   useDealReconciliation,
   lastUpdatedLabel,
 } from "@/hooks/useAnalytics";
+import { useRevenueSummary, useRevenueHistory } from "@/hooks/useRevenueHistory";
+import {
+  revenueByCountry as historicalRevenueByCountry,
+  revenueByPartner as historicalRevenueByPartner,
+  shareOfTotal,
+  LIFETIME_REVENUE_LABEL,
+  REVENUE_YTD_LABEL,
+  WON_DEAL_VALUE_LABEL,
+} from "@/lib/revenue-metrics";
+
 
 function KPI({ label, value, sub, trend }: { label: string; value: string; sub?: string; trend?: "up" | "down" | "neutral" }) {
   return (
@@ -79,9 +88,11 @@ export default function Analytics() {
   const sales = useSalesPerformance();
   const partners = usePartnerAnalytics();
   const renewals = useRenewalsAnalytics();
-  const country = useRevenueByCountry();
   const outcomes = useOutcomes();
   const reconciliation = useDealReconciliation(isAdmin);
+  // Historical billed revenue (client_revenue_history), RLS-scoped.
+  const revenue = useRevenueSummary();
+  const revenueEntries = useRevenueHistory();
 
   // Order pipeline-stage data by canonical stage order
   const stageOrder = new Map<string, number>(
@@ -89,10 +100,17 @@ export default function Analytics() {
   );
   const stageData = (pipelineStage.data || []).slice().sort((a, b) => (stageOrder.get(a.stage) ?? 99) - (stageOrder.get(b.stage) ?? 99));
 
-  // Derived overview totals from views
+  // Historical revenue — the ONLY source for anything labelled "Revenue".
+  const lifetimeRevenue = revenue.data?.lifetime_revenue ?? 0;
+  const revenueYtd = revenue.data?.revenue_ytd ?? 0;
+  const clientsWithRevenue = revenue.data?.clients_with_revenue ?? 0;
+  const countryRevenue = useMemo(() => historicalRevenueByCountry(revenueEntries.data), [revenueEntries.data]);
+  const currentYear = new Date().getFullYear();
+
+  // Sales metrics from deals — separate concept, never labelled "Revenue".
   const wonOutcomes = (outcomes.data || []).filter(o => o.status === "Won");
   const lostOutcomes = (outcomes.data || []).filter(o => o.status === "Lost");
-  const totalRevenue = wonOutcomes.reduce((s, o) => s + o.value, 0);
+  const wonDealTotal = wonOutcomes.reduce((s, o) => s + o.value, 0);
   const totalPipelineValue = stageData.reduce((s, r) => s + r.total_value, 0);
   const totalWeightedPipeline = stageData.reduce((s, r) => s + r.weighted_value, 0);
   const totalOpenDeals = stageData.reduce((s, r) => s + r.deal_count, 0);
@@ -105,13 +123,15 @@ export default function Analytics() {
     sales.dataUpdatedAt || 0,
     partners.dataUpdatedAt || 0,
     renewals.dataUpdatedAt || 0,
-    country.dataUpdatedAt || 0,
+    revenue.dataUpdatedAt || 0,
     outcomes.dataUpdatedAt || 0,
   );
 
   // --- Executive derivations (presentation-only, no business logic changes) ---
-  const topCountry = (country.data || [])[0];
-  const topCountryPct = topCountry && totalRevenue > 0 ? Math.round((topCountry.revenue / totalRevenue) * 100) : 0;
+  const topCountry = countryRevenue[0];
+  // Share of historical revenue — never divided by won-deal counts.
+  const topCountryPct = topCountry ? shareOfTotal(topCountry.revenue, lifetimeRevenue) : 0;
+
 
   const largestStage = useMemo(() => stageData.slice().sort((a, b) => b.total_value - a.total_value)[0], [stageData]);
   const mostOppStage = useMemo(() => stageData.slice().sort((a, b) => b.deal_count - a.deal_count)[0], [stageData]);
@@ -142,7 +162,7 @@ export default function Analytics() {
 
   const highlights = useMemo(() => {
     const out: string[] = [];
-    if (topCountry) out.push(`Revenue is led by ${topCountry.country} (${topCountryPct}% of total).`);
+    if (topCountry) out.push(`Billed revenue is led by ${topCountry.label} (${topCountryPct}% of lifetime).`);
     if (largestStage) out.push(`Pipeline value is concentrated in ${largestStage.stage}.`);
     if (mostOppStage && mostOppStage.stage !== largestStage?.stage) out.push(`${mostOppStage.stage} holds the most opportunities (${mostOppStage.deal_count}).`);
     if (conversionRate > 0) out.push(`Conversion rate sits at ${conversionRate}% across closed deals.`);
@@ -186,37 +206,42 @@ export default function Analytics() {
 
         {/* ---------- OVERVIEW (Executive Cockpit) ---------- */}
         <TabsContent value="overview" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPI label="Total Revenue (Won)" value={fmtEuroK(totalRevenue)} sub={`${wonOutcomes.length} won deal${wonOutcomes.length !== 1 ? "s" : ""}`} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {/* Historical billed revenue — client_revenue_history */}
+            <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(lifetimeRevenue)} sub={`${clientsWithRevenue} client${clientsWithRevenue !== 1 ? "s" : ""} billed`} />
+            <KPI label={REVENUE_YTD_LABEL} value={fmtEuroK(revenueYtd)} sub={`Calendar year ${currentYear}`} trend={revenueYtd > 0 ? "up" : "neutral"} />
+            {/* Sales metrics — deal-derived */}
+            <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(wonDealTotal)} sub={`${wonOutcomes.length} won deal${wonOutcomes.length !== 1 ? "s" : ""} · new business`} />
             <KPI label="Pipeline Value (Open)" value={fmtEuroK(totalPipelineValue)} sub={`${totalOpenDeals} open deal${totalOpenDeals !== 1 ? "s" : ""}`} />
             <KPI label="Weighted Pipeline" value={fmtEuroK(totalWeightedPipeline)} sub="Probability-adjusted" />
             <KPI label="Conversion Rate" value={`${conversionRate}%`} sub={`${wonOutcomes.length} won / ${lostOutcomes.length} lost`} trend={conversionRate >= 50 ? "up" : conversionRate > 0 ? "down" : "neutral"} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Card 1 — Revenue by Country */}
+            {/* Card 1 — Revenue by Country (billed revenue, not won deals) */}
             <ExecCard title="Revenue by Country" icon={Globe2} onClick={() => setTab("partners")}>
-              {(country.data || []).length > 0 ? (
+              {countryRevenue.length > 0 ? (
                 <div className="grid grid-cols-5 gap-4 items-center">
                   <div className="col-span-2 space-y-1">
                     <p className="text-xs text-muted-foreground">Top country</p>
-                    <p className="text-lg font-bold text-foreground">{topCountry?.country}</p>
+                    <p className="text-lg font-bold text-foreground">{topCountry?.label}</p>
                     <p className="text-sm font-semibold text-primary tabular-nums">{fmtEuroK(topCountry?.revenue || 0)}</p>
-                    <p className="text-[11px] text-muted-foreground">{topCountryPct}% of total · {topCountry?.won_deal_count} won deal{(topCountry?.won_deal_count || 0) !== 1 ? "s" : ""}</p>
+                    <p className="text-[11px] text-muted-foreground">{topCountryPct}% of lifetime · {topCountry?.client_count} client{(topCountry?.client_count || 0) !== 1 ? "s" : ""}</p>
                   </div>
                   <div className="col-span-3">
                     <ResponsiveContainer width="100%" height={120}>
-                      <BarChart data={(country.data || []).slice(0, 5)} layout="vertical" barSize={10} margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+                      <BarChart data={countryRevenue.slice(0, 5)} layout="vertical" barSize={10} margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
                         <XAxis type="number" hide tickFormatter={v => `€${v / 1000}k`} />
-                        <YAxis type="category" dataKey="country" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={70} />
-                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }} formatter={(v: number) => [fmtEuro(v), "Revenue"]} />
+                        <YAxis type="category" dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={70} />
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }} formatter={(v: number) => [fmtEuro(v), "Billed revenue"]} />
                         <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
-              ) : <EmptyState hint="Win your first deal to populate this card." />}
+              ) : <EmptyState hint="Billed revenue will appear once customer revenue is recorded." />}
             </ExecCard>
+
 
             {/* Card 2 — Pipeline Health */}
             <ExecCard title="Pipeline Health" icon={Activity} onClick={() => setTab("pipeline")}>
@@ -758,7 +783,7 @@ function SalesCockpit({
 
   // Executive insights
   const insights: string[] = [];
-  if (byRevenue[0]) insights.push(`${byRevenue[0].name} leads revenue generation at ${fmtEuroK(byRevenue[0].value)}.`);
+  if (byRevenue[0]) insights.push(`${byRevenue[0].name} leads won deal value at ${fmtEuroK(byRevenue[0].value)}.`);
   if (byPipeline[0]) insights.push(`${byPipeline[0].name} owns the largest active pipeline (${fmtEuroK(byPipeline[0].value)}).`);
   if (top2PipeShare >= 50) insights.push(`Pipeline ownership is concentrated — top 2 hold ${top2PipeShare}% of total pipeline.`);
   else if (sales.length >= 3) insights.push(`Pipeline distribution is balanced across the team.`);
@@ -805,14 +830,14 @@ function SalesCockpit({
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Total Salespeople" value={String(sales.length)} sub="active users with deals" />
-        <KPI label="Total Won Revenue" value={fmtEuroK(totalRevenue)} sub="from won deals" trend="up" />
+        <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(totalRevenue)} sub="New business won (deals)" trend="up" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="across all owners" />
         <KPI label="Average Win Rate" value={`${avgConversion}%`} sub="team conversion" trend={avgConversion >= 50 ? "up" : "neutral"} />
       </div>
 
       {/* Top Performers */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <RankCard title="Top Revenue" icon={Trophy} rows={byRevenue} onPick={openPicker} emptyHint="No won deals yet." />
+        <RankCard title="Top Won Deal Value" icon={Trophy} rows={byRevenue} onPick={openPicker} emptyHint="No won deals yet." />
         <RankCard title="Highest Pipeline" icon={Rocket} rows={byPipeline} onPick={openPicker} emptyHint="No open pipeline." />
         <RankCard title="Best Conversion" icon={TargetIcon} rows={byConversion} onPick={openPicker} emptyHint="Not enough closed deals." />
       </div>
@@ -883,7 +908,7 @@ function SalesCockpit({
             <thead>
               <tr className="border-b bg-secondary/50">
                 <th className="text-left px-5 py-3 font-medium text-muted-foreground">Salesperson</th>
-                <SortTh k="won_revenue" label="Revenue" />
+                <SortTh k="won_revenue" label="Won Value" />
                 <SortTh k="pipeline_value" label="Pipeline" />
                 <SortTh k="open_count" label="Open" />
                 <SortTh k="won_count" label="Won" />
@@ -895,7 +920,7 @@ function SalesCockpit({
             <tbody className="divide-y">
               {sortedTable.map(s => {
                 const badges: { label: string; cls: string }[] = [];
-                if (s.sales_key === topRevenueKey) badges.push({ label: "🏆 Top Revenue", cls: "bg-amber-50 text-amber-700 border-amber-200" });
+                if (s.sales_key === topRevenueKey) badges.push({ label: "🏆 Top Won Value", cls: "bg-amber-50 text-amber-700 border-amber-200" });
                 if (s.sales_key === topPipelineKey) badges.push({ label: "🚀 Pipeline Leader", cls: "bg-blue-50 text-blue-700 border-blue-200" });
                 if (s.sales_key === topConversionKey) badges.push({ label: "🎯 Best Conversion", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" });
                 if (coachingKeys.has(s.sales_key)) badges.push({ label: "⚠ Needs Attention", cls: "bg-amber-50 text-amber-700 border-amber-200" });
@@ -973,6 +998,8 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   const leadsQ = useIncomingLeads();
   const renewalsQ = useUnifiedRenewals();
   const profilesQ = useAllProfilesMap();
+  // Billed revenue per canonical partner (client_revenue_history), RLS-scoped.
+  const revenueEntriesQ = useRevenueHistory();
 
   const metrics = metricsQ.data || {};
   const partnersFull = partnersFullQ.data || [];
@@ -980,7 +1007,14 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   const renewals = renewalsQ.data || [];
   const profiles = profilesQ.data;
 
+  const billedByPartner = useMemo(() => {
+    const m = new Map<string, number>();
+    historicalRevenueByPartner(revenueEntriesQ.data).forEach(g => m.set(g.key, g.revenue));
+    return m;
+  }, [revenueEntriesQ.data]);
+
   const fullById = new Map(partnersFull.map((p: any) => [p.id, p]));
+
 
   // Aggregations per partner
   const openLeadStatuses = new Set(["New", "Active Qualification", "Nurture"]);
@@ -1011,6 +1045,10 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     const ownerName = ownerProfile?.full_name || ownerProfile?.email || null;
     return {
       ...p,
+      // "Revenue" here means BILLED revenue. The deal-derived figure is kept
+      // separately as won_deal_value so the two are never conflated.
+      won_deal_value: p.revenue,
+      revenue: billedByPartner.get(p.partner_id) || 0,
       health: m?.health_score ?? 0,
       open_leads: leadsByPartner.get(p.partner_id) || 0,
       renewals_count: renewalsByPartner.get(p.partner_id) || 0,
@@ -1024,6 +1062,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   // KPIs
   const activeCount = rows.length;
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
+
   const totalPipeline = rows.reduce((s, r) => s + r.pipeline, 0);
   const avgHealth = rows.length ? Math.round(rows.reduce((s, r) => s + r.health, 0) / rows.length) : 0;
 
@@ -1048,7 +1087,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     if (r.pipeline > 0 && r.client_count === 0) {
       opportunities.push({ name: r.company_name, note: "Growing pipeline but no customers yet.", tone: "info", id: r.partner_id });
     } else if (r.revenue > 0 && r.pipeline === 0) {
-      opportunities.push({ name: r.company_name, note: "Strong revenue but no active pipeline.", tone: "warning", id: r.partner_id });
+      opportunities.push({ name: r.company_name, note: "Strong billed revenue but no active pipeline.", tone: "warning", id: r.partner_id });
     } else if (r.pipeline > 30000 && r.health >= 60) {
       opportunities.push({ name: r.company_name, note: "Excellent momentum — invest more.", tone: "positive", id: r.partner_id });
     } else if (r.health > 0 && r.health < 60 && r.revenue > 0) {
@@ -1061,7 +1100,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   const insights: string[] = [];
   if (topRevenue[0] && totalRevenue > 0) {
     const pct = Math.round((topRevenue[0].revenue / totalRevenue) * 100);
-    insights.push(`${topRevenue[0].company_name} generates ${pct}% of total partner revenue.`);
+    insights.push(`${topRevenue[0].company_name} generates ${pct}% of total billed partner revenue.`);
   }
   if (topPipeline[0]) {
     insights.push(`${topPipeline[0].company_name} leads pipeline with ${fmtEuroK(topPipeline[0].pipeline)} in open opportunities.`);
@@ -1109,14 +1148,14 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
       {/* KPI Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KPI label="Active Partners" value={String(activeCount)} sub={`${activeCount} Active Partner${activeCount !== 1 ? "s" : ""}`} />
-        <KPI label="Revenue Generated" value={fmtEuroK(totalRevenue)} sub={`${fmtEuroK(totalRevenue)} Generated`} />
+        <KPI label="Billed Revenue" value={fmtEuroK(totalRevenue)} sub="Invoiced to date" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="Across all partners" />
         <KPI label="Average Partner Health" value={`${avgHealth}/100`} sub="Network average" trend={avgHealth >= 70 ? "up" : avgHealth >= 50 ? "neutral" : "down"} />
       </div>
 
       {/* Top Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ExecCard title="Top Revenue" icon={Trophy}>
+        <ExecCard title="Top Billed Revenue" icon={Trophy}>
           <RankList items={topRevenue.map(r => ({ id: r.partner_id, name: r.company_name, value: fmtEuroK(r.revenue) }))} navigate={navigate} />
         </ExecCard>
         <ExecCard title="Highest Pipeline" icon={Rocket}>
@@ -1182,7 +1221,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
               <tr className="border-b bg-secondary/50">
                 <SortHeader label="Partner" k="company_name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Country" k="country" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
-                <SortHeader label="Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Billed Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Pipeline" k="pipeline" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Clients" k="client_count" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Health" k="health" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />

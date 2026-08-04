@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { DollarSign, Users, TrendingUp, Activity, AlertTriangle, RefreshCcw, ArrowRight, Clock, Plus } from "lucide-react";
+import { DollarSign, Users, TrendingUp, Activity, AlertTriangle, RefreshCcw, ArrowRight, Clock, Plus, Wallet, Trophy } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { PartnerHealthList } from "@/components/dashboard/PartnerHealthList";
@@ -9,10 +9,13 @@ import { Link } from "react-router-dom";
 import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
 import { useDeals, useRenewals, useNotifications } from "@/hooks/useDeals";
+import { useRevenueSummary } from "@/hooks/useRevenueHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { getStageProbability, isActivePipelineStage } from "@/data/pipeline-stages";
 import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
+import { LIFETIME_REVENUE_LABEL, REVENUE_YTD_LABEL, WON_DEAL_VALUE_LABEL } from "@/lib/revenue-metrics";
+
 
 export default function Dashboard() {
   const { isHQ, profile } = useAuth();
@@ -30,11 +33,17 @@ export default function Dashboard() {
   const { data: deals = [], isLoading: dealsLoading } = useDeals(undefined, { enabled: showPipeline });
   const { data: renewals = [], isLoading: renewalsLoading } = useRenewals(undefined, { enabled: showRenewals });
   const { data: notifications = [] } = useNotifications(showNotifications);
+  // Historical billed revenue — RLS-scoped, so FITC sees only FITC, Raven only
+  // Raven and HQ sees everything. Never mixed with deal or ARR values.
+  const { data: revenueSummary, isLoading: revenueLoading } = useRevenueSummary(showClients);
 
   const partnersReady = showPartners && !partnersLoading;
   const clientsReady = showClients && !clientsLoading;
   const dealsReady = showPipeline && !dealsLoading;
   const renewalsReady = showRenewals && !renewalsLoading;
+  const revenueReady = showClients && !revenueLoading && !!revenueSummary;
+  const currentYear = new Date().getFullYear();
+
 
 
   const clientMap = useMemo(() => {
@@ -43,12 +52,13 @@ export default function Dashboard() {
     return m;
   }, [clients]);
 
-  // Revenue & Pipeline from deals (same logic as Pipeline module)
-  // Same definitions as Pipeline page so KPIs match the visible Kanban
+  // Sales metrics from deals — kept deliberately separate from billed revenue.
+  // Imported customers have no synthetic Won deals, so €0 here can be correct.
   const wonDeals = deals.filter(d => d.status === "Won" && d.stage === "Won");
   const openDeals = deals.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
-  const totalRevenue = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+  const wonDealTotal = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
   const totalPipeline = openDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+
 
   const activePartners = partners.filter((p) => p.status === "Active").length;
   const activeClients = clients.filter(c => c.status === "Active").length;
@@ -105,11 +115,16 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {showPipeline && <KPICard loading={!dealsReady} title="Total Revenue" value={formatMoney(totalRevenue)} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""}`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={DollarSign} delay={60} />}
-        {showPartners && <KPICard loading={!partnersReady} title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={120} />}
-        {showPipeline && <KPICard loading={!dealsReady} title="Pipeline Value" value={formatMoney(totalPipeline)} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={180} />}
-        {showClients && <KPICard loading={!clientsReady} title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={240} />}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Billed customer revenue — client_revenue_history. Not deals, not ARR. */}
+        {showClients && <KPICard loading={!revenueReady} title={LIFETIME_REVENUE_LABEL} value={formatMoney(revenueSummary?.lifetime_revenue)} change={`${revenueSummary?.clients_with_revenue ?? 0} client${(revenueSummary?.clients_with_revenue ?? 0) !== 1 ? "s" : ""} billed`} changeType="neutral" icon={DollarSign} delay={60} />}
+        {showClients && <KPICard loading={!revenueReady} title={REVENUE_YTD_LABEL} value={formatMoney(revenueSummary?.revenue_ytd)} change={`Calendar year ${currentYear}`} changeType={(revenueSummary?.revenue_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
+        {/* Sales metric — explicitly labelled so it is never read as revenue. */}
+        {showPipeline && <KPICard loading={!dealsReady} title={WON_DEAL_VALUE_LABEL} value={formatMoney(wonDealTotal)} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""} · new business`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={Trophy} delay={180} />}
+        {showPipeline && <KPICard loading={!dealsReady} title="Pipeline Value" value={formatMoney(totalPipeline)} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={240} />}
+        {showPartners && <KPICard loading={!partnersReady} title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={300} />}
+        {showClients && <KPICard loading={!clientsReady} title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={360} />}
+
       </div>
 
       {/* Renewals Urgency */}
