@@ -636,6 +636,7 @@ export const generateBusinessXlsx = (opts: BusinessXlsxOptions): BusinessXlsxRes
       : ["keepit", "useit"];
 
   const out = computeBusinessOptions(rules, cfg, models);
+  assertBusinessOptionsComputable(out, { cfg, rules, models });
 
   const cols: SummaryColumn[] = [];
   if (out.keepit && (mode === "compare_keepit_useit" || mode === "keepit_only" || license === "keepit"))

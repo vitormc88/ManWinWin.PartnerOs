@@ -475,6 +475,7 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   const s = tBusiness(lang);
   const models = resolveModels(proposal);
   const out = computeBusinessOptions(rules, cfg, models);
+  assertBusinessOptionsComputable(out, { cfg, rules, models });
   const showKeepit = !!out.keepit;
   const showUseit = !!out.useit;
   const primary = out.keepit || out.useit!;
