@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { DollarSign, Users, TrendingUp, Activity, AlertTriangle, RefreshCcw, ArrowRight, Clock, Plus } from "lucide-react";
+import { DollarSign, Users, TrendingUp, Activity, AlertTriangle, RefreshCcw, ArrowRight, Clock, Plus, Wallet, Trophy } from "lucide-react";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { PartnerHealthList } from "@/components/dashboard/PartnerHealthList";
@@ -9,10 +9,13 @@ import { Link } from "react-router-dom";
 import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
 import { useDeals, useRenewals, useNotifications } from "@/hooks/useDeals";
+import { useRevenueSummary } from "@/hooks/useRevenueHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { getStageProbability, isActivePipelineStage } from "@/data/pipeline-stages";
 import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
+import { LIFETIME_REVENUE_LABEL, REVENUE_YTD_LABEL, WON_DEAL_VALUE_LABEL } from "@/lib/revenue-metrics";
+
 
 export default function Dashboard() {
   const { isHQ, profile } = useAuth();
