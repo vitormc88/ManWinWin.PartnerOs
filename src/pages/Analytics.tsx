@@ -162,7 +162,7 @@ export default function Analytics() {
 
   const highlights = useMemo(() => {
     const out: string[] = [];
-    if (topCountry) out.push(`Revenue is led by ${topCountry.country} (${topCountryPct}% of total).`);
+    if (topCountry) out.push(`Billed revenue is led by ${topCountry.label} (${topCountryPct}% of lifetime).`);
     if (largestStage) out.push(`Pipeline value is concentrated in ${largestStage.stage}.`);
     if (mostOppStage && mostOppStage.stage !== largestStage?.stage) out.push(`${mostOppStage.stage} holds the most opportunities (${mostOppStage.deal_count}).`);
     if (conversionRate > 0) out.push(`Conversion rate sits at ${conversionRate}% across closed deals.`);
@@ -206,37 +206,42 @@ export default function Analytics() {
 
         {/* ---------- OVERVIEW (Executive Cockpit) ---------- */}
         <TabsContent value="overview" className="space-y-4 mt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <KPI label="Total Revenue (Won)" value={fmtEuroK(totalRevenue)} sub={`${wonOutcomes.length} won deal${wonOutcomes.length !== 1 ? "s" : ""}`} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {/* Historical billed revenue — client_revenue_history */}
+            <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(lifetimeRevenue)} sub={`${clientsWithRevenue} client${clientsWithRevenue !== 1 ? "s" : ""} billed`} />
+            <KPI label={REVENUE_YTD_LABEL} value={fmtEuroK(revenueYtd)} sub={`Calendar year ${currentYear}`} trend={revenueYtd > 0 ? "up" : "neutral"} />
+            {/* Sales metrics — deal-derived */}
+            <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(wonDealTotal)} sub={`${wonOutcomes.length} won deal${wonOutcomes.length !== 1 ? "s" : ""} · new business`} />
             <KPI label="Pipeline Value (Open)" value={fmtEuroK(totalPipelineValue)} sub={`${totalOpenDeals} open deal${totalOpenDeals !== 1 ? "s" : ""}`} />
             <KPI label="Weighted Pipeline" value={fmtEuroK(totalWeightedPipeline)} sub="Probability-adjusted" />
             <KPI label="Conversion Rate" value={`${conversionRate}%`} sub={`${wonOutcomes.length} won / ${lostOutcomes.length} lost`} trend={conversionRate >= 50 ? "up" : conversionRate > 0 ? "down" : "neutral"} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Card 1 — Revenue by Country */}
+            {/* Card 1 — Revenue by Country (billed revenue, not won deals) */}
             <ExecCard title="Revenue by Country" icon={Globe2} onClick={() => setTab("partners")}>
-              {(country.data || []).length > 0 ? (
+              {countryRevenue.length > 0 ? (
                 <div className="grid grid-cols-5 gap-4 items-center">
                   <div className="col-span-2 space-y-1">
                     <p className="text-xs text-muted-foreground">Top country</p>
-                    <p className="text-lg font-bold text-foreground">{topCountry?.country}</p>
+                    <p className="text-lg font-bold text-foreground">{topCountry?.label}</p>
                     <p className="text-sm font-semibold text-primary tabular-nums">{fmtEuroK(topCountry?.revenue || 0)}</p>
-                    <p className="text-[11px] text-muted-foreground">{topCountryPct}% of total · {topCountry?.won_deal_count} won deal{(topCountry?.won_deal_count || 0) !== 1 ? "s" : ""}</p>
+                    <p className="text-[11px] text-muted-foreground">{topCountryPct}% of lifetime · {topCountry?.client_count} client{(topCountry?.client_count || 0) !== 1 ? "s" : ""}</p>
                   </div>
                   <div className="col-span-3">
                     <ResponsiveContainer width="100%" height={120}>
-                      <BarChart data={(country.data || []).slice(0, 5)} layout="vertical" barSize={10} margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+                      <BarChart data={countryRevenue.slice(0, 5)} layout="vertical" barSize={10} margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
                         <XAxis type="number" hide tickFormatter={v => `€${v / 1000}k`} />
-                        <YAxis type="category" dataKey="country" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={70} />
-                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }} formatter={(v: number) => [fmtEuro(v), "Revenue"]} />
+                        <YAxis type="category" dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={70} />
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }} formatter={(v: number) => [fmtEuro(v), "Billed revenue"]} />
                         <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
-              ) : <EmptyState hint="Win your first deal to populate this card." />}
+              ) : <EmptyState hint="Billed revenue will appear once customer revenue is recorded." />}
             </ExecCard>
+
 
             {/* Card 2 — Pipeline Health */}
             <ExecCard title="Pipeline Health" icon={Activity} onClick={() => setTab("pipeline")}>
