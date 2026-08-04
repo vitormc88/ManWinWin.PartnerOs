@@ -48,7 +48,6 @@ import {
   clampDiscountPct,
   validateProfessionalItems,
   validateBusinessDiscounts,
-  effectiveDiscountPct,
   lineDiscountKind,
 } from "@/lib/proposal-discount-policy";
 import {
