@@ -783,7 +783,7 @@ function SalesCockpit({
 
   // Executive insights
   const insights: string[] = [];
-  if (byRevenue[0]) insights.push(`${byRevenue[0].name} leads revenue generation at ${fmtEuroK(byRevenue[0].value)}.`);
+  if (byRevenue[0]) insights.push(`${byRevenue[0].name} leads won deal value at ${fmtEuroK(byRevenue[0].value)}.`);
   if (byPipeline[0]) insights.push(`${byPipeline[0].name} owns the largest active pipeline (${fmtEuroK(byPipeline[0].value)}).`);
   if (top2PipeShare >= 50) insights.push(`Pipeline ownership is concentrated — top 2 hold ${top2PipeShare}% of total pipeline.`);
   else if (sales.length >= 3) insights.push(`Pipeline distribution is balanced across the team.`);
@@ -830,14 +830,14 @@ function SalesCockpit({
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Total Salespeople" value={String(sales.length)} sub="active users with deals" />
-        <KPI label="Total Won Revenue" value={fmtEuroK(totalRevenue)} sub="from won deals" trend="up" />
+        <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(totalRevenue)} sub="New business won (deals)" trend="up" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="across all owners" />
         <KPI label="Average Win Rate" value={`${avgConversion}%`} sub="team conversion" trend={avgConversion >= 50 ? "up" : "neutral"} />
       </div>
 
       {/* Top Performers */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <RankCard title="Top Revenue" icon={Trophy} rows={byRevenue} onPick={openPicker} emptyHint="No won deals yet." />
+        <RankCard title="Top Won Deal Value" icon={Trophy} rows={byRevenue} onPick={openPicker} emptyHint="No won deals yet." />
         <RankCard title="Highest Pipeline" icon={Rocket} rows={byPipeline} onPick={openPicker} emptyHint="No open pipeline." />
         <RankCard title="Best Conversion" icon={TargetIcon} rows={byConversion} onPick={openPicker} emptyHint="Not enough closed deals." />
       </div>
@@ -908,7 +908,7 @@ function SalesCockpit({
             <thead>
               <tr className="border-b bg-secondary/50">
                 <th className="text-left px-5 py-3 font-medium text-muted-foreground">Salesperson</th>
-                <SortTh k="won_revenue" label="Revenue" />
+                <SortTh k="won_revenue" label="Won Value" />
                 <SortTh k="pipeline_value" label="Pipeline" />
                 <SortTh k="open_count" label="Open" />
                 <SortTh k="won_count" label="Won" />
@@ -920,7 +920,7 @@ function SalesCockpit({
             <tbody className="divide-y">
               {sortedTable.map(s => {
                 const badges: { label: string; cls: string }[] = [];
-                if (s.sales_key === topRevenueKey) badges.push({ label: "🏆 Top Revenue", cls: "bg-amber-50 text-amber-700 border-amber-200" });
+                if (s.sales_key === topRevenueKey) badges.push({ label: "🏆 Top Won Value", cls: "bg-amber-50 text-amber-700 border-amber-200" });
                 if (s.sales_key === topPipelineKey) badges.push({ label: "🚀 Pipeline Leader", cls: "bg-blue-50 text-blue-700 border-blue-200" });
                 if (s.sales_key === topConversionKey) badges.push({ label: "🎯 Best Conversion", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" });
                 if (coachingKeys.has(s.sales_key)) badges.push({ label: "⚠ Needs Attention", cls: "bg-amber-50 text-amber-700 border-amber-200" });
@@ -1087,7 +1087,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     if (r.pipeline > 0 && r.client_count === 0) {
       opportunities.push({ name: r.company_name, note: "Growing pipeline but no customers yet.", tone: "info", id: r.partner_id });
     } else if (r.revenue > 0 && r.pipeline === 0) {
-      opportunities.push({ name: r.company_name, note: "Strong revenue but no active pipeline.", tone: "warning", id: r.partner_id });
+      opportunities.push({ name: r.company_name, note: "Strong billed revenue but no active pipeline.", tone: "warning", id: r.partner_id });
     } else if (r.pipeline > 30000 && r.health >= 60) {
       opportunities.push({ name: r.company_name, note: "Excellent momentum — invest more.", tone: "positive", id: r.partner_id });
     } else if (r.health > 0 && r.health < 60 && r.revenue > 0) {
@@ -1100,7 +1100,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   const insights: string[] = [];
   if (topRevenue[0] && totalRevenue > 0) {
     const pct = Math.round((topRevenue[0].revenue / totalRevenue) * 100);
-    insights.push(`${topRevenue[0].company_name} generates ${pct}% of total partner revenue.`);
+    insights.push(`${topRevenue[0].company_name} generates ${pct}% of total billed partner revenue.`);
   }
   if (topPipeline[0]) {
     insights.push(`${topPipeline[0].company_name} leads pipeline with ${fmtEuroK(topPipeline[0].pipeline)} in open opportunities.`);
@@ -1148,14 +1148,14 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
       {/* KPI Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KPI label="Active Partners" value={String(activeCount)} sub={`${activeCount} Active Partner${activeCount !== 1 ? "s" : ""}`} />
-        <KPI label="Revenue Generated" value={fmtEuroK(totalRevenue)} sub={`${fmtEuroK(totalRevenue)} Generated`} />
+        <KPI label="Billed Revenue" value={fmtEuroK(totalRevenue)} sub="Invoiced to date" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="Across all partners" />
         <KPI label="Average Partner Health" value={`${avgHealth}/100`} sub="Network average" trend={avgHealth >= 70 ? "up" : avgHealth >= 50 ? "neutral" : "down"} />
       </div>
 
       {/* Top Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ExecCard title="Top Revenue" icon={Trophy}>
+        <ExecCard title="Top Billed Revenue" icon={Trophy}>
           <RankList items={topRevenue.map(r => ({ id: r.partner_id, name: r.company_name, value: fmtEuroK(r.revenue) }))} navigate={navigate} />
         </ExecCard>
         <ExecCard title="Highest Pipeline" icon={Rocket}>
@@ -1221,7 +1221,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
               <tr className="border-b bg-secondary/50">
                 <SortHeader label="Partner" k="company_name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Country" k="country" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
-                <SortHeader label="Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Billed Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Pipeline" k="pipeline" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Clients" k="client_count" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Health" k="health" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
