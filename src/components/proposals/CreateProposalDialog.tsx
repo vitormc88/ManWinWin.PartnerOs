@@ -913,6 +913,43 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
             />
           </div>
         )}
+        {/* Business pricing readiness — blocking state */}
+        {isBusiness && businessReadiness && !businessReadiness.ok && (
+          <div
+            role="alert"
+            className={`mt-3 rounded-md border p-3 text-sm ${
+              businessReadiness.loading
+                ? "border-border bg-muted/40 text-muted-foreground"
+                : "border-destructive/40 bg-destructive/10 text-destructive"
+            }`}
+          >
+            <div className="flex items-start gap-2">
+              {businessReadiness.loading ? (
+                <Loader2 className="h-4 w-4 mt-0.5 animate-spin shrink-0" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+              )}
+              <div className="space-y-1">
+                <p className="font-semibold">
+                  {businessReadiness.loading
+                    ? "Loading pricing configuration…"
+                    : businessReadiness.queryFailed
+                    ? "Pricing could not be loaded"
+                    : "Business pricing configuration incomplete"}
+                </p>
+                <p>{businessReadiness.message}</p>
+                {businessReadiness.missing.length > 0 && (
+                  <ul className="list-disc pl-5 font-mono text-xs">
+                    {businessReadiness.missing.map((code) => (
+                      <li key={code}>{code}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Step indicator */}
         <div className="flex items-center gap-1 mt-2">
           {STEPS.map((label, idx) => (
