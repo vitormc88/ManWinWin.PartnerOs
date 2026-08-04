@@ -33,11 +33,17 @@ export default function Dashboard() {
   const { data: deals = [], isLoading: dealsLoading } = useDeals(undefined, { enabled: showPipeline });
   const { data: renewals = [], isLoading: renewalsLoading } = useRenewals(undefined, { enabled: showRenewals });
   const { data: notifications = [] } = useNotifications(showNotifications);
+  // Historical billed revenue — RLS-scoped, so FITC sees only FITC, Raven only
+  // Raven and HQ sees everything. Never mixed with deal or ARR values.
+  const { data: revenueSummary, isLoading: revenueLoading } = useRevenueSummary(showClients);
 
   const partnersReady = showPartners && !partnersLoading;
   const clientsReady = showClients && !clientsLoading;
   const dealsReady = showPipeline && !dealsLoading;
   const renewalsReady = showRenewals && !renewalsLoading;
+  const revenueReady = showClients && !revenueLoading && !!revenueSummary;
+  const currentYear = new Date().getFullYear();
+
 
 
   const clientMap = useMemo(() => {
@@ -46,12 +52,13 @@ export default function Dashboard() {
     return m;
   }, [clients]);
 
-  // Revenue & Pipeline from deals (same logic as Pipeline module)
-  // Same definitions as Pipeline page so KPIs match the visible Kanban
+  // Sales metrics from deals — kept deliberately separate from billed revenue.
+  // Imported customers have no synthetic Won deals, so €0 here can be correct.
   const wonDeals = deals.filter(d => d.status === "Won" && d.stage === "Won");
   const openDeals = deals.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
-  const totalRevenue = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+  const wonDealTotal = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
   const totalPipeline = openDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+
 
   const activePartners = partners.filter((p) => p.status === "Active").length;
   const activeClients = clients.filter(c => c.status === "Active").length;
