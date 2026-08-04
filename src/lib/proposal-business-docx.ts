@@ -30,6 +30,7 @@ import {
   type BusinessOptionTotals,
   ONSITE_RATES,
 } from "./proposal-business-engine";
+import { assertBusinessOptionsComputable } from "./proposal-business-readiness";
 import { buildInvestmentSummaryRows, type SummaryRow } from "./proposal-business-summary";
 import { tBusiness, type BusinessStrings } from "./proposal-business-i18n";
 import { formatEuro } from "./proposal-i18n";

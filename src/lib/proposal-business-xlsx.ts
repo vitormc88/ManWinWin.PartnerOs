@@ -18,6 +18,7 @@ import {
   type BusinessOptionTotals,
   type BusinessLineItem,
 } from "./proposal-business-engine";
+import { assertBusinessOptionsComputable } from "./proposal-business-readiness";
 import type {
   PricingRule,
   Proposal,
