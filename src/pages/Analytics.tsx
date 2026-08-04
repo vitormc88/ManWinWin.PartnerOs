@@ -88,9 +88,11 @@ export default function Analytics() {
   const sales = useSalesPerformance();
   const partners = usePartnerAnalytics();
   const renewals = useRenewalsAnalytics();
-  const country = useRevenueByCountry();
   const outcomes = useOutcomes();
   const reconciliation = useDealReconciliation(isAdmin);
+  // Historical billed revenue (client_revenue_history), RLS-scoped.
+  const revenue = useRevenueSummary();
+  const revenueEntries = useRevenueHistory();
 
   // Order pipeline-stage data by canonical stage order
   const stageOrder = new Map<string, number>(
@@ -98,10 +100,17 @@ export default function Analytics() {
   );
   const stageData = (pipelineStage.data || []).slice().sort((a, b) => (stageOrder.get(a.stage) ?? 99) - (stageOrder.get(b.stage) ?? 99));
 
-  // Derived overview totals from views
+  // Historical revenue — the ONLY source for anything labelled "Revenue".
+  const lifetimeRevenue = revenue.data?.lifetime_revenue ?? 0;
+  const revenueYtd = revenue.data?.revenue_ytd ?? 0;
+  const clientsWithRevenue = revenue.data?.clients_with_revenue ?? 0;
+  const countryRevenue = useMemo(() => historicalRevenueByCountry(revenueEntries.data), [revenueEntries.data]);
+  const currentYear = new Date().getFullYear();
+
+  // Sales metrics from deals — separate concept, never labelled "Revenue".
   const wonOutcomes = (outcomes.data || []).filter(o => o.status === "Won");
   const lostOutcomes = (outcomes.data || []).filter(o => o.status === "Lost");
-  const totalRevenue = wonOutcomes.reduce((s, o) => s + o.value, 0);
+  const wonDealTotal = wonOutcomes.reduce((s, o) => s + o.value, 0);
   const totalPipelineValue = stageData.reduce((s, r) => s + r.total_value, 0);
   const totalWeightedPipeline = stageData.reduce((s, r) => s + r.weighted_value, 0);
   const totalOpenDeals = stageData.reduce((s, r) => s + r.deal_count, 0);
@@ -114,13 +123,15 @@ export default function Analytics() {
     sales.dataUpdatedAt || 0,
     partners.dataUpdatedAt || 0,
     renewals.dataUpdatedAt || 0,
-    country.dataUpdatedAt || 0,
+    revenue.dataUpdatedAt || 0,
     outcomes.dataUpdatedAt || 0,
   );
 
   // --- Executive derivations (presentation-only, no business logic changes) ---
-  const topCountry = (country.data || [])[0];
-  const topCountryPct = topCountry && totalRevenue > 0 ? Math.round((topCountry.revenue / totalRevenue) * 100) : 0;
+  const topCountry = countryRevenue[0];
+  // Share of historical revenue — never divided by won-deal counts.
+  const topCountryPct = topCountry ? shareOfTotal(topCountry.revenue, lifetimeRevenue) : 0;
+
 
   const largestStage = useMemo(() => stageData.slice().sort((a, b) => b.total_value - a.total_value)[0], [stageData]);
   const mostOppStage = useMemo(() => stageData.slice().sort((a, b) => b.deal_count - a.deal_count)[0], [stageData]);
