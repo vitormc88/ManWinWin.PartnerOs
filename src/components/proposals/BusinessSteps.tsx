@@ -28,6 +28,11 @@ import type {
   ProposalLicenseModel,
 } from "@/types/proposal";
 import { formatEuro } from "@/lib/proposal-i18n";
+import {
+  clampDiscountPct,
+  PARTNER_MAX_SOFTWARE_DISCOUNT_PCT,
+  PARTNER_MAX_SERVICES_DISCOUNT_PCT,
+} from "@/lib/proposal-discount-policy";
 
 export interface BusinessStepsProps {
   rules: PricingRule[];
@@ -35,15 +40,20 @@ export interface BusinessStepsProps {
   config: BusinessConfig;
   onChange: (next: BusinessConfig) => void;
   proposalMode: ProposalMode;
+  /** Max % discount allowed on software channels for the current user. */
+  softwareDiscountMax?: number;
+  /** Max % discount allowed on service channels for the current user. */
+  servicesDiscountMax?: number;
 }
 
-export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
+export function BusinessSoftwareStep({ config, onChange, softwareDiscountMax = PARTNER_MAX_SOFTWARE_DISCOUNT_PCT }: BusinessStepsProps) {
   const update = <K extends keyof BusinessConfig>(k: K, v: BusinessConfig[K]) =>
     onChange({ ...config, [k]: v });
   const discounts = config.discounts || DEFAULT_BUSINESS_DISCOUNTS;
   const updDisc = <K extends keyof typeof discounts>(k: K, v: (typeof discounts)[K]) =>
     onChange({ ...config, discounts: { ...discounts, [k]: v } });
-  const clampPct = (n: number) => Math.max(0, Math.min(100, Number(n) || 0));
+  const softwareMax = Math.max(0, Math.min(100, Number(softwareDiscountMax) || 0));
+  const clampPct = (n: number) => clampDiscountPct(n, softwareMax);
 
   return (
     <div className="space-y-4">
@@ -148,20 +158,20 @@ export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
             <Input
               type="number"
               min={0}
-              max={100}
+              max={softwareMax}
               value={discounts.softwarePct}
               onChange={(e) => updDisc("softwarePct", clampPct(Number(e.target.value)))}
             />
             <p className="text-[10px] text-muted-foreground mt-1">
-              Applies to modules, plugins and additional BackOffice users.
+              Applies to modules, plugins and additional BackOffice users. Max {softwareMax}%.
             </p>
           </div>
           <div>
-            <Label className="text-xs">Web/Mobile users discount %</Label>
+            <Label className="text-xs">Web/Mobile users discount % (max {softwareMax}%)</Label>
             <Input
               type="number"
               min={0}
-              max={100}
+              max={softwareMax}
               value={discounts.webUsersPct}
               onChange={(e) => updDisc("webUsersPct", clampPct(Number(e.target.value)))}
               disabled={config.additionalWebUsers <= 0}
@@ -180,12 +190,12 @@ export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
             <Input
               type="number"
               min={0}
-              max={100}
+              max={softwareMax}
               value={discounts.apiPct}
               onChange={(e) => updDisc("apiPct", clampPct(Number(e.target.value)))}
               disabled={!config.api}
             />
-            <p className="text-[10px] text-muted-foreground mt-1">Optional. API recurs each year.</p>
+            <p className="text-[10px] text-muted-foreground mt-1">Optional. API recurs each year. Max {softwareMax}%.</p>
           </div>
         </div>
         <p className="text-[11px] text-muted-foreground">
@@ -197,9 +207,10 @@ export function BusinessSoftwareStep({ config, onChange }: BusinessStepsProps) {
   );
 }
 
-export function BusinessServicesStep({ config, onChange }: BusinessStepsProps) {
+export function BusinessServicesStep({ config, onChange, servicesDiscountMax = PARTNER_MAX_SERVICES_DISCOUNT_PCT }: BusinessStepsProps) {
   const discounts = config.discounts || DEFAULT_BUSINESS_DISCOUNTS;
-  const clampPct = (n: number) => Math.max(0, Math.min(100, Number(n) || 0));
+  const servicesMax = Math.max(0, Math.min(100, Number(servicesDiscountMax) || 0));
+  const clampPct = (n: number) => clampDiscountPct(n, servicesMax);
 
   const updImpl = <K extends keyof BusinessConfig["implementation"]>(
     k: K,
@@ -252,11 +263,11 @@ export function BusinessServicesStep({ config, onChange }: BusinessStepsProps) {
           <p className="text-[11px] text-muted-foreground mt-1">405 € each</p>
         </div>
         <div>
-          <Label>Services discount %</Label>
+          <Label>Services discount % (max {servicesMax}%)</Label>
           <Input
             type="number"
             min={0}
-            max={100}
+            max={servicesMax}
             value={discounts.servicesPct}
             onChange={(e) =>
               onChange({
@@ -266,7 +277,7 @@ export function BusinessServicesStep({ config, onChange }: BusinessStepsProps) {
             }
           />
           <p className="text-[10px] text-muted-foreground mt-1">
-            Applies to RCI, Onsite, and custom service lines.
+            Applies to RCI, Onsite, and custom service lines. Max {servicesMax}%.
           </p>
         </div>
       </div>
