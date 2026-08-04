@@ -1,3 +1,9 @@
+# ============================================================================
+# TEST / PREVIEW ONLY.
+# This file controls the Lovable / local Supabase CLI environment.
+# It NEVER controls production (partneros.manwinwin.com, ref qownzparzsaeoyccgwuj).
+# Do not point it at the production project. See ENVIRONMENTS.md.
+# ============================================================================
 project_id = "avxxzmoayxzrykwqzoqn"
 
 [functions]
