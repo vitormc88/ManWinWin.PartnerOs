@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ChevronLeft, ChevronRight, FileText, Download } from "lucide-react";
+import { Trash2, Plus, ChevronLeft, ChevronRight, FileText, Download, AlertTriangle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -55,6 +55,7 @@ import {
   BusinessServicesStep,
   BusinessPreviewStep,
 } from "./BusinessSteps";
+import { checkBusinessPricingReadiness } from "@/lib/proposal-business-readiness";
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
 import { LICENSE_ORDER } from "@/lib/license-evolution";
@@ -159,7 +160,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     [isHQ, actorPartner?.partnership_level],
   );
   const qc = useQueryClient();
-  const { data: rules = [] } = usePricingRules();
+  const {
+    data: rules = [],
+    isLoading: rulesLoading,
+    error: rulesError,
+  } = usePricingRules();
 
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -459,6 +464,33 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
     return businessResult.keepit || businessResult.useit;
   }, [businessResult]);
 
+  /** Business pricing readiness — blocks preview/save/generate when incomplete. */
+  const businessReadiness = useMemo(() => {
+    if (!isBusiness) return null;
+    const models: ProposalLicenseModel[] =
+      proposalMode === "keepit_only"
+        ? ["keepit"]
+        : proposalMode === "useit_only"
+        ? ["useit"]
+        : ["keepit", "useit"];
+    return checkBusinessPricingReadiness({
+      rules,
+      cfg: businessConfig,
+      models,
+      isLoading: rulesLoading,
+      error: rulesError,
+    });
+  }, [isBusiness, rules, businessConfig, proposalMode, rulesLoading, rulesError]);
+
+  const businessBlocked = !!businessReadiness && !businessReadiness.ok;
+
+  /** Fail-closed guard used before any Business persist/export path. */
+  const assertBusinessPricingReady = (): boolean => {
+    if (!isBusiness || !businessReadiness || businessReadiness.ok) return true;
+    toast.error(businessReadiness.message);
+    return false;
+  };
+
   // We materialize Services discount % onto each service line (above), so we
   // pass 0 here to avoid double-applying. Software section discount has been
   // disabled in the wizard for some time and is also passed as 0.
@@ -560,6 +592,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   };
 
   const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
+    if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
     setSaving(true);
     try {
@@ -1187,13 +1220,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                   slot="summary"
                 />
               )}
-              <BusinessPreviewStep
-                rules={rules}
-                language={language}
-                config={businessConfig}
-                onChange={setBusinessConfig}
-                proposalMode={proposalMode}
-              />
+              {businessBlocked ? null : (
+                <BusinessPreviewStep
+                  rules={rules}
+                  language={language}
+                  config={businessConfig}
+                  onChange={setBusinessConfig}
+                  proposalMode={proposalMode}
+                />
+              )}
             </div>
           )}
           {step === 4 && !isBusiness && (
@@ -1368,16 +1403,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
                     )}
                   </div>
                   <div className="flex justify-center gap-2 flex-wrap">
-                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
-                    <Button onClick={handleGenerateBusinessDocx} disabled={saving}>
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving || businessBlocked}>Save as Draft</Button>
+                    <Button onClick={handleGenerateBusinessDocx} disabled={saving || businessBlocked}>
                       <Download className="h-4 w-4 mr-2" />Generate DOCX
                     </Button>
-                    <Button variant="outline" onClick={handleGenerateBusinessPdf} disabled={saving}>
+                    <Button variant="outline" onClick={handleGenerateBusinessPdf} disabled={saving || businessBlocked}>
                       <Download className="h-4 w-4 mr-2" />Generate PDF
                     </Button>
                     <Button
                       variant="outline"
-                      disabled={saving}
+                      disabled={saving || businessBlocked}
                       onClick={async () => {
                         const prop = await persistProposal("Draft");
                         if (!prop) return;
@@ -1421,7 +1456,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
           </Button>
           <p className="text-xs text-muted-foreground">Step {step + 1} of {STEPS.length}</p>
           {step < STEPS.length - 1 ? (
-            <Button size="sm" onClick={next}>
+            <Button size="sm" onClick={next} disabled={businessBlocked}>
               Next<ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
