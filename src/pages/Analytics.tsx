@@ -13,11 +13,20 @@ import {
   useSalesPerformance,
   usePartnerAnalytics,
   useRenewalsAnalytics,
-  useRevenueByCountry,
   useOutcomes,
   useDealReconciliation,
   lastUpdatedLabel,
 } from "@/hooks/useAnalytics";
+import { useRevenueSummary, useRevenueHistory } from "@/hooks/useRevenueHistory";
+import {
+  revenueByCountry as historicalRevenueByCountry,
+  revenueByPartner as historicalRevenueByPartner,
+  shareOfTotal,
+  LIFETIME_REVENUE_LABEL,
+  REVENUE_YTD_LABEL,
+  WON_DEAL_VALUE_LABEL,
+} from "@/lib/revenue-metrics";
+
 
 function KPI({ label, value, sub, trend }: { label: string; value: string; sub?: string; trend?: "up" | "down" | "neutral" }) {
   return (
