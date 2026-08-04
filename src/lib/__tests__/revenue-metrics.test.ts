@@ -96,12 +96,13 @@ describe("revenue-metrics — historical revenue summary", () => {
 describe("revenue-metrics — grouping uses history, not deals", () => {
   it("groups revenue by country", () => {
     const g = revenueByCountry(PRODUCTION_ROWS);
-    expect(g.map(x => x.label)).toEqual(["Spain", "Philippines", "Portugal"]);
-    expect(g[0].revenue).toBe(37381);
-    expect(g[1].revenue).toBe(37301.5);
+    expect(g.map(x => x.label)).toEqual(["Philippines", "Spain", "Portugal"]);
+    expect(g[0].revenue).toBe(37301.5);
+    expect(g[1].revenue).toBe(36706);
     expect(g[2].revenue).toBe(5913);
     expect(g.reduce((s, x) => s + x.revenue, 0)).toBe(79920.5);
   });
+
 
   it("groups revenue by canonical partner", () => {
     const g = revenueByPartner(PRODUCTION_ROWS);
@@ -151,8 +152,9 @@ describe("revenue-metrics — Won Deals stay separate from revenue", () => {
   it("shareOfTotal avoids dividing historical revenue by won-deal counts", () => {
     const total = summarizeRevenueHistory(PRODUCTION_ROWS, 2026).lifetime_revenue;
     const spain = revenueByCountry(PRODUCTION_ROWS).find(g => g.label === "Spain")!;
-    expect(shareOfTotal(spain.revenue, total)).toBe(47);
+    expect(shareOfTotal(spain.revenue, total)).toBe(46);
     // zero won deals must not blow up or produce Infinity
     expect(shareOfTotal(total, 0)).toBe(0);
   });
+
 });
