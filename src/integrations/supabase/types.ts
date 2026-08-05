@@ -4849,12 +4849,22 @@ export type Database = {
         Args: { _a: string; _b: string; _entity: string }
         Returns: undefined
       }
+      academy_update_record: {
+        Args: {
+          _entity: string
+          _expected_updated_at: string
+          _id: string
+          _patch: Json
+        }
+        Returns: string
+      }
       access_level_rank: { Args: { _lvl: string }; Returns: number }
       active_hq_admin_count: { Args: never; Returns: number }
       apply_role_template_to_user: {
         Args: { _overwrite_overrides?: boolean; _user_id: string }
         Returns: undefined
       }
+      can_access_academy: { Args: never; Returns: boolean }
       can_admin_module: {
         Args: { _module_key: string; _user_id: string }
         Returns: boolean
