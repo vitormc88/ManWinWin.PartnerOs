@@ -113,3 +113,113 @@ where polrelid = 'storage.objects'::regclass
 
 The frontend never builds a public storage URL for Academy files: it stores the
 object path and resolves it via `signFileUrl('training-assets', path)`.
+
+---
+
+# Final hardening pass — additional verification
+
+## A. Function EXECUTE grants (least privilege)
+
+```sql
+-- Expect: academy_module_progress_pct → service_role only (no anon/authenticated/PUBLIC).
+--         academy_complete_mission / academy_set_checklist_state /
+--         academy_swap_sort_order / academy_update_record / can_access_academy /
+--         is_academy_admin → authenticated only.
+select p.proname,
+       coalesce(array_to_string(p.proacl, ', '), 'owner-only') as acl
+from pg_proc p
+join pg_namespace n on n.oid = p.pronamespace
+where n.nspname = 'public'
+  and p.proname in ('academy_module_progress_pct','academy_complete_mission',
+                    'academy_set_checklist_state','academy_swap_sort_order',
+                    'academy_update_record','can_access_academy','is_academy_admin')
+order by p.proname;
+```
+
+```sql
+-- Executed as a signed-in learner. Expect: permission denied for function.
+select public.academy_module_progress_pct(auth.uid(), '<module-uuid>');
+```
+
+## B. Academy permission denial (authenticated user without 'onboarding' access)
+
+```sql
+-- Expect: false for a user with no effective view/admin on module key 'onboarding'.
+select public.can_access_academy();
+
+-- Expect: 0 rows for that user, even though published content exists.
+select count(*) from public.academy_modules;
+select count(*) from public.academy_missions;
+select count(*) from public.academy_resources;
+
+-- Expect: ERROR "You do not have access to the Partner Academy".
+select * from public.academy_complete_mission('<mission-uuid>', true);
+select public.academy_set_checklist_state('<mission-uuid>', '{}'::jsonb);
+```
+
+An HQ admin (or a user with admin on `onboarding`) must still see draft and
+published content and be able to write.
+
+## C. Optimistic concurrency (no silent overwrite)
+
+```sql
+-- As an Academy admin. Expect: success, returns the new updated_at.
+select public.academy_update_record(
+  'academy_missions', '<mission-uuid>',
+  jsonb_build_object('title', 'New title'),
+  (select updated_at from public.academy_missions where id = '<mission-uuid>')
+);
+
+-- Expect: ERROR containing ACADEMY_CONFLICT (stale expected timestamp).
+select public.academy_update_record(
+  'academy_missions', '<mission-uuid>',
+  jsonb_build_object('title', 'Conflicting title'),
+  now() - interval '1 day'
+);
+
+-- Expect: ERROR "Only Academy admins can edit content" for a non-admin caller.
+```
+
+The editor surfaces the conflict, keeps the local draft and refetches the
+record; it never re-sends the write.
+
+## D. Attachment MIME/extension enforcement
+
+```sql
+-- Expect: the academy insert/update policies include the extension whitelist.
+select policyname, with_check
+from pg_policies
+where schemaname = 'storage' and tablename = 'objects'
+  and policyname in ('academy_assets_admin_insert','academy_assets_admin_update');
+```
+
+Client-side, `validateAcademyUpload` rejects a disallowed extension, a MIME type
+that does not match the extension, and anything above 100 MB. Storage-side, an
+upload such as `academy/payload.exe` is rejected by the policy even with a valid
+admin session, and non-`academy/` prefixes remain denied.
+
+**Known limitation:** the bucket-level `allowed_mime_types` column on
+`storage.buckets` cannot be set from this environment (writes to
+`storage.buckets` are blocked and the bucket tool only toggles public/private).
+Server-side type enforcement is therefore done in the storage RLS policy by
+extension whitelist, not by bucket MIME configuration. The existing 100 MB
+bucket limit is unchanged.
+
+## E. Orphan prevention on attachment replacement
+
+```sql
+-- Expect: 0 — no other resource references the replaced path before deletion.
+select count(*) from public.academy_resources
+where file_path = '<old-academy-path>' and id <> '<resource-uuid>';
+```
+
+The editor only deletes a replaced attachment **after** the record save
+succeeds, only when the value is a private path under `academy/`
+(`isDeletableAcademyObjectPath`), and only when the reference count above is 0.
+Otherwise it keeps the object and reports the reason; it never deletes external
+URLs or non-Academy paths.
+
+## F. Deletion scope
+
+Hard deletion is offered for `draft` records only. `published` and `archived`
+records cannot be deleted from the editor (`canHardDelete`).
