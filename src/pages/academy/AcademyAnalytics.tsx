@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppLayout } from "@/components/layout/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,8 +99,7 @@ export default function AcademyAnalytics() {
   );
 
   return (
-    <AppLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <Button variant="ghost" size="sm" className="-ml-2 mb-1" onClick={() => navigate("/onboarding")}>
@@ -623,7 +621,6 @@ export default function AcademyAnalytics() {
         )}
 
         <AnalyticsAttemptDetail attemptId={attemptId} onOpenChange={(o) => !o && setAttemptId(null)} />
-      </div>
-    </AppLayout>
+  </div>
   );
 }
