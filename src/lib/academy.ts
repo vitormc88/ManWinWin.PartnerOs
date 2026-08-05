@@ -7,12 +7,21 @@
 
 export type PublicationStatus = "draft" | "published" | "archived";
 
+/**
+ * Server-side module progress vocabulary.
+ *
+ * `completed` means every countable learning item is done. `certified` is
+ * reserved for a future server-validated certification flow and is never
+ * self-awarded by the browser.
+ */
 export type ModuleProgressStatus =
   | "not_started"
   | "in_progress"
+  | "completed"
   | "ready_for_certification"
   | "certification_failed"
   | "certified";
+
 
 export type MissionItemKind =
   | "intro"
@@ -87,11 +96,12 @@ export interface MissionProgressRow {
   checklist_state?: ChecklistState | null;
 }
 
-/** Simple UI status shown to partners in iteration 1. */
+/** Simple UI status shown to partners. */
 export type SimpleStatus = "Not Started" | "In Progress" | "Completed";
 
 export function simpleStatus(status: ModuleProgressStatus | undefined): SimpleStatus {
   switch (status) {
+    case "completed":
     case "certified":
       return "Completed";
     case "in_progress":
@@ -103,9 +113,18 @@ export function simpleStatus(status: ModuleProgressStatus | undefined): SimpleSt
   }
 }
 
-/** Items that count towards progress: published, not locked. */
+/**
+ * Items that count towards module progress.
+ *
+ * `is_locked` means "sequentially gated", NOT "excluded": a locked mission is
+ * still countable, otherwise a module would reach 100% before the learner can
+ * even open the gated item. Certification items are excluded because
+ * certification is never self-awarded by the browser.
+ */
 export function countableMissions(missions: AcademyMission[]): AcademyMission[] {
-  return missions.filter((m) => m.status === "published" && !m.is_locked);
+  return missions.filter(
+    (m) => m.status === "published" && m.is_required && m.item_kind !== "certification"
+  );
 }
 
 export function moduleProgressPct(
@@ -118,8 +137,12 @@ export function moduleProgressPct(
   return Math.round((done / countable.length) * 100);
 }
 
+/**
+ * Local, optimistic mirror of the server-derived status. 100% completion is
+ * `completed` — never `certified`.
+ */
 export function deriveModuleStatus(pct: number): ModuleProgressStatus {
-  if (pct >= 100) return "certified";
+  if (pct >= 100) return "completed";
   if (pct > 0) return "in_progress";
   return "not_started";
 }
@@ -130,16 +153,24 @@ export function actionLabel(pct: number): "Start" | "Continue" | "Review" {
   return "Start";
 }
 
-/** First countable, not-yet-completed mission of a module (else the first one). */
+/**
+ * First published, incomplete mission that is currently unlocked — including a
+ * formerly locked mission once its prerequisite is complete.
+ */
 export function nextMission(
   missions: AcademyMission[],
   completedMissionIds: Set<string>
 ): AcademyMission | undefined {
-  const ordered = [...missions].sort((a, b) => a.sort_order - b.sort_order);
+  const ordered = [...missions]
+    .filter((m) => m.status === "published")
+    .sort((a, b) => a.sort_order - b.sort_order);
   return (
-    ordered.find((m) => !m.is_locked && !completedMissionIds.has(m.id)) ?? ordered[0]
+    ordered.find(
+      (m) => !completedMissionIds.has(m.id) && isMissionUnlocked(ordered, m, completedMissionIds)
+    ) ?? ordered[0]
   );
 }
+
 
 export function formatDuration(minutes: number | null | undefined): string {
   const m = minutes ?? 0;
@@ -621,6 +652,172 @@ export function clearReadingPosition(missionId: string): void {
 }
 
 // ── Editor draft autosave ────────────────────────────────────────────────
-export function draftKey(table: string, recordId: string | undefined): string {
-  return `academy:draft:${table}:${recordId ?? "new"}`;
+/** Local drafts are namespaced per authenticated user, table and record. */
+export function draftKey(
+  table: string,
+  recordId: string | undefined,
+  userId?: string | null
+): string {
+  return `academy:draft:${userId ?? "anon"}:${table}:${recordId ?? "new"}`;
 }
+
+export interface AcademyDraftEnvelope<T = Record<string, unknown>> {
+  /** `updated_at` of the server record the draft was branched from. */
+  baseUpdatedAt: string | null;
+  savedAt: string;
+  form: T;
+}
+
+/**
+ * A local draft is stale when the server record changed after the draft was
+ * branched — saving it blindly would silently overwrite someone else's edit.
+ */
+export function isDraftStale(
+  baseUpdatedAt: string | null | undefined,
+  serverUpdatedAt: string | null | undefined
+): boolean {
+  if (!serverUpdatedAt) return false;
+  if (!baseUpdatedAt) return true;
+  const base = new Date(baseUpdatedAt).getTime();
+  const server = new Date(serverUpdatedAt).getTime();
+  if (Number.isNaN(base) || Number.isNaN(server)) return false;
+  return server > base;
+}
+
+// ── Safe URLs & attachments ──────────────────────────────────────────────
+/** Only absolute http/https URLs are accepted for external resources. */
+export function isSafeExternalUrl(value: string | null | undefined): boolean {
+  const raw = (value ?? "").trim();
+  if (!raw) return false;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+export const ACADEMY_STORAGE_BUCKET = "training-assets";
+export const ACADEMY_STORAGE_PREFIX = "academy";
+/** Matches the existing private training-assets bucket limit (100 MB). */
+export const ACADEMY_MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+export const ACADEMY_ALLOWED_UPLOAD_EXTENSIONS = [
+  "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv", "md", "txt", "zip",
+  "png", "jpg", "jpeg", "webp", "mp4",
+] as const;
+
+export function fileExtension(name: string): string {
+  const idx = name.lastIndexOf(".");
+  return idx < 0 ? "" : name.slice(idx + 1).toLowerCase();
+}
+
+/** Returns an error message, or null when the file may be uploaded. */
+export function validateAcademyUpload(file: { name: string; size: number }): string | null {
+  const ext = fileExtension(file.name);
+  if (!ext) return "File must have an extension.";
+  if (!(ACADEMY_ALLOWED_UPLOAD_EXTENSIONS as readonly string[]).includes(ext)) {
+    return `Unsupported file type ".${ext}". Allowed: ${ACADEMY_ALLOWED_UPLOAD_EXTENSIONS.join(", ")}.`;
+  }
+  if (file.size <= 0) return "File is empty.";
+  if (file.size > ACADEMY_MAX_UPLOAD_BYTES) {
+    return `File is larger than ${Math.round(ACADEMY_MAX_UPLOAD_BYTES / (1024 * 1024))} MB.`;
+  }
+  return null;
+}
+
+/** Private object path inside the training-assets bucket (never a public URL). */
+export function academyObjectPath(fileName: string): string {
+  const ext = fileExtension(fileName);
+  const base = fileName
+    .slice(0, ext ? fileName.length - ext.length - 1 : undefined)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60) || "file";
+  const stamp = Date.now().toString(36);
+  return `${ACADEMY_STORAGE_PREFIX}/${base}-${stamp}${ext ? `.${ext}` : ""}`;
+}
+
+// ── Publication validation ───────────────────────────────────────────────
+export type AcademyTable =
+  | "academy_phases"
+  | "academy_modules"
+  | "academy_missions"
+  | "academy_resources";
+
+export interface PublicationContext {
+  /** Existing slugs for the same scope, excluding the record being edited. */
+  siblingSlugs?: string[];
+  /** Publication status of the selected parent, when there is one. */
+  parentStatus?: PublicationStatus | null;
+  /** Item kind of the mission a resource is attached to, when relevant. */
+  missionModuleId?: string | null;
+}
+
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export function isValidSlug(slug: string | null | undefined): boolean {
+  return SLUG_RE.test((slug ?? "").trim());
+}
+
+/**
+ * Blocking issues that must be resolved before a record can be published.
+ * Returns an empty list when the record is publishable.
+ */
+export function validatePublication(
+  table: AcademyTable,
+  record: Record<string, unknown>,
+  ctx: PublicationContext = {}
+): string[] {
+  const issues: string[] = [];
+  const str = (key: string) => String(record[key] ?? "").trim();
+
+  if (!str("title")) issues.push("Title is required.");
+
+  if (table === "academy_modules" || table === "academy_missions") {
+    const slug = str("slug");
+    if (!slug) issues.push("Slug is required.");
+    else if (!isValidSlug(slug)) issues.push("Slug must be lowercase words separated by hyphens.");
+    else if ((ctx.siblingSlugs ?? []).includes(slug)) issues.push("Slug is already used.");
+  }
+
+  if (table === "academy_missions") {
+    if (!str("module_id")) issues.push("A parent module is required.");
+    const kind = (record.item_kind as string) ?? "mission";
+    const needsContent = kind !== "certification";
+    if (needsContent && !str("content_markdown")) {
+      issues.push("Mission content cannot be empty when publishing.");
+    }
+  }
+
+  if (table === "academy_resources") {
+    if (!str("module_id") && !str("mission_id")) {
+      issues.push("A resource must belong to a module or a mission.");
+    }
+    const type = str("resource_type");
+    if (!(RESOURCE_TYPES as readonly string[]).includes(type)) {
+      issues.push("A valid resource type is required.");
+    }
+    const external = str("external_url");
+    if (external && !isSafeExternalUrl(external)) {
+      issues.push("External URL must be a valid http(s) address.");
+    }
+    const hasSource = !!external || !!str("file_path") || !!str("content");
+    if (!hasSource) issues.push("Add a file, an external URL or inline content.");
+    if ((type === "link" || type === "video") && !external) {
+      issues.push("Links and videos require an external URL.");
+    }
+  }
+
+  if (ctx.parentStatus && ctx.parentStatus !== "published") {
+    issues.push(`The parent is "${ctx.parentStatus}" — publish it first or this content stays hidden.`);
+  }
+
+  return issues;
+}
+
+/** Published content must be archived/unpublished before it can be deleted. */
+export function canHardDelete(status: string | null | undefined): boolean {
+  return status !== "published";
+}
+

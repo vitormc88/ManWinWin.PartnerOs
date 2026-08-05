@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ResourceList } from "@/components/academy/ResourceList";
 import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
+import { AcademyState } from "@/components/academy/AcademyState";
+
 import {
   useAcademyMissions,
   useAcademyModules,
@@ -26,10 +28,12 @@ import {
 
 export default function AcademyModule() {
   const { slug } = useParams();
-  const { data: modules = [], isLoading } = useAcademyModules();
+  const modulesQuery = useAcademyModules();
+  const { data: modules = [], isLoading } = modulesQuery;
   const { data: phases = [] } = useAcademyPhases();
   const mod = modules.find((m) => m.slug === slug);
-  const { data: missions = [] } = useAcademyMissions(mod?.id);
+  const missionsQuery = useAcademyMissions(mod?.id);
+  const { data: missions = [] } = missionsQuery;
   const { data: resources = [] } = useAcademyResources(mod?.id);
   const { data: missionProgress = [] } = useMyMissionProgress();
 
@@ -38,8 +42,13 @@ export default function AcademyModule() {
     [missionProgress]
   );
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading module…</p>;
-  if (!mod) return <p className="text-sm text-muted-foreground">Module not found or not published.</p>;
+  if (modulesQuery.isError)
+    return <AcademyState kind="error" error={modulesQuery.error} onRetry={() => modulesQuery.refetch()} />;
+  if (missionsQuery.isError)
+    return <AcademyState kind="error" error={missionsQuery.error} onRetry={() => missionsQuery.refetch()} />;
+  if (isLoading) return <AcademyState kind="loading" title="Loading module…" />;
+  if (!mod)
+    return <AcademyState kind="empty" title="Module not found" description="It may be unpublished or you may not have access." />;
 
   const phase = phases.find((p) => p.id === mod.phase_id);
   const pct = moduleProgressPct(missions, completedIds);
@@ -48,6 +57,7 @@ export default function AcademyModule() {
   const next = nextMission(missions, completedIds);
   const ordered = [...missions].sort((a, b) => a.sort_order - b.sort_order);
   const moduleResources = resources.filter((r) => !r.mission_id);
+
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">

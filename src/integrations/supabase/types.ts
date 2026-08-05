@@ -263,11 +263,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "academy_mission_progress_mission_id_fkey"
-            columns: ["mission_id"]
+            foreignKeyName: "academy_mission_progress_mission_module_fkey"
+            columns: ["mission_id", "module_id"]
             isOneToOne: false
             referencedRelation: "academy_missions"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "module_id"]
           },
           {
             foreignKeyName: "academy_mission_progress_module_id_fkey"
@@ -4828,6 +4828,27 @@ export type Database = {
       }
     }
     Functions: {
+      academy_complete_mission: {
+        Args: { _completed: boolean; _mission_id: string }
+        Returns: {
+          out_is_completed: boolean
+          out_module_id: string
+          out_progress_pct: number
+          out_status: string
+        }[]
+      }
+      academy_module_progress_pct: {
+        Args: { _module_id: string; _user_id: string }
+        Returns: number
+      }
+      academy_set_checklist_state: {
+        Args: { _mission_id: string; _state: Json }
+        Returns: undefined
+      }
+      academy_swap_sort_order: {
+        Args: { _a: string; _b: string; _entity: string }
+        Returns: undefined
+      }
       access_level_rank: { Args: { _lvl: string }; Returns: number }
       active_hq_admin_count: { Args: never; Returns: number }
       apply_role_template_to_user: {
