@@ -192,19 +192,37 @@ export default function AcademyMission() {
             </Badge>
           )}
         </div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">{mission.title}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{mission.title}</h1>
         {mission.short_description && (
-          <p className="text-sm text-muted-foreground">{mission.short_description}</p>
+          <p className="text-sm sm:text-base text-muted-foreground">{mission.short_description}</p>
+        )}
+        {resumedFrom > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Resumed where you left off.{" "}
+            <button
+              type="button"
+              className="underline underline-offset-2 hover:text-foreground"
+              onClick={() => {
+                setResumedFrom(0);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              Back to top
+            </button>
+          </p>
         )}
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm p-5">
+      <MissionToc markdown={mission.content_markdown} />
+
+      <div className="bg-card rounded-xl border shadow-sm p-5 sm:p-8">
         <MissionContent
           markdown={mission.content_markdown}
           checklistState={checklist}
           onToggleChecklistItem={onToggleChecklistItem}
         />
       </div>
+
 
       {missionResources.length > 0 && <ResourceList resources={missionResources} />}
 
