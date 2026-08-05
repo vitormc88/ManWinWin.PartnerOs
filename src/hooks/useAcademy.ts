@@ -6,6 +6,7 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   ACADEMY_STORAGE_BUCKET,
   academyObjectPath,
+  isDeletableAcademyObjectPath,
   validateAcademyUpload,
   type AcademyMission,
   type AcademyModule,
@@ -200,22 +201,43 @@ export function useToggleChecklistItem() {
 
 // ── Admin content management ─────────────────────────────────────────────
 type Tables = Database["public"]["Tables"];
-export type AcademyRecordInput =
-  | ({ id?: string } & Partial<Tables["academy_phases"]["Insert"]>)
-  | ({ id?: string } & Partial<Tables["academy_modules"]["Insert"]>)
-  | ({ id?: string } & Partial<Tables["academy_missions"]["Insert"]>)
-  | ({ id?: string } & Partial<Tables["academy_resources"]["Insert"]>);
+export type AcademyRecordInput = ({
+  id?: string;
+  /** Server revision the editor branched from (optimistic concurrency). */
+  _expectedUpdatedAt?: string | null;
+} & Partial<
+  | Tables["academy_phases"]["Insert"]
+  | Tables["academy_modules"]["Insert"]
+  | Tables["academy_missions"]["Insert"]
+  | Tables["academy_resources"]["Insert"]
+>);
 
+export const ACADEMY_CONFLICT_MESSAGE =
+  "This record changed on the server after you opened it. Your changes were not saved — refresh and reapply them.";
+
+export function isAcademyConflict(error: unknown): boolean {
+  return /ACADEMY_CONFLICT/i.test((error as { message?: string } | null)?.message ?? "");
+}
+
+/**
+ * Inserts go through PostgREST; updates go through an admin-only
+ * compare-and-update RPC so a concurrent edit can never be silently overwritten.
+ */
 export function useSaveAcademyRecord(table: AcademyTable) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (record: AcademyRecordInput) => {
-      const { id, ...rest } = record as { id?: string } & Record<string, unknown>;
+      const { id, _expectedUpdatedAt, ...rest } = record as {
+        id?: string;
+        _expectedUpdatedAt?: string | null;
+      } & Record<string, unknown>;
       if (id) {
-        const { error } = await supabase
-          .from(table)
-          .update(rest as never)
-          .eq("id", id);
+        const { error } = await supabase.rpc("academy_update_record", {
+          _entity: table,
+          _id: id,
+          _patch: rest as never,
+          _expected_updated_at: _expectedUpdatedAt ?? null,
+        });
         if (error) throw error;
       } else {
         const { error } = await supabase.from(table).insert(rest as never);
@@ -226,7 +248,12 @@ export function useSaveAcademyRecord(table: AcademyTable) {
       qc.invalidateQueries({ queryKey: ["academy"] });
       toast.success("Saved");
     },
-    onError: (e) => toast.error(academyErrorMessage(e, "Could not save")),
+    onError: (e) => {
+      qc.invalidateQueries({ queryKey: ["academy"] });
+      toast.error(
+        isAcademyConflict(e) ? ACADEMY_CONFLICT_MESSAGE : academyErrorMessage(e, "Could not save")
+      );
+    },
   });
 }
 
@@ -274,7 +301,7 @@ export function useReorderAcademyRecord() {
 export function useUploadAcademyAsset() {
   return useMutation({
     mutationFn: async (file: File): Promise<string> => {
-      const invalid = validateAcademyUpload({ name: file.name, size: file.size });
+      const invalid = validateAcademyUpload({ name: file.name, size: file.size, type: file.type });
       if (invalid) throw new Error(invalid);
       const path = academyObjectPath(file.name);
       const { error } = await supabase.storage
@@ -287,9 +314,37 @@ export function useUploadAcademyAsset() {
   });
 }
 
+/**
+ * Deletes a replaced/removed Academy attachment *after* the record save
+ * succeeded, and only when it is provably safe:
+ *   - the value is a private object path under the `academy/` prefix
+ *     (external URLs and non-Academy paths are never touched), and
+ *   - no other Academy resource still references the same path.
+ * Otherwise the object is left in place and the caller is told why.
+ */
 export function useDeleteAcademyAsset() {
   return useMutation({
-    mutationFn: async (path: string) => {
+    mutationFn: async (input: { path: string; exceptResourceId?: string }) => {
+      const { path, exceptResourceId } = input;
+      if (!isDeletableAcademyObjectPath(path)) {
+        throw new Error(
+          "This attachment is not a private Academy file, so it was left untouched."
+        );
+      }
+      let query = supabase
+        .from("academy_resources")
+        .select("id", { count: "exact", head: true })
+        .eq("file_path", path);
+      if (exceptResourceId) query = query.neq("id", exceptResourceId);
+      const { count, error: refError } = await query;
+      if (refError) {
+        throw new Error(
+          "Could not verify whether the file is still used elsewhere, so it was kept."
+        );
+      }
+      if ((count ?? 0) > 0) {
+        throw new Error("The file is still attached to another Academy resource, so it was kept.");
+      }
       const { error } = await supabase.storage.from(ACADEMY_STORAGE_BUCKET).remove([path]);
       if (error) throw error;
     },

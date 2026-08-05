@@ -701,10 +701,37 @@ export const ACADEMY_STORAGE_BUCKET = "training-assets";
 export const ACADEMY_STORAGE_PREFIX = "academy";
 /** Matches the existing private training-assets bucket limit (100 MB). */
 export const ACADEMY_MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
-export const ACADEMY_ALLOWED_UPLOAD_EXTENSIONS = [
-  "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "csv", "md", "txt", "zip",
-  "png", "jpg", "jpeg", "webp", "mp4",
-] as const;
+
+/**
+ * Allowed Academy attachment types. The same list is enforced server-side by
+ * the `academy_assets_admin_insert` storage policy (extension check).
+ */
+export const ACADEMY_ALLOWED_UPLOAD_TYPES: Record<string, readonly string[]> = {
+  pdf: ["application/pdf"],
+  doc: ["application/msword"],
+  docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  ppt: ["application/vnd.ms-powerpoint"],
+  pptx: ["application/vnd.openxmlformats-officedocument.presentationml.presentation"],
+  xls: ["application/vnd.ms-excel"],
+  xlsx: ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+  csv: ["text/csv", "application/csv", "text/plain"],
+  md: ["text/markdown", "text/x-markdown", "text/plain"],
+  txt: ["text/plain"],
+  zip: ["application/zip", "application/x-zip-compressed"],
+  png: ["image/png"],
+  jpg: ["image/jpeg"],
+  jpeg: ["image/jpeg"],
+  webp: ["image/webp"],
+  mp4: ["video/mp4"],
+};
+
+export const ACADEMY_ALLOWED_UPLOAD_EXTENSIONS = Object.keys(
+  ACADEMY_ALLOWED_UPLOAD_TYPES
+) as readonly string[];
+
+export const ACADEMY_ALLOWED_MIME_TYPES = Array.from(
+  new Set(Object.values(ACADEMY_ALLOWED_UPLOAD_TYPES).flat())
+);
 
 export function fileExtension(name: string): string {
   const idx = name.lastIndexOf(".");
@@ -712,11 +739,20 @@ export function fileExtension(name: string): string {
 }
 
 /** Returns an error message, or null when the file may be uploaded. */
-export function validateAcademyUpload(file: { name: string; size: number }): string | null {
+export function validateAcademyUpload(file: {
+  name: string;
+  size: number;
+  type?: string;
+}): string | null {
   const ext = fileExtension(file.name);
   if (!ext) return "File must have an extension.";
-  if (!(ACADEMY_ALLOWED_UPLOAD_EXTENSIONS as readonly string[]).includes(ext)) {
+  const allowedMimes = ACADEMY_ALLOWED_UPLOAD_TYPES[ext];
+  if (!allowedMimes) {
     return `Unsupported file type ".${ext}". Allowed: ${ACADEMY_ALLOWED_UPLOAD_EXTENSIONS.join(", ")}.`;
+  }
+  const mime = (file.type ?? "").trim().toLowerCase();
+  if (mime && !allowedMimes.includes(mime)) {
+    return `The file content type "${mime}" does not match a ".${ext}" attachment.`;
   }
   if (file.size <= 0) return "File is empty.";
   if (file.size > ACADEMY_MAX_UPLOAD_BYTES) {
@@ -736,6 +772,18 @@ export function academyObjectPath(fileName: string): string {
     .slice(0, 60) || "file";
   const stamp = Date.now().toString(36);
   return `${ACADEMY_STORAGE_PREFIX}/${base}-${stamp}${ext ? `.${ext}` : ""}`;
+}
+
+/**
+ * Only private object paths under the `academy/` prefix may ever be deleted by
+ * the editor. External URLs and non-Academy storage paths are never touched.
+ */
+export function isDeletableAcademyObjectPath(value: string | null | undefined): boolean {
+  const raw = (value ?? "").trim();
+  if (!raw) return false;
+  if (/^[a-z]+:\/\//i.test(raw)) return false;
+  if (raw.includes("..")) return false;
+  return raw.startsWith(`${ACADEMY_STORAGE_PREFIX}/`) && raw.length > ACADEMY_STORAGE_PREFIX.length + 1;
 }
 
 // ── Publication validation ───────────────────────────────────────────────
@@ -816,8 +864,11 @@ export function validatePublication(
   return issues;
 }
 
-/** Published content must be archived/unpublished before it can be deleted. */
+/**
+ * Hard deletion is restricted to drafts. Published content must be unpublished
+ * first, and archived content is kept as an auditable historical record.
+ */
 export function canHardDelete(status: string | null | undefined): boolean {
-  return status !== "published";
+  return status === "draft";
 }
 

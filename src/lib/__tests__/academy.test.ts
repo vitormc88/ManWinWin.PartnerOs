@@ -32,6 +32,7 @@ import {
   academyObjectPath,
   validatePublication,
   canHardDelete,
+  isDeletableAcademyObjectPath,
 
   type AcademyMission,
   type RichBlock,
@@ -291,8 +292,14 @@ describe("safe URLs and uploads", () => {
     expect(isSafeExternalUrl("")).toBe(false);
   });
 
-  it("validates uploads by extension and size", () => {
+  it("validates uploads by extension, MIME and size", () => {
     expect(validateAcademyUpload({ name: "guide.pdf", size: 1024 })).toBeNull();
+    expect(
+      validateAcademyUpload({ name: "guide.pdf", size: 1024, type: "application/pdf" })
+    ).toBeNull();
+    expect(
+      validateAcademyUpload({ name: "guide.pdf", size: 1024, type: "application/x-msdownload" })
+    ).toContain("content type");
     expect(validateAcademyUpload({ name: "hack.exe", size: 10 })).toContain("Unsupported");
     expect(validateAcademyUpload({ name: "big.pdf", size: 200 * 1024 * 1024 })).toContain("larger");
     expect(validateAcademyUpload({ name: "noext", size: 10 })).toContain("extension");
@@ -357,10 +364,19 @@ describe("publication validation and deletion safety", () => {
     ).toBe(true);
   });
 
-  it("only allows hard deletion of non-published records", () => {
+  it("only allows hard deletion of draft records", () => {
     expect(canHardDelete("published")).toBe(false);
+    expect(canHardDelete("archived")).toBe(false);
+    expect(canHardDelete(null)).toBe(false);
     expect(canHardDelete("draft")).toBe(true);
-    expect(canHardDelete("archived")).toBe(true);
+  });
+
+  it("only treats private academy/ object paths as deletable", () => {
+    expect(isDeletableAcademyObjectPath("academy/guide-abc.pdf")).toBe(true);
+    expect(isDeletableAcademyObjectPath("https://example.com/a.pdf")).toBe(false);
+    expect(isDeletableAcademyObjectPath("other/guide.pdf")).toBe(false);
+    expect(isDeletableAcademyObjectPath("academy/../secrets.pdf")).toBe(false);
+    expect(isDeletableAcademyObjectPath("")).toBe(false);
   });
 });
 
