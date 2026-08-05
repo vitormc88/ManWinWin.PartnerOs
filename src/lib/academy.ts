@@ -198,3 +198,210 @@ export function parseContentBlocks(markdown: string | null | undefined): Content
   pushText(markdown.slice(lastIndex));
   return blocks;
 }
+
+// ── Rich content blocks (reusable across every Academy module) ────────────
+export type RichBlock =
+  | { type: "heading"; level: 1 | 2 | 3; text: string }
+  | { type: "paragraph"; text: string }
+  | { type: "bullets"; items: string[] }
+  | { type: "numbered"; items: string[] }
+  | { type: "quote"; text: string }
+  | { type: "table"; headers: string[]; rows: string[][] }
+  | { type: "divider" }
+  | { type: "callout"; kind: CalloutKind; blocks: RichBlock[] }
+  | { type: "checklist"; key: string; items: string[] };
+
+const FENCE = /:::([a-z-]+)\s*\n([\s\S]*?):::/g;
+
+/** Parses a fence-free markdown chunk into rich blocks. */
+export function parseMarkdownBlocks(source: string): RichBlock[] {
+  const blocks: RichBlock[] = [];
+  const lines = source.split("\n");
+  let i = 0;
+
+  const isTableRow = (l: string) => l.trim().startsWith("|") && l.trim().endsWith("|");
+  const cells = (l: string) =>
+    l.trim().slice(1, -1).split("|").map((c) => c.trim());
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const t = line.trim();
+
+    if (!t) { i++; continue; }
+
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) { blocks.push({ type: "divider" }); i++; continue; }
+
+    const heading = /^(#{1,3})\s+(.*)$/.exec(t);
+    if (heading) {
+      blocks.push({ type: "heading", level: heading[1].length as 1 | 2 | 3, text: heading[2].trim() });
+      i++;
+      continue;
+    }
+
+    if (isTableRow(t) && i + 1 < lines.length && /^\|[\s:|-]+\|$/.test(lines[i + 1].trim())) {
+      const headers = cells(t);
+      i += 2;
+      const rows: string[][] = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        rows.push(cells(lines[i]));
+        i++;
+      }
+      blocks.push({ type: "table", headers, rows });
+      continue;
+    }
+
+    if (/^>\s?/.test(t)) {
+      const parts: string[] = [];
+      while (i < lines.length && /^>\s?/.test(lines[i].trim())) {
+        parts.push(lines[i].trim().replace(/^>\s?/, ""));
+        i++;
+      }
+      blocks.push({ type: "quote", text: parts.join("\n").trim() });
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(t)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[-*]\s+/, ""));
+        i++;
+      }
+      blocks.push({ type: "bullets", items });
+      continue;
+    }
+
+    if (/^\d+[.)]\s+/.test(t)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+[.)]\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+[.)]\s+/, ""));
+        i++;
+      }
+      blocks.push({ type: "numbered", items });
+      continue;
+    }
+
+    const paragraph: string[] = [];
+    while (i < lines.length) {
+      const cur = lines[i].trim();
+      if (!cur || /^(#{1,3})\s+/.test(cur) || /^[-*]\s+/.test(cur) || /^\d+[.)]\s+/.test(cur) ||
+          /^>\s?/.test(cur) || isTableRow(cur) || /^(-{3,}|\*{3,}|_{3,})$/.test(cur)) break;
+      paragraph.push(cur);
+      i++;
+    }
+    if (paragraph.length) blocks.push({ type: "paragraph", text: paragraph.join(" ") });
+  }
+
+  return blocks;
+}
+
+/**
+ * Full mission renderer input: markdown plus reusable `:::kind ... :::` blocks
+ * (the five callouts, `key-takeaways` and `checklist`). Unknown fences are
+ * preserved as plain text so no authored content is ever lost.
+ */
+export function parseRichBlocks(markdown: string | null | undefined): RichBlock[] {
+  if (!markdown) return [];
+  const out: RichBlock[] = [];
+  let lastIndex = 0;
+  let checklistCount = 0;
+  let match: RegExpExecArray | null;
+  FENCE.lastIndex = 0;
+
+  const pushMd = (text: string) => {
+    if (text.trim()) out.push(...parseMarkdownBlocks(text));
+  };
+
+  while ((match = FENCE.exec(markdown)) !== null) {
+    pushMd(markdown.slice(lastIndex, match.index));
+    const kind = match[1];
+    const body = match[2].trim();
+    if ((CALLOUT_KINDS as readonly string[]).includes(kind)) {
+      out.push({ type: "callout", kind: kind as CalloutKind, blocks: parseMarkdownBlocks(body) });
+    } else if (kind === "checklist") {
+      const items = body
+        .split("\n")
+        .map((l) => l.trim().replace(/^[-*]\s+/, "").replace(/^\[[ xX]\]\s*/, ""))
+        .filter(Boolean);
+      out.push({ type: "checklist", key: `checklist-${checklistCount++}`, items });
+    } else {
+      pushMd(match[0]);
+    }
+    lastIndex = FENCE.lastIndex;
+  }
+  pushMd(markdown.slice(lastIndex));
+  return out;
+}
+
+/** Every checklist item in a mission, as stable `key#index` ids. */
+export function checklistItemIds(markdown: string | null | undefined): string[] {
+  return parseRichBlocks(markdown)
+    .filter((b): b is Extract<RichBlock, { type: "checklist" }> => b.type === "checklist")
+    .flatMap((b) => b.items.map((_, idx) => `${b.key}#${idx}`));
+}
+
+export type ChecklistState = Record<string, boolean>;
+
+export function checklistCompletion(
+  markdown: string | null | undefined,
+  state: ChecklistState | null | undefined
+): { total: number; done: number; allDone: boolean } {
+  const ids = checklistItemIds(markdown);
+  const done = ids.filter((id) => state?.[id]).length;
+  return { total: ids.length, done, allDone: ids.length === 0 || done === ids.length };
+}
+
+// ── Difficulty & resources ───────────────────────────────────────────────
+export const DIFFICULTIES = ["beginner", "intermediate", "advanced"] as const;
+export type Difficulty = (typeof DIFFICULTIES)[number];
+
+export function difficultyLabel(value: string | null | undefined): string {
+  const v = (value ?? "beginner").toLowerCase();
+  return v.charAt(0).toUpperCase() + v.slice(1);
+}
+
+export const RESOURCE_TYPES = [
+  "pdf",
+  "checklist",
+  "word",
+  "powerpoint",
+  "template",
+  "video",
+  "link",
+] as const;
+
+export type ResourceType = (typeof RESOURCE_TYPES)[number];
+
+export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
+  pdf: "PDF",
+  checklist: "Checklist",
+  word: "Word",
+  powerpoint: "PowerPoint",
+  template: "Template",
+  video: "Video",
+  link: "External Link",
+};
+
+export function resourceTypeLabel(value: string | null | undefined): string {
+  const v = (value ?? "").toLowerCase();
+  return (RESOURCE_TYPE_LABELS as Record<string, string>)[v] ?? (value || "Resource");
+}
+
+export function formatUpdatedAt(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+}
+
+/** Missions are unlocked sequentially: previous countable mission completed. */
+export function isMissionUnlocked(
+  missions: AcademyMission[],
+  mission: AcademyMission,
+  completedMissionIds: Set<string>
+): boolean {
+  if (mission.is_locked) return false;
+  const ordered = countableMissions(missions).sort((a, b) => a.sort_order - b.sort_order);
+  const idx = ordered.findIndex((m) => m.id === mission.id);
+  if (idx <= 0) return true;
+  return completedMissionIds.has(ordered[idx - 1].id);
+}
