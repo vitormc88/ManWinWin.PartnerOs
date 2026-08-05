@@ -300,7 +300,7 @@ export function useReorderAcademyRecord() {
 export function useUploadAcademyAsset() {
   return useMutation({
     mutationFn: async (file: File): Promise<string> => {
-      const invalid = validateAcademyUpload({ name: file.name, size: file.size });
+      const invalid = validateAcademyUpload({ name: file.name, size: file.size, type: file.type });
       if (invalid) throw new Error(invalid);
       const path = academyObjectPath(file.name);
       const { error } = await supabase.storage
@@ -313,9 +313,37 @@ export function useUploadAcademyAsset() {
   });
 }
 
+/**
+ * Deletes a replaced/removed Academy attachment *after* the record save
+ * succeeded, and only when it is provably safe:
+ *   - the value is a private object path under the `academy/` prefix
+ *     (external URLs and non-Academy paths are never touched), and
+ *   - no other Academy resource still references the same path.
+ * Otherwise the object is left in place and the caller is told why.
+ */
 export function useDeleteAcademyAsset() {
   return useMutation({
-    mutationFn: async (path: string) => {
+    mutationFn: async (input: { path: string; exceptResourceId?: string }) => {
+      const { path, exceptResourceId } = input;
+      if (!isDeletableAcademyObjectPath(path)) {
+        throw new Error(
+          "This attachment is not a private Academy file, so it was left untouched."
+        );
+      }
+      let query = supabase
+        .from("academy_resources")
+        .select("id", { count: "exact", head: true })
+        .eq("file_path", path);
+      if (exceptResourceId) query = query.neq("id", exceptResourceId);
+      const { count, error: refError } = await query;
+      if (refError) {
+        throw new Error(
+          "Could not verify whether the file is still used elsewhere, so it was kept."
+        );
+      }
+      if ((count ?? 0) > 0) {
+        throw new Error("The file is still attached to another Academy resource, so it was kept.");
+      }
       const { error } = await supabase.storage.from(ACADEMY_STORAGE_BUCKET).remove([path]);
       if (error) throw error;
     },
