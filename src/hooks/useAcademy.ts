@@ -1,14 +1,20 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import type {
-  AcademyMission,
-  AcademyModule,
-  AcademyPhase,
-  AcademyResource,
-  MissionProgressRow,
-  ModuleProgressStatus,
+import type { Database } from "@/integrations/supabase/types";
+import {
+  ACADEMY_STORAGE_BUCKET,
+  academyObjectPath,
+  validateAcademyUpload,
+  type AcademyMission,
+  type AcademyModule,
+  type AcademyPhase,
+  type AcademyResource,
+  type AcademyTable,
+  type ChecklistState,
+  type MissionProgressRow,
+  type ModuleProgressStatus,
 } from "@/lib/academy";
 
 const QK = {
@@ -19,6 +25,23 @@ const QK = {
   moduleProgress: ["academy", "module-progress"] as const,
   missionProgress: ["academy", "mission-progress"] as const,
 };
+
+/** Turns a Postgres/PostgREST error into an actionable message. */
+export function academyErrorMessage(error: unknown, fallback: string): string {
+  const e = error as { message?: string; code?: string; details?: string } | null;
+  const raw = e?.message ?? "";
+  if (!raw) return fallback;
+  if (e?.code === "42501" || /row-level security|permission denied/i.test(raw)) {
+    return "You do not have permission to perform this Academy action.";
+  }
+  if (e?.code === "23505" || /duplicate key/i.test(raw)) {
+    return "That slug is already used by another Academy record.";
+  }
+  if (e?.code === "23503") {
+    return "The selected parent record no longer exists. Refresh and try again.";
+  }
+  return raw;
+}
 
 export function useAcademyPhases() {
   return useQuery({
@@ -77,7 +100,22 @@ export function useAcademyResources(moduleId?: string) {
   });
 }
 
-/** Mission completions for the authenticated user only (RLS-scoped). */
+/** Every resource (admin view). */
+export function useAllAcademyResources() {
+  return useQuery({
+    queryKey: [...QK.resources, "all-admin"],
+    queryFn: async (): Promise<AcademyResource[]> => {
+      const { data, error } = await supabase
+        .from("academy_resources")
+        .select("*")
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as AcademyResource[];
+    },
+  });
+}
+
+/** Mission completions for the authenticated user only (RLS-scoped, read-only). */
 export function useMyMissionProgress() {
   const { user } = useAuth();
   return useQuery({
@@ -114,98 +152,73 @@ export function useMyModuleProgress() {
   });
 }
 
-/** Explicit "Complete Mission" action — never triggered by scrolling. */
+/**
+ * Explicit "Complete Mission" action.
+ *
+ * Progress is written by a single transactional RPC: the server validates the
+ * mission is published and unlocked, writes mission progress and recomputes
+ * module progress from authoritative rows. The browser cannot forge
+ * `progress_pct` or a certified status.
+ */
 export function useCompleteMission() {
   const qc = useQueryClient();
-  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (input: {
-      missionId: string;
-      moduleId: string;
-      completed: boolean;
-      progressPct: number;
-      moduleStatus: ModuleProgressStatus;
-    }) => {
-      if (!user?.id) throw new Error("Not authenticated");
-
-      const { error: mErr } = await supabase.from("academy_mission_progress").upsert(
-        {
-          user_id: user.id,
-          mission_id: input.missionId,
-          module_id: input.moduleId,
-          is_completed: input.completed,
-          completed_at: input.completed ? new Date().toISOString() : null,
-        },
-        { onConflict: "user_id,mission_id" }
-      );
-      if (mErr) throw mErr;
-
-      const { error: modErr } = await supabase.from("academy_module_progress").upsert(
-        {
-          user_id: user.id,
-          module_id: input.moduleId,
-          status: input.moduleStatus,
-          progress_pct: input.progressPct,
-          started_at: new Date().toISOString(),
-          completed_at: input.progressPct >= 100 ? new Date().toISOString() : null,
-        },
-        { onConflict: "user_id,module_id" }
-      );
-      if (modErr) throw modErr;
+    mutationFn: async (input: { missionId: string; completed: boolean }) => {
+      const { data, error } = await supabase.rpc("academy_complete_mission", {
+        _mission_id: input.missionId,
+        _completed: input.completed,
+      });
+      if (error) throw error;
+      return data?.[0] ?? null;
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: QK.missionProgress });
       qc.invalidateQueries({ queryKey: QK.moduleProgress });
       toast.success(vars.completed ? "Mission completed" : "Mission reopened");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Could not update progress"),
+    onError: (e) => toast.error(academyErrorMessage(e, "Could not update progress")),
   });
 }
 
-/** Persists an interactive checklist item toggle for the current user. */
+/** Persists an interactive checklist toggle through the validated RPC. */
 export function useToggleChecklistItem() {
   const qc = useQueryClient();
-  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (input: {
-      missionId: string;
-      moduleId: string;
-      checklistState: Record<string, boolean>;
-    }) => {
-      if (!user?.id) throw new Error("Not authenticated");
-      const { error } = await supabase.from("academy_mission_progress").upsert(
-        {
-          user_id: user.id,
-          mission_id: input.missionId,
-          module_id: input.moduleId,
-          checklist_state: input.checklistState,
-        },
-        { onConflict: "user_id,mission_id" }
-      );
+    mutationFn: async (input: { missionId: string; checklistState: ChecklistState }) => {
+      const { error } = await supabase.rpc("academy_set_checklist_state", {
+        _mission_id: input.missionId,
+        _state: input.checklistState,
+      });
       if (error) throw error;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: QK.missionProgress });
-    },
-    onError: (e: any) => toast.error(e?.message ?? "Could not save checklist"),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK.missionProgress }),
+    onError: (e) => toast.error(academyErrorMessage(e, "Could not save checklist")),
   });
 }
 
 // ── Admin content management ─────────────────────────────────────────────
-type Table = "academy_phases" | "academy_modules" | "academy_missions" | "academy_resources";
+type Tables = Database["public"]["Tables"];
+export type AcademyRecordInput =
+  | ({ id?: string } & Partial<Tables["academy_phases"]["Insert"]>)
+  | ({ id?: string } & Partial<Tables["academy_modules"]["Insert"]>)
+  | ({ id?: string } & Partial<Tables["academy_missions"]["Insert"]>)
+  | ({ id?: string } & Partial<Tables["academy_resources"]["Insert"]>);
 
-export function useSaveAcademyRecord(table: Table) {
+export function useSaveAcademyRecord(table: AcademyTable) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (record: Record<string, any>) => {
-      if (record.id) {
-        const { id, ...rest } = record;
-        const { error } = await (supabase.from(table) as any).update(rest).eq("id", id);
+    mutationFn: async (record: AcademyRecordInput) => {
+      const { id, ...rest } = record as { id?: string } & Record<string, unknown>;
+      if (id) {
+        const { error } = await supabase
+          .from(table)
+          .update(rest as never)
+          .eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await (supabase.from(table) as any).insert(record);
+        const { error } = await supabase.from(table).insert(rest as never);
         if (error) throw error;
       }
     },
@@ -213,11 +226,11 @@ export function useSaveAcademyRecord(table: Table) {
       qc.invalidateQueries({ queryKey: ["academy"] });
       toast.success("Saved");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Could not save"),
+    onError: (e) => toast.error(academyErrorMessage(e, "Could not save")),
   });
 }
 
-export function useDeleteAcademyRecord(table: Table) {
+export function useDeleteAcademyRecord(table: AcademyTable) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
@@ -228,6 +241,58 @@ export function useDeleteAcademyRecord(table: Table) {
       qc.invalidateQueries({ queryKey: ["academy"] });
       toast.success("Deleted");
     },
-    onError: (e: any) => toast.error(e?.message ?? "Could not delete"),
+    onError: (e) => toast.error(academyErrorMessage(e, "Could not delete")),
+  });
+}
+
+/** Single transactional, admin-only reorder (replaces two racing updates). */
+export function useReorderAcademyRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      entity: "phases" | "modules" | "missions" | "resources";
+      a: string;
+      b: string;
+    }) => {
+      const { error } = await supabase.rpc("academy_swap_sort_order", {
+        _entity: input.entity,
+        _a: input.a,
+        _b: input.b,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["academy"] }),
+    onError: (e) => toast.error(academyErrorMessage(e, "Could not reorder")),
+  });
+}
+
+/**
+ * Uploads an Academy attachment into the private training-assets bucket and
+ * returns the object path. Raw private paths are never exposed as public URLs;
+ * readers resolve them through short-lived signed URLs.
+ */
+export function useUploadAcademyAsset() {
+  return useMutation({
+    mutationFn: async (file: File): Promise<string> => {
+      const invalid = validateAcademyUpload({ name: file.name, size: file.size });
+      if (invalid) throw new Error(invalid);
+      const path = academyObjectPath(file.name);
+      const { error } = await supabase.storage
+        .from(ACADEMY_STORAGE_BUCKET)
+        .upload(path, file, { upsert: false, contentType: file.type || undefined });
+      if (error) throw error;
+      return path;
+    },
+    onError: (e) => toast.error(academyErrorMessage(e, "Upload failed")),
+  });
+}
+
+export function useDeleteAcademyAsset() {
+  return useMutation({
+    mutationFn: async (path: string) => {
+      const { error } = await supabase.storage.from(ACADEMY_STORAGE_BUCKET).remove([path]);
+      if (error) throw error;
+    },
+    onError: (e) => toast.error(academyErrorMessage(e, "Could not delete the file")),
   });
 }

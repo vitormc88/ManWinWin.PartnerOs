@@ -16,29 +16,32 @@ import {
   useMyMissionProgress,
   useToggleChecklistItem,
 } from "@/hooks/useAcademy";
+import { AcademyState } from "@/components/academy/AcademyState";
 import {
   checklistCompletion,
-  deriveModuleStatus,
   formatDuration,
   formatReadingTime,
   isMissionUnlocked,
   loadReadingPosition,
-  moduleProgressPct,
   saveReadingPosition,
   type ChecklistState,
 } from "@/lib/academy";
 
 
+
 export default function AcademyMission() {
   const { slug, missionSlug } = useParams();
-  const { data: modules = [], isLoading } = useAcademyModules();
+  const modulesQuery = useAcademyModules();
+  const { data: modules = [], isLoading } = modulesQuery;
   const { data: phases = [] } = useAcademyPhases();
   const mod = modules.find((m) => m.slug === slug);
-  const { data: missions = [] } = useAcademyMissions(mod?.id);
+  const missionsQuery = useAcademyMissions(mod?.id);
+  const { data: missions = [] } = missionsQuery;
   const { data: resources = [] } = useAcademyResources(mod?.id);
   const { data: missionProgress = [] } = useMyMissionProgress();
   const complete = useCompleteMission();
   const toggleChecklist = useToggleChecklistItem();
+
 
   const completedIds = useMemo(
     () => new Set(missionProgress.filter((p) => p.is_completed).map((p) => p.mission_id)),
@@ -91,11 +94,17 @@ export default function AcademyMission() {
     };
   }, [missionId]);
 
+  if (modulesQuery.isError)
+    return <AcademyState kind="error" error={modulesQuery.error} onRetry={() => modulesQuery.refetch()} />;
+  if (missionsQuery.isError)
+    return <AcademyState kind="error" error={missionsQuery.error} onRetry={() => missionsQuery.refetch()} />;
+  if (isLoading || (mod && missionsQuery.isLoading))
+    return <AcademyState kind="loading" title="Loading mission…" />;
+  if (!mod)
+    return <AcademyState kind="empty" title="Module not found" description="It may be unpublished or you may not have access." />;
+  if (!mission)
+    return <AcademyState kind="empty" title="Mission not found" description="It may be unpublished or you may not have access." />;
 
-
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading mission…</p>;
-  if (!mod) return <p className="text-sm text-muted-foreground">Module not found or not published.</p>;
-  if (!mission) return <p className="text-sm text-muted-foreground">Mission not found or not published.</p>;
 
   const phase = phases.find((p) => p.id === mod.phase_id);
   const unlocked = isMissionUnlocked(ordered, mission, completedIds);
@@ -109,22 +118,13 @@ export default function AcademyMission() {
   const onToggleChecklistItem = (itemId: string, checked: boolean) => {
     const next = { ...checklist, [itemId]: checked };
     setChecklist(next);
-    toggleChecklist.mutate({ missionId: mission.id, moduleId: mod.id, checklistState: next });
+    toggleChecklist.mutate({ missionId: mission.id, checklistState: next });
   };
 
   const onToggleComplete = () => {
-    const nextCompleted = new Set(completedIds);
-    if (isDone) nextCompleted.delete(mission.id);
-    else nextCompleted.add(mission.id);
-    const pct = moduleProgressPct(missions, nextCompleted);
-    complete.mutate({
-      missionId: mission.id,
-      moduleId: mod.id,
-      completed: !isDone,
-      progressPct: pct,
-      moduleStatus: deriveModuleStatus(pct),
-    });
+    complete.mutate({ missionId: mission.id, completed: !isDone });
   };
+
 
   if (!unlocked) {
     return (

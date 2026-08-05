@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown, AlertTriangle, Upload, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -26,30 +37,39 @@ import {
   useAcademyMissions,
   useAcademyModules,
   useAcademyPhases,
+  useAllAcademyResources,
   useDeleteAcademyRecord,
+  useReorderAcademyRecord,
   useSaveAcademyRecord,
+  useUploadAcademyAsset,
 } from "@/hooks/useAcademy";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import { MissionContent } from "@/components/academy/MissionContent";
 import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
+import { AcademyState } from "@/components/academy/AcademyState";
 import {
   BLOCK_SNIPPETS,
   DIFFICULTIES,
   RESOURCE_TYPES,
+  canHardDelete,
   draftKey,
+  isDraftStale,
   joinContentSegments,
   moveSegment,
   splitContentSegments,
+  validatePublication,
+  type AcademyDraftEnvelope,
+  type AcademyTable,
 } from "@/lib/academy";
 
-type Table = "academy_phases" | "academy_modules" | "academy_missions" | "academy_resources";
+type Table = AcademyTable;
+
 
 type Field = {
   key: string;
   label: string;
-  type: "text" | "textarea" | "markdown" | "number" | "status" | "boolean" | "select";
+  type: "text" | "textarea" | "markdown" | "number" | "status" | "boolean" | "select" | "file";
   options?: string[];
 };
 
@@ -96,7 +116,7 @@ const FIELDS: Record<Table, Field[]> = {
     { key: "resource_type", label: "Type", type: "select", options: [...RESOURCE_TYPES] },
     { key: "description", label: "Description", type: "textarea" },
     { key: "content", label: "Content", type: "textarea" },
-    { key: "file_path", label: "File attachment (path or URL)", type: "text" },
+    { key: "file_path", label: "File attachment (private)", type: "file" },
     { key: "external_url", label: "External URL", type: "text" },
     { key: "version", label: "Version", type: "text" },
     { key: "is_downloadable", label: "Downloadable", type: "boolean" },
@@ -107,24 +127,28 @@ const FIELDS: Record<Table, Field[]> = {
 
 export default function AcademyAdmin() {
   const { canAdmin, isLoading } = useModuleAccess();
-  const { data: phases = [] } = useAcademyPhases();
-  const { data: modules = [] } = useAcademyModules();
-  const { data: missions = [] } = useAcademyMissions();
-  const { data: resources = [] } = useQuery({
-    queryKey: ["academy", "resources", "all"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("academy_resources").select("*").order("sort_order");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const phasesQuery = useAcademyPhases();
+  const modulesQuery = useAcademyModules();
+  const missionsQuery = useAcademyMissions();
+  const resourcesQuery = useAllAcademyResources();
+  const { data: phases = [] } = phasesQuery;
+  const { data: modules = [] } = modulesQuery;
+  const { data: missions = [] } = missionsQuery;
+  const { data: resources = [] } = resourcesQuery;
 
   const [editing, setEditing] = useState<{ table: Table; record: Record<string, any> } | null>(null);
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isLoading) return <AcademyState kind="loading" />;
   if (!canAdmin("onboarding")) {
-    return <p className="text-sm text-muted-foreground">You do not have permission to manage Academy content.</p>;
+    return (
+      <AcademyState
+        kind="empty"
+        title="No access"
+        description="You do not have permission to manage Academy content."
+      />
+    );
   }
+
 
   const selectOptions = (table: Table, key: string): Array<{ value: string; label: string }> => {
     if (key === "phase_id") return phases.map((p) => ({ value: p.id, label: p.title }));
@@ -134,7 +158,13 @@ export default function AcademyAdmin() {
     return (field?.options ?? []).map((o) => ({ value: o, label: o }));
   };
 
-  const section = (table: Table, title: string, rows: any[], subtitle?: (r: any) => string) => (
+  const section = (
+    table: Table,
+    title: string,
+    rows: any[],
+    query: { isLoading: boolean; isError: boolean; error: unknown; refetch: () => void },
+    subtitle?: (r: any) => string
+  ) => (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
@@ -142,25 +172,53 @@ export default function AcademyAdmin() {
           <Plus className="h-4 w-4 mr-1" />New
         </Button>
       </div>
-      <div className="bg-card rounded-xl border shadow-sm divide-y">
-        {rows.length === 0 && <p className="p-4 text-sm text-muted-foreground">Nothing yet.</p>}
-        {rows.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 p-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-foreground truncate">{r.title}</p>
-              {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle(r)}</p>}
+      {query.isError ? (
+        <AcademyState kind="error" error={query.error} onRetry={query.refetch} />
+      ) : query.isLoading ? (
+        <AcademyState kind="loading" />
+      ) : rows.length === 0 ? (
+        <AcademyState kind="empty" title={`No ${title.toLowerCase()} yet.`} />
+      ) : (
+        <div className="bg-card rounded-xl border shadow-sm divide-y">
+          {rows.map((r) => (
+            <div key={r.id} className="flex items-center gap-3 p-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-foreground truncate">{r.title}</p>
+                {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle(r)}</p>}
+              </div>
+              <Badge variant="outline" className="text-[10px] shrink-0">{r.status}</Badge>
+              <ReorderButtons table={table} rows={rows} row={r} />
+              <Button variant="ghost" size="icon" onClick={() => setEditing({ table, record: r })}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <DeleteButton table={table} row={r} />
             </div>
-            <Badge variant="outline" className="text-[10px] shrink-0">{r.status}</Badge>
-            <ReorderButtons table={table} rows={rows} row={r} />
-            <Button variant="ghost" size="icon" onClick={() => setEditing({ table, record: r })}>
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <DeleteButton table={table} id={r.id} />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
+
+  /** Slugs already taken in the same scope, so publication can reject clashes. */
+  const siblingSlugs = (table: Table, record: Record<string, any>): string[] => {
+    if (table === "academy_modules") {
+      return modules.filter((m) => m.id !== record.id).map((m) => m.slug).filter(Boolean) as string[];
+    }
+    if (table === "academy_missions") {
+      return missions
+        .filter((m) => m.id !== record.id && m.module_id === record.module_id)
+        .map((m) => m.slug)
+        .filter(Boolean) as string[];
+    }
+    return [];
+  };
+
+  const parentStatus = (table: Table, record: Record<string, any>) => {
+    if (table === "academy_modules") return phases.find((p) => p.id === record.phase_id)?.status ?? null;
+    if (table === "academy_missions") return modules.find((m) => m.id === record.module_id)?.status ?? null;
+    if (table === "academy_resources") return modules.find((m) => m.id === record.module_id)?.status ?? null;
+    return null;
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -177,15 +235,15 @@ export default function AcademyAdmin() {
           <TabsTrigger value="missions">Missions</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
         </TabsList>
-        <TabsContent value="phases">{section("academy_phases", "Phases", phases)}</TabsContent>
+        <TabsContent value="phases">{section("academy_phases", "Phases", phases, phasesQuery)}</TabsContent>
         <TabsContent value="modules">
-          {section("academy_modules", "Modules", modules, (m) => phases.find((p) => p.id === m.phase_id)?.title ?? "No phase")}
+          {section("academy_modules", "Modules", modules, modulesQuery, (m) => phases.find((p) => p.id === m.phase_id)?.title ?? "No phase")}
         </TabsContent>
         <TabsContent value="missions">
-          {section("academy_missions", "Missions", missions, (m) => modules.find((x) => x.id === m.module_id)?.title ?? "")}
+          {section("academy_missions", "Missions", missions, missionsQuery, (m) => modules.find((x) => x.id === m.module_id)?.title ?? "")}
         </TabsContent>
         <TabsContent value="resources">
-          {section("academy_resources", "Resources", resources as any[], (r: any) => r.resource_type)}
+          {section("academy_resources", "Resources", resources as any[], resourcesQuery, (r: any) => r.resource_type)}
         </TabsContent>
       </Tabs>
 
@@ -194,6 +252,8 @@ export default function AcademyAdmin() {
           table={editing.table}
           record={editing.record}
           selectOptions={selectOptions}
+          siblingSlugs={siblingSlugs(editing.table, editing.record)}
+          parentStatusOf={(form) => parentStatus(editing.table, form) as any}
           onClose={() => setEditing(null)}
         />
       )}
@@ -201,41 +261,100 @@ export default function AcademyAdmin() {
   );
 }
 
-function DeleteButton({ table, id }: { table: Table; id: string }) {
+/**
+ * Hard deletion is only offered once content is unpublished/archived, and it
+ * always requires an explicit confirmation.
+ */
+function DeleteButton({ table, row }: { table: Table; row: { id: string; status?: string | null; title?: string } }) {
   const del = useDeleteAcademyRecord(table);
+  const [open, setOpen] = useState(false);
+  const allowed = canHardDelete(row.status);
+
   return (
-    <Button variant="ghost" size="icon" disabled={del.isPending} onClick={() => del.mutate(id)}>
-      <Trash2 className="h-4 w-4 text-destructive" />
-    </Button>
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled={del.isPending}
+        title={allowed ? "Delete" : "Unpublish or archive before deleting"}
+        onClick={() =>
+          allowed
+            ? setOpen(true)
+            : toast.error("Unpublish or archive this item before deleting it.")
+        }
+      >
+        <Trash2 className={`h-4 w-4 ${allowed ? "text-destructive" : "text-muted-foreground"}`} />
+      </Button>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete “{row.title ?? "this item"}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the record and any content attached to it. Learner progress
+              referencing it will also be removed. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => del.mutate(row.id)}
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
+
 
 function RecordDialog({
   table,
   record,
   selectOptions,
+  siblingSlugs,
+  parentStatusOf,
   onClose,
 }: {
   table: Table;
   record: Record<string, any>;
   selectOptions: (table: Table, key: string) => Array<{ value: string; label: string }>;
+  siblingSlugs: string[];
+  parentStatusOf: (form: Record<string, any>) => "draft" | "published" | "archived" | null;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
   const [form, setForm] = useState<Record<string, any>>(record);
   const save = useSaveAcademyRecord(table);
   const fields = useMemo(() => FIELDS[table], [table]);
-  const storageKey = draftKey(table, record.id);
+  const storageKey = draftKey(table, record.id, user?.id);
   const [restored, setRestored] = useState(false);
+  const [staleDraft, setStaleDraft] = useState(false);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  // The server revision this editing session branched from.
+  const baseUpdatedAt = useRef<string | null>(record.updated_at ?? null);
 
-  // Restore a local autosaved draft (crash / accidental close protection).
+  // Restore a local autosaved draft (crash / accidental close protection) —
+  // but never let a draft branched from an older revision silently overwrite a
+  // newer server record.
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        setForm((f) => ({ ...f, ...JSON.parse(raw) }));
-        setRestored(true);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as AcademyDraftEnvelope | Record<string, any>;
+      const envelope: AcademyDraftEnvelope =
+        parsed && typeof parsed === "object" && "form" in parsed
+          ? (parsed as AcademyDraftEnvelope)
+          : { baseUpdatedAt: null, savedAt: new Date().toISOString(), form: parsed as Record<string, any> };
+
+      if (isDraftStale(envelope.baseUpdatedAt, record.updated_at ?? null)) {
+        setStaleDraft(true);
+        return;
       }
+      setForm((f) => ({ ...f, ...envelope.form }));
+      setRestored(true);
     } catch {
       /* storage unavailable */
     }
@@ -246,7 +365,12 @@ function RecordDialog({
   useEffect(() => {
     const t = window.setTimeout(() => {
       try {
-        localStorage.setItem(storageKey, JSON.stringify(form));
+        const envelope: AcademyDraftEnvelope = {
+          baseUpdatedAt: baseUpdatedAt.current,
+          savedAt: new Date().toISOString(),
+          form,
+        };
+        localStorage.setItem(storageKey, JSON.stringify(envelope));
         setSavedAt(new Date());
       } catch {
         /* storage unavailable */
@@ -260,6 +384,11 @@ function RecordDialog({
   const hasStatus = fields.some((f) => f.type === "status");
   const isPublished = form.status === "published";
 
+  const publishIssues = validatePublication(table, form, {
+    siblingSlugs,
+    parentStatus: parentStatusOf(form),
+  });
+
   const clearLocalDraft = () => {
     try {
       localStorage.removeItem(storageKey);
@@ -269,11 +398,20 @@ function RecordDialog({
   };
 
   const onSave = (statusOverride?: string) => {
+    if (statusOverride === "published" && publishIssues.length > 0) {
+      toast.error("Resolve the publication issues first.");
+      return;
+    }
     const payload: Record<string, any> = { ...(form.id ? { id: form.id } : {}) };
     fields.forEach((f) => {
       const raw = form[f.key];
       if (raw === undefined) return;
-      payload[f.key] = f.type === "number" ? Number(raw) || 0 : raw;
+      if (f.type === "number") {
+        const n = Number(raw);
+        payload[f.key] = Number.isFinite(n) ? Math.max(0, n) : 0;
+      } else {
+        payload[f.key] = raw;
+      }
     });
     if (statusOverride) payload.status = statusOverride;
     save.mutate(payload, {
@@ -284,12 +422,32 @@ function RecordDialog({
     });
   };
 
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-2xl lg:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{form.id ? "Edit" : "New"} {table.replace("academy_", "").replace(/s$/, "")}</DialogTitle>
         </DialogHeader>
+        {staleDraft && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-xs text-foreground flex gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+            <span>
+              A local draft was found, but this record changed on the server since that draft was
+              made. The draft was discarded to avoid overwriting newer content.{" "}
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() => {
+                  clearLocalDraft();
+                  setStaleDraft(false);
+                }}
+              >
+                Dismiss
+              </button>
+            </span>
+          </div>
+        )}
         {restored && (
           <p className="text-xs text-muted-foreground">
             Restored an unsaved local draft.{" "}
@@ -306,12 +464,15 @@ function RecordDialog({
             </button>
           </p>
         )}
+
         <div className="space-y-3">
           {fields.map((f) => (
             <div key={f.key} className="space-y-1.5">
               <Label htmlFor={f.key}>{f.label}</Label>
               {f.type === "markdown" ? (
                 <MarkdownEditor value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
+              ) : f.type === "file" ? (
+                <AttachmentField value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
               ) : f.type === "textarea" ? (
                 <Textarea
                   id={f.key}
@@ -337,6 +498,7 @@ function RecordDialog({
                 <Input
                   id={f.key}
                   type={f.type === "number" ? "number" : "text"}
+                  min={f.type === "number" ? 0 : undefined}
                   value={form[f.key] ?? ""}
                   onChange={(e) => set(f.key, e.target.value)}
                 />
@@ -344,6 +506,20 @@ function RecordDialog({
             </div>
           ))}
         </div>
+
+        {hasStatus && publishIssues.length > 0 && (
+          <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-1">
+            <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5" /> Resolve before publishing
+            </p>
+            <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-0.5">
+              {publishIssues.map((issue) => (
+                <li key={issue}>{issue}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <DialogFooter className="gap-2 sm:items-center">
           <span className="text-xs text-muted-foreground mr-auto">
             {savedAt ? `Draft autosaved locally at ${savedAt.toLocaleTimeString()}` : "Autosaving locally…"}
@@ -355,13 +531,17 @@ function RecordDialog({
             </Button>
           )}
           {hasStatus ? (
-            <Button onClick={() => onSave("published")} disabled={save.isPending}>
+            <Button
+              onClick={() => onSave("published")}
+              disabled={save.isPending || publishIssues.length > 0}
+            >
               {isPublished ? "Save & keep published" : "Publish"}
             </Button>
           ) : (
             <Button onClick={() => onSave()} disabled={save.isPending}>Save</Button>
           )}
         </DialogFooter>
+
       </DialogContent>
     </Dialog>
   );
