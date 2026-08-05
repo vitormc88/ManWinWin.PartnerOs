@@ -864,8 +864,11 @@ export function validatePublication(
   return issues;
 }
 
-/** Published content must be archived/unpublished before it can be deleted. */
+/**
+ * Hard deletion is restricted to drafts. Published content must be unpublished
+ * first, and archived content is kept as an auditable historical record.
+ */
 export function canHardDelete(status: string | null | undefined): boolean {
-  return status !== "published";
+  return status === "draft";
 }
 
