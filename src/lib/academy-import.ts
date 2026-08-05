@@ -138,7 +138,12 @@ export function parseImportContent(
     return { rows: arr as Record<string, unknown>[], error: null };
   }
 
-  const table = parseCsv(trimmed);
+  const table = parseCsv(
+    trimmed
+      .split("\n")
+      .filter((l) => !l.trim().startsWith("#"))
+      .join("\n")
+  );
   if (table.length < 2) return { rows: [], error: "CSV must contain a header row and at least one record." };
   const header = table[0].map((h) => h.trim().toLowerCase());
   const missing = columns.filter((c) => c !== "scenario_group" && c !== "tags" && !header.includes(c));
