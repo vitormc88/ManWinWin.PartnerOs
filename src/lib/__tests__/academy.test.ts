@@ -76,11 +76,13 @@ describe("academy progress", () => {
   it("derives module status and action label from percentage", () => {
     expect(deriveModuleStatus(0)).toBe("not_started");
     expect(deriveModuleStatus(50)).toBe("in_progress");
-    expect(deriveModuleStatus(100)).toBe("certified");
+    // 100% learning completion is never self-awarded certification.
+    expect(deriveModuleStatus(100)).toBe("completed");
     expect(actionLabel(0)).toBe("Start");
     expect(actionLabel(40)).toBe("Continue");
     expect(actionLabel(100)).toBe("Review");
   });
+
 
   it("suggests the first incomplete unlocked mission", () => {
     const list = [
