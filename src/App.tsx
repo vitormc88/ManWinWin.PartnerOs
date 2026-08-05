@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -56,6 +56,12 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+const LegacyOnboardingRedirect = () => {
+  const { pathname, search, hash } = useLocation();
+  const target = pathname.replace(/^\/onboarding/, "/academy") || "/academy";
+  return <Navigate to={`${target}${search}${hash}`} replace />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
