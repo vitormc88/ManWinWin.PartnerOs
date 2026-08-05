@@ -49,15 +49,17 @@ const mission = (over: Partial<AcademyMission>): AcademyMission => ({
 });
 
 describe("academy progress", () => {
-  it("ignores locked and unpublished items", () => {
+  it("counts locked missions but excludes unpublished ones", () => {
     const list = [
       mission({ id: "a" }),
       mission({ id: "b", is_locked: true }),
       mission({ id: "c", status: "draft" }),
     ];
-    expect(countableMissions(list).map((m) => m.id)).toEqual(["a"]);
-    expect(moduleProgressPct(list, new Set(["a"]))).toBe(100);
+    // `is_locked` means sequentially gated, not excluded from progress.
+    expect(countableMissions(list).map((m) => m.id)).toEqual(["a", "b"]);
+    expect(moduleProgressPct(list, new Set(["a"]))).toBe(50);
   });
+
 
   it("computes partial progress", () => {
     const list = [mission({ id: "a" }), mission({ id: "b" }), mission({ id: "c" })];
