@@ -24,7 +24,7 @@ import Pipeline from "@/pages/Pipeline";
 import DealDetail from "@/pages/DealDetail";
 import DealRegistrations from "@/pages/DealRegistrations";
 import Commissions from "@/pages/Commissions";
-import Onboarding from "@/pages/Onboarding";
+import AcademyHome from "@/pages/academy/AcademyHome";
 import AcademyModule from "@/pages/academy/AcademyModule";
 import AcademyMission from "@/pages/academy/AcademyMission";
 import AcademyAdmin from "@/pages/academy/AcademyAdmin";

@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Download, Lock } from "lucide-react";
 import { AnalyticsAttemptDetail } from "@/components/academy/AnalyticsAttemptDetail";
+import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
 import {
   useAcademyAnalyticsPerms,
   useAcademyLearnerProfile,
