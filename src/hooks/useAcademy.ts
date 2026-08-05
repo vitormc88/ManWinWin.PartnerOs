@@ -86,7 +86,7 @@ export function useMyMissionProgress() {
     queryFn: async (): Promise<MissionProgressRow[]> => {
       const { data, error } = await supabase
         .from("academy_mission_progress")
-        .select("mission_id, module_id, is_completed")
+        .select("mission_id, module_id, is_completed, checklist_state")
         .eq("user_id", user!.id);
       if (error) throw error;
       return (data ?? []) as MissionProgressRow[];
@@ -160,6 +160,36 @@ export function useCompleteMission() {
       toast.success(vars.completed ? "Mission completed" : "Mission reopened");
     },
     onError: (e: any) => toast.error(e?.message ?? "Could not update progress"),
+  });
+}
+
+/** Persists an interactive checklist item toggle for the current user. */
+export function useToggleChecklistItem() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (input: {
+      missionId: string;
+      moduleId: string;
+      checklistState: Record<string, boolean>;
+    }) => {
+      if (!user?.id) throw new Error("Not authenticated");
+      const { error } = await supabase.from("academy_mission_progress").upsert(
+        {
+          user_id: user.id,
+          mission_id: input.missionId,
+          module_id: input.moduleId,
+          checklist_state: input.checklistState,
+        },
+        { onConflict: "user_id,mission_id" }
+      );
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: QK.missionProgress });
+    },
+    onError: (e: any) => toast.error(e?.message ?? "Could not save checklist"),
   });
 }
 
