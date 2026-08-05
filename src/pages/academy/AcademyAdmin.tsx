@@ -548,17 +548,69 @@ function RecordDialog({
 }
 
 
+/**
+ * Uploads to the private `training-assets` bucket and stores only the object
+ * path — readers resolve it later through a short-lived signed URL.
+ */
+function AttachmentField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const upload = useUploadAcademyAsset();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <Input value={value} readOnly placeholder="No file attached" className="font-mono text-xs" />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={upload.isPending}
+          onClick={() => inputRef.current?.click()}
+        >
+          {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+        </Button>
+        {value && (
+          <Button type="button" variant="ghost" onClick={() => onChange("")}>
+            Remove
+          </Button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (!file) return;
+          upload.mutate(file, {
+            onSuccess: (path) => {
+              onChange(path);
+              toast.success("File uploaded");
+            },
+          });
+        }}
+      />
+      <p className="text-[11px] text-muted-foreground">
+        Stored privately; learners open it through a temporary signed link.
+      </p>
+    </div>
+  );
+}
+
 function ReorderButtons({ table, rows, row }: { table: Table; rows: any[]; row: any }) {
-  const save = useSaveAcademyRecord(table);
+  const reorder = useReorderAcademyRecord();
+  const entity = table.replace("academy_", "") as "phases" | "modules" | "missions" | "resources";
   const ordered = [...rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const index = ordered.findIndex((r) => r.id === row.id);
+  const save = reorder;
 
+  // One transactional server swap replaces two racing client updates.
   const move = (dir: -1 | 1) => {
     const other = ordered[index + dir];
     if (!other) return;
-    save.mutate({ id: row.id, sort_order: other.sort_order ?? 0 });
-    save.mutate({ id: other.id, sort_order: row.sort_order ?? 0 });
+    reorder.mutate({ entity, a: row.id, b: other.id });
   };
+
 
   return (
     <div className="flex flex-col shrink-0">
