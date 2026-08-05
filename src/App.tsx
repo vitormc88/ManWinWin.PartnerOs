@@ -25,6 +25,9 @@ import DealDetail from "@/pages/DealDetail";
 import DealRegistrations from "@/pages/DealRegistrations";
 import Commissions from "@/pages/Commissions";
 import Onboarding from "@/pages/Onboarding";
+import AcademyModule from "@/pages/academy/AcademyModule";
+import AcademyMission from "@/pages/academy/AcademyMission";
+import AcademyAdmin from "@/pages/academy/AcademyAdmin";
 import Certifications from "@/pages/Certifications";
 import PartnerTiers from "@/pages/PartnerTiers";
 import PartnerPerformance from "@/pages/PartnerPerformance";
@@ -80,6 +83,9 @@ const App = () => (
               <Route path="/incoming-leads/:id" element={<LeadDetail />} />
               <Route path="/commissions" element={<Commissions />} />
               <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/onboarding/admin" element={<AcademyAdmin />} />
+              <Route path="/onboarding/modules/:slug" element={<AcademyModule />} />
+              <Route path="/onboarding/modules/:slug/missions/:missionSlug" element={<AcademyMission />} />
               <Route path="/certifications" element={<Certifications />} />
               <Route path="/tiers" element={<PartnerTiers />} />
               <Route path="/performance" element={<PartnerPerformance />} />

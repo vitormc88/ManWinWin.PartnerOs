@@ -59,7 +59,7 @@ const salesNav = [
 ];
 
 const partnerOpsNav = [
-  { title: "Onboarding", url: "/onboarding", icon: Rocket },
+  { title: "Partner Academy", url: "/onboarding", icon: GraduationCap },
   { title: "Certifications", url: "/certifications", icon: Award },
   { title: "Tiers", url: "/tiers", icon: Shield },
   { title: "Performance", url: "/performance", icon: Zap },

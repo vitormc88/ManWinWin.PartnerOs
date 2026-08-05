@@ -39,7 +39,7 @@ export const MODULE_LABELS: Record<(typeof MODULE_KEYS_LIST)[number], string> = 
   incoming_leads: "Incoming Leads",
   deal_registrations: "Deal Registrations",
   commissions: "Commissions",
-  onboarding: "Onboarding",
+  onboarding: "Partner Academy",
   certifications: "Certifications",
   knowledge_base: "Knowledge Base",
   training: "Training",
