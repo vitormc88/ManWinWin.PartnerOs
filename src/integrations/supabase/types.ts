@@ -227,6 +227,315 @@ export type Database = {
         }
         Relationships: []
       }
+      academy_mission_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          mission_id: string
+          module_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          mission_id: string
+          module_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          mission_id?: string
+          module_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_mission_progress_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "academy_missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academy_mission_progress_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academy_missions: {
+        Row: {
+          content_json: Json | null
+          content_markdown: string | null
+          created_at: string
+          estimated_duration_minutes: number
+          id: string
+          is_locked: boolean
+          is_required: boolean
+          item_kind: string
+          mission_number: number
+          module_id: string
+          short_description: string | null
+          slug: string
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          content_json?: Json | null
+          content_markdown?: string | null
+          created_at?: string
+          estimated_duration_minutes?: number
+          id?: string
+          is_locked?: boolean
+          is_required?: boolean
+          item_kind?: string
+          mission_number?: number
+          module_id: string
+          short_description?: string | null
+          slug: string
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          content_json?: Json | null
+          content_markdown?: string | null
+          created_at?: string
+          estimated_duration_minutes?: number
+          id?: string
+          is_locked?: boolean
+          is_required?: boolean
+          item_kind?: string
+          mission_number?: number
+          module_id?: string
+          short_description?: string | null
+          slug?: string
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_missions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academy_module_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          module_id: string
+          progress_pct: number
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          module_id: string
+          progress_pct?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          module_id?: string
+          progress_pct?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_module_progress_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academy_modules: {
+        Row: {
+          certification_enabled: boolean
+          certification_settings: Json
+          created_at: string
+          estimated_duration_minutes: number
+          full_description: string | null
+          id: string
+          phase_id: string | null
+          short_description: string | null
+          slug: string
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          certification_enabled?: boolean
+          certification_settings?: Json
+          created_at?: string
+          estimated_duration_minutes?: number
+          full_description?: string | null
+          id?: string
+          phase_id?: string | null
+          short_description?: string | null
+          slug: string
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          certification_enabled?: boolean
+          certification_settings?: Json
+          created_at?: string
+          estimated_duration_minutes?: number
+          full_description?: string | null
+          id?: string
+          phase_id?: string | null
+          short_description?: string | null
+          slug?: string
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_modules_phase_id_fkey"
+            columns: ["phase_id"]
+            isOneToOne: false
+            referencedRelation: "academy_phases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academy_phases: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      academy_resources: {
+        Row: {
+          content: string | null
+          created_at: string
+          file_path: string | null
+          id: string
+          is_downloadable: boolean
+          mission_id: string | null
+          module_id: string | null
+          resource_type: string
+          sort_order: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          is_downloadable?: boolean
+          mission_id?: string | null
+          module_id?: string | null
+          resource_type?: string
+          sort_order?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          file_path?: string | null
+          id?: string
+          is_downloadable?: boolean
+          mission_id?: string | null
+          module_id?: string | null
+          resource_type?: string
+          sort_order?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_resources_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "academy_missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academy_resources_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           archived_at: string | null
@@ -4616,6 +4925,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_academy_admin: { Args: never; Returns: boolean }
       is_hq_user: { Args: { _user_id: string }; Returns: boolean }
       is_partner_manager_for_partner: {
         Args: { _partner_id: string; _user_id: string }
