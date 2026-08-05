@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyPermissions } from "@/hooks/useUsers";
+import { useAcademyAnalyticsPerms } from "@/hooks/useAcademyAnalytics";
 import { LogOut, UserCog } from "lucide-react";
 import {
   LayoutDashboard,
@@ -59,6 +60,7 @@ const salesNav = [
 
 const partnerOpsNav = [
   { title: "Partner Academy", url: "/onboarding", icon: GraduationCap },
+  { title: "Learning Analytics", url: "/onboarding/analytics", icon: BarChart3 },
   { title: "Certifications", url: "/certifications", icon: Award },
   { title: "Tiers", url: "/tiers", icon: Shield },
   { title: "Performance", url: "/performance", icon: Zap },
@@ -78,6 +80,7 @@ const communityNav = [
 export function AppSidebar() {
   const { profile, roles, signOut } = useAuth();
   const { data: myPerms } = useMyPermissions();
+  const { data: academyAnalyticsPerms } = useAcademyAnalyticsPerms();
   const { state, toggleSidebar, setOpenMobile, isMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
@@ -85,6 +88,9 @@ export function AppSidebar() {
   const isPartnerUser = profile?.is_hq !== true;
 
   const canSee = (url: string) => {
+    if (url === "/onboarding/analytics") {
+      return isAdmin || academyAnalyticsPerms?.academy_analytics_view === true;
+    }
     if (isAdmin) return true;
     const moduleKey = getRouteModule(url)?.moduleKey;
     if (!moduleKey || !myPerms || myPerms.length === 0) return false;
