@@ -60,6 +60,39 @@ export default function AcademyMission() {
   const [checklist, setChecklist] = useState<ChecklistState>({});
   useEffect(() => setChecklist(savedChecklist), [savedChecklist]);
 
+  // ── Reading position memory (per mission, per browser) ──────────────────
+  const missionId = mission?.id;
+  const [resumedFrom, setResumedFrom] = useState(0);
+  const restoredFor = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!missionId || restoredFor.current === missionId) return;
+    restoredFor.current = missionId;
+    const y = loadReadingPosition(missionId);
+    setResumedFrom(y);
+    if (y > 0) {
+      const t = window.setTimeout(() => window.scrollTo({ top: y, behavior: "auto" }), 120);
+      return () => window.clearTimeout(t);
+    }
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [missionId]);
+
+  useEffect(() => {
+    if (!missionId) return;
+    let frame = 0;
+    const onScroll = () => {
+      window.clearTimeout(frame);
+      frame = window.setTimeout(() => saveReadingPosition(missionId, window.scrollY), 250);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.clearTimeout(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [missionId]);
+
+
+
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading mission…</p>;
   if (!mod) return <p className="text-sm text-muted-foreground">Module not found or not published.</p>;
   if (!mission) return <p className="text-sm text-muted-foreground">Mission not found or not published.</p>;
