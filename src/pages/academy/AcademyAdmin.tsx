@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QuestionBankPanel } from "@/components/academy/QuestionBankPanel";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -139,6 +140,7 @@ export default function AcademyAdmin() {
   const { data: resources = [] } = resourcesQuery;
 
   const [editing, setEditing] = useState<{ table: Table; record: Record<string, any> } | null>(null);
+  const [questionModuleId, setQuestionModuleId] = useState<string>("");
 
   if (isLoading) return <AcademyState kind="loading" />;
   if (!canAdmin("onboarding")) {
@@ -236,6 +238,7 @@ export default function AcademyAdmin() {
           <TabsTrigger value="modules">Modules</TabsTrigger>
           <TabsTrigger value="missions">Missions</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
+          <TabsTrigger value="questions">Questions</TabsTrigger>
         </TabsList>
         <TabsContent value="phases">{section("academy_phases", "Phases", phases, phasesQuery)}</TabsContent>
         <TabsContent value="modules">
@@ -246,6 +249,22 @@ export default function AcademyAdmin() {
         </TabsContent>
         <TabsContent value="resources">
           {section("academy_resources", "Resources", resources as any[], resourcesQuery, (r: any) => r.resource_type)}
+        </TabsContent>
+        <TabsContent value="questions" className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Module</span>
+            <Select value={questionModuleId} onValueChange={setQuestionModuleId}>
+              <SelectTrigger className="w-72">
+                <SelectValue placeholder="Select a module" />
+              </SelectTrigger>
+              <SelectContent>
+                {modules.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>{m.title}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <QuestionBankPanel moduleId={questionModuleId || undefined} />
         </TabsContent>
       </Tabs>
 
