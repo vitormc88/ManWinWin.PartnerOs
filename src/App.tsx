@@ -85,19 +85,22 @@ const App = () => (
               <Route path="/incoming-leads" element={<IncomingLeads />} />
               <Route path="/incoming-leads/:id" element={<LeadDetail />} />
               <Route path="/commissions" element={<Commissions />} />
-              <Route path="/onboarding" element={<Onboarding />} />
-              <Route path="/onboarding/admin" element={<AcademyAdmin />} />
-              <Route path="/onboarding/analytics" element={<AcademyAnalytics />} />
-              <Route path="/onboarding/modules/:slug" element={<AcademyModule />} />
-              <Route path="/onboarding/modules/:slug/missions/:missionSlug" element={<AcademyMission />} />
+              <Route path="/academy" element={<AcademyHome />} />
+              <Route path="/academy/admin" element={<AcademyAdmin />} />
+              <Route path="/academy/analytics" element={<AcademyAnalytics />} />
+              <Route path="/academy/modules/:slug" element={<AcademyModule />} />
+              <Route path="/academy/modules/:slug/missions/:missionSlug" element={<AcademyMission />} />
               <Route
-                path="/onboarding/modules/:slug/certification/attempt/:attemptId"
+                path="/academy/modules/:slug/certification/attempt/:attemptId"
                 element={<AcademyCertificationExam />}
               />
               <Route
-                path="/onboarding/modules/:slug/certification/result/:attemptId"
+                path="/academy/modules/:slug/certification/result/:attemptId"
                 element={<AcademyCertificationResult />}
               />
+              {/* Legacy Onboarding URLs -> Partner Academy */}
+              <Route path="/onboarding/*" element={<LegacyOnboardingRedirect />} />
+              <Route path="/onboarding" element={<LegacyOnboardingRedirect />} />
               <Route path="/certifications" element={<Certifications />} />
               <Route path="/tiers" element={<PartnerTiers />} />
               <Route path="/performance" element={<PartnerPerformance />} />
