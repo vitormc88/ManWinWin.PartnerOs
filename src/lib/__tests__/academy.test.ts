@@ -260,8 +260,100 @@ describe("reading position memory", () => {
     expect(loadReadingPosition("m1")).toBe(0);
   });
 
-  it("namespaces draft keys per record", () => {
-    expect(draftKey("academy_missions", "abc")).toBe("academy:draft:academy_missions:abc");
-    expect(draftKey("academy_missions", undefined)).toBe("academy:draft:academy_missions:new");
+  it("namespaces draft keys per user and record", () => {
+    expect(draftKey("academy_missions", "abc", "u1")).toBe("academy:draft:u1:academy_missions:abc");
+    expect(draftKey("academy_missions", undefined)).toBe("academy:draft:anon:academy_missions:new");
   });
 });
+
+describe("draft staleness", () => {
+  it("flags drafts branched from an older server revision", () => {
+    expect(isDraftStale("2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z")).toBe(true);
+    expect(isDraftStale("2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z")).toBe(false);
+    expect(isDraftStale(null, "2026-01-01T00:00:00Z")).toBe(true);
+    expect(isDraftStale(null, null)).toBe(false);
+  });
+});
+
+describe("safe URLs and uploads", () => {
+  it("accepts only http(s) external URLs", () => {
+    expect(isSafeExternalUrl("https://example.com/a.pdf")).toBe(true);
+    expect(isSafeExternalUrl("http://example.com")).toBe(true);
+    expect(isSafeExternalUrl("javascript:alert(1)")).toBe(false);
+    expect(isSafeExternalUrl("/local/path.pdf")).toBe(false);
+    expect(isSafeExternalUrl("")).toBe(false);
+  });
+
+  it("validates uploads by extension and size", () => {
+    expect(validateAcademyUpload({ name: "guide.pdf", size: 1024 })).toBeNull();
+    expect(validateAcademyUpload({ name: "hack.exe", size: 10 })).toContain("Unsupported");
+    expect(validateAcademyUpload({ name: "big.pdf", size: 200 * 1024 * 1024 })).toContain("larger");
+    expect(validateAcademyUpload({ name: "noext", size: 10 })).toContain("extension");
+  });
+
+  it("builds private, prefixed object paths", () => {
+    const path = academyObjectPath("Partner Guide v2.PDF");
+    expect(path.startsWith("academy/partner-guide-v2-")).toBe(true);
+    expect(path.endsWith(".pdf")).toBe(true);
+  });
+});
+
+describe("publication validation and deletion safety", () => {
+  it("blocks publishing missions with missing essentials", () => {
+    const issues = validatePublication("academy_missions", {
+      title: "",
+      slug: "Bad Slug",
+      module_id: "",
+      content_markdown: "",
+    });
+    expect(issues).toContain("Title is required.");
+    expect(issues).toContain("Slug must be lowercase words separated by hyphens.");
+    expect(issues).toContain("A parent module is required.");
+    expect(issues).toContain("Mission content cannot be empty when publishing.");
+  });
+
+  it("rejects duplicate slugs and unpublished parents", () => {
+    const issues = validatePublication(
+      "academy_missions",
+      { title: "T", slug: "intro", module_id: "m", content_markdown: "x" },
+      { siblingSlugs: ["intro"], parentStatus: "draft" }
+    );
+    expect(issues).toContain("Slug is already used.");
+    expect(issues.some((i) => i.includes("publish it first"))).toBe(true);
+  });
+
+  it("requires a usable source for resources", () => {
+    expect(
+      validatePublication("academy_resources", {
+        title: "Doc",
+        module_id: "m",
+        resource_type: "pdf",
+      })
+    ).toContain("Add a file, an external URL or inline content.");
+
+    expect(
+      validatePublication("academy_resources", {
+        title: "Doc",
+        module_id: "m",
+        resource_type: "pdf",
+        file_path: "academy/doc.pdf",
+      })
+    ).toEqual([]);
+
+    expect(
+      validatePublication("academy_resources", {
+        title: "Link",
+        module_id: "m",
+        resource_type: "link",
+        external_url: "javascript:alert(1)",
+      }).some((i) => i.includes("http(s)"))
+    ).toBe(true);
+  });
+
+  it("only allows hard deletion of non-published records", () => {
+    expect(canHardDelete("published")).toBe(false);
+    expect(canHardDelete("draft")).toBe(true);
+    expect(canHardDelete("archived")).toBe(true);
+  });
+});
+
