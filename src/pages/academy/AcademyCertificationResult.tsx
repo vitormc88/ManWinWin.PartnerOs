@@ -41,7 +41,7 @@ export default function AcademyCertificationResult() {
     <div className="max-w-3xl mx-auto space-y-5">
       <AcademyBreadcrumbs
         items={[
-          { label: "Partner Academy", to: "/onboarding" },
+          { label: "Partner Academy", to: "/academy" },
           ...(current ? [{ label: current.title }] : []),
           { label: "Certification result" },
         ]}
@@ -127,7 +127,7 @@ export default function AcademyCertificationResult() {
               {r.weak_areas.map((m) => (
                 <li key={m.mission_id}>
                   <Link
-                    to={`/onboarding/modules/${current?.slug}/missions/${m.slug}`}
+                    to={`/academy/modules/${current?.slug}/missions/${m.slug}`}
                     className="text-sm text-primary hover:underline"
                   >
                     {m.title}
@@ -145,20 +145,20 @@ export default function AcademyCertificationResult() {
       )}
 
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={() => navigate(`/onboarding/modules/${slug}`)}>
+        <Button variant="outline" onClick={() => navigate(`/academy/modules/${slug}`)}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           {passed ? "Review Module" : "Return to Module"}
         </Button>
         {!passed && r.weak_areas[0] && (
           <Button asChild>
-            <Link to={`/onboarding/modules/${current?.slug}/missions/${r.weak_areas[0].slug}`}>
+            <Link to={`/academy/modules/${current?.slug}/missions/${r.weak_areas[0].slug}`}>
               Review Weak Areas
             </Link>
           </Button>
         )}
         {passed && nextModule && (
           <Button asChild>
-            <Link to={`/onboarding/modules/${nextModule.slug}`}>Continue to Next Module</Link>
+            <Link to={`/academy/modules/${nextModule.slug}`}>Continue to Next Module</Link>
           </Button>
         )}
       </div>

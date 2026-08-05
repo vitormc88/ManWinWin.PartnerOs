@@ -135,9 +135,9 @@ export default function AcademyMission() {
       <div className="max-w-3xl mx-auto space-y-4">
         <AcademyBreadcrumbs
           items={[
-            { label: "Partner Academy", to: "/onboarding" },
+            { label: "Partner Academy", to: "/academy" },
             ...(phase ? [{ label: phase.title }] : []),
-            { label: mod.title, to: `/onboarding/modules/${mod.slug}` },
+            { label: mod.title, to: `/academy/modules/${mod.slug}` },
             { label: mission.title },
           ]}
         />
@@ -148,7 +148,7 @@ export default function AcademyMission() {
           </p>
           {prev && (
             <Button size="sm" asChild>
-              <Link to={`/onboarding/modules/${mod.slug}/missions/${prev.slug}`}>Go to previous mission</Link>
+              <Link to={`/academy/modules/${mod.slug}/missions/${prev.slug}`}>Go to previous mission</Link>
             </Button>
           )}
         </div>
@@ -160,9 +160,9 @@ export default function AcademyMission() {
     <div className="max-w-3xl mx-auto space-y-6">
       <AcademyBreadcrumbs
         items={[
-          { label: "Partner Academy", to: "/onboarding" },
+          { label: "Partner Academy", to: "/academy" },
           ...(phase ? [{ label: phase.title }] : []),
-          { label: mod.title, to: `/onboarding/modules/${mod.slug}` },
+          { label: mod.title, to: `/academy/modules/${mod.slug}` },
           { label: mission.title },
         ]}
       />
@@ -240,7 +240,7 @@ export default function AcademyMission() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         {prev ? (
           <Button variant="outline" size="sm" asChild>
-            <Link to={`/onboarding/modules/${mod.slug}/missions/${prev.slug}`}>
+            <Link to={`/academy/modules/${mod.slug}/missions/${prev.slug}`}>
               <ArrowLeft className="h-4 w-4 mr-1" />Previous
             </Link>
           </Button>
@@ -263,13 +263,13 @@ export default function AcademyMission() {
 
         {nextItem ? (
           <Button variant="outline" size="sm" asChild disabled={!nextUnlocked}>
-            <Link to={`/onboarding/modules/${mod.slug}/missions/${nextItem.slug}`}>
+            <Link to={`/academy/modules/${mod.slug}/missions/${nextItem.slug}`}>
               Next<ArrowRight className="h-4 w-4 ml-1" />
             </Link>
           </Button>
         ) : (
           <Button variant="outline" size="sm" asChild>
-            <Link to={`/onboarding/modules/${mod.slug}`}>
+            <Link to={`/academy/modules/${mod.slug}`}>
               Back to module<ArrowRight className="h-4 w-4 ml-1" />
             </Link>
           </Button>

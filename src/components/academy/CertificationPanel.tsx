@@ -58,12 +58,12 @@ export function CertificationPanel({
   const onClick = () => {
     if (e.state === "passed") {
       navigate(
-        `/onboarding/modules/${moduleSlug}/certification/result/${e.certification?.attempt_id ?? e.last_attempt_id}`
+        `/academy/modules/${moduleSlug}/certification/result/${e.certification?.attempt_id ?? e.last_attempt_id}`
       );
       return;
     }
     if (e.state === "resume" && e.active_attempt_id) {
-      navigate(`/onboarding/modules/${moduleSlug}/certification/attempt/${e.active_attempt_id}`);
+      navigate(`/academy/modules/${moduleSlug}/certification/attempt/${e.active_attempt_id}`);
       return;
     }
     setConfirmOpen(true);
@@ -72,7 +72,7 @@ export function CertificationPanel({
   const beginAttempt = () => {
     start.mutate(moduleId, {
       onSuccess: (attemptId) =>
-        navigate(`/onboarding/modules/${moduleSlug}/certification/attempt/${attemptId}`),
+        navigate(`/academy/modules/${moduleSlug}/certification/attempt/${attemptId}`),
     });
   };
 
@@ -140,7 +140,7 @@ export function CertificationPanel({
           size="sm"
           className="w-full"
           onClick={() =>
-            navigate(`/onboarding/modules/${moduleSlug}/certification/result/${e.last_attempt_id}`)
+            navigate(`/academy/modules/${moduleSlug}/certification/result/${e.last_attempt_id}`)
           }
         >
           View last result

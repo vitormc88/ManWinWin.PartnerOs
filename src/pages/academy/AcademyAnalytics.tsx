@@ -102,7 +102,7 @@ export default function AcademyAnalytics() {
     <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <Button variant="ghost" size="sm" className="-ml-2 mb-1" onClick={() => navigate("/onboarding")}>
+            <Button variant="ghost" size="sm" className="-ml-2 mb-1" onClick={() => navigate("/academy")}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Partner Academy
             </Button>
             <h1 className="text-2xl font-semibold text-foreground">Learning Analytics</h1>

@@ -63,7 +63,7 @@ export default function AcademyModule() {
     <div className="max-w-4xl mx-auto space-y-6">
       <AcademyBreadcrumbs
         items={[
-          { label: "Partner Academy", to: "/onboarding" },
+          { label: "Partner Academy", to: "/academy" },
           ...(phase ? [{ label: phase.title }] : []),
           { label: mod.title },
         ]}
@@ -110,7 +110,7 @@ export default function AcademyModule() {
             <Progress value={pct} className="h-2 flex-1" />
             {next && (
               <Button asChild size="sm">
-                <Link to={`/onboarding/modules/${mod.slug}/missions/${next.slug}`}>
+                <Link to={`/academy/modules/${mod.slug}/missions/${next.slug}`}>
                   {pct === 0 ? "Start Module" : actionLabel(pct)}
                 </Link>
               </Button>
@@ -152,7 +152,7 @@ export default function AcademyModule() {
           ) : (
             <Link
               key={m.id}
-              to={`/onboarding/modules/${mod.slug}/missions/${m.slug}`}
+              to={`/academy/modules/${mod.slug}/missions/${m.slug}`}
               className="block hover:bg-secondary/30 transition-colors"
             >
               {row}
