@@ -340,29 +340,55 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
   const remove = (index: number) =>
     onChange(joinContentSegments(segments.filter((_, i) => i !== index)));
 
+  const toolbar = (
+    <div className="flex flex-wrap gap-1.5">
+      {BLOCK_SNIPPETS.map((b) => (
+        <Button key={b.id} type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => insert(b.snippet)}>
+          <Plus className="h-3 w-3 mr-1" />{b.label}
+        </Button>
+      ))}
+    </div>
+  );
+
+  const editor = (rows: number) => (
+    <Textarea
+      rows={rows}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Paste Markdown here. Callouts: :::partner-insight … :::"
+      className="font-mono text-xs h-full min-h-[320px] resize-y"
+    />
+  );
+
+  const preview = (
+    <div className="rounded-lg border bg-card p-4 overflow-y-auto max-h-[60vh]">
+      <MissionContent markdown={value} readOnlyChecklist />
+    </div>
+  );
+
   return (
-    <Tabs defaultValue="edit" className="space-y-3">
+    <Tabs defaultValue="split" className="space-y-3">
       <TabsList>
         <TabsTrigger value="edit">Edit</TabsTrigger>
-        <TabsTrigger value="blocks">Blocks</TabsTrigger>
+        <TabsTrigger value="split">Split</TabsTrigger>
         <TabsTrigger value="preview">Preview</TabsTrigger>
+        <TabsTrigger value="blocks">Blocks</TabsTrigger>
       </TabsList>
 
       <TabsContent value="edit" className="space-y-3">
-        <div className="flex flex-wrap gap-1.5">
-          {BLOCK_SNIPPETS.map((b) => (
-            <Button key={b.id} type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => insert(b.snippet)}>
-              <Plus className="h-3 w-3 mr-1" />{b.label}
-            </Button>
-          ))}
-        </div>
-        <Textarea
-          rows={16}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="font-mono text-xs"
-        />
+        {toolbar}
+        {editor(20)}
       </TabsContent>
+
+      <TabsContent value="split" className="space-y-3">
+        {toolbar}
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="min-w-0">{editor(20)}</div>
+          <div className="min-w-0">{preview}</div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="preview">{preview}</TabsContent>
 
       <TabsContent value="blocks" className="space-y-2">
         {segments.length === 0 && <p className="text-sm text-muted-foreground">No content blocks yet.</p>}
@@ -390,12 +416,7 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
           </div>
         ))}
       </TabsContent>
-
-      <TabsContent value="preview">
-        <div className="rounded-lg border bg-card p-4">
-          <MissionContent markdown={value} readOnlyChecklist />
-        </div>
-      </TabsContent>
     </Tabs>
   );
 }
+
