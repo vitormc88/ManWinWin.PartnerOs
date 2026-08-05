@@ -42,7 +42,14 @@ import {
 } from "@/components/ui/sidebar";
 import { getRouteModule, hasModuleAccess } from "@/lib/module-access";
 
-const mainNav = [
+type NavItem = {
+  title: string;
+  url: string;
+  icon: typeof LayoutDashboard;
+  children?: Array<{ title: string; url: string; icon: typeof LayoutDashboard }>;
+};
+
+const mainNav: NavItem[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Partner Management", url: "/partners", icon: Users },
@@ -59,8 +66,12 @@ const salesNav = [
 ];
 
 const partnerOpsNav = [
-  { title: "Partner Academy", url: "/onboarding", icon: GraduationCap },
-  { title: "Learning Analytics", url: "/onboarding/analytics", icon: BarChart3 },
+  {
+    title: "Partner Academy",
+    url: "/academy",
+    icon: GraduationCap,
+    children: [{ title: "Learning Analytics", url: "/academy/analytics", icon: BarChart3 }],
+  },
   { title: "Certifications", url: "/certifications", icon: Award },
   { title: "Tiers", url: "/tiers", icon: Shield },
   { title: "Performance", url: "/performance", icon: Zap },
@@ -88,7 +99,7 @@ export function AppSidebar() {
   const isPartnerUser = profile?.is_hq !== true;
 
   const canSee = (url: string) => {
-    if (url === "/onboarding/analytics") {
+    if (url === "/academy/analytics") {
       return isAdmin || academyAnalyticsPerms?.academy_analytics_view === true;
     }
     if (isAdmin) return true;
@@ -106,7 +117,7 @@ export function AppSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, isMobile]);
 
-  const renderGroup = (label: string, items: typeof mainNav) => {
+  const renderGroup = (label: string, items: NavItem[]) => {
     const visible = items.filter(item => canSee(item.url));
     if (visible.length === 0) return null;
     return (
@@ -118,21 +129,37 @@ export function AppSidebar() {
         )}
         <SidebarGroupContent>
           <SidebarMenu>
-            {visible.map((item) => (
-              <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                  <NavLink
-                    to={item.url}
-                    end={item.url === "/"}
-                    className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
-                    activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                  >
-                    <item.icon className="h-[18px] w-[18px] shrink-0" />
-                    {!collapsed && <span>{item.title}</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {visible.map((item) => {
+              const childItems = (item.children ?? []).filter((child) => canSee(child.url));
+              return (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink
+                      to={item.url}
+                      end={item.url === "/" || childItems.length > 0}
+                      className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                    >
+                      <item.icon className="h-[18px] w-[18px] shrink-0" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                  {!collapsed &&
+                    childItems.map((child) => (
+                      <SidebarMenuButton key={child.url} asChild isActive={isActive(child.url)}>
+                        <NavLink
+                          to={child.url}
+                          className="ml-6 flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                          activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                        >
+                          <child.icon className="h-4 w-4 shrink-0" />
+                          <span>{child.title}</span>
+                        </NavLink>
+                      </SidebarMenuButton>
+                    ))}
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarGroupContent>
       </SidebarGroup>

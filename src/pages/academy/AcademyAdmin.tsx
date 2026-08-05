@@ -226,14 +226,14 @@ export default function AcademyAdmin() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <AcademyBreadcrumbs items={[{ label: "Partner Academy", to: "/onboarding" }, { label: "Content" }]} />
-      <Link to="/onboarding" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <AcademyBreadcrumbs items={[{ label: "Partner Academy", to: "/academy" }, { label: "Content" }]} />
+      <Link to="/academy" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to Academy
       </Link>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Academy content</h1>
         <Link
-          to="/onboarding/analytics"
+          to="/academy/analytics"
           className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
         >
           Learning analytics

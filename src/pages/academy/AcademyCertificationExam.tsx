@@ -80,7 +80,7 @@ export default function AcademyCertificationExam() {
     if (remaining !== 0) return;
     autoSubmitted.current = true;
     submit.mutate(attemptId, {
-      onSettled: () => navigate(`/onboarding/modules/${slug}/certification/result/${attemptId}`),
+      onSettled: () => navigate(`/academy/modules/${slug}/certification/result/${attemptId}`),
     });
   }, [remaining, data?.status, attemptId, slug, navigate, submit]);
 
@@ -98,7 +98,7 @@ export default function AcademyCertificationExam() {
         />
         <Button
           className="mt-4 w-full"
-          onClick={() => navigate(`/onboarding/modules/${slug}/certification/result/${attemptId}`)}
+          onClick={() => navigate(`/academy/modules/${slug}/certification/result/${attemptId}`)}
         >
           View result
         </Button>
@@ -127,7 +127,7 @@ export default function AcademyCertificationExam() {
   const doSubmit = () => {
     if (!attemptId) return;
     submit.mutate(attemptId, {
-      onSettled: () => navigate(`/onboarding/modules/${slug}/certification/result/${attemptId}`),
+      onSettled: () => navigate(`/academy/modules/${slug}/certification/result/${attemptId}`),
     });
   };
 
