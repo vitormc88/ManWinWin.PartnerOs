@@ -200,22 +200,43 @@ export function useToggleChecklistItem() {
 
 // ── Admin content management ─────────────────────────────────────────────
 type Tables = Database["public"]["Tables"];
-export type AcademyRecordInput =
-  | ({ id?: string } & Partial<Tables["academy_phases"]["Insert"]>)
-  | ({ id?: string } & Partial<Tables["academy_modules"]["Insert"]>)
-  | ({ id?: string } & Partial<Tables["academy_missions"]["Insert"]>)
-  | ({ id?: string } & Partial<Tables["academy_resources"]["Insert"]>);
+export type AcademyRecordInput = ({
+  id?: string;
+  /** Server revision the editor branched from (optimistic concurrency). */
+  _expectedUpdatedAt?: string | null;
+} & Partial<
+  | Tables["academy_phases"]["Insert"]
+  | Tables["academy_modules"]["Insert"]
+  | Tables["academy_missions"]["Insert"]
+  | Tables["academy_resources"]["Insert"]
+>);
 
+export const ACADEMY_CONFLICT_MESSAGE =
+  "This record changed on the server after you opened it. Your changes were not saved — refresh and reapply them.";
+
+export function isAcademyConflict(error: unknown): boolean {
+  return /ACADEMY_CONFLICT/i.test((error as { message?: string } | null)?.message ?? "");
+}
+
+/**
+ * Inserts go through PostgREST; updates go through an admin-only
+ * compare-and-update RPC so a concurrent edit can never be silently overwritten.
+ */
 export function useSaveAcademyRecord(table: AcademyTable) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (record: AcademyRecordInput) => {
-      const { id, ...rest } = record as { id?: string } & Record<string, unknown>;
+      const { id, _expectedUpdatedAt, ...rest } = record as {
+        id?: string;
+        _expectedUpdatedAt?: string | null;
+      } & Record<string, unknown>;
       if (id) {
-        const { error } = await supabase
-          .from(table)
-          .update(rest as never)
-          .eq("id", id);
+        const { error } = await supabase.rpc("academy_update_record", {
+          _entity: table,
+          _id: id,
+          _patch: rest as never,
+          _expected_updated_at: _expectedUpdatedAt ?? null,
+        });
         if (error) throw error;
       } else {
         const { error } = await supabase.from(table).insert(rest as never);
@@ -226,7 +247,12 @@ export function useSaveAcademyRecord(table: AcademyTable) {
       qc.invalidateQueries({ queryKey: ["academy"] });
       toast.success("Saved");
     },
-    onError: (e) => toast.error(academyErrorMessage(e, "Could not save")),
+    onError: (e) => {
+      qc.invalidateQueries({ queryKey: ["academy"] });
+      toast.error(
+        isAcademyConflict(e) ? ACADEMY_CONFLICT_MESSAGE : academyErrorMessage(e, "Could not save")
+      );
+    },
   });
 }
 
