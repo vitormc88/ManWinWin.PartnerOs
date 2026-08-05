@@ -150,6 +150,7 @@ export const CALLOUT_KINDS = [
   "warning-sign",
   "real-example",
   "partneros-action",
+  "key-takeaways",
 ] as const;
 
 export type CalloutKind = (typeof CALLOUT_KINDS)[number];
@@ -160,7 +161,9 @@ export const CALLOUT_LABELS: Record<CalloutKind, string> = {
   "warning-sign": "Warning Sign",
   "real-example": "Real Example",
   "partneros-action": "PartnerOS Action",
+  "key-takeaways": "Key Takeaways",
 };
+
 
 export type ContentBlock =
   | { type: "text"; text: string }
