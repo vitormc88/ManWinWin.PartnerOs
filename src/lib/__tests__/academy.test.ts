@@ -26,6 +26,13 @@ import {
   loadReadingPosition,
   clearReadingPosition,
   draftKey,
+  isDraftStale,
+  isSafeExternalUrl,
+  validateAcademyUpload,
+  academyObjectPath,
+  validatePublication,
+  canHardDelete,
+
   type AcademyMission,
   type RichBlock,
 } from "@/lib/academy";
