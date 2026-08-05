@@ -5109,6 +5109,15 @@ export type Database = {
           out_status: string
         }[]
       }
+      academy_import_records: {
+        Args: {
+          _entity: string
+          _mode?: string
+          _module_id: string
+          _rows: Json
+        }
+        Returns: Json
+      }
       academy_module_progress_pct: {
         Args: { _module_id: string; _user_id: string }
         Returns: number
