@@ -6,7 +6,7 @@ import type { Database } from "@/integrations/supabase/types";
 import {
   ACADEMY_STORAGE_BUCKET,
   academyObjectPath,
-  validateAcademyUpload,
+  isDeletableAcademyObjectPath,
   type AcademyMission,
   type AcademyModule,
   type AcademyPhase,
