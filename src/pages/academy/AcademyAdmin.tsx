@@ -230,7 +230,15 @@ export default function AcademyAdmin() {
       <Link to="/onboarding" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back to Academy
       </Link>
-      <h1 className="text-2xl font-bold text-foreground tracking-tight">Academy content</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight">Academy content</h1>
+        <Link
+          to="/onboarding/analytics"
+          className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-foreground hover:bg-muted"
+        >
+          Learning analytics
+        </Link>
+      </div>
 
       <Tabs defaultValue="phases" className="space-y-4">
         <TabsList>

@@ -28,6 +28,7 @@ import Onboarding from "@/pages/Onboarding";
 import AcademyModule from "@/pages/academy/AcademyModule";
 import AcademyMission from "@/pages/academy/AcademyMission";
 import AcademyAdmin from "@/pages/academy/AcademyAdmin";
+import AcademyAnalytics from "@/pages/academy/AcademyAnalytics";
 import AcademyCertificationExam from "@/pages/academy/AcademyCertificationExam";
 import AcademyCertificationResult from "@/pages/academy/AcademyCertificationResult";
 import Certifications from "@/pages/Certifications";
@@ -86,6 +87,7 @@ const App = () => (
               <Route path="/commissions" element={<Commissions />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/onboarding/admin" element={<AcademyAdmin />} />
+              <Route path="/onboarding/analytics" element={<AcademyAnalytics />} />
               <Route path="/onboarding/modules/:slug" element={<AcademyModule />} />
               <Route path="/onboarding/modules/:slug/missions/:missionSlug" element={<AcademyMission />} />
               <Route
