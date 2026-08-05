@@ -417,3 +417,65 @@ export function isMissionUnlocked(
   if (idx <= 0) return true;
   return completedMissionIds.has(ordered[idx - 1].id);
 }
+
+// ── Authoring helpers (admin content editor) ─────────────────────────────
+/**
+ * Splits raw markdown into editable segments: each `:::fence:::` block stays
+ * whole, plain markdown is split on blank lines. Round-trips losslessly
+ * (modulo blank-line normalisation) so segments can be reordered safely.
+ */
+export function splitContentSegments(markdown: string | null | undefined): string[] {
+  if (!markdown || !markdown.trim()) return [];
+  const segments: string[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  FENCE.lastIndex = 0;
+
+  const pushPlain = (chunk: string) => {
+    chunk
+      .split(/\n\s*\n/)
+      .map((c) => c.trim())
+      .filter(Boolean)
+      .forEach((c) => segments.push(c));
+  };
+
+  while ((match = FENCE.exec(markdown)) !== null) {
+    pushPlain(markdown.slice(lastIndex, match.index));
+    segments.push(match[0].trim());
+    lastIndex = FENCE.lastIndex;
+  }
+  pushPlain(markdown.slice(lastIndex));
+  return segments;
+}
+
+export function joinContentSegments(segments: string[]): string {
+  return segments.filter((s) => s.trim()).join("\n\n");
+}
+
+export function moveSegment(segments: string[], index: number, direction: -1 | 1): string[] {
+  const target = index + direction;
+  if (index < 0 || index >= segments.length || target < 0 || target >= segments.length) {
+    return segments;
+  }
+  const next = [...segments];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
+/** Insertable block snippets available in the admin editor. */
+export const BLOCK_SNIPPETS: Array<{ id: string; label: string; snippet: string }> = [
+  { id: "heading", label: "Heading", snippet: "## Heading" },
+  { id: "paragraph", label: "Paragraph", snippet: "Write your paragraph here." },
+  { id: "bullets", label: "Bullet List", snippet: "- First item\n- Second item" },
+  { id: "numbered", label: "Numbered List", snippet: "1. First step\n2. Second step" },
+  { id: "quote", label: "Quote", snippet: "> Quoted text" },
+  { id: "table", label: "Table", snippet: "| Column A | Column B |\n| --- | --- |\n| Value | Value |" },
+  { id: "divider", label: "Divider", snippet: "---" },
+  { id: "partner-insight", label: "Partner Insight", snippet: ":::partner-insight\nInsight text\n:::" },
+  { id: "best-practice", label: "Best Practice", snippet: ":::best-practice\nBest practice text\n:::" },
+  { id: "warning-sign", label: "Warning Sign", snippet: ":::warning-sign\nWarning text\n:::" },
+  { id: "real-example", label: "Real Example", snippet: ":::real-example\nExample text\n:::" },
+  { id: "partneros-action", label: "PartnerOS Action", snippet: ":::partneros-action\nAction to take in PartnerOS\n:::" },
+  { id: "key-takeaways", label: "Key Takeaways", snippet: ":::key-takeaways\n- Takeaway one\n- Takeaway two\n:::" },
+  { id: "checklist", label: "Checklist", snippet: ":::checklist\n- First check\n- Second check\n:::" },
+];
