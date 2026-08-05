@@ -227,6 +227,176 @@ export type Database = {
         }
         Relationships: []
       }
+      academy_attempt_answers: {
+        Row: {
+          answered_at: string
+          attempt_id: string
+          awarded_score: number
+          id: string
+          is_correct: boolean | null
+          question_id: string
+          selected_answer_json: Json | null
+        }
+        Insert: {
+          answered_at?: string
+          attempt_id: string
+          awarded_score?: number
+          id?: string
+          is_correct?: boolean | null
+          question_id: string
+          selected_answer_json?: Json | null
+        }
+        Update: {
+          answered_at?: string
+          attempt_id?: string
+          awarded_score?: number
+          id?: string
+          is_correct?: boolean | null
+          question_id?: string
+          selected_answer_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_attempt_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "academy_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academy_attempt_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "academy_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academy_attempts: {
+        Row: {
+          attempt_number: number
+          category_scores_json: Json
+          created_at: string
+          expires_at: string
+          generated_question_ids: string[]
+          id: string
+          module_id: string
+          next_attempt_at: string | null
+          passed: boolean
+          raw_score: number
+          scenario_score: number
+          started_at: string
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+          weighted_score: number
+        }
+        Insert: {
+          attempt_number: number
+          category_scores_json?: Json
+          created_at?: string
+          expires_at: string
+          generated_question_ids?: string[]
+          id?: string
+          module_id: string
+          next_attempt_at?: string | null
+          passed?: boolean
+          raw_score?: number
+          scenario_score?: number
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+          weighted_score?: number
+        }
+        Update: {
+          attempt_number?: number
+          category_scores_json?: Json
+          created_at?: string
+          expires_at?: string
+          generated_question_ids?: string[]
+          id?: string
+          module_id?: string
+          next_attempt_at?: string | null
+          passed?: boolean
+          raw_score?: number
+          scenario_score?: number
+          started_at?: string
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+          weighted_score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_attempts_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academy_certifications: {
+        Row: {
+          attempt_id: string | null
+          certificate_reference: string
+          created_at: string
+          id: string
+          issued_at: string
+          module_id: string
+          module_version: number
+          scenario_score: number
+          score: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          attempt_id?: string | null
+          certificate_reference: string
+          created_at?: string
+          id?: string
+          issued_at?: string
+          module_id: string
+          module_version?: number
+          scenario_score: number
+          score: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string | null
+          certificate_reference?: string
+          created_at?: string
+          id?: string
+          issued_at?: string
+          module_id?: string
+          module_version?: number
+          scenario_score?: number
+          score?: number
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_certifications_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "academy_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academy_certifications_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academy_mission_progress: {
         Row: {
           checklist_state: Json
@@ -481,6 +651,90 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      academy_questions: {
+        Row: {
+          category: string
+          correct_answer_json: Json
+          created_at: string
+          difficulty: string
+          explanation: string | null
+          id: string
+          is_mandatory: boolean
+          mission_id: string | null
+          module_id: string
+          options_json: Json
+          question_code: string
+          question_text: string
+          question_type: string
+          scenario_group: string | null
+          scenario_text: string | null
+          status: string
+          tags_json: Json
+          updated_at: string
+          version: number
+          weight: number
+        }
+        Insert: {
+          category: string
+          correct_answer_json: Json
+          created_at?: string
+          difficulty: string
+          explanation?: string | null
+          id?: string
+          is_mandatory?: boolean
+          mission_id?: string | null
+          module_id: string
+          options_json?: Json
+          question_code: string
+          question_text: string
+          question_type: string
+          scenario_group?: string | null
+          scenario_text?: string | null
+          status?: string
+          tags_json?: Json
+          updated_at?: string
+          version?: number
+          weight?: number
+        }
+        Update: {
+          category?: string
+          correct_answer_json?: Json
+          created_at?: string
+          difficulty?: string
+          explanation?: string | null
+          id?: string
+          is_mandatory?: boolean
+          mission_id?: string | null
+          module_id?: string
+          options_json?: Json
+          question_code?: string
+          question_text?: string
+          question_type?: string
+          scenario_group?: string | null
+          scenario_text?: string | null
+          status?: string
+          tags_json?: Json
+          updated_at?: string
+          version?: number
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_questions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "academy_missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academy_questions_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       academy_resources: {
         Row: {
@@ -4828,6 +5082,24 @@ export type Database = {
       }
     }
     Functions: {
+      academy_answer_is_correct: {
+        Args: { _correct: Json; _given: Json; _type: string }
+        Returns: boolean
+      }
+      academy_cert_answer: {
+        Args: { _answer: Json; _attempt_id: string; _question_id: string }
+        Returns: undefined
+      }
+      academy_cert_blueprint_ok: { Args: { _ids: string[] }; Returns: boolean }
+      academy_cert_eligibility: { Args: { _module_id: string }; Returns: Json }
+      academy_cert_result: { Args: { _attempt_id: string }; Returns: Json }
+      academy_cert_select_questions: {
+        Args: { _module_id: string; _prev: string[] }
+        Returns: string[]
+      }
+      academy_cert_start: { Args: { _module_id: string }; Returns: string }
+      academy_cert_state: { Args: { _attempt_id: string }; Returns: Json }
+      academy_cert_submit: { Args: { _attempt_id: string }; Returns: Json }
       academy_complete_mission: {
         Args: { _completed: boolean; _mission_id: string }
         Returns: {

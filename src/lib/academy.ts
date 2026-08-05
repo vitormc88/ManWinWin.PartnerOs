@@ -440,6 +440,11 @@ export function isMissionUnlocked(
   mission: AcademyMission,
   completedMissionIds: Set<string>
 ): boolean {
+  // Certification is gated by the whole learning path, not by the immediately
+  // preceding item — optional resources (e.g. a checklist) must never block it.
+  if (mission.item_kind === "certification") {
+    return isReadyForCertification(missions, completedMissionIds);
+  }
   if (!mission.is_locked) return true;
   const ordered = [...missions]
     .filter((m) => m.status === "published")
@@ -447,6 +452,29 @@ export function isMissionUnlocked(
   const idx = ordered.findIndex((m) => m.id === mission.id);
   if (idx <= 0) return true;
   return completedMissionIds.has(ordered[idx - 1].id);
+}
+
+/** Item kinds that must be completed before the module certification opens. */
+export const REQUIRED_LEARNING_KINDS: MissionItemKind[] = [
+  "intro",
+  "mission",
+  "exercise",
+  "summary",
+];
+
+/** Mirrors the server-side certification eligibility rule. */
+export function requiredLearningItems(missions: AcademyMission[]): AcademyMission[] {
+  return missions.filter(
+    (m) => m.status === "published" && REQUIRED_LEARNING_KINDS.includes(m.item_kind)
+  );
+}
+
+export function isReadyForCertification(
+  missions: AcademyMission[],
+  completedMissionIds: Set<string>
+): boolean {
+  const required = requiredLearningItems(missions);
+  return required.length > 0 && required.every((m) => completedMissionIds.has(m.id));
 }
 
 // ── Authoring helpers (admin content editor) ─────────────────────────────

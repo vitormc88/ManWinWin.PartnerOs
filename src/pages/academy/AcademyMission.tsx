@@ -7,6 +7,7 @@ import { MissionContent } from "@/components/academy/MissionContent";
 import { MissionToc } from "@/components/academy/MissionToc";
 import { ResourceList } from "@/components/academy/ResourceList";
 import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
+import { CertificationPanel } from "@/components/academy/CertificationPanel";
 import {
   useAcademyMissions,
   useAcademyModules,
@@ -54,6 +55,7 @@ export default function AcademyMission() {
   );
   const index = ordered.findIndex((m) => m.slug === missionSlug);
   const mission = index >= 0 ? ordered[index] : undefined;
+  const isCertification = mission?.item_kind === "certification";
 
   const savedChecklist = useMemo<ChecklistState>(() => {
     const row = missionProgress.find((p) => p.mission_id === mission?.id);
@@ -126,7 +128,9 @@ export default function AcademyMission() {
   };
 
 
-  if (!unlocked) {
+  // Certification items always render: the panel itself explains what is still
+  // outstanding, which is more useful than a generic "previous mission" lock.
+  if (!unlocked && !isCertification) {
     return (
       <div className="max-w-3xl mx-auto space-y-4">
         <AcademyBreadcrumbs
@@ -223,10 +227,11 @@ export default function AcademyMission() {
         />
       </div>
 
+      {isCertification && <CertificationPanel moduleId={mod.id} moduleSlug={mod.slug} />}
 
       {missionResources.length > 0 && <ResourceList resources={missionResources} />}
 
-      {check.total > 0 && !check.allDone && !isDone && (
+      {!isCertification && check.total > 0 && !check.allDone && !isDone && (
         <p className="text-xs text-muted-foreground text-center">
           Complete all checklist items to finish this mission.
         </p>
@@ -245,14 +250,16 @@ export default function AcademyMission() {
           </Button>
         )}
 
-        <Button
-          onClick={onToggleComplete}
-          disabled={complete.isPending || (!isDone && !check.allDone)}
-          variant={isDone ? "outline" : "default"}
-        >
-          <CheckCircle2 className="h-4 w-4 mr-2" />
-          {isDone ? "Mark as incomplete" : "Complete Mission"}
-        </Button>
+        {!isCertification && (
+          <Button
+            onClick={onToggleComplete}
+            disabled={complete.isPending || (!isDone && !check.allDone)}
+            variant={isDone ? "outline" : "default"}
+          >
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+            {isDone ? "Mark as incomplete" : "Complete Mission"}
+          </Button>
+        )}
 
         {nextItem ? (
           <Button variant="outline" size="sm" asChild disabled={!nextUnlocked}>
