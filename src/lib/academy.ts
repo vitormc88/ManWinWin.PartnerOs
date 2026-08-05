@@ -479,3 +479,148 @@ export const BLOCK_SNIPPETS: Array<{ id: string; label: string; snippet: string 
   { id: "key-takeaways", label: "Key Takeaways", snippet: ":::key-takeaways\n- Takeaway one\n- Takeaway two\n:::" },
   { id: "checklist", label: "Checklist", snippet: ":::checklist\n- First check\n- Second check\n:::" },
 ];
+
+// ── Inline markdown (bold / italic / code / links) ────────────────────────
+export type InlineNode =
+  | { type: "text"; text: string }
+  | { type: "bold"; text: string }
+  | { type: "italic"; text: string }
+  | { type: "bold-italic"; text: string }
+  | { type: "code"; text: string }
+  | { type: "link"; text: string; href: string };
+
+const INLINE =
+  /(\*\*\*(.+?)\*\*\*|___(.+?)___|\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|_(.+?)_|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\))/g;
+
+/** Parses inline emphasis, code and links. Unmatched syntax stays literal. */
+export function parseInline(source: string | null | undefined): InlineNode[] {
+  const text = source ?? "";
+  if (!text) return [];
+  const nodes: InlineNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  INLINE.lastIndex = 0;
+
+  const push = (t: string) => {
+    if (t) nodes.push({ type: "text", text: t });
+  };
+
+  while ((m = INLINE.exec(text)) !== null) {
+    push(text.slice(last, m.index));
+    if (m[2] !== undefined || m[3] !== undefined) {
+      nodes.push({ type: "bold-italic", text: (m[2] ?? m[3]) as string });
+    } else if (m[4] !== undefined || m[5] !== undefined) {
+      nodes.push({ type: "bold", text: (m[4] ?? m[5]) as string });
+    } else if (m[6] !== undefined || m[7] !== undefined) {
+      nodes.push({ type: "italic", text: (m[6] ?? m[7]) as string });
+    } else if (m[8] !== undefined) {
+      nodes.push({ type: "code", text: m[8] });
+    } else if (m[9] !== undefined && m[10] !== undefined) {
+      nodes.push({ type: "link", text: m[9], href: m[10] });
+    }
+    last = INLINE.lastIndex;
+  }
+  push(text.slice(last));
+  return nodes;
+}
+
+/** Strips inline markdown, useful for TOC entries and reading-time counts. */
+export function plainText(source: string | null | undefined): string {
+  return parseInline(source)
+    .map((n) => n.text)
+    .join("");
+}
+
+// ── Table of contents & reading time ─────────────────────────────────────
+export function slugifyHeading(text: string): string {
+  return (
+    plainText(text)
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .slice(0, 60) || "section"
+  );
+}
+
+export interface TocEntry {
+  id: string;
+  level: 1 | 2 | 3;
+  text: string;
+}
+
+/** Stable, de-duplicated heading ids for the mission body and its TOC. */
+export function headingToc(markdown: string | null | undefined): TocEntry[] {
+  const seen = new Map<string, number>();
+  return parseRichBlocks(markdown)
+    .filter((b): b is Extract<RichBlock, { type: "heading" }> => b.type === "heading")
+    .map((b) => {
+      const base = slugifyHeading(b.text);
+      const count = seen.get(base) ?? 0;
+      seen.set(base, count + 1);
+      return {
+        id: count === 0 ? base : `${base}-${count + 1}`,
+        level: b.level,
+        text: plainText(b.text),
+      };
+    });
+}
+
+const WORDS_PER_MINUTE = 200;
+
+export function countWords(markdown: string | null | undefined): number {
+  const flat = (markdown ?? "")
+    .replace(/:::[a-z-]+/g, " ")
+    .replace(/:::/g, " ")
+    .replace(/[#>*_`|-]/g, " ");
+  return flat.split(/\s+/).filter(Boolean).length;
+}
+
+/** Reading time in minutes (minimum 1 when there is any content). */
+export function readingTimeMinutes(markdown: string | null | undefined): number {
+  const words = countWords(markdown);
+  if (words === 0) return 0;
+  return Math.max(1, Math.round(words / WORDS_PER_MINUTE));
+}
+
+export function formatReadingTime(markdown: string | null | undefined): string {
+  const minutes = readingTimeMinutes(markdown);
+  return minutes === 0 ? "—" : `${minutes} min read`;
+}
+
+// ── Reading position memory ──────────────────────────────────────────────
+export function readingPositionKey(missionId: string): string {
+  return `academy:reading-position:${missionId}`;
+}
+
+export function saveReadingPosition(missionId: string, scrollY: number): void {
+  try {
+    if (scrollY > 40) localStorage.setItem(readingPositionKey(missionId), String(Math.round(scrollY)));
+    else localStorage.removeItem(readingPositionKey(missionId));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function loadReadingPosition(missionId: string): number {
+  try {
+    const raw = localStorage.getItem(readingPositionKey(missionId));
+    const value = raw ? Number(raw) : 0;
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function clearReadingPosition(missionId: string): void {
+  try {
+    localStorage.removeItem(readingPositionKey(missionId));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+// ── Editor draft autosave ────────────────────────────────────────────────
+export function draftKey(table: string, recordId: string | undefined): string {
+  return `academy:draft:${table}:${recordId ?? "new"}`;
+}

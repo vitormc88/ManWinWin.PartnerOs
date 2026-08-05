@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ import {
   BLOCK_SNIPPETS,
   DIFFICULTIES,
   RESOURCE_TYPES,
+  draftKey,
   joinContentSegments,
   moveSegment,
   splitContentSegments,
@@ -223,10 +224,49 @@ function RecordDialog({
   const [form, setForm] = useState<Record<string, any>>(record);
   const save = useSaveAcademyRecord(table);
   const fields = useMemo(() => FIELDS[table], [table]);
+  const storageKey = draftKey(table, record.id);
+  const [restored, setRestored] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+
+  // Restore a local autosaved draft (crash / accidental close protection).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        setForm((f) => ({ ...f, ...JSON.parse(raw) }));
+        setRestored(true);
+      }
+    } catch {
+      /* storage unavailable */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey]);
+
+  // Autosave the working copy locally every second of inactivity.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(form));
+        setSavedAt(new Date());
+      } catch {
+        /* storage unavailable */
+      }
+    }, 1000);
+    return () => window.clearTimeout(t);
+  }, [form, storageKey]);
 
   const set = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }));
 
   const hasStatus = fields.some((f) => f.type === "status");
+  const isPublished = form.status === "published";
+
+  const clearLocalDraft = () => {
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      /* storage unavailable */
+    }
+  };
 
   const onSave = (statusOverride?: string) => {
     const payload: Record<string, any> = { ...(form.id ? { id: form.id } : {}) };
@@ -236,15 +276,36 @@ function RecordDialog({
       payload[f.key] = f.type === "number" ? Number(raw) || 0 : raw;
     });
     if (statusOverride) payload.status = statusOverride;
-    save.mutate(payload, { onSuccess: onClose });
+    save.mutate(payload, {
+      onSuccess: () => {
+        clearLocalDraft();
+        onClose();
+      },
+    });
   };
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl lg:max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{form.id ? "Edit" : "New"} {table.replace("academy_", "").replace(/s$/, "")}</DialogTitle>
         </DialogHeader>
+        {restored && (
+          <p className="text-xs text-muted-foreground">
+            Restored an unsaved local draft.{" "}
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={() => {
+                clearLocalDraft();
+                setForm(record);
+                setRestored(false);
+              }}
+            >
+              Discard it
+            </button>
+          </p>
+        )}
         <div className="space-y-3">
           {fields.map((f) => (
             <div key={f.key} className="space-y-1.5">
@@ -283,15 +344,20 @@ function RecordDialog({
             </div>
           ))}
         </div>
-        <DialogFooter className="gap-2">
+        <DialogFooter className="gap-2 sm:items-center">
+          <span className="text-xs text-muted-foreground mr-auto">
+            {savedAt ? `Draft autosaved locally at ${savedAt.toLocaleTimeString()}` : "Autosaving locally…"}
+          </span>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           {hasStatus && (
             <Button variant="outline" onClick={() => onSave("draft")} disabled={save.isPending}>
-              Save draft
+              {isPublished ? "Unpublish (save as draft)" : "Save draft"}
             </Button>
           )}
           {hasStatus ? (
-            <Button onClick={() => onSave("published")} disabled={save.isPending}>Publish</Button>
+            <Button onClick={() => onSave("published")} disabled={save.isPending}>
+              {isPublished ? "Save & keep published" : "Publish"}
+            </Button>
           ) : (
             <Button onClick={() => onSave()} disabled={save.isPending}>Save</Button>
           )}
@@ -300,6 +366,7 @@ function RecordDialog({
     </Dialog>
   );
 }
+
 
 function ReorderButtons({ table, rows, row }: { table: Table; rows: any[]; row: any }) {
   const save = useSaveAcademyRecord(table);
@@ -340,29 +407,55 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
   const remove = (index: number) =>
     onChange(joinContentSegments(segments.filter((_, i) => i !== index)));
 
+  const toolbar = (
+    <div className="flex flex-wrap gap-1.5">
+      {BLOCK_SNIPPETS.map((b) => (
+        <Button key={b.id} type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => insert(b.snippet)}>
+          <Plus className="h-3 w-3 mr-1" />{b.label}
+        </Button>
+      ))}
+    </div>
+  );
+
+  const editor = (rows: number) => (
+    <Textarea
+      rows={rows}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Paste Markdown here. Callouts: :::partner-insight … :::"
+      className="font-mono text-xs h-full min-h-[320px] resize-y"
+    />
+  );
+
+  const preview = (
+    <div className="rounded-lg border bg-card p-4 overflow-y-auto max-h-[60vh]">
+      <MissionContent markdown={value} readOnlyChecklist />
+    </div>
+  );
+
   return (
-    <Tabs defaultValue="edit" className="space-y-3">
+    <Tabs defaultValue="split" className="space-y-3">
       <TabsList>
         <TabsTrigger value="edit">Edit</TabsTrigger>
-        <TabsTrigger value="blocks">Blocks</TabsTrigger>
+        <TabsTrigger value="split">Split</TabsTrigger>
         <TabsTrigger value="preview">Preview</TabsTrigger>
+        <TabsTrigger value="blocks">Blocks</TabsTrigger>
       </TabsList>
 
       <TabsContent value="edit" className="space-y-3">
-        <div className="flex flex-wrap gap-1.5">
-          {BLOCK_SNIPPETS.map((b) => (
-            <Button key={b.id} type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => insert(b.snippet)}>
-              <Plus className="h-3 w-3 mr-1" />{b.label}
-            </Button>
-          ))}
-        </div>
-        <Textarea
-          rows={16}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="font-mono text-xs"
-        />
+        {toolbar}
+        {editor(20)}
       </TabsContent>
+
+      <TabsContent value="split" className="space-y-3">
+        {toolbar}
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="min-w-0">{editor(20)}</div>
+          <div className="min-w-0">{preview}</div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="preview">{preview}</TabsContent>
 
       <TabsContent value="blocks" className="space-y-2">
         {segments.length === 0 && <p className="text-sm text-muted-foreground">No content blocks yet.</p>}
@@ -390,12 +483,7 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
           </div>
         ))}
       </TabsContent>
-
-      <TabsContent value="preview">
-        <div className="rounded-lg border bg-card p-4">
-          <MissionContent markdown={value} readOnlyChecklist />
-        </div>
-      </TabsContent>
     </Tabs>
   );
 }
+

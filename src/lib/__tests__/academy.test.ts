@@ -17,6 +17,15 @@ import {
   moveSegment,
   resourceTypeLabel,
   splitContentSegments,
+  parseInline,
+  plainText,
+  headingToc,
+  readingTimeMinutes,
+  formatReadingTime,
+  saveReadingPosition,
+  loadReadingPosition,
+  clearReadingPosition,
+  draftKey,
   type AcademyMission,
   type RichBlock,
 } from "@/lib/academy";
@@ -197,5 +206,58 @@ describe("labels", () => {
     expect(resourceTypeLabel("pdf")).toBe("PDF");
     expect(resourceTypeLabel("powerpoint")).toBe("PowerPoint");
     expect(resourceTypeLabel("mystery")).toBe("mystery");
+  });
+});
+
+describe("inline markdown", () => {
+  it("parses bold, italic, code and links", () => {
+    const nodes = parseInline("A **b** and *i* with `c` and [x](https://e.com)");
+    expect(nodes.map((n) => n.type)).toEqual([
+      "text", "bold", "text", "italic", "text", "code", "text", "link",
+    ]);
+    expect(nodes[7]).toEqual({ type: "link", text: "x", href: "https://e.com" });
+  });
+
+  it("keeps plain text intact and strips markers", () => {
+    expect(plainText("**Bold** plain")).toBe("Bold plain");
+    expect(parseInline("no markup")).toEqual([{ type: "text", text: "no markup" }]);
+  });
+});
+
+describe("table of contents and reading time", () => {
+  const md = "# Intro\n\nText here.\n\n## Step\n\nMore.\n\n## Step\n\nMore.";
+
+  it("builds de-duplicated heading ids", () => {
+    const toc = headingToc(md);
+    expect(toc.map((t) => t.id)).toEqual(["intro", "step", "step-2"]);
+    expect(toc[0].level).toBe(1);
+  });
+
+  it("returns no toc entries for empty content", () => {
+    expect(headingToc(null)).toEqual([]);
+  });
+
+  it("estimates reading time with a 1 minute floor", () => {
+    expect(readingTimeMinutes(null)).toBe(0);
+    expect(readingTimeMinutes("just a few words")).toBe(1);
+    expect(readingTimeMinutes(Array(600).fill("word").join(" "))).toBe(3);
+    expect(formatReadingTime("short text")).toBe("1 min read");
+  });
+});
+
+describe("reading position memory", () => {
+  it("stores, reads and clears positions above the threshold", () => {
+    saveReadingPosition("m1", 500);
+    expect(loadReadingPosition("m1")).toBe(500);
+    saveReadingPosition("m1", 5);
+    expect(loadReadingPosition("m1")).toBe(0);
+    saveReadingPosition("m1", 400);
+    clearReadingPosition("m1");
+    expect(loadReadingPosition("m1")).toBe(0);
+  });
+
+  it("namespaces draft keys per record", () => {
+    expect(draftKey("academy_missions", "abc")).toBe("academy:draft:academy_missions:abc");
+    expect(draftKey("academy_missions", undefined)).toBe("academy:draft:academy_missions:new");
   });
 });

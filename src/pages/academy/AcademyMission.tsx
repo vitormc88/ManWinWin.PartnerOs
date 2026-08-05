@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MissionContent } from "@/components/academy/MissionContent";
+import { MissionToc } from "@/components/academy/MissionToc";
 import { ResourceList } from "@/components/academy/ResourceList";
 import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
 import {
@@ -19,10 +20,14 @@ import {
   checklistCompletion,
   deriveModuleStatus,
   formatDuration,
+  formatReadingTime,
   isMissionUnlocked,
+  loadReadingPosition,
   moduleProgressPct,
+  saveReadingPosition,
   type ChecklistState,
 } from "@/lib/academy";
+
 
 export default function AcademyMission() {
   const { slug, missionSlug } = useParams();
@@ -54,6 +59,39 @@ export default function AcademyMission() {
 
   const [checklist, setChecklist] = useState<ChecklistState>({});
   useEffect(() => setChecklist(savedChecklist), [savedChecklist]);
+
+  // ── Reading position memory (per mission, per browser) ──────────────────
+  const missionId = mission?.id;
+  const [resumedFrom, setResumedFrom] = useState(0);
+  const restoredFor = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!missionId || restoredFor.current === missionId) return;
+    restoredFor.current = missionId;
+    const y = loadReadingPosition(missionId);
+    setResumedFrom(y);
+    if (y > 0) {
+      const t = window.setTimeout(() => window.scrollTo({ top: y, behavior: "auto" }), 120);
+      return () => window.clearTimeout(t);
+    }
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [missionId]);
+
+  useEffect(() => {
+    if (!missionId) return;
+    let frame = 0;
+    const onScroll = () => {
+      window.clearTimeout(frame);
+      frame = window.setTimeout(() => saveReadingPosition(missionId, window.scrollY), 250);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.clearTimeout(frame);
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [missionId]);
+
+
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading mission…</p>;
   if (!mod) return <p className="text-sm text-muted-foreground">Module not found or not published.</p>;
@@ -134,6 +172,11 @@ export default function AcademyMission() {
             <Clock className="h-3 w-3 mr-1" />
             {formatDuration(mission.estimated_duration_minutes)}
           </Badge>
+          <Badge variant="outline" className="text-[11px]">
+            <BookOpen className="h-3 w-3 mr-1" />
+            {formatReadingTime(mission.content_markdown)}
+          </Badge>
+
           <Badge
             className={`text-[11px] border-0 ${
               isDone
@@ -149,19 +192,37 @@ export default function AcademyMission() {
             </Badge>
           )}
         </div>
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">{mission.title}</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">{mission.title}</h1>
         {mission.short_description && (
-          <p className="text-sm text-muted-foreground">{mission.short_description}</p>
+          <p className="text-sm sm:text-base text-muted-foreground">{mission.short_description}</p>
+        )}
+        {resumedFrom > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Resumed where you left off.{" "}
+            <button
+              type="button"
+              className="underline underline-offset-2 hover:text-foreground"
+              onClick={() => {
+                setResumedFrom(0);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              Back to top
+            </button>
+          </p>
         )}
       </div>
 
-      <div className="bg-card rounded-xl border shadow-sm p-5">
+      <MissionToc markdown={mission.content_markdown} />
+
+      <div className="bg-card rounded-xl border shadow-sm p-5 sm:p-8">
         <MissionContent
           markdown={mission.content_markdown}
           checklistState={checklist}
           onToggleChecklistItem={onToggleChecklistItem}
         />
       </div>
+
 
       {missionResources.length > 0 && <ResourceList resources={missionResources} />}
 
