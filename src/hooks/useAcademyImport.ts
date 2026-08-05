@@ -49,7 +49,7 @@ export function useImportAcademyQuestions() {
       return data as unknown as ImportOutcome;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["academy", "questions"] });
+      qc.invalidateQueries({ queryKey: ["academy", "cert", "questions"] });
     },
     onError: (e) => toast.error(academyErrorMessage(e, "Could not import the questions")),
   });
