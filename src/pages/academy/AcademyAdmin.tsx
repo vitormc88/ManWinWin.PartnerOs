@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ import {
   BLOCK_SNIPPETS,
   DIFFICULTIES,
   RESOURCE_TYPES,
+  draftKey,
   joinContentSegments,
   moveSegment,
   splitContentSegments,
