@@ -172,6 +172,11 @@ export default function AcademyMission() {
             <Clock className="h-3 w-3 mr-1" />
             {formatDuration(mission.estimated_duration_minutes)}
           </Badge>
+          <Badge variant="outline" className="text-[11px]">
+            <BookOpen className="h-3 w-3 mr-1" />
+            {formatReadingTime(mission.content_markdown)}
+          </Badge>
+
           <Badge
             className={`text-[11px] border-0 ${
               isDone
