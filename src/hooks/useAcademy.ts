@@ -7,6 +7,7 @@ import {
   ACADEMY_STORAGE_BUCKET,
   academyObjectPath,
   isDeletableAcademyObjectPath,
+  validateAcademyUpload,
   type AcademyMission,
   type AcademyModule,
   type AcademyPhase,
