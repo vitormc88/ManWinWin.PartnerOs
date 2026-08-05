@@ -229,6 +229,7 @@ export type Database = {
       }
       academy_mission_progress: {
         Row: {
+          checklist_state: Json
           completed_at: string | null
           created_at: string
           id: string
@@ -239,6 +240,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          checklist_state?: Json
           completed_at?: string | null
           created_at?: string
           id?: string
@@ -249,6 +251,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          checklist_state?: Json
           completed_at?: string | null
           created_at?: string
           id?: string
@@ -392,6 +395,7 @@ export type Database = {
           certification_enabled: boolean
           certification_settings: Json
           created_at: string
+          difficulty: string
           estimated_duration_minutes: number
           full_description: string | null
           id: string
@@ -408,6 +412,7 @@ export type Database = {
           certification_enabled?: boolean
           certification_settings?: Json
           created_at?: string
+          difficulty?: string
           estimated_duration_minutes?: number
           full_description?: string | null
           id?: string
@@ -424,6 +429,7 @@ export type Database = {
           certification_enabled?: boolean
           certification_settings?: Json
           created_at?: string
+          difficulty?: string
           estimated_duration_minutes?: number
           full_description?: string | null
           id?: string
@@ -480,6 +486,8 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string
+          description: string | null
+          external_url: string | null
           file_path: string | null
           id: string
           is_downloadable: boolean
@@ -490,10 +498,13 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          version: string | null
         }
         Insert: {
           content?: string | null
           created_at?: string
+          description?: string | null
+          external_url?: string | null
           file_path?: string | null
           id?: string
           is_downloadable?: boolean
@@ -504,10 +515,13 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          version?: string | null
         }
         Update: {
           content?: string | null
           created_at?: string
+          description?: string | null
+          external_url?: string | null
           file_path?: string | null
           id?: string
           is_downloadable?: boolean
@@ -518,6 +532,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          version?: string | null
         }
         Relationships: [
           {
