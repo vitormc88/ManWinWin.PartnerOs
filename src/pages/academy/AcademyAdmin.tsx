@@ -264,8 +264,9 @@ export default function AcademyAdmin() {
 }
 
 /**
- * Hard deletion is only offered once content is unpublished/archived, and it
- * always requires an explicit confirmation.
+ * Hard deletion is only offered for draft content, and it always requires an
+ * explicit confirmation. Published items must be unpublished first; archived
+ * items are retained as history.
  */
 function DeleteButton({ table, row }: { table: Table; row: { id: string; status?: string | null; title?: string } }) {
   const del = useDeleteAcademyRecord(table);
@@ -278,11 +279,11 @@ function DeleteButton({ table, row }: { table: Table; row: { id: string; status?
         variant="ghost"
         size="icon"
         disabled={del.isPending}
-        title={allowed ? "Delete" : "Unpublish or archive before deleting"}
+        title={allowed ? "Delete" : "Only draft items can be deleted"}
         onClick={() =>
           allowed
             ? setOpen(true)
-            : toast.error("Unpublish or archive this item before deleting it.")
+            : toast.error("Only draft items can be deleted. Unpublish this item first; archived content is kept for history.")
         }
       >
         <Trash2 className={`h-4 w-4 ${allowed ? "text-destructive" : "text-muted-foreground"}`} />
@@ -617,7 +618,8 @@ function AttachmentField({ value, onChange }: { value: string; onChange: (v: str
         }}
       />
       <p className="text-[11px] text-muted-foreground">
-        Stored privately; learners open it through a temporary signed link.
+        Stored privately; learners open it through a temporary signed link. Replaced files are
+        removed only after the record is saved, and only when no other resource still uses them.
       </p>
     </div>
   );
