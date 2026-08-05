@@ -89,7 +89,7 @@ export default function Onboarding() {
           <span className="text-xs font-semibold tabular-nums w-9 text-right">{stats.pct}%</span>
         </div>
         <Button asChild size="sm" className="self-start">
-          <Link to={`/onboarding/modules/${mod.slug}`}>{actionLabel(stats.pct)}</Link>
+          <Link to={`/onboarding/modules/${mod.slug}`}>{stats.pct === 0 ? "Start Module" : actionLabel(stats.pct)}</Link>
         </Button>
       </div>
     );
@@ -139,7 +139,9 @@ export default function Onboarding() {
                 </div>
                 <Button asChild size="sm">
                   <Link to={`/onboarding/modules/${recommended.slug}`}>
-                    {actionLabel(moduleStats.get(recommended.id)?.pct ?? 0)}
+                    {(moduleStats.get(recommended.id)?.pct ?? 0) === 0
+                      ? "Start Module"
+                      : actionLabel(moduleStats.get(recommended.id)?.pct ?? 0)}
                   </Link>
                 </Button>
               </div>
