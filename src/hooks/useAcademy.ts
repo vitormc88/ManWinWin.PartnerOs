@@ -172,7 +172,7 @@ export function useSaveAcademyRecord(table: Table) {
     mutationFn: async (record: Record<string, any>) => {
       if (record.id) {
         const { id, ...rest } = record;
-        const { error } = await supabase.from(table).update(rest).eq("id", id);
+        const { error } = await (supabase.from(table) as any).update(rest).eq("id", id);
         if (error) throw error;
       } else {
         const { error } = await (supabase.from(table) as any).insert(record);
