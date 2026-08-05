@@ -1,5 +1,19 @@
 import { useMemo, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, FileDown, Pencil, Plus, Upload, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useAcademyMissions, useAcademyModules } from "@/hooks/useAcademy";
+import { QuestionImportWizard } from "@/components/academy/QuestionImportWizard";
+import {
+  downloadTextFile,
+  exportQuestions,
+  generateQuestionTemplate,
+  type ImportFormat,
+} from "@/lib/academy-import";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
