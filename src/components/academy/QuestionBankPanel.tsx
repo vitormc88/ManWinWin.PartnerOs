@@ -181,6 +181,25 @@ export function QuestionBankPanel({ moduleId }: { moduleId?: string }) {
     );
   };
 
+  const doExport = (format: ImportFormat, missionId?: string) => {
+    const rows = missionId ? questions.filter((q) => q.mission_id === missionId) : questions;
+    if (rows.length === 0) return;
+    const content = exportQuestions(format, rows as never, { moduleTitle, missionTitleById });
+    downloadTextFile(
+      `academy-questions-${missionId ? "mission" : "module"}.${format}`,
+      content,
+      format === "json" ? "application/json" : "text/csv"
+    );
+  };
+
+  const doTemplate = (format: ImportFormat, missionTitle?: string | null) => {
+    downloadTextFile(
+      `academy-question-template.${format}`,
+      generateQuestionTemplate(format, { moduleTitle, missionTitle }),
+      format === "json" ? "application/json" : "text/csv"
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -191,10 +210,61 @@ export function QuestionBankPanel({ moduleId }: { moduleId?: string }) {
             </Badge>
           ))}
         </div>
-        <Button size="sm" onClick={() => setDraft(emptyDraft())}>
-          <Plus className="h-4 w-4 mr-1" />New question
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <FileDown className="h-4 w-4 mr-1" />Generate template
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => doTemplate("json")}>JSON — module</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => doTemplate("csv")}>CSV — module</DropdownMenuItem>
+              {missions.map((m) => (
+                <DropdownMenuItem key={m.id} onClick={() => doTemplate("csv", m.title)}>
+                  CSV — {m.title}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={questions.length === 0}>
+                <Download className="h-4 w-4 mr-1" />Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => doExport("json")}>Entire module — JSON</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => doExport("csv")}>Entire module — CSV</DropdownMenuItem>
+              {missions.map((m) => (
+                <DropdownMenuItem key={m.id} onClick={() => doExport("json", m.id)}>
+                  {m.title} — JSON
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+            <Upload className="h-4 w-4 mr-1" />Import questions
+          </Button>
+          <Button size="sm" onClick={() => setDraft(emptyDraft())}>
+            <Plus className="h-4 w-4 mr-1" />New question
+          </Button>
+        </div>
       </div>
+
+      <QuestionImportWizard
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        context={{
+          moduleId,
+          moduleTitle,
+          missions,
+          existingCodes: questions.map((q) => q.question_code),
+        }}
+      />
+
 
       <div className="bg-card rounded-xl border shadow-sm divide-y">
         {questions.length === 0 && (
