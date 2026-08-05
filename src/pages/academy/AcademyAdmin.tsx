@@ -38,6 +38,7 @@ import {
   useAcademyModules,
   useAcademyPhases,
   useAllAcademyResources,
+  useDeleteAcademyAsset,
   useDeleteAcademyRecord,
   useReorderAcademyRecord,
   useSaveAcademyRecord,
@@ -54,6 +55,7 @@ import {
   RESOURCE_TYPES,
   canHardDelete,
   draftKey,
+  isDeletableAcademyObjectPath,
   isDraftStale,
   joinContentSegments,
   moveSegment,
@@ -328,6 +330,7 @@ function RecordDialog({
   const { user } = useAuth();
   const [form, setForm] = useState<Record<string, any>>(record);
   const save = useSaveAcademyRecord(table);
+  const deleteAsset = useDeleteAcademyAsset();
   const fields = useMemo(() => FIELDS[table], [table]);
   const storageKey = draftKey(table, record.id, user?.id);
   const [restored, setRestored] = useState(false);
