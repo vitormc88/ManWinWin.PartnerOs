@@ -42,6 +42,8 @@ export interface AcademyModule {
   status: PublicationStatus;
   version: number;
   certification_enabled: boolean;
+  difficulty: string;
+  updated_at?: string | null;
 }
 
 export interface AcademyMission {
@@ -72,12 +74,17 @@ export interface AcademyResource {
   is_downloadable: boolean;
   sort_order: number;
   status: PublicationStatus;
+  description?: string | null;
+  external_url?: string | null;
+  version?: string | null;
+  updated_at?: string | null;
 }
 
 export interface MissionProgressRow {
   mission_id: string;
   module_id: string;
   is_completed: boolean;
+  checklist_state?: ChecklistState | null;
 }
 
 /** Simple UI status shown to partners in iteration 1. */
@@ -393,14 +400,19 @@ export function formatUpdatedAt(iso: string | null | undefined): string {
   return d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
 }
 
-/** Missions are unlocked sequentially: previous countable mission completed. */
+/**
+ * A mission flagged as locked unlocks automatically once the previous mission
+ * in the module is completed. Unflagged missions are always accessible.
+ */
 export function isMissionUnlocked(
   missions: AcademyMission[],
   mission: AcademyMission,
   completedMissionIds: Set<string>
 ): boolean {
-  if (mission.is_locked) return false;
-  const ordered = countableMissions(missions).sort((a, b) => a.sort_order - b.sort_order);
+  if (!mission.is_locked) return true;
+  const ordered = [...missions]
+    .filter((m) => m.status === "published")
+    .sort((a, b) => a.sort_order - b.sort_order);
   const idx = ordered.findIndex((m) => m.id === mission.id);
   if (idx <= 0) return true;
   return completedMissionIds.has(ordered[idx - 1].id);
