@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, CheckCircle2, Clock, Lock } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MissionContent } from "@/components/academy/MissionContent";
+import { MissionToc } from "@/components/academy/MissionToc";
 import { ResourceList } from "@/components/academy/ResourceList";
 import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
 import {
@@ -19,10 +20,14 @@ import {
   checklistCompletion,
   deriveModuleStatus,
   formatDuration,
+  formatReadingTime,
   isMissionUnlocked,
+  loadReadingPosition,
   moduleProgressPct,
+  saveReadingPosition,
   type ChecklistState,
 } from "@/lib/academy";
+
 
 export default function AcademyMission() {
   const { slug, missionSlug } = useParams();
