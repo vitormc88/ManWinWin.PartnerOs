@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Pencil, ChevronUp, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,16 @@ import {
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { MissionContent } from "@/components/academy/MissionContent";
+import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
+import {
+  BLOCK_SNIPPETS,
+  DIFFICULTIES,
+  RESOURCE_TYPES,
+  joinContentSegments,
+  moveSegment,
+  splitContentSegments,
+} from "@/lib/academy";
 
 type Table = "academy_phases" | "academy_modules" | "academy_missions" | "academy_resources";
 
@@ -58,6 +68,8 @@ const FIELDS: Record<Table, Field[]> = {
     { key: "short_description", label: "Short description", type: "textarea" },
     { key: "full_description", label: "Full description", type: "textarea" },
     { key: "estimated_duration_minutes", label: "Duration (min)", type: "number" },
+    { key: "difficulty", label: "Difficulty", type: "select", options: [...DIFFICULTIES] },
+    { key: "certification_enabled", label: "Certificate required", type: "boolean" },
     { key: "sort_order", label: "Order", type: "number" },
     { key: "version", label: "Version", type: "number" },
     { key: "status", label: "Status", type: "status" },
@@ -79,9 +91,13 @@ const FIELDS: Record<Table, Field[]> = {
   academy_resources: [
     { key: "title", label: "Title", type: "text" },
     { key: "module_id", label: "Module", type: "select" },
-    { key: "resource_type", label: "Type", type: "select", options: ["link", "file", "markdown", "template", "checklist"] },
+    { key: "mission_id", label: "Mission (optional)", type: "select" },
+    { key: "resource_type", label: "Type", type: "select", options: [...RESOURCE_TYPES] },
+    { key: "description", label: "Description", type: "textarea" },
     { key: "content", label: "Content", type: "textarea" },
-    { key: "file_path", label: "File reference", type: "text" },
+    { key: "file_path", label: "File attachment (path or URL)", type: "text" },
+    { key: "external_url", label: "External URL", type: "text" },
+    { key: "version", label: "Version", type: "text" },
     { key: "is_downloadable", label: "Downloadable", type: "boolean" },
     { key: "sort_order", label: "Order", type: "number" },
     { key: "status", label: "Status", type: "status" },
@@ -112,6 +128,7 @@ export default function AcademyAdmin() {
   const selectOptions = (table: Table, key: string): Array<{ value: string; label: string }> => {
     if (key === "phase_id") return phases.map((p) => ({ value: p.id, label: p.title }));
     if (key === "module_id") return modules.map((m) => ({ value: m.id, label: m.title }));
+    if (key === "mission_id") return missions.map((m) => ({ value: m.id, label: m.title }));
     const field = FIELDS[table].find((f) => f.key === key);
     return (field?.options ?? []).map((o) => ({ value: o, label: o }));
   };
@@ -133,6 +150,7 @@ export default function AcademyAdmin() {
               {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle(r)}</p>}
             </div>
             <Badge variant="outline" className="text-[10px] shrink-0">{r.status}</Badge>
+            <ReorderButtons table={table} rows={rows} row={r} />
             <Button variant="ghost" size="icon" onClick={() => setEditing({ table, record: r })}>
               <Pencil className="h-4 w-4" />
             </Button>
@@ -145,8 +163,9 @@ export default function AcademyAdmin() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      <AcademyBreadcrumbs items={[{ label: "Partner Academy", to: "/onboarding" }, { label: "Content" }]} />
       <Link to="/onboarding" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Partner Academy
+        <ArrowLeft className="h-4 w-4" /> Back to Academy
       </Link>
       <h1 className="text-2xl font-bold text-foreground tracking-tight">Academy content</h1>
 
@@ -207,13 +226,16 @@ function RecordDialog({
 
   const set = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }));
 
-  const onSave = () => {
+  const hasStatus = fields.some((f) => f.type === "status");
+
+  const onSave = (statusOverride?: string) => {
     const payload: Record<string, any> = { ...(form.id ? { id: form.id } : {}) };
     fields.forEach((f) => {
       const raw = form[f.key];
       if (raw === undefined) return;
       payload[f.key] = f.type === "number" ? Number(raw) || 0 : raw;
     });
+    if (statusOverride) payload.status = statusOverride;
     save.mutate(payload, { onSuccess: onClose });
   };
 
@@ -227,13 +249,14 @@ function RecordDialog({
           {fields.map((f) => (
             <div key={f.key} className="space-y-1.5">
               <Label htmlFor={f.key}>{f.label}</Label>
-              {f.type === "textarea" || f.type === "markdown" ? (
+              {f.type === "markdown" ? (
+                <MarkdownEditor value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
+              ) : f.type === "textarea" ? (
                 <Textarea
                   id={f.key}
-                  rows={f.type === "markdown" ? 10 : 3}
+                  rows={3}
                   value={form[f.key] ?? ""}
                   onChange={(e) => set(f.key, e.target.value)}
-                  className={f.type === "markdown" ? "font-mono text-xs" : undefined}
                 />
               ) : f.type === "boolean" ? (
                 <div><Switch checked={!!form[f.key]} onCheckedChange={(v) => set(f.key, v)} /></div>
@@ -260,11 +283,119 @@ function RecordDialog({
             </div>
           ))}
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={onSave} disabled={save.isPending}>Save</Button>
+          {hasStatus && (
+            <Button variant="outline" onClick={() => onSave("draft")} disabled={save.isPending}>
+              Save draft
+            </Button>
+          )}
+          {hasStatus ? (
+            <Button onClick={() => onSave("published")} disabled={save.isPending}>Publish</Button>
+          ) : (
+            <Button onClick={() => onSave()} disabled={save.isPending}>Save</Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function ReorderButtons({ table, rows, row }: { table: Table; rows: any[]; row: any }) {
+  const save = useSaveAcademyRecord(table);
+  const ordered = [...rows].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const index = ordered.findIndex((r) => r.id === row.id);
+
+  const move = (dir: -1 | 1) => {
+    const other = ordered[index + dir];
+    if (!other) return;
+    save.mutate({ id: row.id, sort_order: other.sort_order ?? 0 });
+    save.mutate({ id: other.id, sort_order: row.sort_order ?? 0 });
+  };
+
+  return (
+    <div className="flex flex-col shrink-0">
+      <Button variant="ghost" size="icon" className="h-5 w-6" disabled={index <= 0 || save.isPending} onClick={() => move(-1)}>
+        <ChevronUp className="h-3.5 w-3.5" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-5 w-6"
+        disabled={index < 0 || index >= ordered.length - 1 || save.isPending}
+        onClick={() => move(1)}
+      >
+        <ChevronDown className="h-3.5 w-3.5" />
+      </Button>
+    </div>
+  );
+}
+
+function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const segments = splitContentSegments(value);
+
+  const insert = (snippet: string) => onChange(joinContentSegments([...segments, snippet]));
+  const move = (index: number, dir: -1 | 1) =>
+    onChange(joinContentSegments(moveSegment(segments, index, dir)));
+  const remove = (index: number) =>
+    onChange(joinContentSegments(segments.filter((_, i) => i !== index)));
+
+  return (
+    <Tabs defaultValue="edit" className="space-y-3">
+      <TabsList>
+        <TabsTrigger value="edit">Edit</TabsTrigger>
+        <TabsTrigger value="blocks">Blocks</TabsTrigger>
+        <TabsTrigger value="preview">Preview</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="edit" className="space-y-3">
+        <div className="flex flex-wrap gap-1.5">
+          {BLOCK_SNIPPETS.map((b) => (
+            <Button key={b.id} type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => insert(b.snippet)}>
+              <Plus className="h-3 w-3 mr-1" />{b.label}
+            </Button>
+          ))}
+        </div>
+        <Textarea
+          rows={16}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="font-mono text-xs"
+        />
+      </TabsContent>
+
+      <TabsContent value="blocks" className="space-y-2">
+        {segments.length === 0 && <p className="text-sm text-muted-foreground">No content blocks yet.</p>}
+        {segments.map((seg, i) => (
+          <div key={i} className="flex items-start gap-2 rounded-lg border p-2">
+            <pre className="min-w-0 flex-1 whitespace-pre-wrap font-mono text-[11px] text-muted-foreground">{seg}</pre>
+            <div className="flex flex-col shrink-0">
+              <Button type="button" variant="ghost" size="icon" className="h-5 w-6" disabled={i === 0} onClick={() => move(i, -1)}>
+                <ChevronUp className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-5 w-6"
+                disabled={i === segments.length - 1}
+                onClick={() => move(i, 1)}
+              >
+                <ChevronDown className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => remove(i)}>
+              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+            </Button>
+          </div>
+        ))}
+      </TabsContent>
+
+      <TabsContent value="preview">
+        <div className="rounded-lg border bg-card p-4">
+          <MissionContent markdown={value} readOnlyChecklist />
+        </div>
+      </TabsContent>
+    </Tabs>
   );
 }
