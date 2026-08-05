@@ -18,7 +18,6 @@ import {
   Kanban,
   ShieldCheck,
   DollarSign,
-  Rocket,
   Award,
   Shield,
   Zap,
