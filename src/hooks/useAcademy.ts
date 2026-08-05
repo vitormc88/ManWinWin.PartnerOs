@@ -175,7 +175,7 @@ export function useSaveAcademyRecord(table: Table) {
         const { error } = await supabase.from(table).update(rest).eq("id", id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from(table).insert(record as any);
+        const { error } = await (supabase.from(table) as any).insert(record);
         if (error) throw error;
       }
     },
