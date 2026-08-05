@@ -115,13 +115,23 @@ const toDraft = (q: AcademyQuestionRow): Draft => ({
  */
 export function QuestionBankPanel({ moduleId }: { moduleId?: string }) {
   const query = useAcademyQuestions(moduleId);
+  const modulesQuery = useAcademyModules();
+  const missionsQuery = useAcademyMissions(moduleId);
   const save = useSaveAcademyQuestion();
   const remove = useDeleteAcademyQuestion();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AcademyQuestionRow | null>(null);
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const questions = query.data ?? [];
+  const missions = (missionsQuery.data ?? []) as Array<{ id: string; title: string; slug: string }>;
+  const moduleTitle =
+    (modulesQuery.data ?? []).find((m) => m.id === moduleId)?.title ?? "Module";
+  const missionTitleById = useMemo(
+    () => Object.fromEntries(missions.map((m) => [m.id, m.title])),
+    [missions]
+  );
   const byCategory = useMemo(() => {
     const map = new Map<string, number>();
     for (const q of questions.filter((x) => x.status === "published")) {
@@ -129,6 +139,7 @@ export function QuestionBankPanel({ moduleId }: { moduleId?: string }) {
     }
     return map;
   }, [questions]);
+
 
   if (!moduleId)
     return <AcademyState kind="empty" title="Select a module to manage its question bank." />;
