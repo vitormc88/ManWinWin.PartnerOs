@@ -227,6 +227,60 @@ export type Database = {
         }
         Relationships: []
       }
+      academy_analytics_grants: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          permission: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          permission: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          permission?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      academy_attempt_access_log: {
+        Row: {
+          attempt_id: string
+          id: string
+          included_correct_answers: boolean
+          subject_user_id: string | null
+          viewed_at: string
+          viewer_id: string
+        }
+        Insert: {
+          attempt_id: string
+          id?: string
+          included_correct_answers?: boolean
+          subject_user_id?: string | null
+          viewed_at?: string
+          viewer_id: string
+        }
+        Update: {
+          attempt_id?: string
+          id?: string
+          included_correct_answers?: boolean
+          subject_user_id?: string | null
+          viewed_at?: string
+          viewer_id?: string
+        }
+        Relationships: []
+      }
       academy_attempt_answers: {
         Row: {
           answered_at: string
@@ -5082,6 +5136,18 @@ export type Database = {
       }
     }
     Functions: {
+      academy_analytics_attempt: {
+        Args: { _attempt_id: string }
+        Returns: Json
+      }
+      academy_analytics_learners: { Args: { _filters?: Json }; Returns: Json }
+      academy_analytics_overview: { Args: { _filters?: Json }; Returns: Json }
+      academy_analytics_partners: { Args: { _filters?: Json }; Returns: Json }
+      academy_analytics_questions: {
+        Args: { _module_id?: string }
+        Returns: Json
+      }
+      academy_analytics_user: { Args: { _user_id: string }; Returns: Json }
       academy_answer_is_correct: {
         Args: { _correct: Json; _given: Json; _type: string }
         Returns: boolean
@@ -5122,6 +5188,7 @@ export type Database = {
         Args: { _module_id: string; _user_id: string }
         Returns: number
       }
+      academy_my_analytics_perms: { Args: never; Returns: Json }
       academy_set_checklist_state: {
         Args: { _mission_id: string; _state: Json }
         Returns: undefined
@@ -5138,6 +5205,19 @@ export type Database = {
           _patch: Json
         }
         Returns: string
+      }
+      academy_visible_learners: {
+        Args: never
+        Returns: {
+          country: string
+          email: string
+          full_name: string
+          is_active: boolean
+          is_hq: boolean
+          partner_id: string
+          partner_name: string
+          user_id: string
+        }[]
       }
       access_level_rank: { Args: { _lvl: string }; Returns: number }
       active_hq_admin_count: { Args: never; Returns: number }
@@ -5245,6 +5325,7 @@ export type Database = {
         }[]
       }
       get_user_partner_id: { Args: { _user_id: string }; Returns: string }
+      has_academy_analytics_perm: { Args: { _perm: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
