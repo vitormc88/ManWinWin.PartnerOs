@@ -9,6 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuestionBankPanel } from "@/components/academy/QuestionBankPanel";
+import { AssetLibraryPanel } from "@/components/academy/AssetLibraryPanel";
+import { AssetPickerDialog } from "@/components/academy/AssetPickerDialog";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -247,6 +249,7 @@ export default function AcademyAdmin() {
           <TabsTrigger value="missions">Missions</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
           <TabsTrigger value="questions">Questions</TabsTrigger>
+          <TabsTrigger value="assets">Assets</TabsTrigger>
         </TabsList>
         <TabsContent value="phases">{section("academy_phases", "Phases", phases, phasesQuery)}</TabsContent>
         <TabsContent value="modules">
@@ -273,6 +276,9 @@ export default function AcademyAdmin() {
             </Select>
           </div>
           <QuestionBankPanel moduleId={questionModuleId || undefined} />
+        </TabsContent>
+        <TabsContent value="assets">
+          <AssetLibraryPanel canEdit={canAdmin("onboarding")} />
         </TabsContent>
       </Tabs>
 
@@ -689,6 +695,7 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
   const segments = splitContentSegments(value);
 
   const insert = (snippet: string) => onChange(joinContentSegments([...segments, snippet]));
+  const [pickerOpen, setPickerOpen] = useState(false);
   const move = (index: number, dir: -1 | 1) =>
     onChange(joinContentSegments(moveSegment(segments, index, dir)));
   const remove = (index: number) =>
@@ -696,7 +703,16 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
 
   const toolbar = (
     <div className="flex flex-wrap gap-1.5">
-      {BLOCK_SNIPPETS.map((b) => (
+      <Button
+        type="button"
+        variant="secondary"
+        size="sm"
+        className="h-7 text-xs"
+        onClick={() => setPickerOpen(true)}
+      >
+        <Plus className="h-3 w-3 mr-1" />Insert Asset
+      </Button>
+      {BLOCK_SNIPPETS.filter((b) => b.id !== "asset").map((b) => (
         <Button key={b.id} type="button" variant="outline" size="sm" className="h-7 text-xs" onClick={() => insert(b.snippet)}>
           <Plus className="h-3 w-3 mr-1" />{b.label}
         </Button>
@@ -721,6 +737,8 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
   );
 
   return (
+    <>
+    <AssetPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} onInsert={insert} />
     <Tabs defaultValue="split" className="space-y-3">
       <TabsList>
         <TabsTrigger value="edit">Edit</TabsTrigger>
@@ -771,6 +789,7 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
         ))}
       </TabsContent>
     </Tabs>
+    </>
   );
 }
 
