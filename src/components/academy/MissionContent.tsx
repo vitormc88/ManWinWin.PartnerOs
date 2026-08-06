@@ -1,4 +1,5 @@
 import { Checkbox } from "@/components/ui/checkbox";
+import { AcademyAssetView } from "./AcademyAssetView";
 import { ContentCallout } from "./ContentCallout";
 import {
   parseInline,
@@ -35,6 +36,17 @@ function Inline({ text }: { text: string }) {
                 {n.text}
               </code>
             );
+          case "image":
+            return (
+              <img
+                key={i}
+                src={n.href}
+                alt={n.text}
+                loading="lazy"
+                decoding="async"
+                className="my-4 mx-auto max-w-full h-auto rounded-xl border bg-card"
+              />
+            );
           case "link":
             return (
               <a
@@ -47,6 +59,7 @@ function Inline({ text }: { text: string }) {
                 {n.text}
               </a>
             );
+
           default:
             return <span key={i}>{n.text}</span>;
         }
@@ -199,6 +212,9 @@ function Block({
           ))}
         </ContentCallout>
       );
+    case "asset":
+      return <AcademyAssetView reference={block.reference} />;
+
     case "checklist":
       return (
         <div className="rounded-xl border bg-card p-4 sm:p-5 my-4 space-y-3">

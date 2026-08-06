@@ -254,6 +254,122 @@ export type Database = {
         }
         Relationships: []
       }
+      academy_asset_versions: {
+        Row: {
+          asset_id: string
+          change_notes: string | null
+          created_at: string
+          created_by: string | null
+          external_url: string | null
+          file_path: string | null
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          version: number
+        }
+        Insert: {
+          asset_id: string
+          change_notes?: string | null
+          created_at?: string
+          created_by?: string | null
+          external_url?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          version: number
+        }
+        Update: {
+          asset_id?: string
+          change_notes?: string | null
+          created_at?: string
+          created_by?: string | null
+          external_url?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_asset_versions_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "academy_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      academy_assets: {
+        Row: {
+          alt_text: string | null
+          asset_key: string
+          asset_type: string
+          caption: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          current_version: number
+          description: string | null
+          external_url: string | null
+          file_path: string | null
+          file_size: number | null
+          id: string
+          mime_type: string | null
+          settings: Json
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          alt_text?: string | null
+          asset_key: string
+          asset_type?: string
+          caption?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          current_version?: number
+          description?: string | null
+          external_url?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          settings?: Json
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          alt_text?: string | null
+          asset_key?: string
+          asset_type?: string
+          caption?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          current_version?: number
+          description?: string | null
+          external_url?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string
+          mime_type?: string | null
+          settings?: Json
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       academy_attempt_access_log: {
         Row: {
           attempt_id: string

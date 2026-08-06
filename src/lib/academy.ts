@@ -5,6 +5,8 @@
  * academy_missions / academy_resources). Nothing here hardcodes course text.
  */
 
+import { parseAssetFence, type AssetReference } from "@/lib/academy-assets";
+
 export type PublicationStatus = "draft" | "published" | "archived";
 
 /**
@@ -247,6 +249,7 @@ export type RichBlock =
   | { type: "table"; headers: string[]; rows: string[][] }
   | { type: "divider" }
   | { type: "callout"; kind: CalloutKind; blocks: RichBlock[] }
+  | { type: "asset"; reference: AssetReference }
   | { type: "checklist"; key: string; items: string[] };
 
 const FENCE = /:::([a-z-]+)\s*\n([\s\S]*?):::/g;
@@ -355,6 +358,10 @@ export function parseRichBlocks(markdown: string | null | undefined): RichBlock[
     const body = match[2].trim();
     if ((CALLOUT_KINDS as readonly string[]).includes(kind)) {
       out.push({ type: "callout", kind: kind as CalloutKind, blocks: parseMarkdownBlocks(body) });
+    } else if (kind === "asset") {
+      const reference = parseAssetFence(body);
+      if (reference) out.push({ type: "asset", reference });
+      else pushMd(match[0]);
     } else if (kind === "checklist") {
       const items = body
         .split("\n")
@@ -536,6 +543,7 @@ export const BLOCK_SNIPPETS: Array<{ id: string; label: string; snippet: string 
   { id: "real-example", label: "Real Example", snippet: ":::real-example\nExample text\n:::" },
   { id: "partneros-action", label: "PartnerOS Action", snippet: ":::partneros-action\nAction to take in PartnerOS\n:::" },
   { id: "key-takeaways", label: "Key Takeaways", snippet: ":::key-takeaways\n- Takeaway one\n- Takeaway two\n:::" },
+  { id: "asset", label: "Asset", snippet: ":::asset\nid: asset-key\n:::" },
   { id: "checklist", label: "Checklist", snippet: ":::checklist\n- First check\n- Second check\n:::" },
 ];
 
@@ -546,10 +554,11 @@ export type InlineNode =
   | { type: "italic"; text: string }
   | { type: "bold-italic"; text: string }
   | { type: "code"; text: string }
-  | { type: "link"; text: string; href: string };
+  | { type: "link"; text: string; href: string }
+  | { type: "image"; text: string; href: string };
 
 const INLINE =
-  /(\*\*\*(.+?)\*\*\*|___(.+?)___|\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|_(.+?)_|`([^`]+)`|\[([^\]]+)\]\(([^)\s]+)\))/g;
+  /(\*\*\*(.+?)\*\*\*|___(.+?)___|\*\*(.+?)\*\*|__(.+?)__|\*(.+?)\*|_(.+?)_|`([^`]+)`|!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]+)\]\(([^)\s]+)\))/g;
 
 /** Parses inline emphasis, code and links. Unmatched syntax stays literal. */
 export function parseInline(source: string | null | undefined): InlineNode[] {
@@ -575,7 +584,11 @@ export function parseInline(source: string | null | undefined): InlineNode[] {
     } else if (m[8] !== undefined) {
       nodes.push({ type: "code", text: m[8] });
     } else if (m[9] !== undefined && m[10] !== undefined) {
-      nodes.push({ type: "link", text: m[9], href: m[10] });
+      // Legacy inline markdown image — still supported so pre-Asset-Library
+      // missions keep rendering while editors migrate to reusable assets.
+      nodes.push({ type: "image", text: m[9], href: m[10] });
+    } else if (m[11] !== undefined && m[12] !== undefined) {
+      nodes.push({ type: "link", text: m[11], href: m[12] });
     }
     last = INLINE.lastIndex;
   }
