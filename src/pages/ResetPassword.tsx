@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { BrandMark } from "@/components/BrandMark";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -191,7 +192,7 @@ export default function ResetPassword() {
 
       toast.success(
         isInvite
-          ? "Password set successfully! Welcome to ManWinWin PartnerOS."
+          ? "Password set successfully! Welcome to PartnerOS."
           : "Password updated successfully."
       );
       // Force a full reload so the protected app rehydrates the updated auth session.
@@ -216,9 +217,7 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-sm space-y-5 text-center">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center mx-auto">
-            <span className="text-primary-foreground font-bold text-lg">M</span>
-          </div>
+          <BrandMark className="h-12 w-12 mx-auto" />
           <h1 className="text-xl font-bold text-foreground">{copy.title}</h1>
           <p className="text-sm text-muted-foreground">{copy.description}</p>
           <div className="space-y-2">
@@ -251,11 +250,9 @@ export default function ResetPassword() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <span className="text-primary-foreground font-bold text-lg">M</span>
-          </div>
+          <BrandMark className="h-12 w-12 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-foreground">
-            {isInvite ? "Welcome to ManWinWin PartnerOS" : "Set New Password"}
+            {isInvite ? "Welcome to PartnerOS" : "Set New Password"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {isInvite
