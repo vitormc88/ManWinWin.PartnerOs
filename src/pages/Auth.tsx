@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { getAppRedirectUrl } from "@/lib/app-url";
 import { getAuthFlowState, getResetPasswordTarget } from "@/lib/auth-flow";
+import { BrandMark } from "@/components/BrandMark";
 
 type AuthView = "login" | "forgot";
 
@@ -18,7 +19,7 @@ export default function Auth() {
   if (isLoading || !isAuthReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <BrandMark className="h-12 w-12" />
       </div>
     );
   }
@@ -65,11 +66,14 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <span className="text-primary-foreground font-bold text-lg">M</span>
-          </div>
-          <h1 className="text-xl font-bold text-foreground">ManWinWin PartnerOS</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <BrandMark className="h-14 w-14 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-foreground">PartnerOS</h1>
+          <p className="text-sm text-muted-foreground mt-1 leading-snug">
+            Powering Partners.
+            <br />
+            Driving Growth.
+          </p>
+          <p className="text-sm text-muted-foreground mt-3">
             {view === "login" && "Sign in to your account"}
             {view === "forgot" && "Reset your password"}
           </p>

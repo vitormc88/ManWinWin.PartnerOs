@@ -26,6 +26,7 @@ import {
   CheckSquare,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { BrandMark } from "@/components/BrandMark";
 import { useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -171,16 +172,14 @@ export function AppSidebar() {
       <SidebarHeader className="px-3 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shrink-0">
-              M
-            </div>
+            <BrandMark className="h-8 w-8" />
             {!collapsed && (
               <div className="flex flex-col">
                 <span className="text-sm font-semibold text-sidebar-accent-foreground leading-tight">
-                  ManWinWin
+                  PartnerOS
                 </span>
                 <span className="text-[11px] text-sidebar-muted leading-tight">
-                  PartnerOS
+                  by ManWinWin
                 </span>
               </div>
             )}
