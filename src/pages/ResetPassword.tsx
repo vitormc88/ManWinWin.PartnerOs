@@ -207,7 +207,7 @@ export default function ResetPassword() {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <BrandMark className="h-12 w-12" />
       </div>
     );
   }
