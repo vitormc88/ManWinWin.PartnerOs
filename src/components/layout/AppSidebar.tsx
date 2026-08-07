@@ -171,15 +171,15 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="px-3 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <BrandMark className="h-8 w-8" />
+          <div className="flex items-center gap-3">
+            <BrandMark transparent className="h-9 w-9" />
             {!collapsed && (
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold text-sidebar-accent-foreground leading-tight">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[15px] font-semibold text-sidebar-accent-foreground leading-none tracking-tight">
                   PartnerOS
                 </span>
-                <span className="text-[11px] text-sidebar-muted leading-tight">
-                  by ManWinWin
+                <span className="text-[11px] font-medium text-[#BFC5CC] leading-none">
+                  Powered by ManWinWin
                 </span>
               </div>
             )}
