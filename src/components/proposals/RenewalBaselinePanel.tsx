@@ -90,7 +90,7 @@ export function RenewalBaselinePanel({
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Field label="Product / family" value={baseline.product} />
-          <Field label="Plan / variant" value={baseline.variantLabel} />
+          <Field label="Plan / variant" value={baseline.variantLabel} needsReview={baseline.variantNeedsReview} />
           <Field label="Hosting" value={baseline.hosting} />
           <Field label="Current version" value={baseline.version} />
           <Field label="BackOffice users" value={baseline.backofficeUsers == null ? null : String(baseline.backofficeUsers)} />
