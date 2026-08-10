@@ -70,7 +70,8 @@ import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
 import { LICENSE_ORDER } from "@/lib/license-evolution";
 import { useRenewalBaseline } from "@/hooks/useRenewalBaseline";
 import { RenewalBaselinePanel } from "./RenewalBaselinePanel";
-import { buildBaselineProposalItems } from "@/lib/renewal-baseline";
+import { buildBaselineProposalItems, baselineLicenseModel } from "@/lib/renewal-baseline";
+import { downloadRenewalProposalDocx } from "@/lib/proposal-renewal-docx";
 
 // Append a "[Staged from wizard]" line to the notes textarea without clobbering it.
 function appendStagedLine(prev: string, line: string): string {
@@ -915,6 +916,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       qc.invalidateQueries({ queryKey: ["proposals"] });
     } catch {
       /* upload best-effort */
+    }
+  };
+
+  /**
+   * Renewals P0B — contract-driven renewals produce a dedicated renewal
+   * document built from the real baseline lines. Business renewals keep their
+   * Business identity; catalogue pricing is never regenerated here.
+   */
+  const handleGenerateRenewalDocx = async () => {
+    const prop = await persistProposal("Ready");
+    if (!prop) return;
+    try {
+      const itemsForDoc = items.map((it, idx) => ({ ...it, sort_order: idx }));
+      const { blob, fileName } = await downloadRenewalProposalDocx({
+        proposal: prop,
+        items: itemsForDoc as any,
+        baseline: renewalBaseline,
+        proposedRecurring: money.totalRecurring,
+        proposedYear1: money.totalYear1,
+      });
+      await uploadBusinessDocx(prop, blob, fileName);
+      toast.success("Renewal proposal generated");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error("Generation failed: " + (e?.message || ""));
     }
   };
 

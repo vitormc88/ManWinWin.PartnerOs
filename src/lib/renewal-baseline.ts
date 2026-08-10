@@ -555,3 +555,16 @@ export function displayOrNotRecorded(value: unknown, suffix = ""): string {
   if (value === null || value === undefined || value === "") return NOT_RECORDED;
   return `${value}${suffix}`;
 }
+
+/**
+ * Business licence variant behind a baseline ("useit" / "keepit").
+ * Product identity must survive a contract-driven renewal, so the variant is
+ * derived from the real product label, never from the catalogue defaults.
+ */
+export function baselineLicenseModel(baseline: RenewalBaseline | null): "keepit" | "useit" | null {
+  if (!baseline) return null;
+  const text = `${baseline.variantLabel ?? ""} ${baseline.product ?? ""}`.toLowerCase();
+  if (/keep ?it/.test(text)) return "keepit";
+  if (/use ?it/.test(text)) return "useit";
+  return null;
+}
