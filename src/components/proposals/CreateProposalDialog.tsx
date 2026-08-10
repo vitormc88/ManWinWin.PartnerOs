@@ -733,17 +733,41 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         if (itErr) throw itErr;
       }
       const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
-      await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", leadId);
+      if (isRenewalProposal) {
+        const renewalId = source.renewal_id as string;
+        // Link the renewal to its proposal (first proposal wins; status is NOT changed here).
+        try {
+          await supabase
+            .from("renewals")
+            .update({ source_proposal_id: prop.id })
+            .eq("id", renewalId)
+            .is("source_proposal_id", null);
+        } catch { /* best-effort link */ }
+        try {
+          await supabase.from("renewal_activities").insert({
+            renewal_id: renewalId,
+            action: editingProposal?.id ? "proposal_updated" : "proposal_created",
+            performed_by: profile?.full_name || user?.email || null,
+            notes: `Renewal proposal v${versionForInsert} ${editingProposal?.id ? "updated" : "created"} for ${clientName}.`,
+          });
+        } catch { /* best-effort log */ }
+        qc.invalidateQueries({ queryKey: ["proposals"] });
+        qc.invalidateQueries({ queryKey: ["renewals"] });
+        qc.invalidateQueries({ queryKey: ["renewal_activities", renewalId] });
+        if (source.client_id) qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] });
+        return prop as unknown as Proposal;
+      }
+      await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", source.deal_id as string);
       // Log activity (best-effort, no stage change)
       try {
         const { logSystemActivity } = await import("@/lib/activity-log");
         const verb = editingProposal?.id ? "updated" : "generated";
-        logSystemActivity(leadId, `Proposal ${verb}`, `Proposal ${verb} for ${clientName}.`);
+        logSystemActivity(source.deal_id as string, `Proposal ${verb}`, `Proposal ${verb} for ${clientName}.`);
       } catch { /* noop */ }
       qc.invalidateQueries({ queryKey: ["proposals"] });
-      qc.invalidateQueries({ queryKey: ["deal", leadId] });
+      qc.invalidateQueries({ queryKey: ["deal", source.deal_id] });
       qc.invalidateQueries({ queryKey: ["deals"] });
-      qc.invalidateQueries({ queryKey: ["deal_activities", leadId] });
+      qc.invalidateQueries({ queryKey: ["deal_activities", source.deal_id] });
       return prop as unknown as Proposal;
     } catch (e: any) {
       toast.error(e?.message || "Failed to save proposal");
