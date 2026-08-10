@@ -447,6 +447,20 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     setItems(buildBaselineProposalItems(renewalBaseline));
   }, [open, usesContractBaselineItems, renewalBaseline, editingProposal]);
 
+  // Renewals P0C — restore the proposal-only variant chosen on a previous save.
+  useEffect(() => {
+    if (!open) return;
+    const stored = (editingProposal as any)?.license_model as string | null | undefined;
+    setProposalVariant(stored === "keepit" || stored === "useit" ? stored : null);
+  }, [open, editingProposal]);
+
+  // Keep the Business proposal mode aligned with the variant chosen for this proposal.
+  useEffect(() => {
+    if (!usesContractBaselineItems || !effectiveVariant) return;
+    setProposalMode(effectiveVariant === "keepit" ? "keepit_only" : "useit_only");
+  }, [usesContractBaselineItems, effectiveVariant]);
+
+
   // Keep Business config deployment field in sync with the wizard's deployment selector
   useEffect(() => {
     if (!isBusinessCatalogue) return;
