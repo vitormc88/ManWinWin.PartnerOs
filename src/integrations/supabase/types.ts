@@ -5605,6 +5605,17 @@ export type Database = {
         Returns: undefined
       }
       resolve_user_by_name: { Args: { _name: string }; Returns: string }
+      save_renewal_proposal: {
+        Args: {
+          _items: Json
+          _notes?: string
+          _payload: Json
+          _performed_by?: string
+          _proposal_id: string
+          _renewal_id: string
+        }
+        Returns: string
+      }
       sync_role_template_to_users: {
         Args: {
           _overwrite_overrides?: boolean
