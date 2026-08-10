@@ -150,7 +150,17 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
   const { proposal, items, baseline, proposedRecurring, proposedYear1 } = opts;
   const lang = (proposal as any).language || "EN";
   const financials = buildRenewalFinancialSummary({ baseline, proposedRecurring, proposedYear1 });
-  const comparison = compareProposalToBaseline(baseline, items);
+  const selectedModel = (proposal as any).license_model as string | null;
+  const selectedVariantLabel =
+    baseline?.variantNeedsReview && selectedModel
+      ? selectedModel === "keepit"
+        ? "KeepIT"
+        : selectedModel === "useit"
+        ? "UseIT"
+        : null
+      : null;
+  const comparison = compareProposalToBaseline(baseline, items, { selectedVariantLabel });
+
   const logo = await loadLogo();
   const identity = renewalProductIdentity(proposal, baseline);
   const clientName = (proposal as any).client_name || baseline?.clientId || "Client";
@@ -280,10 +290,17 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
   children.push(redBarHeading("Changes from Current Contract"));
   if (comparison.isStraightRenewal) {
     children.push(p("Straight renewal — no changes to the current contract configuration or pricing.", { size: 21 }));
+    comparison.changes
+      .filter((c) => c.kind === "variant_selected")
+      .forEach((c) => {
+        children.push(p(`• Variant selected for proposal: ${c.label} · ${c.detail}`, { size: 21 }));
+      });
   } else {
     comparison.changes.forEach((c) => {
-      children.push(p(`• ${c.label}${c.detail ? ` — ${c.detail}` : ""}`, { size: 21 }));
+      const prefix = c.kind === "variant_selected" ? `Variant selected for proposal: ${c.label}` : c.label;
+      children.push(p(`• ${prefix}${c.detail ? ` · ${c.detail}` : ""}`, { size: 21 }));
     });
+
   }
 
   const notes = (proposal as any).notes as string | null;

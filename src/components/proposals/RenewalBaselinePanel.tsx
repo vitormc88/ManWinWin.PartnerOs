@@ -22,9 +22,11 @@ interface Props {
   proposedItems?: { item_name: string; qty: number; unit_price: number }[];
   proposedRecurring?: number;
   proposedYear1?: number;
+  /** Variant chosen for THIS proposal when the baseline variant is not recorded. */
+  selectedVariantLabel?: string | null;
 }
 
-function Field({ label, value }: { label: string; value: string | null }) {
+function Field({ label, value, needsReview = false }: { label: string; value: string | null; needsReview?: boolean }) {
   const missing = !value;
   return (
     <div className="min-w-0">
@@ -32,6 +34,11 @@ function Field({ label, value }: { label: string; value: string | null }) {
       <p className={`text-sm truncate ${missing ? "text-muted-foreground italic" : "text-foreground font-medium"}`}>
         {value || NOT_RECORDED}
       </p>
+      {needsReview && (
+        <Badge variant="outline" className="mt-1 text-[9px] border-destructive/40 text-destructive">
+          Needs review
+        </Badge>
+      )}
     </div>
   );
 }
@@ -42,8 +49,10 @@ const CHANGE_LABEL: Record<BaselineChange["kind"], string> = {
   qty_increased: "Quantity increased",
   qty_decreased: "Quantity decreased",
   price_changed: "Pricing changed",
+  variant_selected: "Variant selected for proposal",
   unchanged: "Unchanged",
 };
+
 
 export function RenewalBaselinePanel({
   baseline,
@@ -51,6 +60,7 @@ export function RenewalBaselinePanel({
   proposedItems = [],
   proposedRecurring = 0,
   proposedYear1 = 0,
+  selectedVariantLabel = null,
 }: Props) {
   if (isLoading) {
     return (
@@ -64,10 +74,11 @@ export function RenewalBaselinePanel({
   const money = (v: number | null | undefined) =>
     v === null || v === undefined ? null : formatMoney(v, { currency: baseline.currency });
 
-  const comparison = compareProposalToBaseline(baseline, proposedItems as any);
+  const comparison = compareProposalToBaseline(baseline, proposedItems as any, { selectedVariantLabel });
   const financials = buildRenewalFinancialSummary({ baseline, proposedRecurring, proposedYear1 });
   const grouped = comparison.changes.filter((c) => c.kind !== "unchanged");
   const unchangedCount = comparison.changes.length - grouped.length;
+
 
   return (
     <div className="mt-3 space-y-3">
@@ -79,7 +90,7 @@ export function RenewalBaselinePanel({
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <Field label="Product / family" value={baseline.product} />
-          <Field label="Plan / variant" value={baseline.variantLabel} />
+          <Field label="Plan / variant" value={baseline.variantLabel} needsReview={baseline.variantNeedsReview} />
           <Field label="Hosting" value={baseline.hosting} />
           <Field label="Current version" value={baseline.version} />
           <Field label="BackOffice users" value={baseline.backofficeUsers == null ? null : String(baseline.backofficeUsers)} />

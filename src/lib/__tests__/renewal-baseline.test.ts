@@ -173,3 +173,43 @@ describe("financial split and change detection", () => {
     expect(cmp.isStraightRenewal).toBe(false);
   });
 });
+
+describe("unknown commercial variant (P0C)", () => {
+  const unknownVariant = { ...license, product: "ManWinWin Business", license_model: null };
+
+  it("never repeats the family as the variant and flags it for review", () => {
+    const b = build({ license: unknownVariant, client: { ...client, license_type: null } });
+    expect(b.productFamily).toBe("Business");
+    expect(b.product).toBe("ManWinWin Business");
+    expect(b.variantLabel).toBeNull();
+    expect(b.variantNeedsReview).toBe(true);
+    expect(b.unmappedFields).toContain("commercial_variant");
+  });
+
+  it("keeps known variants resolving automatically", () => {
+    const b = build();
+    expect(b.variantLabel).toBe("UseIT");
+    expect(b.variantNeedsReview).toBe(false);
+  });
+
+  it("never invents Plan 1 for an undetermined Professional plan", () => {
+    const b = build({
+      license: { ...license, product: "ManWinWin Professional", license_model: null },
+      client: { ...client, product_type: "ManWinWin Professional", license_type: null },
+    });
+    expect(b.productFamily).toBe("Professional");
+    expect(b.plan).toBeNull();
+    expect(b.variantLabel).toBeNull();
+    expect(b.variantNeedsReview).toBe(true);
+  });
+
+  it("records a proposal-only variant selection without touching the contract", () => {
+    const b = build({ license: unknownVariant, client: { ...client, license_type: null } });
+    const items = buildBaselineProposalItems(b);
+    const cmp = compareProposalToBaseline(b, items as any, { selectedVariantLabel: "UseIT" });
+    expect(cmp.isStraightRenewal).toBe(true);
+    const sel = cmp.changes.find((c) => c.kind === "variant_selected");
+    expect(sel?.label).toBe("UseIT");
+    expect(sel?.detail).toBe("source baseline not recorded");
+  });
+});

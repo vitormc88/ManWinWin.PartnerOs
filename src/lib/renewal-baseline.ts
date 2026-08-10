@@ -80,12 +80,16 @@ export interface RenewalBaseline {
   licenseId: string | null;
 
   productFamily: ProposalProductFamily | null;
-  /** Raw canonical product, e.g. "Business UseIT" / "Professional 2". */
+  /** Product / family label, e.g. "Business UseIT" or "ManWinWin Business". */
   product: string | null;
+  /** Commercial variant — ONLY when the source proves it. Never inferred. */
   variantLabel: string | null;
+  /** True when the family is known but the commercial variant is not recorded. */
+  variantNeedsReview: boolean;
   plan: ProposalPlan | null;
   hosting: "SaaS" | "On-Premise" | null;
   version: string | null;
+
 
   backofficeUsers: number | null;
   webUsers: number | null;
@@ -241,8 +245,23 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
       : null;
 
   const productFamily = ((vocab.product.family || fallbackFamily) || null) as ProposalProductFamily | null;
-  const product = (vocab.product.family ? vocab.product.value : fallbackVariant) || vocab.product.value || null;
+  /**
+   * The commercial variant is only "proven" when the source explicitly records
+   * it (canonical product, or a license_model that resolves KeepIT/UseIT).
+   * It is NEVER inferred from pricing, hosting or unrelated fields.
+   */
+  const provenVariant = (vocab.product.family ? vocab.product.value : fallbackVariant) || null;
+  const provenVariantLabel = vocab.product.family
+    ? vocab.product.label
+    : provenVariant
+    ? provenVariant.replace(/^Business\s+/i, "")
+    : null;
+  const product =
+    provenVariant || (fallbackFamily ? `ManWinWin ${fallbackFamily}` : vocab.product.value || null);
+  const variantNeedsReview = !!productFamily && !provenVariant;
   if (!product) unmapped.push("product");
+  if (variantNeedsReview) unmapped.push("commercial_variant");
+
 
   // Hosting: SaaS / SaaS Direct / Cloud all mean hosted on ManWinWin servers.
   const deploymentView = readDeployment(
@@ -303,8 +322,10 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
 
     productFamily,
     product,
-    variantLabel: (vocab.product.family ? vocab.product.label : null) || product,
-    plan: planOf(product),
+    variantLabel: provenVariantLabel,
+    variantNeedsReview,
+    plan: planOf(provenVariant),
+
     hosting,
     version,
 
@@ -470,7 +491,9 @@ export type BaselineChangeKind =
   | "qty_increased"
   | "qty_decreased"
   | "price_changed"
+  | "variant_selected"
   | "unchanged";
+
 
 export interface BaselineChange {
   kind: BaselineChangeKind;
@@ -495,8 +518,10 @@ interface ComparableItem {
 export function compareProposalToBaseline(
   baseline: RenewalBaseline | null,
   proposed: ComparableItem[],
+  opts: { selectedVariantLabel?: string | null } = {},
 ): BaselineComparison {
   if (!baseline) return { changes: [], isStraightRenewal: false };
+
 
   const key = (name: string) => norm(name);
   const baseItems = buildBaselineProposalItems(baseline);
@@ -539,9 +564,19 @@ export function compareProposalToBaseline(
     }
   }
 
+  // A variant chosen for the proposal is not a contract change: it is recorded
+  // after the straight-renewal verdict and never rewrites the baseline.
   const isStraightRenewal = changes.length > 0 && changes.every((c) => c.kind === "unchanged");
+  if (baseline.variantNeedsReview && opts.selectedVariantLabel) {
+    changes.push({
+      kind: "variant_selected",
+      label: opts.selectedVariantLabel,
+      detail: "source baseline not recorded",
+    });
+  }
   return { changes, isStraightRenewal };
 }
+
 
 function fmt(value: number, currency: string): string {
   return `${currency === "EUR" ? "€" : `${currency} `}${value.toLocaleString("en-US", {

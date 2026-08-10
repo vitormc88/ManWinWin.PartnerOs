@@ -227,6 +227,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    */
   const isBusinessCatalogue = isBusinessProduct && !usesContractBaselineItems;
 
+  /**
+   * Renewals P0C — commercial variant (KeepIT / UseIT).
+   * The baseline value is authoritative; when the source does not record it the
+   * user may pick one FOR THIS PROPOSAL ONLY (never written to the contract).
+   */
+  const baselineVariant = baselineLicenseModel(renewalBaseline);
+  const [proposalVariant, setProposalVariant] = useState<"keepit" | "useit" | null>(null);
+  const effectiveVariant = baselineVariant ?? proposalVariant;
+  const variantUnresolved =
+    usesContractBaselineItems && !!renewalBaseline?.variantNeedsReview && !effectiveVariant;
+  const selectedVariantLabel =
+    renewalBaseline?.variantNeedsReview && effectiveVariant
+      ? effectiveVariant === "keepit"
+        ? "KeepIT"
+        : "UseIT"
+      : null;
+
+
+
   // Step 2
   const [includeRequests, setIncludeRequests] = useState(false);
   const [webUsers, setWebUsers] = useState(0);
@@ -427,6 +446,20 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     setOnsiteDays(0);
     setItems(buildBaselineProposalItems(renewalBaseline));
   }, [open, usesContractBaselineItems, renewalBaseline, editingProposal]);
+
+  // Renewals P0C — restore the proposal-only variant chosen on a previous save.
+  useEffect(() => {
+    if (!open) return;
+    const stored = (editingProposal as any)?.license_model as string | null | undefined;
+    setProposalVariant(stored === "keepit" || stored === "useit" ? stored : null);
+  }, [open, editingProposal]);
+
+  // Keep the Business proposal mode aligned with the variant chosen for this proposal.
+  useEffect(() => {
+    if (!usesContractBaselineItems || !effectiveVariant) return;
+    setProposalMode(effectiveVariant === "keepit" ? "keepit_only" : "useit_only");
+  }, [usesContractBaselineItems, effectiveVariant]);
+
 
   // Keep Business config deployment field in sync with the wizard's deployment selector
   useEffect(() => {
@@ -698,13 +731,18 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         product_family: productFamily,
         // Identity fields follow the PRODUCT, not the pricing mode, so a
         // contract-driven Business renewal stays "Business UseIT".
-        license_model: isBusinessProduct
-          ? proposalMode === "keepit_only"
-            ? "keepit"
-            : proposalMode === "useit_only"
-            ? "useit"
-            : null
+        // Contract-driven renewals persist the resolved (or explicitly chosen)
+        // variant; it is never inferred and stays null while unresolved.
+        license_model: !isBusinessProduct
+          ? null
+          : usesContractBaselineItems
+          ? effectiveVariant
+          : proposalMode === "keepit_only"
+          ? "keepit"
+          : proposalMode === "useit_only"
+          ? "useit"
           : null,
+
         proposal_mode: isBusinessProduct ? proposalMode : null,
         deployment: isBusinessProduct ? deployment : null,
         business_config: isBusinessCatalogue ? (businessConfig as any) : null,
@@ -925,8 +963,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    * Business identity; catalogue pricing is never regenerated here.
    */
   const handleGenerateRenewalDocx = async () => {
+    if (variantUnresolved) {
+      toast.error(
+        "Commercial variant is not recorded. Select KeepIT or UseIT before generating the renewal proposal.",
+      );
+      return;
+    }
     const prop = await persistProposal("Ready");
     if (!prop) return;
+
     try {
       const itemsForDoc = items.map((it, idx) => ({ ...it, sort_order: idx }));
       const { blob, fileName } = await downloadRenewalProposalDocx({
@@ -1073,6 +1118,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
             proposedItems={items.map((it) => ({ item_name: it.item_name, qty: it.qty, unit_price: it.unit_price }))}
             proposedRecurring={money.totalRecurring}
             proposedYear1={money.totalYear1}
+            selectedVariantLabel={selectedVariantLabel}
+
           />
         )}
 
@@ -1222,6 +1269,28 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                     </p>
                   </div>
                 )}
+
+                {/* Renewals P0C — variant not recorded in the source contract. */}
+                {usesContractBaselineItems && renewalBaseline?.variantNeedsReview && (
+                  <div>
+                    <Label>Commercial variant (this proposal only)</Label>
+                    <Select
+                      value={proposalVariant ?? ""}
+                      onValueChange={(v) => setProposalVariant(v as "keepit" | "useit")}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Not recorded — select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="keepit">KeepIT</SelectItem>
+                        <SelectItem value="useit">UseIT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Applies to this proposal only — the current contract and license are not modified.
+                    </p>
+                  </div>
+                )}
+
+
 
               </div>
 
@@ -1599,19 +1668,30 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                       Generate {isBusinessProduct ? "Business" : "Professional"} renewal proposal
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {renewalBaseline?.variantLabel || renewalBaseline?.product || productFamily} ·{" "}
-                      {renewalBaseline?.hosting || hosting} · {language}
+                      {renewalBaseline?.variantLabel
+                        ? `${renewalBaseline.product}`
+                        : `${renewalBaseline?.product || productFamily} · variant ${
+                            selectedVariantLabel ? `${selectedVariantLabel} (this proposal)` : "not recorded"
+                          }`}{" "}
+                      · {renewalBaseline?.hosting || hosting} · {language}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Current recurring: <strong>{formatPrice(renewalBaseline?.currentRecurring || 0)}</strong>
                       {" · "}Proposed Year 1: <strong>{formatPrice(money.totalYear1)}</strong>
                       {" · "}Year 2+: <strong>{formatPrice(money.totalRecurring)}/yr</strong>
                     </p>
+                    {variantUnresolved && (
+                      <p role="alert" className="text-sm text-destructive mt-2">
+                        Commercial variant is not recorded. Select KeepIT or UseIT before generating the renewal
+                        proposal.
+                      </p>
+                    )}
                   </div>
                   <div className="flex justify-center gap-2 flex-wrap">
                     <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
-                    <Button onClick={handleGenerateRenewalDocx} disabled={saving}>
+                    <Button onClick={handleGenerateRenewalDocx} disabled={saving || variantUnresolved}>
                       <Download className="h-4 w-4 mr-2" />Generate Renewal DOCX
+
                     </Button>
                   </div>
                 </>
