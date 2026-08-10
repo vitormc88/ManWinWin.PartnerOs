@@ -44,6 +44,7 @@ export default function Renewals() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [partnerFilter, setPartnerFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showProposal, setShowProposal] = useState(false);
 
   const clientMap = useMemo(() => {
     const m: Record<string, any> = {};
