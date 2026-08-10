@@ -64,7 +64,8 @@ async function docText(): Promise<string> {
     proposedRecurring: items.reduce((s, i) => s + (i.is_recurring ? i.total : 0), 0),
     proposedYear1: items.reduce((s, i) => s + i.total, 0),
   });
-  const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  const buf = await new Response(blob as any).arrayBuffer();
+  const zip = await JSZip.loadAsync(buf);
   return await zip.file("word/document.xml")!.async("string");
 }
 
