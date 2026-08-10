@@ -60,6 +60,7 @@ export function RenewalBaselinePanel({
   proposedItems = [],
   proposedRecurring = 0,
   proposedYear1 = 0,
+  selectedVariantLabel = null,
 }: Props) {
   if (isLoading) {
     return (
@@ -73,10 +74,11 @@ export function RenewalBaselinePanel({
   const money = (v: number | null | undefined) =>
     v === null || v === undefined ? null : formatMoney(v, { currency: baseline.currency });
 
-  const comparison = compareProposalToBaseline(baseline, proposedItems as any);
+  const comparison = compareProposalToBaseline(baseline, proposedItems as any, { selectedVariantLabel });
   const financials = buildRenewalFinancialSummary({ baseline, proposedRecurring, proposedYear1 });
   const grouped = comparison.changes.filter((c) => c.kind !== "unchanged");
   const unchangedCount = comparison.changes.length - grouped.length;
+
 
   return (
     <div className="mt-3 space-y-3">
