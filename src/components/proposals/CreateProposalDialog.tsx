@@ -963,8 +963,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    * Business identity; catalogue pricing is never regenerated here.
    */
   const handleGenerateRenewalDocx = async () => {
+    if (variantUnresolved) {
+      toast.error(
+        "Commercial variant is not recorded. Select KeepIT or UseIT before generating the renewal proposal.",
+      );
+      return;
+    }
     const prop = await persistProposal("Ready");
     if (!prop) return;
+
     try {
       const itemsForDoc = items.map((it, idx) => ({ ...it, sort_order: idx }));
       const { blob, fileName } = await downloadRenewalProposalDocx({
