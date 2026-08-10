@@ -230,11 +230,42 @@ export default function Renewals() {
                 {detail.notes && (
                   <div className="border-t pt-3"><p className="text-xs font-medium text-muted-foreground mb-1">Notes</p><p className="text-sm text-muted-foreground">{detail.notes}</p></div>
                 )}
+                <div className="border-t pt-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Renewal Proposal</p>
+                  {!isRealRenewal ? (
+                    <p className="text-sm text-muted-foreground">
+                      This renewal is derived from contract/license dates. Operationalize it before creating a proposal.
+                    </p>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">
+                        {renewalProposal
+                          ? `Version ${renewalProposal.version} · ${renewalProposal.status}`
+                          : "No proposal created yet."}
+                      </p>
+                      <Button size="sm" onClick={() => setShowProposal(true)} className="gap-2">
+                        <FileText className="h-4 w-4" />
+                        {renewalProposal ? "Open Renewal Proposal" : "Create Renewal Proposal"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {showProposal && proposalSource && detail && (
+        <CreateProposalDialog
+          open={showProposal}
+          onOpenChange={setShowProposal}
+          proposalSource={proposalSource}
+          editingProposal={renewalProposal as any}
+          defaultClientName={detailClient?.commercial_name || detail.clientName}
+          defaultCountry={detailClient?.country || null}
+        />
+      )}
     </div>
   );
 }
