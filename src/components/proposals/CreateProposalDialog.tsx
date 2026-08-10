@@ -731,13 +731,18 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         product_family: productFamily,
         // Identity fields follow the PRODUCT, not the pricing mode, so a
         // contract-driven Business renewal stays "Business UseIT".
-        license_model: isBusinessProduct
-          ? proposalMode === "keepit_only"
-            ? "keepit"
-            : proposalMode === "useit_only"
-            ? "useit"
-            : null
+        // Contract-driven renewals persist the resolved (or explicitly chosen)
+        // variant; it is never inferred and stays null while unresolved.
+        license_model: !isBusinessProduct
+          ? null
+          : usesContractBaselineItems
+          ? effectiveVariant
+          : proposalMode === "keepit_only"
+          ? "keepit"
+          : proposalMode === "useit_only"
+          ? "useit"
           : null,
+
         proposal_mode: isBusinessProduct ? proposalMode : null,
         deployment: isBusinessProduct ? deployment : null,
         business_config: isBusinessCatalogue ? (businessConfig as any) : null,
