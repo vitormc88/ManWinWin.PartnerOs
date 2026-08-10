@@ -1,6 +1,11 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCcw, Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { FileText, Search } from "lucide-react";
+import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
+import { renewalProposalSource } from "@/lib/proposal-source";
 import { Badge } from "@/components/ui/badge";
 import { useRenewals } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
