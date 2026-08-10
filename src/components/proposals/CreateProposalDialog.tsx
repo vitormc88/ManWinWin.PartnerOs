@@ -13,6 +13,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { usePricingRules } from "@/hooks/useProposals";
 import {
+  dealProposalSource,
+  isRenewalSource,
+  isValidProposalSource,
+  buildProposalSourcePayload,
+  proposalStoragePrefix,
+  type ProposalSource,
+} from "@/lib/proposal-source";
+import {
   buildDefaultItems,
   computeTotals,
   enrichProposalItem,
