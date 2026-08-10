@@ -1,6 +1,11 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCcw, Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { FileText, Search } from "lucide-react";
+import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
+import { renewalProposalSource } from "@/lib/proposal-source";
 import { Badge } from "@/components/ui/badge";
 import { useRenewals } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
@@ -39,6 +44,7 @@ export default function Renewals() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [partnerFilter, setPartnerFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showProposal, setShowProposal] = useState(false);
 
   const clientMap = useMemo(() => {
     const m: Record<string, any> = {};
@@ -83,6 +89,34 @@ export default function Renewals() {
   const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
 
   const detail = selectedId ? enriched.find(r => r.id === selectedId) : null;
+  const isRealRenewal = !!detail && !String(detail.id).startsWith("derived-");
+  const detailClient = detail ? clientMap[detail.client_id] : null;
+
+  const { data: renewalProposal = null } = useQuery({
+    queryKey: ["proposal", "renewal", detail?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposals")
+        .select("*")
+        .eq("renewal_id", detail!.id)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!detail?.id && isRealRenewal,
+  });
+
+  const proposalSource = detail && isRealRenewal
+    ? renewalProposalSource({
+        renewalId: detail.id,
+        clientId: detail.client_id,
+        partnerUuid: detail.partner_uuid ?? null,
+        contractId: detail.contract_id ?? null,
+        licenseId: detail.license_id ?? null,
+      })
+    : null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -197,11 +231,42 @@ export default function Renewals() {
                 {detail.notes && (
                   <div className="border-t pt-3"><p className="text-xs font-medium text-muted-foreground mb-1">Notes</p><p className="text-sm text-muted-foreground">{detail.notes}</p></div>
                 )}
+                <div className="border-t pt-3 space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Renewal Proposal</p>
+                  {!isRealRenewal ? (
+                    <p className="text-sm text-muted-foreground">
+                      This renewal is derived from contract/license dates. Operationalize it before creating a proposal.
+                    </p>
+                  ) : (
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm text-muted-foreground">
+                        {renewalProposal
+                          ? `Version ${renewalProposal.version} · ${renewalProposal.status}`
+                          : "No proposal created yet."}
+                      </p>
+                      <Button size="sm" onClick={() => setShowProposal(true)} className="gap-2">
+                        <FileText className="h-4 w-4" />
+                        {renewalProposal ? "Open Renewal Proposal" : "Create Renewal Proposal"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </>
           )}
         </DialogContent>
       </Dialog>
+
+      {showProposal && proposalSource && detail && (
+        <CreateProposalDialog
+          open={showProposal}
+          onOpenChange={setShowProposal}
+          proposalSource={proposalSource}
+          editingProposal={renewalProposal as any}
+          defaultClientName={detailClient?.commercial_name || detail.clientName}
+          defaultCountry={detailClient?.country || null}
+        />
+      )}
     </div>
   );
 }

@@ -13,6 +13,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { usePricingRules } from "@/hooks/useProposals";
 import {
+  dealProposalSource,
+  isRenewalSource,
+  isValidProposalSource,
+  buildProposalSourcePayload,
+  proposalStoragePrefix,
+  type ProposalSource,
+} from "@/lib/proposal-source";
+import {
   buildDefaultItems,
   computeTotals,
   enrichProposalItem,
@@ -139,7 +147,10 @@ export interface CommercialContext {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  leadId: string;
+  /** Deal-sourced proposals (Pipeline). Ignored when `proposalSource` is provided. */
+  leadId?: string;
+  /** Typed source identity. Defaults to the deal identified by `leadId`. */
+  proposalSource?: ProposalSource | null;
   defaultClientName: string;
   defaultCountry?: string | null;
   editingProposal?: (Proposal & { items?: ProposalItem[] }) | null;
@@ -148,7 +159,13 @@ interface Props {
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null }: Props) {
+export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null }: Props) {
+  const source = useMemo<ProposalSource>(
+    () => proposalSource ?? dealProposalSource(leadId),
+    [proposalSource, leadId],
+  );
+  const isRenewalProposal = isRenewalSource(source);
+  const storagePrefix = proposalStoragePrefix(source);
   const { user, profile, isHQ } = useAuth();
   const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
   // Conservative limits while partner data is still missing/loading.
@@ -580,26 +597,29 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  /** Compute next available version number for this lead. */
+  /** Compute next available version number within the same source (deal or renewal). */
   const computeNextVersion = async (): Promise<number> => {
-    const { data: siblings } = await supabase
-      .from("proposals")
-      .select("version")
-      .eq("lead_id", leadId)
-      .order("version", { ascending: false })
-      .limit(1);
+    let q = supabase.from("proposals").select("version");
+    q = isRenewalProposal
+      ? q.eq("renewal_id", source.renewal_id as string)
+      : q.eq("lead_id", source.deal_id as string);
+    const { data: siblings } = await q.order("version", { ascending: false }).limit(1);
     return (siblings?.[0]?.version || 0) + 1;
   };
 
   const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
     if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
+    if (!isValidProposalSource(source)) {
+      toast.error("This proposal has no valid source record (deal or renewal).");
+      return null;
+    }
     setSaving(true);
     try {
       // Auto-assign version on first save (new proposal). Editing keeps existing version.
       const versionForInsert = editingProposal?.version || (await computeNextVersion());
       const insertData: any = {
-        lead_id: leadId,
+        ...buildProposalSourcePayload(source),
         version: versionForInsert,
         language,
         plan,
@@ -713,17 +733,41 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
         if (itErr) throw itErr;
       }
       const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
-      await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", leadId);
+      if (isRenewalProposal) {
+        const renewalId = source.renewal_id as string;
+        // Link the renewal to its proposal (first proposal wins; status is NOT changed here).
+        try {
+          await supabase
+            .from("renewals")
+            .update({ source_proposal_id: prop.id })
+            .eq("id", renewalId)
+            .is("source_proposal_id", null);
+        } catch { /* best-effort link */ }
+        try {
+          await supabase.from("renewal_activities").insert({
+            renewal_id: renewalId,
+            action: editingProposal?.id ? "proposal_updated" : "proposal_created",
+            performed_by: profile?.full_name || user?.email || null,
+            notes: `Renewal proposal v${versionForInsert} ${editingProposal?.id ? "updated" : "created"} for ${clientName}.`,
+          });
+        } catch { /* best-effort log */ }
+        qc.invalidateQueries({ queryKey: ["proposals"] });
+        qc.invalidateQueries({ queryKey: ["renewals"] });
+        qc.invalidateQueries({ queryKey: ["renewal_activities", renewalId] });
+        if (source.client_id) qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] });
+        return prop as unknown as Proposal;
+      }
+      await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", source.deal_id as string);
       // Log activity (best-effort, no stage change)
       try {
         const { logSystemActivity } = await import("@/lib/activity-log");
         const verb = editingProposal?.id ? "updated" : "generated";
-        logSystemActivity(leadId, `Proposal ${verb}`, `Proposal ${verb} for ${clientName}.`);
+        logSystemActivity(source.deal_id as string, `Proposal ${verb}`, `Proposal ${verb} for ${clientName}.`);
       } catch { /* noop */ }
       qc.invalidateQueries({ queryKey: ["proposals"] });
-      qc.invalidateQueries({ queryKey: ["deal", leadId] });
+      qc.invalidateQueries({ queryKey: ["deal", source.deal_id] });
       qc.invalidateQueries({ queryKey: ["deals"] });
-      qc.invalidateQueries({ queryKey: ["deal_activities", leadId] });
+      qc.invalidateQueries({ queryKey: ["deal_activities", source.deal_id] });
       return prop as unknown as Proposal;
     } catch (e: any) {
       toast.error(e?.message || "Failed to save proposal");
@@ -751,7 +795,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
       // Optionally upload to storage
       try {
         const blob = (await downloadProposalDocx(prop, itemsForDoc)).blob;
-        const path = `${leadId}/${prop.id}/${fileName}`;
+        const path = `${storagePrefix}/${prop.id}/${fileName}`;
         const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
           contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
           upsert: true,
@@ -775,7 +819,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClient
   /** Upload a Business DOCX blob to storage and persist URL on the proposal. */
   const uploadBusinessDocx = async (prop: Proposal, blob: Blob, fileName: string) => {
     try {
-      const path = `${leadId}/${prop.id}/${fileName}`;
+      const path = `${storagePrefix}/${prop.id}/${fileName}`;
       const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         upsert: true,

@@ -4347,10 +4347,13 @@ export type Database = {
         Row: {
           backoffice_work_hours: number | null
           business_config: Json | null
+          client_id: string | null
           client_name: string
+          contract_id: string | null
           country: string | null
           created_at: string
           created_by: string | null
+          deal_id: string | null
           deployment: string | null
           discount_amount: number | null
           discount_pct: number | null
@@ -4362,10 +4365,12 @@ export type Database = {
           implementation_type: string | null
           include_requests_module: boolean
           language: string
-          lead_id: string
+          lead_id: string | null
+          license_id: string | null
           license_model: string | null
           notes: string | null
           parent_proposal_id: string | null
+          partner_uuid: string | null
           payment_terms: string | null
           pdf_url: string | null
           per_diem: number | null
@@ -4374,12 +4379,14 @@ export type Database = {
           project_name: string | null
           proposal_date: string
           proposal_mode: string | null
+          renewal_id: string | null
           service_days: number | null
           service_hours: number | null
           services_discount_pct: number
           services_subtotal: number | null
           software_discount_pct: number
           software_subtotal: number | null
+          source_type: string
           status: string
           total_recurring: number | null
           total_year_1: number | null
@@ -4391,10 +4398,13 @@ export type Database = {
         Insert: {
           backoffice_work_hours?: number | null
           business_config?: Json | null
+          client_id?: string | null
           client_name: string
+          contract_id?: string | null
           country?: string | null
           created_at?: string
           created_by?: string | null
+          deal_id?: string | null
           deployment?: string | null
           discount_amount?: number | null
           discount_pct?: number | null
@@ -4406,10 +4416,12 @@ export type Database = {
           implementation_type?: string | null
           include_requests_module?: boolean
           language?: string
-          lead_id: string
+          lead_id?: string | null
+          license_id?: string | null
           license_model?: string | null
           notes?: string | null
           parent_proposal_id?: string | null
+          partner_uuid?: string | null
           payment_terms?: string | null
           pdf_url?: string | null
           per_diem?: number | null
@@ -4418,12 +4430,14 @@ export type Database = {
           project_name?: string | null
           proposal_date?: string
           proposal_mode?: string | null
+          renewal_id?: string | null
           service_days?: number | null
           service_hours?: number | null
           services_discount_pct?: number
           services_subtotal?: number | null
           software_discount_pct?: number
           software_subtotal?: number | null
+          source_type?: string
           status?: string
           total_recurring?: number | null
           total_year_1?: number | null
@@ -4435,10 +4449,13 @@ export type Database = {
         Update: {
           backoffice_work_hours?: number | null
           business_config?: Json | null
+          client_id?: string | null
           client_name?: string
+          contract_id?: string | null
           country?: string | null
           created_at?: string
           created_by?: string | null
+          deal_id?: string | null
           deployment?: string | null
           discount_amount?: number | null
           discount_pct?: number | null
@@ -4450,10 +4467,12 @@ export type Database = {
           implementation_type?: string | null
           include_requests_module?: boolean
           language?: string
-          lead_id?: string
+          lead_id?: string | null
+          license_id?: string | null
           license_model?: string | null
           notes?: string | null
           parent_proposal_id?: string | null
+          partner_uuid?: string | null
           payment_terms?: string | null
           pdf_url?: string | null
           per_diem?: number | null
@@ -4462,12 +4481,14 @@ export type Database = {
           project_name?: string | null
           proposal_date?: string
           proposal_mode?: string | null
+          renewal_id?: string | null
           service_days?: number | null
           service_hours?: number | null
           services_discount_pct?: number
           services_subtotal?: number | null
           software_discount_pct?: number
           software_subtotal?: number | null
+          source_type?: string
           status?: string
           total_recurring?: number | null
           total_year_1?: number | null
@@ -4478,10 +4499,73 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "proposals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_ownership_status"
+            referencedColumns: ["deal_id"]
+          },
+          {
             foreignKeyName: "proposals_parent_proposal_id_fkey"
             columns: ["parent_proposal_id"]
             isOneToOne: false
             referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "proposals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "proposals_renewal_id_fkey"
+            columns: ["renewal_id"]
+            isOneToOne: false
+            referencedRelation: "renewals"
             referencedColumns: ["id"]
           },
         ]
@@ -5353,6 +5437,10 @@ export type Database = {
       can_manage_client: { Args: { _client_id: string }; Returns: boolean }
       can_manage_deal: { Args: { _deal_id: string }; Returns: boolean }
       can_manage_partner: { Args: { _partner_id: string }; Returns: boolean }
+      can_manage_proposal_source: {
+        Args: { _deal_id: string; _partner_uuid: string; _source_type: string }
+        Returns: boolean
+      }
       can_view_client: { Args: { _client_id: string }; Returns: boolean }
       can_view_deal: { Args: { _deal_id: string }; Returns: boolean }
       can_view_module: {
@@ -5360,6 +5448,10 @@ export type Database = {
         Returns: boolean
       }
       can_view_partner: { Args: { _partner_id: string }; Returns: boolean }
+      can_view_proposal_source: {
+        Args: { _deal_id: string; _partner_uuid: string; _source_type: string }
+        Returns: boolean
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean

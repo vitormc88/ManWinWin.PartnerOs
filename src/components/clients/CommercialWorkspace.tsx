@@ -31,7 +31,8 @@ import {
   type CommercialActionId,
 } from "@/lib/license-evolution";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
-import { resolveRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
+import { resolveRenewal, isOpenRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
+import { renewalProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import {
   buildCommercialSummary,
   buildHistory,
@@ -78,6 +79,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
 
   const [showProposal, setShowProposal] = useState(false);
   const [commercialCtx, setCommercialCtx] = useState<CommercialContext | null>(null);
+  const [proposalSource, setProposalSource] = useState<ProposalSource | null>(null);
+  const [editingRenewalProposal, setEditingRenewalProposal] = useState<any | null>(null);
   const [showMeeting, setShowMeeting] = useState(false);
   const [showNote, setShowNote] = useState(false);
 
@@ -105,6 +108,39 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       return data || [];
     },
     enabled: !!clientName,
+  });
+
+  // Real operational renewal row for this client (never a derived placeholder).
+  const { data: renewalRow = null } = useQuery({
+    queryKey: ["renewals", "client-open", client?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("renewals")
+        .select("id, client_id, partner_uuid, contract_id, license_id, renewal_date, status, source_proposal_id")
+        .eq("client_id", client.id)
+        .order("renewal_date", { ascending: true });
+      if (error) throw error;
+      const rows = (data || []) as any[];
+      return rows.find((r) => isOpenRenewal(r)) ?? rows[0] ?? null;
+    },
+    enabled: !!client?.id,
+  });
+
+  // Proposal already attached to that renewal (if any).
+  const { data: renewalProposal = null } = useQuery({
+    queryKey: ["proposal", "renewal", renewalRow?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposals")
+        .select("*")
+        .eq("renewal_id", renewalRow.id)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!renewalRow?.id,
   });
 
   // Commercial notes (subset of client notes)
@@ -267,6 +303,25 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
 
 
   const openProposal = (mode: CommercialProposalMode) => {
+    if (mode === "renew_agreement") {
+      if (!renewalRow?.id) {
+        toast.error("No operational renewal record exists for this client yet.");
+        return;
+      }
+      setProposalSource(
+        renewalProposalSource({
+          renewalId: renewalRow.id,
+          clientId: client.id,
+          partnerUuid: renewalRow.partner_uuid ?? client?.partner_uuid ?? null,
+          contractId: renewalRow.contract_id ?? primaryContract?.id ?? null,
+          licenseId: renewalRow.license_id ?? primaryLicense?.id ?? null,
+        }),
+      );
+      setEditingRenewalProposal(renewalProposal ?? null);
+    } else {
+      setProposalSource(null);
+      setEditingRenewalProposal(null);
+    }
     setCommercialCtx(buildContext(mode));
     setShowProposal(true);
   };
@@ -527,7 +582,9 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         <CreateProposalDialog
           open={showProposal}
           onOpenChange={setShowProposal}
-          leadId={client.id}
+          leadId={proposalSource ? undefined : client.id}
+          proposalSource={proposalSource}
+          editingProposal={proposalSource ? editingRenewalProposal : null}
           defaultClientName={clientName}
           defaultCountry={client.country || null}
           commercialContext={commercialCtx}
