@@ -80,12 +80,16 @@ export interface RenewalBaseline {
   licenseId: string | null;
 
   productFamily: ProposalProductFamily | null;
-  /** Raw canonical product, e.g. "Business UseIT" / "Professional 2". */
+  /** Product / family label, e.g. "Business UseIT" or "ManWinWin Business". */
   product: string | null;
+  /** Commercial variant — ONLY when the source proves it. Never inferred. */
   variantLabel: string | null;
+  /** True when the family is known but the commercial variant is not recorded. */
+  variantNeedsReview: boolean;
   plan: ProposalPlan | null;
   hosting: "SaaS" | "On-Premise" | null;
   version: string | null;
+
 
   backofficeUsers: number | null;
   webUsers: number | null;
