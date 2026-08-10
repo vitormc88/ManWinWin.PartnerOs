@@ -564,9 +564,19 @@ export function compareProposalToBaseline(
     }
   }
 
+  // A variant chosen for the proposal is not a contract change: it is recorded
+  // after the straight-renewal verdict and never rewrites the baseline.
   const isStraightRenewal = changes.length > 0 && changes.every((c) => c.kind === "unchanged");
+  if (baseline.variantNeedsReview && opts.selectedVariantLabel) {
+    changes.push({
+      kind: "variant_selected",
+      label: opts.selectedVariantLabel,
+      detail: "source baseline not recorded",
+    });
+  }
   return { changes, isStraightRenewal };
 }
+
 
 function fmt(value: number, currency: string): string {
   return `${currency === "EUR" ? "€" : `${currency} `}${value.toLocaleString("en-US", {
