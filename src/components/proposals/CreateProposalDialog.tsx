@@ -1270,6 +1270,28 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   </div>
                 )}
 
+                {/* Renewals P0C — variant not recorded in the source contract. */}
+                {usesContractBaselineItems && renewalBaseline?.variantNeedsReview && (
+                  <div>
+                    <Label>Commercial variant (this proposal only)</Label>
+                    <Select
+                      value={proposalVariant ?? ""}
+                      onValueChange={(v) => setProposalVariant(v as "keepit" | "useit")}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Not recorded — select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="keepit">KeepIT</SelectItem>
+                        <SelectItem value="useit">UseIT</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Applies to this proposal only — the current contract and license are not modified.
+                    </p>
+                  </div>
+                )}
+
+
+
               </div>
 
               {/* Row 3: Client + Project */}
