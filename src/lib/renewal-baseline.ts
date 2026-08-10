@@ -491,7 +491,9 @@ export type BaselineChangeKind =
   | "qty_increased"
   | "qty_decreased"
   | "price_changed"
+  | "variant_selected"
   | "unchanged";
+
 
 export interface BaselineChange {
   kind: BaselineChangeKind;
