@@ -5426,6 +5426,10 @@ export type Database = {
         Returns: undefined
       }
       can_access_academy: { Args: never; Returns: boolean }
+      can_access_renewal_proposal: {
+        Args: { _client_id: string; _partner_uuid: string; _renewal_id: string }
+        Returns: boolean
+      }
       can_admin_module: {
         Args: { _module_key: string; _user_id: string }
         Returns: boolean
@@ -5438,7 +5442,13 @@ export type Database = {
       can_manage_deal: { Args: { _deal_id: string }; Returns: boolean }
       can_manage_partner: { Args: { _partner_id: string }; Returns: boolean }
       can_manage_proposal_source: {
-        Args: { _deal_id: string; _partner_uuid: string; _source_type: string }
+        Args: {
+          _client_id: string
+          _deal_id: string
+          _partner_uuid: string
+          _renewal_id: string
+          _source_type: string
+        }
         Returns: boolean
       }
       can_view_client: { Args: { _client_id: string }; Returns: boolean }
@@ -5449,7 +5459,13 @@ export type Database = {
       }
       can_view_partner: { Args: { _partner_id: string }; Returns: boolean }
       can_view_proposal_source: {
-        Args: { _deal_id: string; _partner_uuid: string; _source_type: string }
+        Args: {
+          _client_id: string
+          _deal_id: string
+          _partner_uuid: string
+          _renewal_id: string
+          _source_type: string
+        }
         Returns: boolean
       }
       delete_email: {
@@ -5547,6 +5563,16 @@ export type Database = {
         Args: { _partner_id: string; _user_id: string }
         Returns: boolean
       }
+      link_renewal_proposal: {
+        Args: {
+          _action: string
+          _notes?: string
+          _performed_by?: string
+          _proposal_id: string
+          _renewal_id: string
+        }
+        Returns: string
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -5569,6 +5595,10 @@ export type Database = {
       recalculate_contract_total: {
         Args: { _contract_id: string }
         Returns: number
+      }
+      renewal_canonical_partner: {
+        Args: { _renewal_id: string }
+        Returns: string
       }
       reset_user_to_role_template: {
         Args: { _user_id: string }
