@@ -292,7 +292,9 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
     children.push(p("Straight renewal — no changes to the current contract configuration or pricing.", { size: 21 }));
   } else {
     comparison.changes.forEach((c) => {
-      children.push(p(`• ${c.label}${c.detail ? ` — ${c.detail}` : ""}`, { size: 21 }));
+      const prefix = c.kind === "variant_selected" ? `Variant selected for proposal: ${c.label}` : c.label;
+      children.push(p(`• ${prefix}${c.detail ? ` · ${c.detail}` : ""}`, { size: 21 }));
+
     });
   }
 
