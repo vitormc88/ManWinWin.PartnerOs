@@ -68,6 +68,9 @@ import { checkBusinessPricingReadiness } from "@/lib/proposal-business-readiness
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
 import { LICENSE_ORDER } from "@/lib/license-evolution";
+import { useRenewalBaseline } from "@/hooks/useRenewalBaseline";
+import { RenewalBaselinePanel } from "./RenewalBaselinePanel";
+import { buildBaselineProposalItems } from "@/lib/renewal-baseline";
 
 // Append a "[Staged from wizard]" line to the notes textarea without clobbering it.
 function appendStagedLine(prev: string, line: string): string {
@@ -211,7 +214,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const [deployment, setDeployment] = useState<ProposalDeployment>("saas");
   const [businessConfig, setBusinessConfig] = useState<BusinessConfig>(DEFAULT_BUSINESS_CONFIG);
 
-  const isBusiness = productFamily === "Business";
+  // Baseline-driven renewals always use the editable line-item engine so the
+  // real contract lines (never catalogue defaults) drive the proposal.
+  const isBusiness = productFamily === "Business" && !useBaselineItems;
 
   // Step 2
   const [includeRequests, setIncludeRequests] = useState(false);
@@ -377,6 +382,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   // Auto-rebuild items whenever plan/services/options change (Professional only)
   useEffect(() => {
     if (isBusiness) return;
+    // Renewals P0: never reset a real customer to Plan 1 + implementation.
+    if (useBaselineItems) return;
     if (rules.length === 0) return;
     if (editingProposal?.items?.length && open) return;
     setItems(
@@ -390,7 +397,21 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         language,
       }),
     );
-  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusiness]);
+  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusiness, useBaselineItems]);
+
+  // ── Renewals P0: prepopulate from the real contract baseline ──────────
+  // Runs once per open, only when the proposal has no persisted items yet.
+  useEffect(() => {
+    if (!open || !useBaselineItems || !renewalBaseline) return;
+    if (editingProposal?.items?.length) return;
+    if (renewalBaseline.productFamily) setProductFamily(renewalBaseline.productFamily);
+    if (renewalBaseline.plan) setPlan(renewalBaseline.plan);
+    if (renewalBaseline.hosting) setHosting(renewalBaseline.hosting);
+    if (renewalBaseline.webUsers != null) setWebUsers(renewalBaseline.webUsers);
+    // An ordinary renewal never carries implementation services.
+    setOnsiteDays(0);
+    setItems(buildBaselineProposalItems(renewalBaseline));
+  }, [open, useBaselineItems, renewalBaseline, editingProposal]);
 
   // Keep Business config deployment field in sync with the wizard's deployment selector
   useEffect(() => {
@@ -979,6 +1000,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
             />
           </div>
         )}
+        {isRenewalProposal && (
+          <RenewalBaselinePanel
+            baseline={renewalBaseline}
+            isLoading={baselineLoading}
+            proposedItems={items.map((it) => ({ item_name: it.item_name, qty: it.qty, unit_price: it.unit_price }))}
+            proposedRecurring={isBusiness ? businessHeadline?.totalYear2Plus || 0 : totals.totalRecurring}
+            proposedYear1={isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1}
+          />
+        )}
+
         {/* Business pricing readiness — blocking state */}
         {isBusiness && businessReadiness && !businessReadiness.ok && (
           <div
