@@ -20,6 +20,7 @@ import {
   proposalStoragePrefix,
   type ProposalSource,
 } from "@/lib/proposal-source";
+import { buildRenewalLinkArgs, renewalProposalRefreshKeys } from "@/lib/renewal-proposal-link";
 import {
   buildDefaultItems,
   computeTotals,
