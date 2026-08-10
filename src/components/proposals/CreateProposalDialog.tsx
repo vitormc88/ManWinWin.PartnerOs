@@ -1562,7 +1562,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
               <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <FileText className="h-8 w-8 text-primary" />
               </div>
-              {isBusiness ? (
+              {usesContractBaselineItems ? (
+                <>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Generate {isBusinessProduct ? "Business" : "Professional"} renewal proposal
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {renewalBaseline?.variantLabel || renewalBaseline?.product || productFamily} ·{" "}
+                      {renewalBaseline?.hosting || hosting} · {language}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Current recurring: <strong>{formatPrice(renewalBaseline?.currentRecurring || 0)}</strong>
+                      {" · "}Proposed Year 1: <strong>{formatPrice(money.totalYear1)}</strong>
+                      {" · "}Year 2+: <strong>{formatPrice(money.totalRecurring)}/yr</strong>
+                    </p>
+                  </div>
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
+                    <Button onClick={handleGenerateRenewalDocx} disabled={saving}>
+                      <Download className="h-4 w-4 mr-2" />Generate Renewal DOCX
+                    </Button>
+                  </div>
+                </>
+              ) : isBusinessCatalogue ? (
+
                 <>
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">Save Business proposal</h3>
