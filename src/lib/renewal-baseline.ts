@@ -245,8 +245,23 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
       : null;
 
   const productFamily = ((vocab.product.family || fallbackFamily) || null) as ProposalProductFamily | null;
-  const product = (vocab.product.family ? vocab.product.value : fallbackVariant) || vocab.product.value || null;
+  /**
+   * The commercial variant is only "proven" when the source explicitly records
+   * it (canonical product, or a license_model that resolves KeepIT/UseIT).
+   * It is NEVER inferred from pricing, hosting or unrelated fields.
+   */
+  const provenVariant = (vocab.product.family ? vocab.product.value : fallbackVariant) || null;
+  const provenVariantLabel = vocab.product.family
+    ? vocab.product.label
+    : provenVariant
+    ? provenVariant.replace(/^Business\s+/i, "")
+    : null;
+  const product =
+    provenVariant || (fallbackFamily ? `ManWinWin ${fallbackFamily}` : vocab.product.value || null);
+  const variantNeedsReview = !!productFamily && !provenVariant;
   if (!product) unmapped.push("product");
+  if (variantNeedsReview) unmapped.push("commercial_variant");
+
 
   // Hosting: SaaS / SaaS Direct / Cloud all mean hosted on ManWinWin servers.
   const deploymentView = readDeployment(
