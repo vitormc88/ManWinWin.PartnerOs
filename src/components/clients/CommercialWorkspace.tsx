@@ -31,7 +31,8 @@ import {
   type CommercialActionId,
 } from "@/lib/license-evolution";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
-import { resolveRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
+import { resolveRenewal, isOpenRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
+import { renewalProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import {
   buildCommercialSummary,
   buildHistory,
