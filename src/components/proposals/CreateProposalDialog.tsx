@@ -1210,15 +1210,19 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                 ) : (
                   <div>
                     <Label>Hosting</Label>
-                    <Select value="SaaS" disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
+                    <Select value={isBusinessProduct ? (deployment === "on_premise" ? "On-Premise" : "SaaS") : "SaaS"} disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="SaaS">SaaS</SelectItem>
+                        <SelectItem value="On-Premise">On-Premise</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-[11px] text-muted-foreground mt-1">Professional is SaaS-only.</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {isBusinessProduct ? "Kept from the current contract." : "Professional is SaaS-only."}
+                    </p>
                   </div>
                 )}
+
               </div>
 
               {/* Row 3: Client + Project */}
