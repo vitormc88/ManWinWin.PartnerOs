@@ -167,6 +167,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   );
   const isRenewalProposal = isRenewalSource(source);
   const storagePrefix = proposalStoragePrefix(source);
+  // Renewals P0 — the real commercial baseline behind this renewal.
+  const { baseline: renewalBaseline, isLoading: baselineLoading } = useRenewalBaseline(
+    isRenewalProposal ? source.renewal_id : null,
+  );
+  /** True when the proposal must be built from the real contract, not from catalogue defaults. */
+  const useBaselineItems = isRenewalProposal && !!renewalBaseline?.hasRealData;
+
   const { user, profile, isHQ } = useAuth();
   const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
   // Conservative limits while partner data is still missing/loading.
