@@ -34,7 +34,7 @@ import {
   normalizeBillingFrequency,
   type ClassifiableLine,
 } from "./contract-lines";
-import { normalizeDeployment, normalizeLicenseProduct } from "./licensing";
+import { readDeployment, readLicenseVocabulary } from "./licensing";
 import type { ProposalItem, ProposalPlan, ProposalProductFamily } from "@/types/proposal";
 
 export const NOT_RECORDED = "Not recorded";
@@ -216,25 +216,32 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
   const { renewal, client, contract, contractLines, license, licensedModules } = sources;
   const unmapped: string[] = [];
 
-  const productView = normalizeLicenseProduct(license?.product ?? client?.product_type ?? null, {
-    licenseModel: license?.license_model ?? client?.license_type ?? null,
-    edition: license?.edition ?? null,
-  } as any);
-  const product = (productView as any)?.canonical ?? (productView as any)?.product ?? null;
-  const productFamily = familyOf(product) ?? familyOf(str(license?.product)) ?? null;
+  const vocab = readLicenseVocabulary(
+    {
+      product: license?.product ?? client?.product_type ?? null,
+      edition: license?.edition ?? null,
+      deployment_type: license?.deployment_type ?? null,
+      database_type: license?.database_type ?? null,
+      license_model: license?.license_model ?? client?.license_type ?? null,
+      // The historical LIC "license version" field is structurally unreliable.
+      version: null,
+    },
+    // Fallbacks: hosting money on the contract, then the client's cloud flag.
+    contract?.hosting_value != null && Number(contract.hosting_value) > 0 ? "SaaS" : client?.cloud_onpremise ?? null,
+  );
+  const product = vocab.product.value || null;
+  const productFamily = (vocab.product.family || null) as ProposalProductFamily | null;
   if (!product) unmapped.push("product");
 
   // Hosting: SaaS / SaaS Direct / Cloud all mean hosted on ManWinWin servers.
-  const deploymentView = normalizeDeployment(
-    license?.deployment_type,
-    contract?.hosting_value != null && Number(contract.hosting_value) > 0 ? "SaaS" : null,
-    client?.cloud_onpremise,
+  const deploymentView = readDeployment(
+    { deployment_type: license?.deployment_type ?? null, database_type: license?.database_type ?? null },
+    contract?.hosting_value != null && Number(contract.hosting_value) > 0 ? "SaaS" : client?.cloud_onpremise ?? null,
   );
-  const hosting = ((deploymentView as any)?.canonical ?? null) as "SaaS" | "On-Premise" | null;
+  const hosting = (deploymentView.value || null) as "SaaS" | "On-Premise" | null;
   if (!hosting) unmapped.push("hosting");
 
-  // The historical LIC "license version" is unreliable — use the reliable
-  // current software version recorded on the client instead.
+  // Only the reliable current software version is shown.
   const version = str(client?.current_version) ?? null;
   if (!version) unmapped.push("version");
 
@@ -256,22 +263,21 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
       label: str((c.line as any)?.description) || lineTypeLabel(c.effectiveType),
       lineType: c.effectiveType,
       amount: Number((c.line as any)?.amount || 0),
-      needsReview: Boolean((c as any).needsReview) || c.effectiveType === "unclassified",
+      needsReview: c.isUnclassified,
     }));
 
-  let currentRecurring: number | null = recurringLines.length ? financials.recurringTotal : null;
+  let currentRecurring: number | null = recurringLines.length ? financials.recurringArr : null;
   if (currentRecurring == null) {
     // No structured lines: fall back to the renewal's own commercial value.
     currentRecurring = num(renewal?.estimated_value) ?? num(contract?.total_value) ?? null;
     if (currentRecurring == null) unmapped.push("current_recurring_value");
   }
 
-  const historicalOneTime = recurringLines.length ? financials.oneTimeTotal : null;
+  const historicalOneTime = recurringLines.length ? financials.oneTimeValue : null;
 
   const billingFrequency =
     str(license?.periodicity) ??
     str(license?.billing_frequency) ??
-    str(contract?.billing_notes && null) ??
     null;
   if (!billingFrequency) unmapped.push("billing_frequency");
 
@@ -286,7 +292,7 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
 
     productFamily,
     product,
-    variantLabel: product,
+    variantLabel: vocab.product.label || product,
     plan: planOf(product),
     hosting,
     version,
