@@ -107,6 +107,39 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     enabled: !!clientName,
   });
 
+  // Real operational renewal row for this client (never a derived placeholder).
+  const { data: renewalRow = null } = useQuery({
+    queryKey: ["renewals", "client-open", client?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("renewals")
+        .select("id, client_id, partner_uuid, contract_id, license_id, renewal_date, status, source_proposal_id")
+        .eq("client_id", client.id)
+        .order("renewal_date", { ascending: true });
+      if (error) throw error;
+      const rows = (data || []) as any[];
+      return rows.find((r) => isOpenRenewal(r)) ?? rows[0] ?? null;
+    },
+    enabled: !!client?.id,
+  });
+
+  // Proposal already attached to that renewal (if any).
+  const { data: renewalProposal = null } = useQuery({
+    queryKey: ["proposal", "renewal", renewalRow?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposals")
+        .select("*")
+        .eq("renewal_id", renewalRow.id)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!renewalRow?.id,
+  });
+
   // Commercial notes (subset of client notes)
   const commercialNotes = useMemo(
     () => (notes || []).filter((n: any) => n.note_type === "commercial").slice(0, 10),
