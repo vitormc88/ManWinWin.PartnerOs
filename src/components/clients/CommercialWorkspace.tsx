@@ -582,7 +582,9 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         <CreateProposalDialog
           open={showProposal}
           onOpenChange={setShowProposal}
-          leadId={client.id}
+          leadId={proposalSource ? undefined : client.id}
+          proposalSource={proposalSource}
+          editingProposal={proposalSource ? editingRenewalProposal : null}
           defaultClientName={clientName}
           defaultCountry={client.country || null}
           commercialContext={commercialCtx}
