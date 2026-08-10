@@ -737,24 +737,24 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         const renewalId = source.renewal_id as string;
         // Atomic: validate access, link renewals.source_proposal_id (first proposal
         // wins) and log the renewal activity. Renewal status/dates/value untouched.
-        const { error: linkError } = await supabase.rpc("link_renewal_proposal", {
-          _renewal_id: renewalId,
-          _proposal_id: prop.id,
-          _action: editingProposal?.id ? "proposal_updated" : "proposal_created",
-          _performed_by: profile?.full_name || user?.email || null,
-          _notes: `Renewal proposal v${versionForInsert} ${editingProposal?.id ? "updated" : "created"} for ${clientName}.`,
-        } as any);
+        const { error: linkError } = await supabase.rpc(
+          "link_renewal_proposal",
+          buildRenewalLinkArgs({
+            renewalId,
+            proposalId: prop.id,
+            isUpdate: !!editingProposal?.id,
+            performedBy: profile?.full_name || user?.email || null,
+            version: versionForInsert,
+            clientName,
+          }) as any
+        );
         if (linkError) throw linkError;
 
-        await Promise.all([
-          qc.invalidateQueries({ queryKey: ["proposal", "renewal", renewalId] }),
-          qc.invalidateQueries({ queryKey: ["proposals"] }),
-          qc.invalidateQueries({ queryKey: ["renewals"] }),
-          qc.invalidateQueries({ queryKey: ["renewal_activities", renewalId] }),
-          source.client_id
-            ? qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] })
-            : Promise.resolve(),
-        ]);
+        await Promise.all(
+          renewalProposalRefreshKeys(renewalId, source.client_id).map((queryKey) =>
+            qc.invalidateQueries({ queryKey: queryKey as any })
+          )
+        );
         return prop as unknown as Proposal;
       }
       await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", source.deal_id as string);
