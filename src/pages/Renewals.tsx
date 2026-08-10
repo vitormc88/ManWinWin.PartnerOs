@@ -83,6 +83,34 @@ export default function Renewals() {
   const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
 
   const detail = selectedId ? enriched.find(r => r.id === selectedId) : null;
+  const isRealRenewal = !!detail && !String(detail.id).startsWith("derived-");
+  const detailClient = detail ? clientMap[detail.client_id] : null;
+
+  const { data: renewalProposal = null } = useQuery({
+    queryKey: ["proposal", "renewal", detail?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("proposals")
+        .select("*")
+        .eq("renewal_id", detail!.id)
+        .order("version", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!detail?.id && isRealRenewal,
+  });
+
+  const proposalSource = detail && isRealRenewal
+    ? renewalProposalSource({
+        renewalId: detail.id,
+        clientId: detail.client_id,
+        partnerUuid: detail.partner_uuid ?? null,
+        contractId: detail.contract_id ?? null,
+        licenseId: detail.license_id ?? null,
+      })
+    : null;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
