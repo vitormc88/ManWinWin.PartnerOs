@@ -70,7 +70,8 @@ import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
 import { LICENSE_ORDER } from "@/lib/license-evolution";
 import { useRenewalBaseline } from "@/hooks/useRenewalBaseline";
 import { RenewalBaselinePanel } from "./RenewalBaselinePanel";
-import { buildBaselineProposalItems } from "@/lib/renewal-baseline";
+import { buildBaselineProposalItems, baselineLicenseModel } from "@/lib/renewal-baseline";
+import { downloadRenewalProposalDocx } from "@/lib/proposal-renewal-docx";
 
 // Append a "[Staged from wizard]" line to the notes textarea without clobbering it.
 function appendStagedLine(prev: string, line: string): string {
@@ -174,8 +175,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const { baseline: renewalBaseline, isLoading: baselineLoading } = useRenewalBaseline(
     isRenewalProposal ? source.renewal_id : null,
   );
-  /** True when the proposal must be built from the real contract, not from catalogue defaults. */
-  const useBaselineItems = isRenewalProposal && !!renewalBaseline?.hasRealData;
+  /**
+   * Renewals P0B — pricing mode only. True when the editable proposal lines
+   * come from the real contract instead of the catalogue/configuration engine.
+   * This says NOTHING about product identity.
+   */
+  const usesContractBaselineItems = isRenewalProposal && !!renewalBaseline?.hasRealData;
 
   const { user, profile, isHQ } = useAuth();
   const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
@@ -214,9 +219,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const [deployment, setDeployment] = useState<ProposalDeployment>("saas");
   const [businessConfig, setBusinessConfig] = useState<BusinessConfig>(DEFAULT_BUSINESS_CONFIG);
 
-  // Baseline-driven renewals always use the editable line-item engine so the
-  // real contract lines (never catalogue defaults) drive the proposal.
-  const isBusiness = productFamily === "Business" && !useBaselineItems;
+  /** Product identity — drives labels, persisted fields and document type. */
+  const isBusinessProduct = productFamily === "Business";
+  /**
+   * Business *catalogue pricing* engine. A Business renewal built from the real
+   * contract keeps its Business identity but does not re-price from the catalogue.
+   */
+  const isBusinessCatalogue = isBusinessProduct && !usesContractBaselineItems;
 
   // Step 2
   const [includeRequests, setIncludeRequests] = useState(false);
@@ -381,9 +390,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
   // Auto-rebuild items whenever plan/services/options change (Professional only)
   useEffect(() => {
-    if (isBusiness) return;
+    if (isBusinessProduct) return;
     // Renewals P0: never reset a real customer to Plan 1 + implementation.
-    if (useBaselineItems) return;
+    if (usesContractBaselineItems) return;
     if (rules.length === 0) return;
     if (editingProposal?.items?.length && open) return;
     setItems(
@@ -397,34 +406,42 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         language,
       }),
     );
-  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusiness, useBaselineItems]);
+  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusinessProduct, usesContractBaselineItems]);
 
   // ── Renewals P0: prepopulate from the real contract baseline ──────────
   // Runs once per open, only when the proposal has no persisted items yet.
   useEffect(() => {
-    if (!open || !useBaselineItems || !renewalBaseline) return;
+    if (!open || !usesContractBaselineItems || !renewalBaseline) return;
     if (editingProposal?.items?.length) return;
     if (renewalBaseline.productFamily) setProductFamily(renewalBaseline.productFamily);
     if (renewalBaseline.plan) setPlan(renewalBaseline.plan);
-    if (renewalBaseline.hosting) setHosting(renewalBaseline.hosting);
+    if (renewalBaseline.hosting) {
+      setHosting(renewalBaseline.hosting);
+      setDeployment(renewalBaseline.hosting === "SaaS" ? "saas" : "on_premise");
+    }
+    // Keep the Business variant (KeepIT / UseIT) that the customer actually has.
+    const variant = baselineLicenseModel(renewalBaseline);
+    if (variant) setProposalMode(variant === "keepit" ? "keepit_only" : "useit_only");
     if (renewalBaseline.webUsers != null) setWebUsers(renewalBaseline.webUsers);
     // An ordinary renewal never carries implementation services.
     setOnsiteDays(0);
     setItems(buildBaselineProposalItems(renewalBaseline));
-  }, [open, useBaselineItems, renewalBaseline, editingProposal]);
+  }, [open, usesContractBaselineItems, renewalBaseline, editingProposal]);
 
   // Keep Business config deployment field in sync with the wizard's deployment selector
   useEffect(() => {
-    if (!isBusiness) return;
+    if (!isBusinessCatalogue) return;
     setBusinessConfig((prev) => (prev.deployment === deployment ? prev : { ...prev, deployment }));
-  }, [deployment, isBusiness]);
+  }, [deployment, isBusinessCatalogue]);
 
   // Propagate the per-step discount inputs as line-item discounts.
   // Services use the same model as Software: the wizard input becomes a
   // normal % line discount on each service item (auto-managed, source = "auto").
   // The user can still override any line manually in the Preview step.
   useEffect(() => {
-    if (isBusiness) return;
+    if (isBusinessProduct) return;
+    // Contract baseline lines are real commercial values — never auto-discount them.
+    if (usesContractBaselineItems) return;
     setItems((prev) =>
       prev.map((item) => {
         const isService = item.category === "service";
@@ -490,11 +507,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         };
       }),
     );
-  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews, isBusiness]);
+  }, [plan, planDiscountPct, requestsDiscountPct, webUsersDiscountPct, servicesDiscountPct, planDiscountRenews, requestsDiscountRenews, webUsersDiscountRenews, isBusinessProduct, usesContractBaselineItems]);
 
   // ----- Business totals (in-memory only; not stored in proposal_items) -----
   const businessResult = useMemo(() => {
-    if (!isBusiness) return null;
+    if (!isBusinessCatalogue) return null;
     const models: ProposalLicenseModel[] =
       proposalMode === "keepit_only"
         ? ["keepit"]
@@ -502,7 +519,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         ? ["useit"]
         : ["keepit", "useit"];
     return computeBusinessOptions(rules, businessConfig, models);
-  }, [isBusiness, rules, businessConfig, proposalMode]);
+  }, [isBusinessCatalogue, rules, businessConfig, proposalMode]);
 
   /** Pick the "headline" option for KPI/expected-value purposes (KeepIT preferred). */
   const businessHeadline = useMemo(() => {
@@ -512,7 +529,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
   /** Business pricing readiness — blocks preview/save/generate when incomplete. */
   const businessReadiness = useMemo(() => {
-    if (!isBusiness) return null;
+    if (!isBusinessCatalogue) return null;
     const models: ProposalLicenseModel[] =
       proposalMode === "keepit_only"
         ? ["keepit"]
@@ -526,13 +543,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       isLoading: rulesLoading,
       error: rulesError,
     });
-  }, [isBusiness, rules, businessConfig, proposalMode, rulesLoading, rulesError]);
+  }, [isBusinessCatalogue, rules, businessConfig, proposalMode, rulesLoading, rulesError]);
 
   const businessBlocked = !!businessReadiness && !businessReadiness.ok;
 
   /** Fail-closed guard used before any Business persist/export path. */
   const assertBusinessPricingReady = (): boolean => {
-    if (!isBusiness || !businessReadiness || businessReadiness.ok) return true;
+    if (!isBusinessCatalogue || !businessReadiness || businessReadiness.ok) return true;
     toast.error(businessReadiness.message);
     return false;
   };
@@ -548,6 +565,30 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     () => items.map((item) => enrichProposalItem(item, 0, 0)),
     [items],
   );
+  /**
+   * Financial source of truth. Catalogue Business proposals price from the
+   * Business engine; every other path (including Business renewals built from
+   * the real contract) prices from the editable line items.
+   */
+  const money = useMemo(() => {
+    if (isBusinessCatalogue) {
+      return {
+        softwareSubtotal: businessHeadline?.licenseSubtotal || 0,
+        servicesSubtotal: businessHeadline?.services.reduce((s, l) => s + l.amount, 0) || 0,
+        discountAmount: 0,
+        totalYear1: businessHeadline?.totalYear1 || 0,
+        totalRecurring: businessHeadline?.totalYear2Plus || 0,
+      };
+    }
+    return {
+      softwareSubtotal: totals.softwareSubtotal,
+      servicesSubtotal: totals.servicesSubtotal,
+      discountAmount: totals.discountAmount,
+      totalYear1: totals.totalYear1,
+      totalRecurring: totals.totalRecurring,
+    };
+  }, [isBusinessCatalogue, businessHeadline, totals]);
+
   const i18n = t(language);
 
   const updateItem = (idx: number, patch: Partial<ProposalItem>) => {
@@ -579,7 +620,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
   /** Fail-closed discount authorization check, run before every persist path. */
   const assertDiscountsAllowed = (): boolean => {
-    const res = isBusiness
+    const res = isBusinessCatalogue
       ? validateBusinessDiscounts(businessConfig.discounts as any, discountLimits)
       : validateProfessionalItems(
           previewItems.map((it) => ({
@@ -653,18 +694,20 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         language,
         plan,
         status,
-        hosting: isBusiness ? (deployment === "saas" ? "SaaS" : "On-Premise") : hosting,
+        hosting: isBusinessCatalogue ? (deployment === "saas" ? "SaaS" : "On-Premise") : hosting,
         product_family: productFamily,
-        license_model: isBusiness
+        // Identity fields follow the PRODUCT, not the pricing mode, so a
+        // contract-driven Business renewal stays "Business UseIT".
+        license_model: isBusinessProduct
           ? proposalMode === "keepit_only"
             ? "keepit"
             : proposalMode === "useit_only"
             ? "useit"
             : null
           : null,
-        proposal_mode: isBusiness ? proposalMode : null,
-        deployment: isBusiness ? deployment : null,
-        business_config: isBusiness ? (businessConfig as any) : null,
+        proposal_mode: isBusinessProduct ? proposalMode : null,
+        deployment: isBusinessProduct ? deployment : null,
+        business_config: isBusinessCatalogue ? (businessConfig as any) : null,
         client_name: clientName,
         project_name: projectName || null,
         country: country || null,
@@ -672,29 +715,27 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         validity_days: validityDays,
         payment_terms: paymentTerms,
         notes: notes || null,
-        implementation_type: isBusiness ? "Online" : implType,
+        implementation_type: isBusinessProduct ? "Online" : implType,
         per_diem: 0,
         discount_pct: 0,
         discount_scope: "none",
         software_discount_pct: 0,
         services_discount_pct: 0,
-        include_requests_module: isBusiness ? businessConfig.includeRequests : includeRequests,
-        web_users: isBusiness ? businessConfig.additionalWebUsers : webUsers,
-        service_days: isBusiness ? null : onsiteDays || null,
-        software_subtotal: isBusiness ? businessHeadline?.licenseSubtotal || 0 : totals.softwareSubtotal,
-        services_subtotal: isBusiness
-          ? (businessHeadline?.services.reduce((s, l) => s + l.amount, 0) || 0)
-          : totals.servicesSubtotal,
-        discount_amount: isBusiness ? 0 : totals.discountAmount,
-        total_year_1: isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1,
-        total_recurring: isBusiness ? businessHeadline?.totalYear2Plus || 0 : totals.totalRecurring,
+        include_requests_module: isBusinessCatalogue ? businessConfig.includeRequests : includeRequests,
+        web_users: isBusinessCatalogue ? businessConfig.additionalWebUsers : webUsers,
+        service_days: isBusinessProduct ? null : onsiteDays || null,
+        software_subtotal: money.softwareSubtotal,
+        services_subtotal: money.servicesSubtotal,
+        discount_amount: money.discountAmount,
+        total_year_1: money.totalYear1,
+        total_recurring: money.totalRecurring,
         created_by: user?.id || null,
       };
       // ── Renewal source: one single transactional RPC ────────────────────
       // proposal + items + renewals.source_proposal_id + renewal_activities
       // succeed or fail together. No orphan proposal/items can remain.
       const buildItemRows = (proposalId: string | null): any[] => {
-        if (isBusiness && businessHeadline) {
+        if (isBusinessCatalogue && businessHeadline) {
           const lines = [
             ...businessHeadline.software,
             ...(businessHeadline.api ? [businessHeadline.api] : []),
@@ -798,7 +839,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;
       }
-      const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
+      const expectedValue = money.totalYear1;
 
       await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", source.deal_id as string);
       // Log activity (best-effort, no stage change)
@@ -875,6 +916,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       qc.invalidateQueries({ queryKey: ["proposals"] });
     } catch {
       /* upload best-effort */
+    }
+  };
+
+  /**
+   * Renewals P0B — contract-driven renewals produce a dedicated renewal
+   * document built from the real baseline lines. Business renewals keep their
+   * Business identity; catalogue pricing is never regenerated here.
+   */
+  const handleGenerateRenewalDocx = async () => {
+    const prop = await persistProposal("Ready");
+    if (!prop) return;
+    try {
+      const itemsForDoc = items.map((it, idx) => ({ ...it, sort_order: idx }));
+      const { blob, fileName } = await downloadRenewalProposalDocx({
+        proposal: prop,
+        items: itemsForDoc as any,
+        baseline: renewalBaseline,
+        proposedRecurring: money.totalRecurring,
+        proposedYear1: money.totalYear1,
+      });
+      await uploadBusinessDocx(prop, blob, fileName);
+      toast.success("Renewal proposal generated");
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error("Generation failed: " + (e?.message || ""));
     }
   };
 
@@ -995,7 +1061,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
           <div className="mt-3">
             <CommercialIntelligencePanel
               ctx={commercialContext}
-              newRecurring={isBusiness ? (businessHeadline?.totalYear2Plus || 0) : totals.totalRecurring}
+              newRecurring={money.totalRecurring}
               slot="banners"
             />
           </div>
@@ -1005,13 +1071,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
             baseline={renewalBaseline}
             isLoading={baselineLoading}
             proposedItems={items.map((it) => ({ item_name: it.item_name, qty: it.qty, unit_price: it.unit_price }))}
-            proposedRecurring={isBusiness ? businessHeadline?.totalYear2Plus || 0 : totals.totalRecurring}
-            proposedYear1={isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1}
+            proposedRecurring={money.totalRecurring}
+            proposedYear1={money.totalYear1}
           />
         )}
 
         {/* Business pricing readiness — blocking state */}
-        {isBusiness && businessReadiness && !businessReadiness.ok && (
+        {isBusinessCatalogue && businessReadiness && !businessReadiness.ok && (
           <div
             role="alert"
             className={`mt-3 rounded-md border p-3 text-sm ${
@@ -1105,7 +1171,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
               {/* Row 2: Plan/Proposal mode + Hosting */}
               <div className="grid grid-cols-2 gap-4">
-                {isBusiness ? (
+                {isBusinessCatalogue ? (
                   <div>
                     <Label>Proposal mode</Label>
                     <Select value={proposalMode} onValueChange={(v) => setProposalMode(v as ProposalMode)}>
@@ -1130,7 +1196,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                     </Select>
                   </div>
                 )}
-                {isBusiness ? (
+                {isBusinessCatalogue ? (
                   <div>
                     <Label>Hosting</Label>
                     <Select value={deployment} onValueChange={(v) => setDeployment(v as ProposalDeployment)}>
@@ -1144,15 +1210,19 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                 ) : (
                   <div>
                     <Label>Hosting</Label>
-                    <Select value="SaaS" disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
+                    <Select value={isBusinessProduct ? (deployment === "on_premise" ? "On-Premise" : "SaaS") : "SaaS"} disabled onValueChange={(v) => setHosting(v as ProposalHosting)}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="SaaS">SaaS</SelectItem>
+                        <SelectItem value="On-Premise">On-Premise</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-[11px] text-muted-foreground mt-1">Professional is SaaS-only.</p>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {isBusinessProduct ? "Kept from the current contract." : "Professional is SaaS-only."}
+                    </p>
                   </div>
                 )}
+
               </div>
 
               {/* Row 3: Client + Project */}
@@ -1186,7 +1256,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
           )}
 
           {/* STEP 1: Software */}
-          {step === 1 && isBusiness && (
+          {step === 1 && isBusinessCatalogue && (
             <BusinessSoftwareStep
               rules={rules}
               language={language}
@@ -1197,7 +1267,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
               servicesDiscountMax={discountLimits.services}
             />
           )}
-          {step === 1 && !isBusiness && (
+          {step === 1 && !isBusinessCatalogue && (
             <div className="space-y-4">
               <div className="bg-secondary/40 border rounded-lg p-4">
                 <h4 className="text-sm font-semibold text-foreground mb-2">Plan {plan} — auto-included modules</h4>
@@ -1277,7 +1347,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
           )}
 
           {/* STEP 2: Services */}
-          {step === 2 && isBusiness && (
+          {step === 2 && isBusinessCatalogue && (
             <BusinessServicesStep
               rules={rules}
               language={language}
@@ -1288,7 +1358,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
               servicesDiscountMax={discountLimits.services}
             />
           )}
-          {step === 2 && !isBusiness && (
+          {step === 2 && !isBusinessCatalogue && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1345,7 +1415,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
           )}
 
           {/* STEP 4: Preview */}
-          {step === 4 && isBusiness && (
+          {step === 4 && isBusinessCatalogue && (
             <div className="space-y-4">
               {commercialContext && !editingProposal && (
                 <CommercialIntelligencePanel
@@ -1365,7 +1435,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
               )}
             </div>
           )}
-          {step === 4 && !isBusiness && (
+          {step === 4 && !isBusinessCatalogue && (
             <div className="space-y-4">
               {commercialContext && !editingProposal && (
                 <CommercialIntelligencePanel
@@ -1522,7 +1592,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
               <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
                 <FileText className="h-8 w-8 text-primary" />
               </div>
-              {isBusiness ? (
+              {usesContractBaselineItems ? (
+                <>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Generate {isBusinessProduct ? "Business" : "Professional"} renewal proposal
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {renewalBaseline?.variantLabel || renewalBaseline?.product || productFamily} ·{" "}
+                      {renewalBaseline?.hosting || hosting} · {language}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Current recurring: <strong>{formatPrice(renewalBaseline?.currentRecurring || 0)}</strong>
+                      {" · "}Proposed Year 1: <strong>{formatPrice(money.totalYear1)}</strong>
+                      {" · "}Year 2+: <strong>{formatPrice(money.totalRecurring)}/yr</strong>
+                    </p>
+                  </div>
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
+                    <Button onClick={handleGenerateRenewalDocx} disabled={saving}>
+                      <Download className="h-4 w-4 mr-2" />Generate Renewal DOCX
+                    </Button>
+                  </div>
+                </>
+              ) : isBusinessCatalogue ? (
+
                 <>
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">Save Business proposal</h3>
