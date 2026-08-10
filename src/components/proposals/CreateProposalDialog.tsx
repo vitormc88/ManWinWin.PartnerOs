@@ -227,6 +227,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    */
   const isBusinessCatalogue = isBusinessProduct && !usesContractBaselineItems;
 
+  /**
+   * Renewals P0C — commercial variant (KeepIT / UseIT).
+   * The baseline value is authoritative; when the source does not record it the
+   * user may pick one FOR THIS PROPOSAL ONLY (never written to the contract).
+   */
+  const baselineVariant = baselineLicenseModel(renewalBaseline);
+  const [proposalVariant, setProposalVariant] = useState<"keepit" | "useit" | null>(null);
+  const effectiveVariant = baselineVariant ?? proposalVariant;
+  const variantUnresolved =
+    usesContractBaselineItems && !!renewalBaseline?.variantNeedsReview && !effectiveVariant;
+  const selectedVariantLabel =
+    renewalBaseline?.variantNeedsReview && effectiveVariant
+      ? effectiveVariant === "keepit"
+        ? "KeepIT"
+        : "UseIT"
+      : null;
+
+
+
   // Step 2
   const [includeRequests, setIncludeRequests] = useState(false);
   const [webUsers, setWebUsers] = useState(0);
