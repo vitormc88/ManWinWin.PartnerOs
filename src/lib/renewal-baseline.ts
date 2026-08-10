@@ -222,8 +222,26 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
     // Fallbacks: hosting money on the contract, then the client's cloud flag.
     contract?.hosting_value != null && Number(contract.hosting_value) > 0 ? "SaaS" : client?.cloud_onpremise ?? null,
   );
-  const product = vocab.product.value || null;
-  const productFamily = (vocab.product.family || null) as ProposalProductFamily | null;
+  // Legacy-tolerant fallback: labels like "ManWinWin Business" carry the family
+  // but not the variant, which lives in license_model ("UseIT"/"KeepIT").
+  const rawProductText = norm(`${license?.product ?? ""} ${client?.product_type ?? ""} ${client?.license_type ?? ""}`);
+  const rawModelText = norm(`${license?.license_model ?? ""} ${client?.license_type ?? ""}`);
+  const fallbackFamily: ProposalProductFamily | null = /business/.test(rawProductText)
+    ? "Business"
+    : /professional/.test(rawProductText)
+    ? "Professional"
+    : null;
+  const fallbackVariant =
+    fallbackFamily === "Business"
+      ? /use ?it/.test(rawModelText)
+        ? "Business UseIT"
+        : /keep ?it/.test(rawModelText)
+        ? "Business KeepIT"
+        : null
+      : null;
+
+  const productFamily = ((vocab.product.family || fallbackFamily) || null) as ProposalProductFamily | null;
+  const product = (vocab.product.family ? vocab.product.value : fallbackVariant) || vocab.product.value || null;
   if (!product) unmapped.push("product");
 
   // Hosting: SaaS / SaaS Direct / Cloud all mean hosted on ManWinWin servers.
@@ -285,7 +303,7 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
 
     productFamily,
     product,
-    variantLabel: vocab.product.label || product,
+    variantLabel: (vocab.product.family ? vocab.product.label : null) || product,
     plan: planOf(product),
     hosting,
     version,
