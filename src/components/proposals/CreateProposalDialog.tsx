@@ -1118,6 +1118,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
             proposedItems={items.map((it) => ({ item_name: it.item_name, qty: it.qty, unit_price: it.unit_price }))}
             proposedRecurring={money.totalRecurring}
             proposedYear1={money.totalYear1}
+            selectedVariantLabel={selectedVariantLabel}
+
           />
         )}
 
