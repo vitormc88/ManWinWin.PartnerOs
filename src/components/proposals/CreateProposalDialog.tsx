@@ -139,7 +139,10 @@ export interface CommercialContext {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  leadId: string;
+  /** Deal-sourced proposals (Pipeline). Ignored when `proposalSource` is provided. */
+  leadId?: string;
+  /** Typed source identity. Defaults to the deal identified by `leadId`. */
+  proposalSource?: ProposalSource | null;
   defaultClientName: string;
   defaultCountry?: string | null;
   editingProposal?: (Proposal & { items?: ProposalItem[] }) | null;
@@ -148,7 +151,13 @@ interface Props {
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, leadId, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null }: Props) {
+export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null }: Props) {
+  const source = useMemo<ProposalSource>(
+    () => proposalSource ?? dealProposalSource(leadId),
+    [proposalSource, leadId],
+  );
+  const isRenewalProposal = isRenewalSource(source);
+  const storagePrefix = proposalStoragePrefix(source);
   const { user, profile, isHQ } = useAuth();
   const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
   // Conservative limits while partner data is still missing/loading.
