@@ -200,13 +200,6 @@ const str = (v: unknown): string | null => {
   return s ? s : null;
 };
 
-function familyOf(product: string | null): ProposalProductFamily | null {
-  if (!product) return null;
-  if (/^business/i.test(product)) return "Business";
-  if (/^professional/i.test(product)) return "Professional";
-  return null;
-}
-
 function planOf(product: string | null): ProposalPlan | null {
   const m = /professional\s*([123])/i.exec(product || "");
   return m ? (Number(m[1]) as ProposalPlan) : null;
