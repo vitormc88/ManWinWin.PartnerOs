@@ -322,8 +322,10 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
 
     productFamily,
     product,
-    variantLabel: (vocab.product.family ? vocab.product.label : null) || product,
-    plan: planOf(product),
+    variantLabel: provenVariantLabel,
+    variantNeedsReview,
+    plan: planOf(provenVariant),
+
     hosting,
     version,
 
