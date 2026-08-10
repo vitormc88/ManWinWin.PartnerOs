@@ -1668,19 +1668,30 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                       Generate {isBusinessProduct ? "Business" : "Professional"} renewal proposal
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {renewalBaseline?.variantLabel || renewalBaseline?.product || productFamily} ·{" "}
-                      {renewalBaseline?.hosting || hosting} · {language}
+                      {renewalBaseline?.variantLabel
+                        ? `${renewalBaseline.product}`
+                        : `${renewalBaseline?.product || productFamily} · variant ${
+                            selectedVariantLabel ? `${selectedVariantLabel} (this proposal)` : "not recorded"
+                          }`}{" "}
+                      · {renewalBaseline?.hosting || hosting} · {language}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Current recurring: <strong>{formatPrice(renewalBaseline?.currentRecurring || 0)}</strong>
                       {" · "}Proposed Year 1: <strong>{formatPrice(money.totalYear1)}</strong>
                       {" · "}Year 2+: <strong>{formatPrice(money.totalRecurring)}/yr</strong>
                     </p>
+                    {variantUnresolved && (
+                      <p role="alert" className="text-sm text-destructive mt-2">
+                        Commercial variant is not recorded. Select KeepIT or UseIT before generating the renewal
+                        proposal.
+                      </p>
+                    )}
                   </div>
                   <div className="flex justify-center gap-2 flex-wrap">
                     <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
-                    <Button onClick={handleGenerateRenewalDocx} disabled={saving}>
+                    <Button onClick={handleGenerateRenewalDocx} disabled={saving || variantUnresolved}>
                       <Download className="h-4 w-4 mr-2" />Generate Renewal DOCX
+
                     </Button>
                   </div>
                 </>
