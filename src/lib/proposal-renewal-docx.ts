@@ -150,7 +150,17 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
   const { proposal, items, baseline, proposedRecurring, proposedYear1 } = opts;
   const lang = (proposal as any).language || "EN";
   const financials = buildRenewalFinancialSummary({ baseline, proposedRecurring, proposedYear1 });
-  const comparison = compareProposalToBaseline(baseline, items);
+  const selectedModel = (proposal as any).license_model as string | null;
+  const selectedVariantLabel =
+    baseline?.variantNeedsReview && selectedModel
+      ? selectedModel === "keepit"
+        ? "KeepIT"
+        : selectedModel === "useit"
+        ? "UseIT"
+        : null
+      : null;
+  const comparison = compareProposalToBaseline(baseline, items, { selectedVariantLabel });
+
   const logo = await loadLogo();
   const identity = renewalProductIdentity(proposal, baseline);
   const clientName = (proposal as any).client_name || baseline?.clientId || "Client";
