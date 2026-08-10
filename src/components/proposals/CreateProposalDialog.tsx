@@ -735,26 +735,26 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
       if (isRenewalProposal) {
         const renewalId = source.renewal_id as string;
-        // Link the renewal to its proposal (first proposal wins; status is NOT changed here).
-        try {
-          await supabase
-            .from("renewals")
-            .update({ source_proposal_id: prop.id })
-            .eq("id", renewalId)
-            .is("source_proposal_id", null);
-        } catch { /* best-effort link */ }
-        try {
-          await supabase.from("renewal_activities").insert({
-            renewal_id: renewalId,
-            action: editingProposal?.id ? "proposal_updated" : "proposal_created",
-            performed_by: profile?.full_name || user?.email || null,
-            notes: `Renewal proposal v${versionForInsert} ${editingProposal?.id ? "updated" : "created"} for ${clientName}.`,
-          });
-        } catch { /* best-effort log */ }
-        qc.invalidateQueries({ queryKey: ["proposals"] });
-        qc.invalidateQueries({ queryKey: ["renewals"] });
-        qc.invalidateQueries({ queryKey: ["renewal_activities", renewalId] });
-        if (source.client_id) qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] });
+        // Atomic: validate access, link renewals.source_proposal_id (first proposal
+        // wins) and log the renewal activity. Renewal status/dates/value untouched.
+        const { error: linkError } = await supabase.rpc("link_renewal_proposal", {
+          _renewal_id: renewalId,
+          _proposal_id: prop.id,
+          _action: editingProposal?.id ? "proposal_updated" : "proposal_created",
+          _performed_by: profile?.full_name || user?.email || null,
+          _notes: `Renewal proposal v${versionForInsert} ${editingProposal?.id ? "updated" : "created"} for ${clientName}.`,
+        } as any);
+        if (linkError) throw linkError;
+
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: ["proposal", "renewal", renewalId] }),
+          qc.invalidateQueries({ queryKey: ["proposals"] }),
+          qc.invalidateQueries({ queryKey: ["renewals"] }),
+          qc.invalidateQueries({ queryKey: ["renewal_activities", renewalId] }),
+          source.client_id
+            ? qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] })
+            : Promise.resolve(),
+        ]);
         return prop as unknown as Proposal;
       }
       await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", source.deal_id as string);
