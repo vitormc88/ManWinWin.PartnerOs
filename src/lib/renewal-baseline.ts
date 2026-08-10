@@ -518,8 +518,10 @@ interface ComparableItem {
 export function compareProposalToBaseline(
   baseline: RenewalBaseline | null,
   proposed: ComparableItem[],
+  opts: { selectedVariantLabel?: string | null } = {},
 ): BaselineComparison {
   if (!baseline) return { changes: [], isStraightRenewal: false };
+
 
   const key = (name: string) => norm(name);
   const baseItems = buildBaselineProposalItems(baseline);
