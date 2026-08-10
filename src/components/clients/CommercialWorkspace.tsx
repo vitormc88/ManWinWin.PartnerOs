@@ -301,6 +301,25 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
 
 
   const openProposal = (mode: CommercialProposalMode) => {
+    if (mode === "renew_agreement") {
+      if (!renewalRow?.id) {
+        toast.error("No operational renewal record exists for this client yet.");
+        return;
+      }
+      setProposalSource(
+        renewalProposalSource({
+          renewalId: renewalRow.id,
+          clientId: client.id,
+          partnerUuid: renewalRow.partner_uuid ?? client?.partner_uuid ?? null,
+          contractId: renewalRow.contract_id ?? primaryContract?.id ?? null,
+          licenseId: renewalRow.license_id ?? primaryLicense?.id ?? null,
+        }),
+      );
+      setEditingRenewalProposal(renewalProposal ?? null);
+    } else {
+      setProposalSource(null);
+      setEditingRenewalProposal(null);
+    }
     setCommercialCtx(buildContext(mode));
     setShowProposal(true);
   };
