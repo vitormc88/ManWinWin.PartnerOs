@@ -662,53 +662,43 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         total_recurring: isBusiness ? businessHeadline?.totalYear2Plus || 0 : totals.totalRecurring,
         created_by: user?.id || null,
       };
-      const propResponse = editingProposal?.id
-        ? await supabase.from("proposals").update(insertData).eq("id", editingProposal.id).select().single()
-        : await supabase.from("proposals").insert(insertData).select().single();
-      const { data: prop, error } = propResponse;
-      if (error) throw error;
-
-      if (editingProposal?.id) {
-        const { error: deleteItemsError } = await supabase.from("proposal_items").delete().eq("proposal_id", editingProposal.id);
-        if (deleteItemsError) throw deleteItemsError;
-      }
-
-      // Build item rows. For Business, snapshot the headline option's lines so
-      // the proposal carries a persisted breakdown for the Proposals tab.
-      let itemRows: any[] = [];
-      if (isBusiness && businessHeadline) {
-        const lines = [
-          ...businessHeadline.software,
-          ...(businessHeadline.api ? [businessHeadline.api] : []),
-          ...businessHeadline.hosting,
-          ...(businessHeadline.sat ? [businessHeadline.sat] : []),
-          ...businessHeadline.services,
-        ];
-        itemRows = lines.map((l, idx) => ({
-          proposal_id: prop.id,
-          category: l.category === "service" ? "service" : l.category === "module" || l.category === "plugin" ? "software" : "addon",
-          item_code: l.code,
-          item_name: l.label,
-          description: null,
-          qty: l.qty,
-          unit_price: l.unitPrice,
-          frequency: l.frequency,
-          total: l.amount,
-          discount_type: "none",
-          discount_value: 0,
-          gross_total: l.amount,
-          discount_amount: 0,
-          net_total: l.amount,
-          is_override: false,
-          is_recurring: l.recurring,
-          apply_discount_to_renewal: false,
-          sort_order: idx,
-        }));
-      } else {
-        itemRows = items.map((it, idx) => {
+      // ── Renewal source: one single transactional RPC ────────────────────
+      // proposal + items + renewals.source_proposal_id + renewal_activities
+      // succeed or fail together. No orphan proposal/items can remain.
+      const buildItemRows = (proposalId: string | null): any[] => {
+        if (isBusiness && businessHeadline) {
+          const lines = [
+            ...businessHeadline.software,
+            ...(businessHeadline.api ? [businessHeadline.api] : []),
+            ...businessHeadline.hosting,
+            ...(businessHeadline.sat ? [businessHeadline.sat] : []),
+            ...businessHeadline.services,
+          ];
+          return lines.map((l, idx) => ({
+            ...(proposalId ? { proposal_id: proposalId } : {}),
+            category: l.category === "service" ? "service" : l.category === "module" || l.category === "plugin" ? "software" : "addon",
+            item_code: l.code,
+            item_name: l.label,
+            description: null,
+            qty: l.qty,
+            unit_price: l.unitPrice,
+            frequency: l.frequency,
+            total: l.amount,
+            discount_type: "none",
+            discount_value: 0,
+            gross_total: l.amount,
+            discount_amount: 0,
+            net_total: l.amount,
+            is_override: false,
+            is_recurring: l.recurring,
+            apply_discount_to_renewal: false,
+            sort_order: idx,
+          }));
+        }
+        return items.map((it, idx) => {
           const enriched = enrichProposalItem(it, 0, 0);
           return {
-            proposal_id: prop.id,
+            ...(proposalId ? { proposal_id: proposalId } : {}),
             category: it.category,
             item_code: it.item_code,
             item_name: it.item_name,
@@ -728,36 +718,60 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
             sort_order: idx,
           };
         });
-      }
-      if (itemRows.length > 0) {
-        const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
-        if (itErr) throw itErr;
-      }
-      const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
+      };
+
       if (isRenewalProposal) {
         const renewalId = source.renewal_id as string;
-        // Atomic: validate access, link renewals.source_proposal_id (first proposal
-        // wins) and log the renewal activity. Renewal status/dates/value untouched.
-        const { error: linkError } = await supabase.rpc(
-          "link_renewal_proposal",
-          buildRenewalLinkArgs({
-            renewalId,
-            proposalId: prop.id,
-            isUpdate: !!editingProposal?.id,
-            performedBy: profile?.full_name || user?.email || null,
-            version: versionForInsert,
-            clientName,
-          }) as any
-        );
-        if (linkError) throw linkError;
+        const linkArgs = buildRenewalLinkArgs({
+          renewalId,
+          proposalId: editingProposal?.id || renewalId,
+          isUpdate: !!editingProposal?.id,
+          performedBy: profile?.full_name || user?.email || null,
+          version: versionForInsert,
+          clientName,
+        });
+        const { data: savedId, error: saveError } = await supabase.rpc("save_renewal_proposal" as any, {
+          _renewal_id: renewalId,
+          _proposal_id: editingProposal?.id || null,
+          _payload: insertData,
+          _items: buildItemRows(null),
+          _performed_by: linkArgs._performed_by,
+          _notes: linkArgs._notes,
+        } as any);
+        if (saveError) throw saveError;
+
+        const { data: saved } = await supabase
+          .from("proposals")
+          .select("*")
+          .eq("id", savedId as unknown as string)
+          .single();
 
         await Promise.all(
           renewalProposalRefreshKeys(renewalId, source.client_id).map((queryKey) =>
             qc.invalidateQueries({ queryKey: queryKey as any })
           )
         );
-        return prop as unknown as Proposal;
+        return saved as unknown as Proposal;
       }
+
+      const propResponse = editingProposal?.id
+        ? await supabase.from("proposals").update(insertData).eq("id", editingProposal.id).select().single()
+        : await supabase.from("proposals").insert(insertData).select().single();
+      const { data: prop, error } = propResponse;
+      if (error) throw error;
+
+      if (editingProposal?.id) {
+        const { error: deleteItemsError } = await supabase.from("proposal_items").delete().eq("proposal_id", editingProposal.id);
+        if (deleteItemsError) throw deleteItemsError;
+      }
+
+      const itemRows = buildItemRows(prop.id);
+      if (itemRows.length > 0) {
+        const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
+        if (itErr) throw itErr;
+      }
+      const expectedValue = isBusiness ? businessHeadline?.totalYear1 || 0 : totals.totalYear1;
+
       await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", source.deal_id as string);
       // Log activity (best-effort, no stage change)
       try {
