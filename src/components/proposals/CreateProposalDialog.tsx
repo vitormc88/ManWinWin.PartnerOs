@@ -597,26 +597,29 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  /** Compute next available version number for this lead. */
+  /** Compute next available version number within the same source (deal or renewal). */
   const computeNextVersion = async (): Promise<number> => {
-    const { data: siblings } = await supabase
-      .from("proposals")
-      .select("version")
-      .eq("lead_id", leadId)
-      .order("version", { ascending: false })
-      .limit(1);
+    let q = supabase.from("proposals").select("version");
+    q = isRenewalProposal
+      ? q.eq("renewal_id", source.renewal_id as string)
+      : q.eq("lead_id", source.deal_id as string);
+    const { data: siblings } = await q.order("version", { ascending: false }).limit(1);
     return (siblings?.[0]?.version || 0) + 1;
   };
 
   const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
     if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
+    if (!isValidProposalSource(source)) {
+      toast.error("This proposal has no valid source record (deal or renewal).");
+      return null;
+    }
     setSaving(true);
     try {
       // Auto-assign version on first save (new proposal). Editing keeps existing version.
       const versionForInsert = editingProposal?.version || (await computeNextVersion());
       const insertData: any = {
-        lead_id: leadId,
+        ...buildProposalSourcePayload(source),
         version: versionForInsert,
         language,
         plan,
