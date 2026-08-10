@@ -145,7 +145,8 @@ function money(v: number | null | undefined, lang: any): string {
   return formatEuro(v, lang);
 }
 
-export async function generateRenewalProposalDocx(opts: RenewalDocxOptions): Promise<Blob> {
+/** Builds the renewal document model (exported so it can be inspected in tests). */
+export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Promise<Document> {
   const { proposal, items, baseline, proposedRecurring, proposedYear1 } = opts;
   const lang = (proposal as any).language || "EN";
   const financials = buildRenewalFinancialSummary({ baseline, proposedRecurring, proposedYear1 });
@@ -317,7 +318,11 @@ export async function generateRenewalProposalDocx(opts: RenewalDocxOptions): Pro
     ],
   });
 
-  return Packer.toBlob(doc);
+  return doc;
+}
+
+export async function generateRenewalProposalDocx(opts: RenewalDocxOptions): Promise<Blob> {
+  return Packer.toBlob(await buildRenewalProposalDocument(opts));
 }
 
 export interface RenewalDocxResult {

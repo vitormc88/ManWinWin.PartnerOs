@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import JSZip from "jszip";
+import { Packer } from "docx";
 import {
-  generateRenewalProposalDocx,
+  buildRenewalProposalDocument,
   renewalProductIdentity,
 } from "@/lib/proposal-renewal-docx";
 import {
@@ -57,15 +58,14 @@ const proposal: any = {
 
 async function docText(): Promise<string> {
   const items = buildBaselineProposalItems(baseline);
-  const blob = await generateRenewalProposalDocx({
+  const doc = await buildRenewalProposalDocument({
     proposal,
     items,
     baseline,
     proposedRecurring: items.reduce((s, i) => s + (i.is_recurring ? i.total : 0), 0),
     proposedYear1: items.reduce((s, i) => s + i.total, 0),
   });
-  const buf = await new Response(blob as any).arrayBuffer();
-  const zip = await JSZip.loadAsync(buf);
+  const zip = await JSZip.loadAsync(await Packer.toBuffer(doc));
   return await zip.file("word/document.xml")!.async("string");
 }
 
