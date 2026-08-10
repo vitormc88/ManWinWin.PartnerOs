@@ -22,9 +22,11 @@ interface Props {
   proposedItems?: { item_name: string; qty: number; unit_price: number }[];
   proposedRecurring?: number;
   proposedYear1?: number;
+  /** Variant chosen for THIS proposal when the baseline variant is not recorded. */
+  selectedVariantLabel?: string | null;
 }
 
-function Field({ label, value }: { label: string; value: string | null }) {
+function Field({ label, value, needsReview = false }: { label: string; value: string | null; needsReview?: boolean }) {
   const missing = !value;
   return (
     <div className="min-w-0">
@@ -32,6 +34,11 @@ function Field({ label, value }: { label: string; value: string | null }) {
       <p className={`text-sm truncate ${missing ? "text-muted-foreground italic" : "text-foreground font-medium"}`}>
         {value || NOT_RECORDED}
       </p>
+      {needsReview && (
+        <Badge variant="outline" className="mt-1 text-[9px] border-destructive/40 text-destructive">
+          Needs review
+        </Badge>
+      )}
     </div>
   );
 }
@@ -42,8 +49,10 @@ const CHANGE_LABEL: Record<BaselineChange["kind"], string> = {
   qty_increased: "Quantity increased",
   qty_decreased: "Quantity decreased",
   price_changed: "Pricing changed",
+  variant_selected: "Variant selected for proposal",
   unchanged: "Unchanged",
 };
+
 
 export function RenewalBaselinePanel({
   baseline,
