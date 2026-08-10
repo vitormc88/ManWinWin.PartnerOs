@@ -79,6 +79,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
 
   const [showProposal, setShowProposal] = useState(false);
   const [commercialCtx, setCommercialCtx] = useState<CommercialContext | null>(null);
+  const [proposalSource, setProposalSource] = useState<ProposalSource | null>(null);
+  const [editingRenewalProposal, setEditingRenewalProposal] = useState<any | null>(null);
   const [showMeeting, setShowMeeting] = useState(false);
   const [showNote, setShowNote] = useState(false);
 
