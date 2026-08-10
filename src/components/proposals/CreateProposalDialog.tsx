@@ -795,7 +795,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       // Optionally upload to storage
       try {
         const blob = (await downloadProposalDocx(prop, itemsForDoc)).blob;
-        const path = `${leadId}/${prop.id}/${fileName}`;
+        const path = `${storagePrefix}/${prop.id}/${fileName}`;
         const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
           contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
           upsert: true,
@@ -819,7 +819,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   /** Upload a Business DOCX blob to storage and persist URL on the proposal. */
   const uploadBusinessDocx = async (prop: Proposal, blob: Blob, fileName: string) => {
     try {
-      const path = `${leadId}/${prop.id}/${fileName}`;
+      const path = `${storagePrefix}/${prop.id}/${fileName}`;
       const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         upsert: true,
