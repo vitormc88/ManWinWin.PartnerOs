@@ -20,6 +20,9 @@ import { CloseRenewalDialog } from "@/components/renewals/CloseRenewalDialog";
 import { RenewalClosureSummary } from "@/components/renewals/RenewalClosureSummary";
 import { isClosedRenewal, isOperationalRenewal } from "@/lib/renewal-closing";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
+import { useAssignableUsers, useAllProfilesMap } from "@/hooks/useAssignableUsers";
+import { useReassignRenewalOwner } from "@/hooks/useRenewalOwner";
+import { getOwnerDisplay } from "@/lib/owner-display";
 
 const statusColors: Record<string, string> = {
   "Upcoming": "bg-info/10 text-info border-info/20",
@@ -51,6 +54,9 @@ export default function Renewals() {
   const [showProposal, setShowProposal] = useState(false);
   const [showClose, setShowClose] = useState(false);
   const { canEdit } = useModuleAccess();
+  const { data: profilesMap } = useAllProfilesMap();
+  const { data: assignableUsers = [] } = useAssignableUsers();
+  const reassign = useReassignRenewalOwner();
 
   const clientMap = useMemo(() => {
     const m: Record<string, any> = {};
@@ -70,9 +76,10 @@ export default function Renewals() {
     return renewals.map((r: any) => {
       const cl = clientMap[r.client_id];
       const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000) : 999;
-      return { ...r, clientName: cl?.commercial_name || "Unknown", clientCode: cl?.client_code || "", partnerName: r.partner_id ? (partnerMap[r.partner_id] || "Unknown") : "HQ Direct", daysUntil: days };
+      const ownerName = getOwnerDisplay({ assigned_user_id: r.assigned_user_id, assigned_salesperson: r.assigned_owner }, profilesMap);
+      return { ...r, clientName: cl?.commercial_name || "Unknown", clientCode: cl?.client_code || "", partnerName: r.partner_id ? (partnerMap[r.partner_id] || "Unknown") : "HQ Direct", daysUntil: days, ownerName, isUnassigned: ownerName === "Unassigned" };
     });
-  }, [renewals, clientMap, partnerMap]);
+  }, [renewals, clientMap, partnerMap, profilesMap]);
 
   const filtered = useMemo(() => {
     return enriched.filter(r => {
@@ -89,6 +96,7 @@ export default function Renewals() {
     dueSoon: enriched.filter(r => r.status === "Due Soon").length,
     inProgress: enriched.filter(r => r.status === "In Negotiation" || r.status === "Quoted").length,
     atRisk: enriched.filter(r => r.daysUntil < 0 && r.status !== "Won").length,
+    unassigned: enriched.filter(r => r.isUnassigned && r.status !== "Won" && r.status !== "Lost").length,
     totalValue: enriched.reduce((s, r) => s + Number(r.estimated_value || 0), 0),
   }), [enriched]);
 
@@ -149,12 +157,13 @@ export default function Renewals() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 animate-reveal-up stagger-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 animate-reveal-up stagger-1">
         {[
           { label: "Clients", value: stats.total, color: "text-foreground" },
           { label: "Due Soon", value: stats.dueSoon, color: "text-amber-600" },
           { label: "In Progress", value: stats.inProgress, color: "text-purple-600" },
           { label: "At Risk", value: stats.atRisk, color: "text-destructive" },
+          { label: "Unassigned", value: stats.unassigned, color: stats.unassigned > 0 ? "text-destructive" : "text-muted-foreground" },
           { label: "Expired", value: stats.expired, color: "text-muted-foreground" },
           { label: "Pipeline Value", value: formatMoney(stats.totalValue, { compact: true }), color: "text-foreground" },
         ].map((kpi, i) => (
@@ -215,7 +224,7 @@ export default function Renewals() {
                   <td className="px-4 py-3"><span className={`tabular-nums text-xs font-semibold ${r.daysUntil < 0 ? "text-destructive" : r.daysUntil <= 30 ? "text-amber-600" : "text-muted-foreground"}`}>{r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `${r.daysUntil}d`}</span></td>
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusColors[r.status] || ""}`}>{r.status}</span></td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium">{formatMoney(r.estimated_value)}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{r.assigned_owner}</td>
+                  <td className="px-4 py-3 text-xs"><span className={r.isUnassigned ? "text-destructive font-medium" : "text-muted-foreground"}>{r.ownerName}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -238,7 +247,7 @@ export default function Renewals() {
                   <div><span className="text-muted-foreground">Renewal Date</span><p className="font-medium mt-0.5 tabular-nums">{detail.renewal_date}</p></div>
                   <div><span className="text-muted-foreground">Days Until</span><p className="font-medium mt-0.5 tabular-nums">{detail.daysUntil < 0 ? `${Math.abs(detail.daysUntil)} overdue` : `${detail.daysUntil} days`}</p></div>
                   <div><span className="text-muted-foreground">Estimated Value</span><p className="font-medium mt-0.5 tabular-nums">{formatMoney(detail.estimated_value)}</p></div>
-                  <div><span className="text-muted-foreground">Owner</span><p className="font-medium mt-0.5">{detail.assigned_owner || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Owner</span><p className={`font-medium mt-0.5 ${detail.isUnassigned ? "text-destructive" : ""}`}>{detail.ownerName}</p></div>
                 </div>
                 {detail.included_services?.length > 0 && (
                   <div className="border-t pt-3">
@@ -252,6 +261,24 @@ export default function Renewals() {
                 )}
                 {detail.notes && (
                   <div className="border-t pt-3"><p className="text-xs font-medium text-muted-foreground mb-1">Notes</p><p className="text-sm text-muted-foreground">{detail.notes}</p></div>
+                )}
+                {isRealRenewal && !detailClosed && canEdit("renewals") && (
+                  <div className="border-t pt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Operational Owner</p>
+                    <Select
+                      value={detail.assigned_user_id ?? "unassigned"}
+                      onValueChange={(v) => reassign.mutate({ renewalId: detail.id, newOwnerId: v === "unassigned" ? null : v })}
+                      disabled={reassign.isPending}
+                    >
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Assign owner" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {assignableUsers.map(u => (
+                          <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
                 <div className="border-t pt-3 space-y-2">
                   <p className="text-xs font-medium text-muted-foreground">Renewal Proposal</p>
