@@ -54,6 +54,9 @@ export default function Renewals() {
   const [showProposal, setShowProposal] = useState(false);
   const [showClose, setShowClose] = useState(false);
   const { canEdit } = useModuleAccess();
+  const { data: profilesMap } = useAllProfilesMap();
+  const { data: assignableUsers = [] } = useAssignableUsers();
+  const reassign = useReassignRenewalOwner();
 
   const clientMap = useMemo(() => {
     const m: Record<string, any> = {};
