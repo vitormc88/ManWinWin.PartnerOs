@@ -258,43 +258,13 @@ export default function Renewals() {
                   )}
                 </div>
 
+                {previousCycle && <RenewalClosureSummary renewal={previousCycle} title="Previous cycle" />}
+
                 {detailClosed ? (
-                  <div className="border-t pt-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Closure</p>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Outcome</span>
-                        <p className="font-medium mt-0.5">
-                          {detail.outcome === "lost" || detail.status === "Lost" ? "Lost" : "Renewed"}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Closed on</span>
-                        <p className="font-medium mt-0.5 tabular-nums">{formatDateOnly(detail.closed_at) || "—"}</p>
-                      </div>
-                      {detail.renewed_recurring_value != null && (
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground">Recurring value</span>
-                          <p className="font-medium mt-0.5 tabular-nums">
-                            {formatMoney(detail.previous_recurring_value)} → {formatMoney(detail.renewed_recurring_value)}
-                          </p>
-                        </div>
-                      )}
-                      {detail.loss_reason && (
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground">Loss reason</span>
-                          <p className="font-medium mt-0.5">{detail.loss_reason}</p>
-                        </div>
-                      )}
-                      {detail.closing_notes && (
-                        <div className="col-span-2">
-                          <span className="text-muted-foreground">Closing notes</span>
-                          <p className="mt-0.5 text-muted-foreground">{detail.closing_notes}</p>
-                        </div>
-                      )}
-                    </div>
+                  <>
+                    <RenewalClosureSummary renewal={detail} title="Closure" />
                     <p className="text-xs text-muted-foreground">This renewal is closed and read-only.</p>
-                  </div>
+                  </>
                 ) : isRealRenewal && canEdit("renewals") ? (
                   <div className="border-t pt-3 flex items-center justify-between gap-3">
                     <p className="text-sm text-muted-foreground">Close this commercial cycle.</p>
