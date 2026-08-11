@@ -224,7 +224,7 @@ export default function Renewals() {
                   <td className="px-4 py-3"><span className={`tabular-nums text-xs font-semibold ${r.daysUntil < 0 ? "text-destructive" : r.daysUntil <= 30 ? "text-amber-600" : "text-muted-foreground"}`}>{r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `${r.daysUntil}d`}</span></td>
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusColors[r.status] || ""}`}>{r.status}</span></td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium">{formatMoney(r.estimated_value)}</td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{r.assigned_owner}</td>
+                  <td className="px-4 py-3 text-xs"><span className={r.isUnassigned ? "text-destructive font-medium" : "text-muted-foreground"}>{r.ownerName}</span></td>
                 </tr>
               ))}
             </tbody>
