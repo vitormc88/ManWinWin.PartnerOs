@@ -197,7 +197,7 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
         // Keep it consistent with the primary component: once a cycle is closed the
         // next (open) cycle owns the row, so the id and the status never disagree.
         const isExplicit = (c: any) => !String(c.id || "").startsWith("derived-");
-        const explicitRow = pickFrom.find(isExplicit) || components.find(isExplicit);
+        const explicitRow = sorted.find(isExplicit) || components.find(isExplicit);
         const base = explicitRow || primary;
 
         // Highest estimated value across all components (most relevant commercial figure).
