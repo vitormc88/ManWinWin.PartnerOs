@@ -35,13 +35,13 @@ export default function Dashboard() {
   const { data: notifications = [] } = useNotifications(showNotifications);
   // Historical billed revenue — RLS-scoped, so FITC sees only FITC, Raven only
   // Raven and HQ sees everything. Never mixed with deal or ARR values.
-  const { data: revenueSummary, isLoading: revenueLoading } = useRevenueSummary(showClients);
+  const { data: revenueSummary, isLoading: revenueLoading, isError: revenueFailed } = useRevenueSummary(showClients);
 
   const partnersReady = showPartners && !partnersLoading;
   const clientsReady = showClients && !clientsLoading;
   const dealsReady = showPipeline && !dealsLoading;
   const renewalsReady = showRenewals && !renewalsLoading;
-  const revenueReady = showClients && !revenueLoading && !!revenueSummary;
+  const revenueReady = showClients && !revenueLoading && (!!revenueSummary || revenueFailed);
   const currentYear = new Date().getFullYear();
 
 
