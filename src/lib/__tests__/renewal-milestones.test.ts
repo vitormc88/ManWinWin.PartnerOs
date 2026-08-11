@@ -43,11 +43,11 @@ describe("canonical renewal milestones", () => {
 
   it("drops milestones that fall before the contract start", () => {
     const r = planRenewalMilestones({
-      renewalDate: "2027-04-11",
-      today: "2026-10-10",
-      contractStartDate: "2026-10-10",
+      renewalDate: "2026-12-09",
+      today: "2026-08-11",
+      contractStartDate: "2026-10-01",
     });
-    expect(keys(r)).toEqual(["m90", "m60", "m30"]);
+    expect(keys(r)).toEqual(["m60", "m30"]);
   });
 
   it("escalates a tracked cycle that went overdue", () => {
