@@ -262,6 +262,24 @@ export default function Renewals() {
                 {detail.notes && (
                   <div className="border-t pt-3"><p className="text-xs font-medium text-muted-foreground mb-1">Notes</p><p className="text-sm text-muted-foreground">{detail.notes}</p></div>
                 )}
+                {isRealRenewal && !detailClosed && canEdit("renewals") && (
+                  <div className="border-t pt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Operational Owner</p>
+                    <Select
+                      value={detail.assigned_user_id ?? "unassigned"}
+                      onValueChange={(v) => reassign.mutate({ renewalId: detail.id, newOwnerId: v === "unassigned" ? null : v })}
+                      disabled={reassign.isPending}
+                    >
+                      <SelectTrigger className="h-9"><SelectValue placeholder="Assign owner" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {assignableUsers.map(u => (
+                          <SelectItem key={u.id} value={u.id}>{u.full_name || u.email}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="border-t pt-3 space-y-2">
                   <p className="text-xs font-medium text-muted-foreground">Renewal Proposal</p>
                   {!isRealRenewal ? (
