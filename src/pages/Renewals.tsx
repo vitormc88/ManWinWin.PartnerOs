@@ -114,6 +114,21 @@ export default function Renewals() {
     enabled: !!detail?.id && isRealRenewal,
   });
 
+  // Keep closing history visible even after the next cycle takes over the row.
+  const { data: previousCycle = null } = useQuery({
+    queryKey: ["renewal", "previous", detail?.previous_renewal_id],
+    enabled: !!detail?.previous_renewal_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("renewals")
+        .select("*")
+        .eq("id", detail!.previous_renewal_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
   const proposalSource = detail && isRealRenewal
     ? renewalProposalSource({
         renewalId: detail.id,
