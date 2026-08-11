@@ -20,6 +20,9 @@ import { CloseRenewalDialog } from "@/components/renewals/CloseRenewalDialog";
 import { RenewalClosureSummary } from "@/components/renewals/RenewalClosureSummary";
 import { isClosedRenewal, isOperationalRenewal } from "@/lib/renewal-closing";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
+import { useAssignableUsers, useAllProfilesMap } from "@/hooks/useAssignableUsers";
+import { useReassignRenewalOwner } from "@/hooks/useRenewalOwner";
+import { getOwnerDisplay } from "@/lib/owner-display";
 
 const statusColors: Record<string, string> = {
   "Upcoming": "bg-info/10 text-info border-info/20",
