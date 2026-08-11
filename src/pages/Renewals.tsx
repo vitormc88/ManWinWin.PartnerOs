@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { FileText, Search } from "lucide-react";
+import { CheckCircle2, FileText, Search } from "lucide-react";
 import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
 import { renewalProposalSource } from "@/lib/proposal-source";
 import { Badge } from "@/components/ui/badge";
@@ -94,7 +94,8 @@ export default function Renewals() {
   const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
 
   const detail = selectedId ? enriched.find(r => r.id === selectedId) : null;
-  const isRealRenewal = !!detail && !String(detail.id).startsWith("derived-");
+  const isRealRenewal = !!detail && isOperationalRenewal(detail.id);
+  const detailClosed = isClosedRenewal(detail);
   const detailClient = detail ? clientMap[detail.client_id] : null;
 
   const { data: renewalProposal = null } = useQuery({
