@@ -1,0 +1,2 @@
+ALTER TABLE public.proposals ALTER COLUMN plan DROP NOT NULL;
+ALTER TABLE public.proposals ALTER COLUMN plan DROP DEFAULT;

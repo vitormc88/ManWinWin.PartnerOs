@@ -4374,7 +4374,7 @@ export type Database = {
           payment_terms: string | null
           pdf_url: string | null
           per_diem: number | null
-          plan: number
+          plan: number | null
           product_family: string
           project_name: string | null
           proposal_date: string
@@ -4425,7 +4425,7 @@ export type Database = {
           payment_terms?: string | null
           pdf_url?: string | null
           per_diem?: number | null
-          plan?: number
+          plan?: number | null
           product_family?: string
           project_name?: string | null
           proposal_date?: string
@@ -4476,7 +4476,7 @@ export type Database = {
           payment_terms?: string | null
           pdf_url?: string | null
           per_diem?: number | null
-          plan?: number
+          plan?: number | null
           product_family?: string
           project_name?: string | null
           proposal_date?: string
