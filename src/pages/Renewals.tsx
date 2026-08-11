@@ -76,9 +76,10 @@ export default function Renewals() {
     return renewals.map((r: any) => {
       const cl = clientMap[r.client_id];
       const days = r.renewal_date ? Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000) : 999;
-      return { ...r, clientName: cl?.commercial_name || "Unknown", clientCode: cl?.client_code || "", partnerName: r.partner_id ? (partnerMap[r.partner_id] || "Unknown") : "HQ Direct", daysUntil: days };
+      const ownerName = getOwnerDisplay({ assigned_user_id: r.assigned_user_id, assigned_salesperson: r.assigned_owner }, profilesMap);
+      return { ...r, clientName: cl?.commercial_name || "Unknown", clientCode: cl?.client_code || "", partnerName: r.partner_id ? (partnerMap[r.partner_id] || "Unknown") : "HQ Direct", daysUntil: days, ownerName, isUnassigned: ownerName === "Unassigned" };
     });
-  }, [renewals, clientMap, partnerMap]);
+  }, [renewals, clientMap, partnerMap, profilesMap]);
 
   const filtered = useMemo(() => {
     return enriched.filter(r => {
