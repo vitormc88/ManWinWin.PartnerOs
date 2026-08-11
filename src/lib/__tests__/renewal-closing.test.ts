@@ -31,10 +31,31 @@ describe("date derivation", () => {
     expect(nextRenewalDateFrom("2026-03-01", "Quarterly")).toBe("2026-06-01");
     expect(nextRenewalDateFrom("2026-01-31", "semiannual")).toBe("2026-07-31");
   });
-  it("defaults to annual when frequency is unknown/missing", () => {
-    expect(nextRenewalDateFrom("2026-03-01", null)).toBe("2027-03-01");
-    expect(nextRenewalDateFrom("2026-03-01", "weird")).toBe("2027-03-01");
+  it("never assumes annual for irregular, multi-year or unknown periods", () => {
+    expect(nextRenewalDateFrom("2026-03-01", null)).toBeNull();
+    expect(nextRenewalDateFrom("2026-03-01", "Multi-year")).toBeNull();
+    expect(nextRenewalDateFrom("2026-03-01", "weird")).toBeNull();
   });
+  it("requires an explicit next date when the period is irregular", () => {
+    const preview = evaluateRenewalClosure({
+      renewal: { id: "r1", status: "Upcoming", renewal_date: "2026-03-01", billing_frequency: "Multi-year" },
+      proposal: { id: "p1", status: "Ready", product_family: "Professional", total_recurring: 1000, total_year_1: 1000 },
+      previousRecurringValue: 900,
+      outcome: "renewed",
+    });
+    expect(preview.ok).toBe(false);
+    expect(preview.blockers.some((b) => b.includes("next renewal date"))).toBe(true);
+    expect(
+      evaluateRenewalClosure({
+        renewal: { id: "r1", status: "Upcoming", renewal_date: "2026-03-01", billing_frequency: "Multi-year" },
+        proposal: { id: "p1", status: "Ready", product_family: "Professional", total_recurring: 1000, total_year_1: 1000 },
+        previousRecurringValue: 900,
+        outcome: "renewed",
+        nextRenewalDate: "2028-03-01",
+      }).ok
+    ).toBe(true);
+  });
+
   it("returns null without an effective date", () => {
     expect(nextRenewalDateFrom(null, "Annual")).toBeNull();
   });

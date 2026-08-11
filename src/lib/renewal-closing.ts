@@ -53,7 +53,11 @@ const MONTHS_BY_FREQUENCY: Record<string, number> = {
   yearly: 12,
 };
 
-/** Next cycle date derived from the renewed contract's real frequency. */
+/**
+ * Next cycle date derived from the renewed contract's real frequency.
+ * Irregular / multi-year / unknown periods are NOT assumed to be annual:
+ * they return null so the closing flow requires an explicit next date.
+ */
 export function nextRenewalDateFrom(
   effectiveDate: string | null | undefined,
   billingFrequency: string | null | undefined
@@ -61,9 +65,11 @@ export function nextRenewalDateFrom(
   if (!effectiveDate) return null;
   const base = new Date(`${String(effectiveDate).slice(0, 10)}T00:00:00Z`);
   if (isNaN(base.getTime())) return null;
-  const months = MONTHS_BY_FREQUENCY[(billingFrequency || "annual").trim().toLowerCase()] ?? 12;
+  const months = MONTHS_BY_FREQUENCY[(billingFrequency || "").trim().toLowerCase()];
+  if (!months) return null;
   const d = new Date(base);
   d.setUTCMonth(d.getUTCMonth() + months);
+
   return d.toISOString().slice(0, 10);
 }
 
@@ -178,9 +184,15 @@ export function evaluateRenewalClosure(input: ClosurePreviewInput): ClosurePrevi
   if (input.hasContract === false) {
     blockers.push("No contract found to renew for this client.");
   }
+  if (!nextRenewalDate) {
+    blockers.push(
+      "Set the next renewal date — this contract does not follow a standard period, so it cannot be assumed."
+    );
+  }
   if (nextRenewalDate && effectiveDate && nextRenewalDate <= effectiveDate) {
     blockers.push("The next renewal date must be after the effective date.");
   }
+
 
   return {
     ok: blockers.length === 0,
