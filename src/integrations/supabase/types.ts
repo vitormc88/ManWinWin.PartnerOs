@@ -3154,6 +3154,7 @@ export type Database = {
       }
       manual_tasks: {
         Row: {
+          automation_key: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -3174,6 +3175,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          automation_key?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -3194,6 +3196,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          automation_key?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -3291,6 +3294,7 @@ export type Database = {
           category: string | null
           client_id: string | null
           created_at: string
+          dedupe_key: string | null
           id: string
           is_read: boolean
           message: string
@@ -3306,6 +3310,7 @@ export type Database = {
           category?: string | null
           client_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
           id?: string
           is_read?: boolean
           message: string
@@ -3321,6 +3326,7 @@ export type Database = {
           category?: string | null
           client_id?: string | null
           created_at?: string
+          dedupe_key?: string | null
           id?: string
           is_read?: boolean
           message?: string
@@ -4616,6 +4622,7 @@ export type Database = {
           alert_window_days: number | null
           assigned_owner: string | null
           assigned_user_id: string | null
+          automation_source: string | null
           billing_frequency: string | null
           client_id: string
           closed_at: string | null
@@ -4657,6 +4664,7 @@ export type Database = {
           alert_window_days?: number | null
           assigned_owner?: string | null
           assigned_user_id?: string | null
+          automation_source?: string | null
           billing_frequency?: string | null
           client_id: string
           closed_at?: string | null
@@ -4698,6 +4706,7 @@ export type Database = {
           alert_window_days?: number | null
           assigned_owner?: string | null
           assigned_user_id?: string | null
+          automation_source?: string | null
           billing_frequency?: string | null
           client_id?: string
           closed_at?: string | null
@@ -5643,9 +5652,17 @@ export type Database = {
           read_ct: number
         }[]
       }
+      reassign_renewal_owner: {
+        Args: { _new_owner: string; _reason?: string; _renewal_id: string }
+        Returns: Json
+      }
       recalculate_contract_total: {
         Args: { _contract_id: string }
         Returns: number
+      }
+      renewal_automation_run: {
+        Args: { _batch_size?: number; _lead_days?: number }
+        Returns: Json
       }
       renewal_canonical_partner: {
         Args: { _renewal_id: string }
@@ -5655,10 +5672,46 @@ export type Database = {
         Args: { _category: string; _name: string; _recurring: boolean }
         Returns: string
       }
+      renewal_notify: {
+        Args: {
+          _client_id: string
+          _event: string
+          _message: string
+          _partner_id: string
+          _recipient: string
+          _renewal_id: string
+          _title: string
+          _type?: string
+        }
+        Returns: boolean
+      }
+      renewal_notify_hq: {
+        Args: {
+          _client_id: string
+          _event: string
+          _message: string
+          _partner_id: string
+          _renewal_id: string
+          _title: string
+          _type?: string
+        }
+        Returns: number
+      }
+      renewal_operational_state: {
+        Args: {
+          _closed_at: string
+          _outcome: string
+          _proposal_status: string
+          _renewal_date: string
+          _status: string
+        }
+        Returns: string
+      }
       reset_user_to_role_template: {
         Args: { _user_id: string }
         Returns: undefined
       }
+      resolve_renewal_owner: { Args: { _renewal_id: string }; Returns: string }
       resolve_user_by_name: { Args: { _name: string }; Returns: string }
       save_renewal_proposal: {
         Args: {
