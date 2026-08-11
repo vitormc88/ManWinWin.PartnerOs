@@ -5059,6 +5059,24 @@ export type Database = {
         }
         Relationships: []
       }
+      zz_verify_run: {
+        Row: {
+          created_at: string
+          detail: Json
+          scenario: string
+        }
+        Insert: {
+          created_at?: string
+          detail: Json
+          scenario: string
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          scenario?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       client_commercial_intelligence: {
@@ -5660,10 +5678,16 @@ export type Database = {
         Args: { _contract_id: string }
         Returns: number
       }
-      renewal_automation_run: {
-        Args: { _batch_size?: number; _lead_days?: number }
-        Returns: Json
-      }
+      renewal_automation_run:
+        | { Args: { _batch_size?: number; _lead_days?: number }; Returns: Json }
+        | {
+            Args: {
+              _batch_size?: number
+              _client_ids?: string[]
+              _lead_days?: number
+            }
+            Returns: Json
+          }
       renewal_canonical_partner: {
         Args: { _renewal_id: string }
         Returns: string
