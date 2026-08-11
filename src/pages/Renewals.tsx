@@ -157,12 +157,13 @@ export default function Renewals() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 animate-reveal-up stagger-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 animate-reveal-up stagger-1">
         {[
           { label: "Clients", value: stats.total, color: "text-foreground" },
           { label: "Due Soon", value: stats.dueSoon, color: "text-amber-600" },
           { label: "In Progress", value: stats.inProgress, color: "text-purple-600" },
           { label: "At Risk", value: stats.atRisk, color: "text-destructive" },
+          { label: "Unassigned", value: stats.unassigned, color: stats.unassigned > 0 ? "text-destructive" : "text-muted-foreground" },
           { label: "Expired", value: stats.expired, color: "text-muted-foreground" },
           { label: "Pipeline Value", value: formatMoney(stats.totalValue, { compact: true }), color: "text-foreground" },
         ].map((kpi, i) => (
