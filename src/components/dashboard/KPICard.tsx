@@ -12,9 +12,14 @@ interface KPICardProps {
   delay?: number;
   /** While true the KPI shows a placeholder instead of a possibly-false zero. */
   loading?: boolean;
+  /** The metric could not be calculated — shown as unavailable, never as zero. */
+  error?: boolean;
+  /** Explanation rendered instead of `change` when `error` is true. */
+  errorHint?: string;
 }
 
-export function KPICard({ title, value, change, changeType = "neutral", icon: Icon, className, delay = 0, loading = false }: KPICardProps) {
+export function KPICard({ title, value, change, changeType = "neutral", icon: Icon, className, delay = 0, loading = false, error = false, errorHint = "Could not be calculated" }: KPICardProps) {
+  const failed = error && !loading;
   return (
     <div
       className={cn(
