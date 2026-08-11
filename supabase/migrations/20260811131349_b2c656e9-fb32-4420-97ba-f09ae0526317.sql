@@ -1,0 +1,13 @@
+REVOKE ALL ON FUNCTION public.resolve_renewal_owner(uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.reassign_renewal_owner(uuid,uuid,text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.renewal_operational_state(text,timestamptz,text,date,text) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.renewals_closure_cleanup() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.renewal_notify(uuid,uuid,text,text,uuid,text,text,text) FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.renewal_notify_hq(uuid,uuid,text,text,text,text,text) FROM anon, authenticated;
+REVOKE ALL ON FUNCTION public.renewal_automation_run(int,int) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.resolve_renewal_owner(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.reassign_renewal_owner(uuid,uuid,text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.renewal_operational_state(text,timestamptz,text,date,text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.renewal_notify(uuid,uuid,text,text,uuid,text,text,text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.renewal_notify_hq(uuid,uuid,text,text,text,text,text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.renewal_automation_run(int,int) TO service_role;
