@@ -194,7 +194,10 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
         const primary = sorted[0];
 
         // Prefer an explicit (non-derived) row for ownership / notes / id.
-        const explicitRow = components.find((c) => !String(c.id || "").startsWith("derived-"));
+        // Keep it consistent with the primary component: once a cycle is closed the
+        // next (open) cycle owns the row, so the id and the status never disagree.
+        const isExplicit = (c: any) => !String(c.id || "").startsWith("derived-");
+        const explicitRow = sorted.find(isExplicit) || components.find(isExplicit);
         const base = explicitRow || primary;
 
         // Highest estimated value across all components (most relevant commercial figure).

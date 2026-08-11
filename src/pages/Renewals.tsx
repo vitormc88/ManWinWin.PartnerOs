@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { FileText, Search } from "lucide-react";
+import { CheckCircle2, FileText, Search } from "lucide-react";
 import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
 import { renewalProposalSource } from "@/lib/proposal-source";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,10 @@ import { formatDateOnly } from "@/lib/date-format";
 import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
 import { useAuth } from "@/contexts/AuthContext";
 import { isPartnerScopedView } from "@/lib/partner-scope";
+import { CloseRenewalDialog } from "@/components/renewals/CloseRenewalDialog";
+import { RenewalClosureSummary } from "@/components/renewals/RenewalClosureSummary";
+import { isClosedRenewal, isOperationalRenewal } from "@/lib/renewal-closing";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
 
 const statusColors: Record<string, string> = {
   "Upcoming": "bg-info/10 text-info border-info/20",
@@ -45,6 +49,8 @@ export default function Renewals() {
   const [partnerFilter, setPartnerFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showProposal, setShowProposal] = useState(false);
+  const [showClose, setShowClose] = useState(false);
+  const { canEdit } = useModuleAccess();
 
   const clientMap = useMemo(() => {
     const m: Record<string, any> = {};
@@ -89,7 +95,8 @@ export default function Renewals() {
   const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
 
   const detail = selectedId ? enriched.find(r => r.id === selectedId) : null;
-  const isRealRenewal = !!detail && !String(detail.id).startsWith("derived-");
+  const isRealRenewal = !!detail && isOperationalRenewal(detail.id);
+  const detailClosed = isClosedRenewal(detail);
   const detailClient = detail ? clientMap[detail.client_id] : null;
 
   const { data: renewalProposal = null } = useQuery({
@@ -106,6 +113,21 @@ export default function Renewals() {
       return data;
     },
     enabled: !!detail?.id && isRealRenewal,
+  });
+
+  // Keep closing history visible even after the next cycle takes over the row.
+  const { data: previousCycle = null } = useQuery({
+    queryKey: ["renewal", "previous", detail?.previous_renewal_id],
+    enabled: !!detail?.previous_renewal_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("renewals")
+        .select("*")
+        .eq("id", detail!.previous_renewal_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
   });
 
   const proposalSource = detail && isRealRenewal
@@ -244,13 +266,30 @@ export default function Renewals() {
                           ? `Version ${renewalProposal.version} · ${renewalProposal.status}`
                           : "No proposal created yet."}
                       </p>
-                      <Button size="sm" onClick={() => setShowProposal(true)} className="gap-2">
+                      <Button size="sm" variant={detailClosed ? "outline" : "default"} onClick={() => setShowProposal(true)} className="gap-2">
                         <FileText className="h-4 w-4" />
                         {renewalProposal ? "Open Renewal Proposal" : "Create Renewal Proposal"}
                       </Button>
                     </div>
                   )}
                 </div>
+
+                {previousCycle && <RenewalClosureSummary renewal={previousCycle} title="Previous cycle" />}
+
+                {detailClosed ? (
+                  <>
+                    <RenewalClosureSummary renewal={detail} title="Closure" />
+                    <p className="text-xs text-muted-foreground">This renewal is closed and read-only.</p>
+                  </>
+                ) : isRealRenewal && canEdit("renewals") ? (
+                  <div className="border-t pt-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">Close this commercial cycle.</p>
+                    <Button size="sm" variant="outline" onClick={() => setShowClose(true)} className="gap-2">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Close Renewal
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </>
           )}
@@ -265,6 +304,15 @@ export default function Renewals() {
           editingProposal={renewalProposal as any}
           defaultClientName={detailClient?.commercial_name || detail.clientName}
           defaultCountry={detailClient?.country || null}
+        />
+      )}
+
+      {showClose && detail && (
+        <CloseRenewalDialog
+          open={showClose}
+          onOpenChange={(o) => { setShowClose(o); if (!o) setSelectedId(null); }}
+          renewal={detail}
+          clientName={detail.clientName}
         />
       )}
     </div>
