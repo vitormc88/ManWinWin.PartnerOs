@@ -210,8 +210,8 @@ export default function Analytics() {
         <TabsContent value="overview" className="space-y-4 mt-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {/* Historical billed revenue — client_revenue_history */}
-            <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(lifetimeRevenue)} sub={`${clientsWithRevenue} client${clientsWithRevenue !== 1 ? "s" : ""} billed`} />
-            <KPI label={REVENUE_YTD_LABEL} value={fmtEuroK(revenueYtd)} sub={`Calendar year ${currentYear}`} trend={revenueYtd > 0 ? "up" : "neutral"} />
+            <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(lifetimeRevenue)} sub={clientsWithRevenue > 0 ? `${clientsWithRevenue} client${clientsWithRevenue !== 1 ? "s" : ""} billed` : "No billed revenue recorded yet"} error={revenue.isError} errorHint="Billed revenue could not be loaded" />
+            <KPI label={REVENUE_YTD_LABEL} value={fmtEuroK(revenueYtd)} sub={`Calendar year ${currentYear}`} trend={revenueYtd > 0 ? "up" : "neutral"} error={revenue.isError} errorHint="Billed revenue could not be loaded" />
             {/* Sales metrics — deal-derived */}
             <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(wonDealTotal)} sub={`${wonOutcomes.length} won deal${wonOutcomes.length !== 1 ? "s" : ""} · new business`} />
             <KPI label="Pipeline Value (Open)" value={fmtEuroK(totalPipelineValue)} sub={`${totalOpenDeals} open deal${totalOpenDeals !== 1 ? "s" : ""}`} />
