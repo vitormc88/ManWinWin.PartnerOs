@@ -22,6 +22,13 @@ import {
 } from "@/lib/proposal-source";
 import { buildRenewalLinkArgs, renewalProposalRefreshKeys } from "@/lib/renewal-proposal-link";
 import {
+  normalizeProposalPayload,
+  validateRenewalReadiness,
+  resolveRenewalProjectName,
+  defaultRenewalProjectName,
+  GENERIC_PROJECT_NAME,
+} from "@/lib/renewal-proposal-normalization";
+import {
   buildDefaultItems,
   computeTotals,
   enrichProposalItem,
@@ -235,14 +242,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const baselineVariant = baselineLicenseModel(renewalBaseline);
   const [proposalVariant, setProposalVariant] = useState<"keepit" | "useit" | null>(null);
   const effectiveVariant = baselineVariant ?? proposalVariant;
-  const variantUnresolved =
-    usesContractBaselineItems && !!renewalBaseline?.variantNeedsReview && !effectiveVariant;
   const selectedVariantLabel =
     renewalBaseline?.variantNeedsReview && effectiveVariant
       ? effectiveVariant === "keepit"
         ? "KeepIT"
         : "UseIT"
       : null;
+
+  /** Renewals P0D — contract-driven renewal: no catalogue control applies. */
+  const isContractRenewal = usesContractBaselineItems;
 
 
 
@@ -318,7 +326,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     if (!open || !editingProposal) return;
     setStep(0);
     setLanguage(editingProposal.language);
-    setPlan(editingProposal.plan);
+    setPlan((editingProposal.plan ?? 1) as ProposalPlan);
     const fam: ProposalProductFamily = (editingProposal.product_family as any) || "Professional";
     setProductFamily(fam);
     if (fam === "Business") {
@@ -345,13 +353,17 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       setHosting("SaaS"); // Professional plans are SaaS-only
     }
     setClientName(editingProposal.client_name);
-    setProjectName(editingProposal.project_name || "Maintenance Software Implementation");
+    setProjectName(
+      isRenewalProposal
+        ? resolveRenewalProjectName({ savedProjectName: editingProposal.project_name, clientName: editingProposal.client_name })
+        : editingProposal.project_name || GENERIC_PROJECT_NAME,
+    );
     setProposalDate(editingProposal.proposal_date);
     setValidityDays(editingProposal.validity_days);
     setCountry(editingProposal.country || "");
     setIncludeRequests(editingProposal.include_requests_module);
     setWebUsers(editingProposal.web_users);
-    setImplType(editingProposal.implementation_type);
+    setImplType(editingProposal.implementation_type ?? "Online");
     setOnsiteDays(Number(editingProposal.service_days || 0));
     setSoftwareDiscountPct(Number(editingProposal.software_discount_pct || 0));
     setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
@@ -359,7 +371,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     setNotes(editingProposal.notes || "");
     if (editingProposal.items?.length) {
       setItems(editingProposal.items);
-      const planItem = editingProposal.items.find((item) => item.item_code === `plan_${editingProposal.plan}_annual`);
+      const planItem = editingProposal.items.find((item) => item.item_code === `plan_${editingProposal.plan ?? 1}_annual`);
       const requestsItem = editingProposal.items.find((item) => item.item_code === "requests_module");
       const webItem = editingProposal.items.find((item) => item.item_code === "web_user");
       setPlanDiscountPct(planItem?.discount_type === "percent" ? Number(planItem.discount_value || 0) : 0);
@@ -444,6 +456,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     if (renewalBaseline.webUsers != null) setWebUsers(renewalBaseline.webUsers);
     // An ordinary renewal never carries implementation services.
     setOnsiteDays(0);
+    setImplType("Online");
+    // Neutral, renewal-specific project name (never the catalogue default).
+    setProjectName((prev) =>
+      !prev.trim() || prev === GENERIC_PROJECT_NAME ? defaultRenewalProjectName(defaultClientName) : prev,
+    );
     setItems(buildBaselineProposalItems(renewalBaseline));
   }, [open, usesContractBaselineItems, renewalBaseline, editingProposal]);
 
@@ -622,6 +639,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     };
   }, [isBusinessCatalogue, businessHeadline, totals]);
 
+  /** Renewals P0D — gate for Ready status and document generation. */
+  const renewalReadiness = useMemo(
+    () =>
+      validateRenewalReadiness(
+        {
+          usesContractBaselineItems,
+          isBusinessProduct,
+          baselinePlan: renewalBaseline?.plan ?? null,
+          effectiveVariant,
+          variantNeedsReview: !!renewalBaseline?.variantNeedsReview,
+        },
+        { totalYear1: money.totalYear1, itemCount: items.length },
+      ),
+    [usesContractBaselineItems, isBusinessProduct, renewalBaseline, effectiveVariant, money.totalYear1, items.length],
+  );
+
   const i18n = t(language);
 
   const updateItem = (idx: number, patch: Partial<ProposalItem>) => {
@@ -753,7 +786,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         validity_days: validityDays,
         payment_terms: paymentTerms,
         notes: notes || null,
-        implementation_type: isBusinessProduct ? "Online" : implType,
+        implementation_type: isBusinessProduct ? null : implType,
         per_diem: 0,
         discount_pct: 0,
         discount_scope: "none",
@@ -769,6 +802,37 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         total_recurring: money.totalRecurring,
         created_by: user?.id || null,
       };
+
+      // ── Renewals P0D — one normalization pass before every persistence path.
+      // Displayed values, persisted values and generated document values must
+      // all be the same. Catalogue/pipeline proposals are untouched.
+      const normalizationCtx = {
+        usesContractBaselineItems,
+        isBusinessProduct,
+        baselinePlan: renewalBaseline?.plan ?? null,
+        effectiveVariant,
+        variantNeedsReview: !!renewalBaseline?.variantNeedsReview,
+        canonical: isRenewalProposal
+          ? {
+              renewal_id: source.renewal_id ?? null,
+              client_id: source.client_id ?? null,
+              partner_uuid: source.partner_uuid ?? null,
+            }
+          : {},
+        clientName,
+      };
+      const payload = normalizeProposalPayload(insertData, normalizationCtx);
+
+      if (status === "Ready") {
+        const readiness = validateRenewalReadiness(normalizationCtx, {
+          totalYear1: money.totalYear1,
+          itemCount: items.length,
+        });
+        if (!readiness.ok) {
+          toast.error(readiness.blockers[0]);
+          return null;
+        }
+      }
       // ── Renewal source: one single transactional RPC ────────────────────
       // proposal + items + renewals.source_proposal_id + renewal_activities
       // succeed or fail together. No orphan proposal/items can remain.
@@ -840,7 +904,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         const { data: savedId, error: saveError } = await supabase.rpc("save_renewal_proposal" as any, {
           _renewal_id: renewalId,
           _proposal_id: editingProposal?.id || null,
-          _payload: insertData,
+          _payload: payload,
           _items: buildItemRows(null),
           _performed_by: linkArgs._performed_by,
           _notes: linkArgs._notes,
@@ -862,8 +926,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       }
 
       const propResponse = editingProposal?.id
-        ? await supabase.from("proposals").update(insertData).eq("id", editingProposal.id).select().single()
-        : await supabase.from("proposals").insert(insertData).select().single();
+        ? await supabase.from("proposals").update(payload).eq("id", editingProposal.id).select().single()
+        : await supabase.from("proposals").insert(payload).select().single();
       const { data: prop, error } = propResponse;
       if (error) throw error;
 
@@ -963,10 +1027,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    * Business identity; catalogue pricing is never regenerated here.
    */
   const handleGenerateRenewalDocx = async () => {
-    if (variantUnresolved) {
-      toast.error(
-        "Commercial variant is not recorded. Select KeepIT or UseIT before generating the renewal proposal.",
-      );
+    if (!renewalReadiness.ok) {
+      toast.error(renewalReadiness.blockers[0]);
       return;
     }
     const prop = await persistProposal("Ready");
@@ -1230,6 +1292,24 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                       </SelectContent>
                     </Select>
                   </div>
+                ) : isContractRenewal ? (
+                  isBusinessProduct ? null : (
+                    <div>
+                      <Label>Plan</Label>
+                      <div className="h-10 flex items-center text-sm">
+                        {renewalBaseline?.plan ? (
+                          <span className="font-medium">Plan {renewalBaseline.plan}</span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Not recorded · <span className="text-amber-600">Needs review</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Taken from the current contract — never inferred.
+                      </p>
+                    </div>
+                  )
                 ) : (
                   <div>
                     <Label>Plan</Label>
@@ -1336,7 +1416,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
               servicesDiscountMax={discountLimits.services}
             />
           )}
-          {step === 1 && !isBusinessCatalogue && (
+          {step === 1 && !isBusinessCatalogue && !isContractRenewal && (
             <div className="space-y-4">
               <div className="bg-secondary/40 border rounded-lg p-4">
                 <h4 className="text-sm font-semibold text-foreground mb-2">Plan {plan} — auto-included modules</h4>
@@ -1427,7 +1507,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
               servicesDiscountMax={discountLimits.services}
             />
           )}
-          {step === 2 && !isBusinessCatalogue && (
+          {step === 2 && !isBusinessCatalogue && !isContractRenewal && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1464,6 +1544,59 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
               <div className="bg-secondary/30 border rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">
                   Service items are auto-loaded based on plan + implementation type. You can edit prices in the Preview step.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 1: Software — contract-driven renewal */}
+          {step === 1 && isContractRenewal && (
+            <div className="space-y-4">
+              <div className="bg-secondary/40 border rounded-lg p-4 space-y-2">
+                <h4 className="text-sm font-semibold text-foreground">Current contract configuration</h4>
+                <p className="text-xs text-muted-foreground">
+                  {renewalBaseline?.product || "—"}
+                  {" · "}
+                  {renewalBaseline?.hosting || "Not recorded"}
+                  {" · Backoffice users: "}
+                  {renewalBaseline?.backofficeUsers ?? "Not recorded"}
+                  {" · Web users: "}
+                  {renewalBaseline?.webUsers ?? "Not recorded"}
+                </p>
+                {(renewalBaseline?.modules?.length || 0) > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {renewalBaseline!.modules.map((m) => (
+                      <Badge key={m.name} variant="secondary" className="text-[11px]">{m.name}</Badge>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Software is taken from the linked contract and license. Catalogue plans and modules do not apply to a renewal — edit the real lines in the Preview step.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: Services — contract-driven renewal */}
+          {step === 2 && isContractRenewal && (
+            <div className="space-y-4">
+              <div className="bg-secondary/30 border rounded-lg p-4 space-y-2">
+                <h4 className="text-sm font-semibold text-foreground">Recurring services in the current contract</h4>
+                {(renewalBaseline?.recurringLines || []).filter((l) => l.lineType === "sat" || l.lineType === "support" || l.lineType === "implementation" || l.lineType === "training").length > 0 ? (
+                  <ul className="text-xs text-muted-foreground list-disc pl-5">
+                    {renewalBaseline!.recurringLines
+                      .filter((l) => ["sat", "support", "implementation", "training"].includes(l.lineType))
+                      .map((l, i) => (
+                        <li key={i}>{l.label}</li>
+                      ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No recurring service line in the current contract. No implementation service is added automatically.
+                  </p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Add a one-time service in the Preview step only if it was deliberately negotiated for this renewal.
                 </p>
               </div>
             </div>
@@ -1680,16 +1813,20 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                       {" · "}Proposed Year 1: <strong>{formatPrice(money.totalYear1)}</strong>
                       {" · "}Year 2+: <strong>{formatPrice(money.totalRecurring)}/yr</strong>
                     </p>
-                    {variantUnresolved && (
-                      <p role="alert" className="text-sm text-destructive mt-2">
-                        Commercial variant is not recorded. Select KeepIT or UseIT before generating the renewal
-                        proposal.
-                      </p>
+                    {!renewalReadiness.ok && (
+                      <div role="alert" className="text-sm text-destructive mt-2 space-y-1">
+                        {renewalReadiness.blockers.map((b) => (
+                          <p key={b}>{b}</p>
+                        ))}
+                      </div>
                     )}
+                    {renewalReadiness.warnings.map((w) => (
+                      <p key={w} className="text-xs text-muted-foreground mt-1">{w}</p>
+                    ))}
                   </div>
                   <div className="flex justify-center gap-2 flex-wrap">
                     <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
-                    <Button onClick={handleGenerateRenewalDocx} disabled={saving || variantUnresolved}>
+                    <Button onClick={handleGenerateRenewalDocx} disabled={saving || !renewalReadiness.ok}>
                       <Download className="h-4 w-4 mr-2" />Generate Renewal DOCX
 
                     </Button>

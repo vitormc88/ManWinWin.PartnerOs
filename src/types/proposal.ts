@@ -81,7 +81,8 @@ export interface Proposal {
   parent_proposal_id: string | null;
   version: number;
   language: ProposalLanguage;
-  plan: ProposalPlan;
+  /** Null when no plan applies (e.g. a contract-driven Business renewal). */
+  plan: ProposalPlan | null;
   status: ProposalStatus;
   hosting: ProposalHosting;
   /** Defaults to "Professional" for legacy rows. */
@@ -99,7 +100,8 @@ export interface Proposal {
   validity_days: number;
   payment_terms: string | null;
   notes: string | null;
-  implementation_type: ImplementationType;
+  /** Null when no implementation service applies (e.g. renewals). */
+  implementation_type: ImplementationType | null;
   service_days: number | null;
   service_hours: number | null;
   backoffice_work_hours: number | null;
