@@ -4618,6 +4618,11 @@ export type Database = {
           assigned_user_id: string | null
           billing_frequency: string | null
           client_id: string
+          closed_at: string | null
+          closed_by: string | null
+          closed_proposal_id: string | null
+          closing_notes: string | null
+          closure_snapshot: Json | null
           contract_id: string | null
           covered_by_contract_id: string | null
           created_at: string
@@ -4627,13 +4632,21 @@ export type Database = {
           is_covered_by_contract: boolean
           last_interaction: string | null
           license_id: string | null
+          loss_reason: string | null
+          next_renewal_id: string | null
           notes: string | null
           notice_period_days: number | null
+          one_time_value: number | null
+          outcome: string | null
           partner_id: string | null
           partner_uuid: string | null
+          previous_recurring_value: number | null
+          previous_renewal_id: string | null
           priority: string | null
           renewal_date: string | null
+          renewal_effective_date: string | null
           renewal_type: string
+          renewed_recurring_value: number | null
           source_proposal_id: string | null
           status: string
           target_id: string | null
@@ -4646,6 +4659,11 @@ export type Database = {
           assigned_user_id?: string | null
           billing_frequency?: string | null
           client_id: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_proposal_id?: string | null
+          closing_notes?: string | null
+          closure_snapshot?: Json | null
           contract_id?: string | null
           covered_by_contract_id?: string | null
           created_at?: string
@@ -4655,13 +4673,21 @@ export type Database = {
           is_covered_by_contract?: boolean
           last_interaction?: string | null
           license_id?: string | null
+          loss_reason?: string | null
+          next_renewal_id?: string | null
           notes?: string | null
           notice_period_days?: number | null
+          one_time_value?: number | null
+          outcome?: string | null
           partner_id?: string | null
           partner_uuid?: string | null
+          previous_recurring_value?: number | null
+          previous_renewal_id?: string | null
           priority?: string | null
           renewal_date?: string | null
+          renewal_effective_date?: string | null
           renewal_type?: string
+          renewed_recurring_value?: number | null
           source_proposal_id?: string | null
           status?: string
           target_id?: string | null
@@ -4674,6 +4700,11 @@ export type Database = {
           assigned_user_id?: string | null
           billing_frequency?: string | null
           client_id?: string
+          closed_at?: string | null
+          closed_by?: string | null
+          closed_proposal_id?: string | null
+          closing_notes?: string | null
+          closure_snapshot?: Json | null
           contract_id?: string | null
           covered_by_contract_id?: string | null
           created_at?: string
@@ -4683,13 +4714,21 @@ export type Database = {
           is_covered_by_contract?: boolean
           last_interaction?: string | null
           license_id?: string | null
+          loss_reason?: string | null
+          next_renewal_id?: string | null
           notes?: string | null
           notice_period_days?: number | null
+          one_time_value?: number | null
+          outcome?: string | null
           partner_id?: string | null
           partner_uuid?: string | null
+          previous_recurring_value?: number | null
+          previous_renewal_id?: string | null
           priority?: string | null
           renewal_date?: string | null
+          renewal_effective_date?: string | null
           renewal_type?: string
+          renewed_recurring_value?: number | null
           source_proposal_id?: string | null
           status?: string
           target_id?: string | null
@@ -5468,6 +5507,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      close_renewal: {
+        Args: {
+          _closing_notes?: string
+          _effective_date?: string
+          _loss_reason?: string
+          _next_renewal_date?: string
+          _outcome: string
+          _proposal_id?: string
+          _renewal_id: string
+        }
+        Returns: Json
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -5598,6 +5649,10 @@ export type Database = {
       }
       renewal_canonical_partner: {
         Args: { _renewal_id: string }
+        Returns: string
+      }
+      renewal_line_type_for: {
+        Args: { _category: string; _name: string; _recurring: boolean }
         Returns: string
       }
       reset_user_to_role_template: {
