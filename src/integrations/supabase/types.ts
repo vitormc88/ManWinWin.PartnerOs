@@ -5059,24 +5059,6 @@ export type Database = {
         }
         Relationships: []
       }
-      zz_verify_run: {
-        Row: {
-          created_at: string
-          detail: Json
-          scenario: string
-        }
-        Insert: {
-          created_at?: string
-          detail: Json
-          scenario: string
-        }
-        Update: {
-          created_at?: string
-          detail?: Json
-          scenario?: string
-        }
-        Relationships: []
-      }
     }
     Views: {
       client_commercial_intelligence: {
