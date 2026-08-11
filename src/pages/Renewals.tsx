@@ -247,7 +247,7 @@ export default function Renewals() {
                   <div><span className="text-muted-foreground">Renewal Date</span><p className="font-medium mt-0.5 tabular-nums">{detail.renewal_date}</p></div>
                   <div><span className="text-muted-foreground">Days Until</span><p className="font-medium mt-0.5 tabular-nums">{detail.daysUntil < 0 ? `${Math.abs(detail.daysUntil)} overdue` : `${detail.daysUntil} days`}</p></div>
                   <div><span className="text-muted-foreground">Estimated Value</span><p className="font-medium mt-0.5 tabular-nums">{formatMoney(detail.estimated_value)}</p></div>
-                  <div><span className="text-muted-foreground">Owner</span><p className="font-medium mt-0.5">{detail.assigned_owner || "—"}</p></div>
+                  <div><span className="text-muted-foreground">Owner</span><p className={`font-medium mt-0.5 ${detail.isUnassigned ? "text-destructive" : ""}`}>{detail.ownerName}</p></div>
                 </div>
                 {detail.included_services?.length > 0 && (
                   <div className="border-t pt-3">
