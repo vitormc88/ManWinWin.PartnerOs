@@ -186,7 +186,7 @@ export function evaluateRenewalClosure(input: ClosurePreviewInput): ClosurePrevi
   }
   if (!nextRenewalDate) {
     blockers.push(
-      "Set the next renewal date — this contract does not follow a standard period, so it cannot be assumed."
+      "Next renewal date requires confirmation — the next renewal date cannot be assumed for this period."
     );
   }
   if (nextRenewalDate && effectiveDate && nextRenewalDate <= effectiveDate) {
