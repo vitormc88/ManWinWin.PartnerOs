@@ -17,6 +17,7 @@ import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
 import { useAuth } from "@/contexts/AuthContext";
 import { isPartnerScopedView } from "@/lib/partner-scope";
 import { CloseRenewalDialog } from "@/components/renewals/CloseRenewalDialog";
+import { RenewalClosureSummary } from "@/components/renewals/RenewalClosureSummary";
 import { isClosedRenewal, isOperationalRenewal } from "@/lib/renewal-closing";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 
