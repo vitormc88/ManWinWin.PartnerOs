@@ -96,6 +96,7 @@ export default function Renewals() {
     dueSoon: enriched.filter(r => r.status === "Due Soon").length,
     inProgress: enriched.filter(r => r.status === "In Negotiation" || r.status === "Quoted").length,
     atRisk: enriched.filter(r => r.daysUntil < 0 && r.status !== "Won").length,
+    unassigned: enriched.filter(r => r.isUnassigned && r.status !== "Won" && r.status !== "Lost").length,
     totalValue: enriched.reduce((s, r) => s + Number(r.estimated_value || 0), 0),
   }), [enriched]);
 
