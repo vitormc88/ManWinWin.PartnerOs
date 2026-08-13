@@ -94,22 +94,28 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   // Commercial note form
   const [noteBody, setNoteBody] = useState("");
 
-  // Existing proposals for this client (matched by client_name)
+  // Existing proposals for this client. Client-anchored proposals are matched
+  // by the real client id; legacy ones only carry the client name.
   const clientName: string = client?.company_name ?? client?.name ?? "";
   const { data: proposals = [] } = useQuery({
-    queryKey: ["proposals", "by-client-name", clientName],
+    queryKey: ["proposals", "by-client", client?.id, clientName],
     queryFn: async () => {
-      if (!clientName) return [];
+      const cols =
+        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, proposal_date, created_at";
+      const filters: string[] = [];
+      if (client?.id) filters.push(`client_id.eq.${client.id}`);
+      if (clientName) filters.push(`client_name.eq.${clientName.replace(/[(),]/g, " ")}`);
+      if (filters.length === 0) return [];
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, client_name, project_name, status, total_year_1, total_recurring, proposal_date, created_at")
-        .eq("client_name", clientName)
+        .select(cols)
+        .or(filters.join(","))
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!clientName,
+    enabled: !!client?.id || !!clientName,
   });
 
   // Real operational renewal row for this client (never a derived placeholder).
