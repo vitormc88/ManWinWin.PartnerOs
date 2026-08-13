@@ -162,7 +162,7 @@ describe("hydrateRenewalProposal — backwards compatibility", () => {
         apsItems[1],
         item({
           ...apsItems[2],
-          discount_type: "amount",
+          discount_type: "fixed",
           discount_value: 825,
           implementation_source: "transition_rule",
           transition_rule_code: "TR_P1_P3_STD",
