@@ -192,7 +192,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     [proposalSource, leadId],
   );
   const isRenewalProposal = isRenewalSource(source);
+  /** Existing customer, outside a renewal cycle (mid-cycle commercial action). */
+  const isClientProposal = isClientSource(source);
   const storagePrefix = proposalStoragePrefix(source);
+
   // Renewals P0 — the real commercial baseline behind this renewal.
   const { baseline: renewalBaseline, isLoading: baselineLoading } = useRenewalBaseline(
     isRenewalProposal ? source.renewal_id : null,
