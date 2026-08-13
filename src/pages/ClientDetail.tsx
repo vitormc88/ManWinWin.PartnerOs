@@ -1291,11 +1291,13 @@ export default function ClientDetail() {
                 {editingContractId !== co.id && (
                   <ContractBreakdown
                     contractId={co.id}
+                    contract={co as any}
                     legacyTotal={co.total_value}
                     currency={co.currency}
                     isImported={(co as any).is_imported !== false}
                     manualAdjustment={(co as any).manual_adjustment_amount}
                   />
+
                 )}
               </CardContent>
             </Card>
