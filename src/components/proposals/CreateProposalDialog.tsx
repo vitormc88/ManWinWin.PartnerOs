@@ -1715,6 +1715,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   maxServicesDiscountPct={discountLimits.services}
                   currentProductLabel={renewalBaseline?.product ?? null}
                   computation={planChange}
+                  manualImplementationGross={manualImplGross}
+                  onManualImplementationGrossChange={setManualImplGross}
+                  manualJustification={manualImplJustification}
+                  onManualJustificationChange={setManualImplJustification}
+                  canAuthorizeManualImplementation={isHQ}
                 />
               )}
             </div>
@@ -1803,6 +1808,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   maxServicesDiscountPct={discountLimits.services}
                   currentProductLabel={renewalBaseline?.product ?? null}
                   computation={planChange}
+                  manualImplementationGross={manualImplGross}
+                  onManualImplementationGrossChange={setManualImplGross}
+                  manualJustification={manualImplJustification}
+                  onManualJustificationChange={setManualImplJustification}
+                  canAuthorizeManualImplementation={isHQ}
                 />
               )}
               <div className="border rounded-lg overflow-hidden">
