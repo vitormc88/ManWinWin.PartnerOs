@@ -1245,21 +1245,33 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       toast.error(renewalReadiness.blockers[0]);
       return;
     }
-    const prop = await persistProposal("Ready");
-    if (!prop) return;
-
+    if (planChange.applicable && planChange.blockers.length > 0) {
+      toast.error(planChange.blockers[0]);
+      return;
+    }
+    // Generation is a read-only action: it renders the CURRENT dialog state.
+    // It never persists the proposal and never changes its status — saving is
+    // the explicit "Save as Draft" action.
     try {
       const itemsForDoc = items.map((it, idx) => ({ ...it, sort_order: idx }));
-      const { blob, fileName } = await downloadRenewalProposalDocx({
-        proposal: prop,
+      const proposalForDoc = {
+        ...(editingProposal || {}),
+        client_name: clientName,
+        project_name: projectName,
+        language,
+        currency,
+        plan: planChange.applicable ? planChange.targetPlan : plan,
+        total_year_1: money.totalYear1,
+        total_recurring: money.totalRecurring,
+      } as unknown as Proposal;
+      await downloadRenewalProposalDocx({
+        proposal: proposalForDoc,
         items: itemsForDoc as any,
         baseline: renewalBaseline,
         proposedRecurring: money.totalRecurring,
         proposedYear1: money.totalYear1,
       });
-      await uploadBusinessDocx(prop, blob, fileName);
-      toast.success("Renewal proposal generated");
-      onOpenChange(false);
+      toast.success("Renewal document generated (proposal not modified)");
     } catch (e: any) {
       toast.error("Generation failed: " + (e?.message || ""));
     }
