@@ -944,6 +944,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         renewal_change_mode: planChange.applicable ? changeMode : "straight",
         source_plan: planChange.applicable ? planChange.currentPlan : null,
         target_plan: planChange.applicable ? planChange.targetPlan : null,
+        // Entitlements + incremental implementation provenance (renewals).
+        entitlements: planChange.applicable ? planChange.entitlementSnapshot : null,
+        implementation_source: planChange.applicable ? planChange.implementation.source : null,
+        implementation_hours: planChange.applicable ? planChange.implementation.hours ?? null : null,
+        implementation_hourly_rate: planChange.applicable ? planChange.implementation.hourlyRate ?? null : null,
+        implementation_gross: planChange.applicable ? planChange.implementationGross : null,
+        implementation_justification: planChange.applicable ? planChange.implementation.justification ?? null : null,
         created_by: user?.id || null,
       };
 
