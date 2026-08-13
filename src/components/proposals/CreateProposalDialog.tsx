@@ -483,11 +483,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
     setPaymentTerms(editingProposal.payment_terms || standardPaymentTerms(editingProposal.language));
     setNotes(editingProposal.notes || "");
-    if (editingProposal.items?.length) {
-      setItems(editingProposal.items);
-      const planItem = editingProposal.items.find((item) => item.item_code === `plan_${editingProposal.plan ?? 1}_annual`);
-      const requestsItem = editingProposal.items.find((item) => item.item_code === "requests_module");
-      const webItem = editingProposal.items.find((item) => item.item_code === "web_user");
+    const savedItems = persistedItems;
+    if (savedItems?.length) {
+      setItems(savedItems);
+      const planItem = savedItems.find((item) => item.item_code === `plan_${editingProposal.plan ?? 1}_annual`);
+      const requestsItem = savedItems.find((item) => item.item_code === "requests_module");
+      const webItem = savedItems.find((item) => item.item_code === "web_user");
       setPlanDiscountPct(planItem?.discount_type === "percent" ? Number(planItem.discount_value || 0) : 0);
       setRequestsDiscountPct(requestsItem?.discount_type === "percent" ? Number(requestsItem.discount_value || 0) : 0);
       setWebUsersDiscountPct(webItem?.discount_type === "percent" ? Number(webItem.discount_value || 0) : 0);
@@ -498,7 +499,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       // If all service lines share the same % discount, treat that as the
       // section input. Otherwise leave at 0 (user can re-enter or keep the
       // overrides per line).
-      const serviceItems = editingProposal.items.filter((item) => item.category === "service");
+      // The incremental implementation line is governed by its own input.
+      const serviceItems = savedItems.filter(
+        (item) => item.category === "service" && item.change_kind !== "implementation_delta",
+      );
       const seenPcts = new Set<number>();
       let allPercent = serviceItems.length > 0;
       for (const sv of serviceItems) {
@@ -518,7 +522,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         setServicesDiscountPct(0);
       }
     }
-  }, [open, editingProposal]);
+  }, [open, editingProposal, persistedItems]);
+
 
   // Default payment terms in selected language
   useEffect(() => {
