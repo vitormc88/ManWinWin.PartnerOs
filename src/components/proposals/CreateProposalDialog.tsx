@@ -39,6 +39,7 @@ import {
   getItemDiscountAmount,
   getItemNetTotal,
 } from "@/lib/proposal-engine";
+import { buildProposalItemRows } from "@/lib/proposal-item-rows";
 import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
