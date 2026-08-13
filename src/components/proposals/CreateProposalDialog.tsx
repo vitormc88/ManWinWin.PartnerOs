@@ -19,6 +19,8 @@ import {
 import {
   dealProposalSource,
   isRenewalSource,
+  isClientSource,
+
   isValidProposalSource,
   buildProposalSourcePayload,
   proposalStoragePrefix,
