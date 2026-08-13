@@ -32,6 +32,8 @@ import {
 } from "@/lib/license-evolution";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { resolveRenewal, isOpenRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
+import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
+
 import { renewalProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import {
   buildCommercialSummary,
