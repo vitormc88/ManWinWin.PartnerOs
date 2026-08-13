@@ -978,7 +978,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         hydration,
         currentMode: changeMode,
         currentTargetPlan: targetPlan,
-        currentImplementationGross: planChange.applicable ? planChange.implementationGross : null,
+        currentImplementationGross: planChange.applicable
+          ? planChange.implementationGross
+          : implementationGrossFromItems(items),
         itemCount: items.length,
       });
       if (!guard.ok) {
