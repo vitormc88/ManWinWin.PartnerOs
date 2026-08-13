@@ -980,12 +980,19 @@ type PartnerRow = {
   partner_id: string;
   company_name: string;
   country: string | null;
+  /** Lifetime billed revenue (client_revenue_history). */
   revenue: number;
+  billed_revenue_lifetime: number;
+  billed_revenue_ytd: number;
+  /** Won deals only — never labelled "revenue". */
+  won_new_business_value: number;
+  won_new_business_count: number;
   pipeline: number;
   client_count: number;
   open_deal_count: number;
   won_deal_count: number;
 };
+
 
 function healthBandColor(score: number) {
   if (score > 80) return { row: "bg-emerald-50/50 hover:bg-emerald-50", dot: "bg-emerald-500", text: "text-emerald-700" };
