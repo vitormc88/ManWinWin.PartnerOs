@@ -1000,7 +1000,7 @@ function healthBandColor(score: number) {
   return { row: "bg-red-50/40 hover:bg-red-50", dot: "bg-red-500", text: "text-red-700" };
 }
 
-type SortKey = "company_name" | "country" | "revenue" | "pipeline" | "client_count" | "health" | "open_leads" | "renewals" | "relationship";
+type SortKey = "company_name" | "country" | "revenue" | "billed_ytd" | "won_new_business" | "pipeline" | "client_count" | "health" | "open_leads" | "renewals" | "relationship";
 
 function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; navigate: (path: string) => void }) {
   const metricsQ = usePartnerMetrics();
@@ -1136,6 +1136,8 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
         case "company_name": return r.company_name?.toLowerCase() || "";
         case "country": return r.country?.toLowerCase() || "";
         case "revenue": return r.revenue;
+        case "billed_ytd": return r.billed_revenue_ytd;
+        case "won_new_business": return r.won_deal_value;
         case "pipeline": return r.pipeline;
         case "client_count": return r.client_count;
         case "health": return r.health;
@@ -1233,6 +1235,8 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
                 <SortHeader label="Partner" k="company_name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Country" k="country" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Billed Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Billed YTD" k="billed_ytd" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Won New Business" k="won_new_business" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Pipeline" k="pipeline" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Clients" k="client_count" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Health" k="health" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
@@ -1254,6 +1258,11 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
                     <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">{r.company_name}</td>
                     <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{r.country || "—"}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtEuro(r.revenue)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtEuro(r.billed_revenue_ytd)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                      {fmtEuro(r.won_deal_value)}
+                      <span className="text-[10px] text-muted-foreground ml-1">({r.won_new_business_count})</span>
+                    </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtEuro(r.pipeline)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{r.client_count}</td>
                     <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${band.text}`}>
@@ -1275,7 +1284,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
                 );
               })}
               {sortedRows.length === 0 && (
-                <tr><td colSpan={10} className="p-0"><EmptyState /></td></tr>
+                <tr><td colSpan={12} className="p-0"><EmptyState /></td></tr>
               )}
             </tbody>
           </table>
