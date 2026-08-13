@@ -947,6 +947,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       toast.error("This proposal has no valid source record (deal or renewal).");
       return null;
     }
+    // Destructive-write protection: an existing renewal change may never be
+    // overwritten from a partially hydrated (straight-renewal) state.
+    if (editingProposal?.id) {
+      if (hydrationPending) {
+        toast.error("This proposal is still loading. Wait until it is fully open before saving.");
+        return null;
+      }
+      const guard = assertSafeRenewalOverwrite({
+        hydration,
+        currentMode: changeMode,
+        currentTargetPlan: targetPlan,
+        currentImplementationGross: planChange.applicable ? planChange.implementationGross : null,
+        itemCount: items.length,
+      });
+      if (!guard.ok) {
+        toast.error(guard.reason || "Saving is blocked to protect the persisted proposal.");
+        return null;
+      }
+    }
     setSaving(true);
     try {
       // Auto-assign version on first save (new proposal). Editing keeps existing version.
