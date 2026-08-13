@@ -989,6 +989,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       }
     }
     setSaving(true);
+    /** Persisted change definition to carry over when the panel is inactive. */
+    const persistedChange = !planChange.applicable && hydration?.isRenewalChange ? hydration : null;
     try {
       // Auto-assign version on first save (new proposal). Editing keeps existing version.
       const versionForInsert = editingProposal?.version || (await computeNextVersion());
