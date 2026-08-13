@@ -39,6 +39,7 @@ import {
   getItemDiscountAmount,
   getItemNetTotal,
 } from "@/lib/proposal-engine";
+import { buildProposalItemRows } from "@/lib/proposal-item-rows";
 import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
@@ -972,38 +973,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
             sort_order: idx,
           }));
         }
-        return items.map((it, idx) => {
-          const enriched = enrichProposalItem(it, 0, 0);
-          return {
-            ...(proposalId ? { proposal_id: proposalId } : {}),
-            category: it.category,
-            item_code: it.item_code,
-            item_name: it.item_name,
-            description: it.description,
-            qty: it.qty,
-            unit_price: it.unit_price,
-            frequency: it.frequency,
-            total: enriched.gross_total ?? getItemBaseTotal(it),
-            discount_type: it.discount_type || "none",
-            discount_value: Number(it.discount_value || 0),
-            gross_total: Number(enriched.gross_total ?? getItemBaseTotal(it)),
-            discount_amount: Number(enriched.discount_amount || 0),
-            net_total: Number(enriched.net_total ?? getItemNetTotal(it, 0)),
-            is_override: it.is_override,
-            is_recurring: it.is_recurring,
-            apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
-            sort_order: idx,
-            // Structured provenance (renewal plan changes) — auditable without
-            // parsing descriptions.
-            pricing_rule_code: it.pricing_rule_code ?? null,
-            pricing_rule_id: it.pricing_rule_id ?? null,
-            source_plan: it.source_plan ?? null,
-            target_plan: it.target_plan ?? null,
-            line_type: it.line_type ?? null,
-            change_kind: it.change_kind ?? null,
-            gross_delta: it.gross_delta ?? null,
-          };
-        });
+        return buildProposalItemRows(items, proposalId);
       };
 
       if (isRenewalProposal) {
