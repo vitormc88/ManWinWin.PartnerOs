@@ -86,7 +86,11 @@ import {
   type ImplementationKind,
   type RenewalChangeMode,
 } from "@/lib/renewal-plan-change";
+import type { PlanTransitionRule } from "@/lib/renewal-implementation";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { RenewalPlanChangePanel } from "./RenewalPlanChangePanel";
+
 
 // Append a "[Staged from wizard]" line to the notes textarea without clobbering it.
 function appendStagedLine(prev: string, line: string): string {
