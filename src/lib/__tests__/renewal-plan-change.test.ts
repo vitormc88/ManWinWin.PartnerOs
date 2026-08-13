@@ -462,7 +462,7 @@ describe("product family changes", () => {
     expect(out.implementationGross).toBe(2500);
   });
 
-  it("Business → Professional keeps capacity and charges no implementation", () => {
+  it("Business → Professional keeps capacity, charges no implementation and blocks unpriced additions", () => {
     const out = computePlanChange({
       baseline: businessBaseline,
       rules,
@@ -472,10 +472,11 @@ describe("product family changes", () => {
       implementationKind: "standard",
       transitionRules,
     });
-    expect(out.blockers).toEqual([]);
     expect(out.proposedEntitlements.backoffice.included).toBe(1);
     expect(out.proposedEntitlements.backoffice.billable).toBe(4);
     expect(out.implementationGross).toBe(0);
+    // Professional publishes no additional-BackOffice price: never invented.
+    expect(out.blockers.join(" ")).toContain("No published price for additional BackOffice accesses");
   });
 });
 
