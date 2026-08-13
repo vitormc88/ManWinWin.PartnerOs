@@ -323,9 +323,19 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       );
       setEditingRenewalProposal(renewalProposal ?? null);
     } else {
-      setProposalSource(null);
+      // Existing customer, outside a renewal cycle. The proposal is anchored on
+      // the CLIENT — a client uuid must never be written into a deal column.
+      setProposalSource(
+        clientProposalSource({
+          clientId: client.id,
+          partnerUuid: client?.partner_uuid ?? null,
+          contractId: primaryContract?.id ?? null,
+          licenseId: primaryLicense?.id ?? null,
+        }),
+      );
       setEditingRenewalProposal(null);
     }
+
     setCommercialCtx(buildContext(mode));
     setShowProposal(true);
   };
