@@ -11,7 +11,11 @@ import { Trash2, Plus, ChevronLeft, ChevronRight, FileText, Download, AlertTrian
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { usePricingRules } from "@/hooks/useProposals";
+import { usePricingRules, useProposalItems } from "@/hooks/useProposals";
+import {
+  hydrateRenewalProposal,
+  assertSafeRenewalOverwrite,
+} from "@/lib/renewal-proposal-hydration";
 import {
   dealProposalSource,
   isRenewalSource,
@@ -199,6 +203,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    * This says NOTHING about product identity.
    */
   const usesContractBaselineItems = isRenewalProposal && !!renewalBaseline?.hasRealData;
+
+  /* ── Canonical hydration of an EXISTING proposal ─────────────────────
+   * The caller may pass the proposal row without its items. The dialog is
+   * the single place that guarantees the persisted line items are loaded,
+   * so a saved renewal upgrade is never rendered (or re-saved) from
+   * straight-renewal defaults. */
+  const { data: fetchedItems, isLoading: fetchedItemsLoading } = useProposalItems(
+    open && editingProposal?.id && !editingProposal?.items?.length ? editingProposal.id : undefined,
+  );
+  const persistedItems = useMemo<ProposalItem[] | null>(() => {
+    if (!editingProposal?.id) return null;
+    if (editingProposal.items?.length) return editingProposal.items;
+    return fetchedItems ? (fetchedItems as ProposalItem[]) : null;
+  }, [editingProposal, fetchedItems]);
+  /** True while an existing proposal's own state is still being loaded. */
+  const hydrationPending =
+    !!editingProposal?.id && !editingProposal.items?.length && (fetchedItemsLoading || fetchedItems == null);
+  const hydration = useMemo(
+    () =>
+      editingProposal?.id
+        ? hydrateRenewalProposal({ proposal: editingProposal as any, items: persistedItems || [] })
+        : null,
+    [editingProposal, persistedItems],
+  );
+
 
   const { user, profile, isHQ } = useAuth();
   const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
@@ -454,11 +483,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
     setPaymentTerms(editingProposal.payment_terms || standardPaymentTerms(editingProposal.language));
     setNotes(editingProposal.notes || "");
-    if (editingProposal.items?.length) {
-      setItems(editingProposal.items);
-      const planItem = editingProposal.items.find((item) => item.item_code === `plan_${editingProposal.plan ?? 1}_annual`);
-      const requestsItem = editingProposal.items.find((item) => item.item_code === "requests_module");
-      const webItem = editingProposal.items.find((item) => item.item_code === "web_user");
+    const savedItems = persistedItems;
+    if (savedItems?.length) {
+      setItems(savedItems);
+      const planItem = savedItems.find((item) => item.item_code === `plan_${editingProposal.plan ?? 1}_annual`);
+      const requestsItem = savedItems.find((item) => item.item_code === "requests_module");
+      const webItem = savedItems.find((item) => item.item_code === "web_user");
       setPlanDiscountPct(planItem?.discount_type === "percent" ? Number(planItem.discount_value || 0) : 0);
       setRequestsDiscountPct(requestsItem?.discount_type === "percent" ? Number(requestsItem.discount_value || 0) : 0);
       setWebUsersDiscountPct(webItem?.discount_type === "percent" ? Number(webItem.discount_value || 0) : 0);
@@ -469,7 +499,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       // If all service lines share the same % discount, treat that as the
       // section input. Otherwise leave at 0 (user can re-enter or keep the
       // overrides per line).
-      const serviceItems = editingProposal.items.filter((item) => item.category === "service");
+      // The incremental implementation line is governed by its own input.
+      const serviceItems = savedItems.filter(
+        (item) => item.category === "service" && item.change_kind !== "implementation_delta",
+      );
       const seenPcts = new Set<number>();
       let allPercent = serviceItems.length > 0;
       for (const sv of serviceItems) {
@@ -489,7 +522,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         setServicesDiscountPct(0);
       }
     }
-  }, [open, editingProposal]);
+  }, [open, editingProposal, persistedItems]);
+
 
   // Default payment terms in selected language
   useEffect(() => {
@@ -510,7 +544,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     // Renewals P0: never reset a real customer to Plan 1 + implementation.
     if (usesContractBaselineItems) return;
     if (rules.length === 0) return;
-    if (editingProposal?.items?.length && open) return;
+    // Never rebuild an existing proposal before its own state is hydrated.
+    if (open && editingProposal?.id && (hydrationPending || persistedItems?.length)) return;
     setItems(
       buildDefaultItems({
         rules,
@@ -522,13 +557,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         language,
       }),
     );
-  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusinessProduct, usesContractBaselineItems]);
+  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusinessProduct, usesContractBaselineItems, hydrationPending, persistedItems]);
 
   // ── Renewals P0: prepopulate from the real contract baseline ──────────
-  // Runs once per open, only when the proposal has no persisted items yet.
+  // Runs once per open, only when the proposal has no persisted state at all.
   useEffect(() => {
     if (!open || !usesContractBaselineItems || !renewalBaseline) return;
-    if (editingProposal?.items?.length) return;
+    // Hydration of an existing proposal always wins over the baseline.
+    if (editingProposal?.id && (hydrationPending || persistedItems?.length)) return;
     if (renewalBaseline.productFamily) setProductFamily(renewalBaseline.productFamily);
     if (renewalBaseline.plan) setPlan(renewalBaseline.plan);
     if (renewalBaseline.hosting) {
@@ -547,7 +583,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       !prev.trim() || prev === GENERIC_PROJECT_NAME ? defaultRenewalProjectName(defaultClientName) : prev,
     );
     setItems(buildBaselineProposalItems(renewalBaseline));
-  }, [open, usesContractBaselineItems, renewalBaseline, editingProposal]);
+  }, [open, usesContractBaselineItems, renewalBaseline, editingProposal, hydrationPending, persistedItems]);
 
   // Renewals P0C — restore the proposal-only variant chosen on a previous save.
   useEffect(() => {
@@ -556,17 +592,36 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     setProposalVariant(stored === "keepit" || stored === "useit" ? stored : null);
   }, [open, editingProposal]);
 
-  // Restore / reset the renewal change definition for this dialog session.
+  /**
+   * Canonical renewal-change hydration.
+   *
+   * For an existing proposal every field of the change definition is restored
+   * from the saved proposal (or safely derived from its persisted items)
+   * BEFORE any financial derivation. A new proposal starts from the neutral
+   * straight-renewal defaults.
+   */
   useEffect(() => {
     if (!open) return;
     planChangeAppliedRef.current = null;
-    const storedMode = (editingProposal as any)?.renewal_change_mode as RenewalChangeMode | undefined;
-    const storedTarget = (editingProposal as any)?.target_plan as number | null | undefined;
-    setChangeMode(storedMode === "upgrade" || storedMode === "downgrade" ? storedMode : "straight");
-    setTargetPlan(storedTarget ? (Number(storedTarget) as ProposalPlan) : null);
-    setImplKind("standard");
-    setImplDiscountPct(0);
-  }, [open, editingProposal]);
+    if (!editingProposal?.id) {
+      setChangeMode("straight");
+      setTargetPlan(null);
+      setImplKind("standard");
+      setImplDiscountPct(0);
+      setManualImplGross(null);
+      setManualImplJustification("");
+      return;
+    }
+    // Wait for the persisted items — never seed defaults in the meantime.
+    if (hydrationPending || !hydration) return;
+    setChangeMode(hydration.changeMode);
+    setTargetPlan(hydration.targetPlan);
+    setImplKind(hydration.implementationKind);
+    setImplDiscountPct(hydration.implementationDiscountPct);
+    setManualImplGross(hydration.manualImplementationGross);
+    setManualImplJustification(hydration.implementationJustification ?? "");
+  }, [open, editingProposal, hydration, hydrationPending]);
+
 
   /**
    * Apply the plan-change lines to the editable items. The first pass is
@@ -575,6 +630,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    */
   useEffect(() => {
     if (!planChangeAvailable) return;
+    // Never derive lines while an existing proposal is still hydrating.
+    if (hydrationPending) return;
     const signature = `${changeMode}|${planChangeItemsKey ?? ""}`;
     if (planChangeAppliedRef.current === signature) return;
     if (planChangeAppliedRef.current === null) {
@@ -587,7 +644,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     } else if (changeMode === "straight" && renewalBaseline) {
       setItems(buildBaselineProposalItems(renewalBaseline));
     }
-  }, [planChangeAvailable, changeMode, planChangeItemsKey, renewalBaseline]);
+  }, [planChangeAvailable, changeMode, planChangeItemsKey, renewalBaseline, hydrationPending]);
 
   // Keep the Business proposal mode aligned with the variant chosen for this proposal.
   useEffect(() => {
@@ -890,6 +947,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       toast.error("This proposal has no valid source record (deal or renewal).");
       return null;
     }
+    // Destructive-write protection: an existing renewal change may never be
+    // overwritten from a partially hydrated (straight-renewal) state.
+    if (editingProposal?.id) {
+      if (hydrationPending) {
+        toast.error("This proposal is still loading. Wait until it is fully open before saving.");
+        return null;
+      }
+      const guard = assertSafeRenewalOverwrite({
+        hydration,
+        currentMode: changeMode,
+        currentTargetPlan: targetPlan,
+        currentImplementationGross: planChange.applicable ? planChange.implementationGross : null,
+        itemCount: items.length,
+      });
+      if (!guard.ok) {
+        toast.error(guard.reason || "Saving is blocked to protect the persisted proposal.");
+        return null;
+      }
+    }
     setSaving(true);
     try {
       // Auto-assign version on first save (new proposal). Editing keeps existing version.
@@ -950,6 +1026,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         implementation_hours: planChange.applicable ? planChange.implementation.hours ?? null : null,
         implementation_hourly_rate: planChange.applicable ? planChange.implementation.hourlyRate ?? null : null,
         implementation_gross: planChange.applicable ? planChange.implementationGross : null,
+        implementation_discount_amount: planChange.applicable ? planChange.implementationDiscountAmount : null,
+        implementation_net: planChange.applicable ? planChange.implementationNet : null,
+        implementation_transition_rule_id: planChange.applicable ? planChange.implementation.transitionRuleId : null,
+        implementation_transition_rule_code: planChange.applicable ? planChange.implementation.transitionRuleCode : null,
         implementation_justification: planChange.applicable ? planChange.implementation.justification ?? null : null,
         created_by: user?.id || null,
       };
@@ -1165,21 +1245,33 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       toast.error(renewalReadiness.blockers[0]);
       return;
     }
-    const prop = await persistProposal("Ready");
-    if (!prop) return;
-
+    if (planChange.applicable && planChange.blockers.length > 0) {
+      toast.error(planChange.blockers[0]);
+      return;
+    }
+    // Generation is a read-only action: it renders the CURRENT dialog state.
+    // It never persists the proposal and never changes its status — saving is
+    // the explicit "Save as Draft" action.
     try {
       const itemsForDoc = items.map((it, idx) => ({ ...it, sort_order: idx }));
-      const { blob, fileName } = await downloadRenewalProposalDocx({
-        proposal: prop,
+      const proposalForDoc = {
+        ...(editingProposal || {}),
+        client_name: clientName,
+        project_name: projectName,
+        language,
+        
+        plan: planChange.applicable ? planChange.targetPlan : plan,
+        total_year_1: money.totalYear1,
+        total_recurring: money.totalRecurring,
+      } as unknown as Proposal;
+      await downloadRenewalProposalDocx({
+        proposal: proposalForDoc,
         items: itemsForDoc as any,
         baseline: renewalBaseline,
         proposedRecurring: money.totalRecurring,
         proposedYear1: money.totalYear1,
       });
-      await uploadBusinessDocx(prop, blob, fileName);
-      toast.success("Renewal proposal generated");
-      onOpenChange(false);
+      toast.success("Renewal document generated (proposal not modified)");
     } catch (e: any) {
       toast.error("Generation failed: " + (e?.message || ""));
     }
