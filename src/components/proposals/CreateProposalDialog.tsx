@@ -1259,7 +1259,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         client_name: clientName,
         project_name: projectName,
         language,
-        currency,
+        
         plan: planChange.applicable ? planChange.targetPlan : plan,
         total_year_1: money.totalYear1,
         total_recurring: money.totalRecurring,
