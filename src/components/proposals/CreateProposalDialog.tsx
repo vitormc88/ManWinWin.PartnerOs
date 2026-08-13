@@ -15,6 +15,7 @@ import { usePricingRules, useProposalItems } from "@/hooks/useProposals";
 import {
   hydrateRenewalProposal,
   assertSafeRenewalOverwrite,
+  implementationGrossFromItems,
 } from "@/lib/renewal-proposal-hydration";
 import {
   dealProposalSource,
