@@ -19,6 +19,8 @@ import {
 import {
   dealProposalSource,
   isRenewalSource,
+  isClientSource,
+
   isValidProposalSource,
   buildProposalSourcePayload,
   proposalStoragePrefix,
@@ -192,7 +194,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     [proposalSource, leadId],
   );
   const isRenewalProposal = isRenewalSource(source);
+  /** Existing customer, outside a renewal cycle (mid-cycle commercial action). */
+  const isClientProposal = isClientSource(source);
   const storagePrefix = proposalStoragePrefix(source);
+
   // Renewals P0 — the real commercial baseline behind this renewal.
   const { baseline: renewalBaseline, isLoading: baselineLoading } = useRenewalBaseline(
     isRenewalProposal ? source.renewal_id : null,
@@ -930,12 +935,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  /** Compute next available version number within the same source (deal or renewal). */
+  /** Compute next available version number within the same source (deal, renewal or client). */
   const computeNextVersion = async (): Promise<number> => {
     let q = supabase.from("proposals").select("version");
-    q = isRenewalProposal
-      ? q.eq("renewal_id", source.renewal_id as string)
-      : q.eq("lead_id", source.deal_id as string);
+    if (isRenewalProposal) {
+      q = q.eq("renewal_id", source.renewal_id as string);
+    } else if (isClientProposal) {
+      q = q.eq("client_id", source.client_id as string).eq("source_type", "client");
+    } else {
+      q = q.eq("lead_id", source.deal_id as string);
+    }
     const { data: siblings } = await q.order("version", { ascending: false }).limit(1);
     return (siblings?.[0]?.version || 0) + 1;
   };
@@ -944,9 +953,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
     if (!isValidProposalSource(source)) {
-      toast.error("This proposal has no valid source record (deal or renewal).");
+      toast.error("This proposal has no valid source record (deal, renewal or client).");
       return null;
     }
+
     // Destructive-write protection: an existing renewal change may never be
     // overwritten from a partially hydrated (straight-renewal) state.
     if (editingProposal?.id) {
@@ -1155,6 +1165,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;
       }
+      // ── Client source: existing customer, no deal to value or log ────────
+      // A mid-cycle commercial action must never create or touch a Won Deal,
+      // and must never write pipeline value.
+      if (isClientProposal) {
+        qc.invalidateQueries({ queryKey: ["proposals"] });
+        qc.invalidateQueries({ queryKey: ["proposals", "client", source.client_id] });
+        qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] });
+        return prop as unknown as Proposal;
+      }
+
       const expectedValue = money.totalYear1;
 
       await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", source.deal_id as string);
@@ -1169,6 +1189,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       qc.invalidateQueries({ queryKey: ["deals"] });
       qc.invalidateQueries({ queryKey: ["deal_activities", source.deal_id] });
       return prop as unknown as Proposal;
+
     } catch (e: any) {
       toast.error(e?.message || "Failed to save proposal");
       return null;

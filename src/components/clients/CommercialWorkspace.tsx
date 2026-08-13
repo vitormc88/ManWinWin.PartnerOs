@@ -34,7 +34,7 @@ import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { resolveRenewal, isOpenRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
 import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
 
-import { renewalProposalSource, type ProposalSource } from "@/lib/proposal-source";
+import { renewalProposalSource, clientProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import {
   buildCommercialSummary,
   buildHistory,
@@ -94,22 +94,28 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   // Commercial note form
   const [noteBody, setNoteBody] = useState("");
 
-  // Existing proposals for this client (matched by client_name)
+  // Existing proposals for this client. Client-anchored proposals are matched
+  // by the real client id; legacy ones only carry the client name.
   const clientName: string = client?.company_name ?? client?.name ?? "";
   const { data: proposals = [] } = useQuery({
-    queryKey: ["proposals", "by-client-name", clientName],
+    queryKey: ["proposals", "by-client", client?.id, clientName],
     queryFn: async () => {
-      if (!clientName) return [];
+      const cols =
+        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, proposal_date, created_at";
+      const filters: string[] = [];
+      if (client?.id) filters.push(`client_id.eq.${client.id}`);
+      if (clientName) filters.push(`client_name.eq.${clientName.replace(/[(),]/g, " ")}`);
+      if (filters.length === 0) return [];
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, client_name, project_name, status, total_year_1, total_recurring, proposal_date, created_at")
-        .eq("client_name", clientName)
+        .select(cols)
+        .or(filters.join(","))
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
       return data || [];
     },
-    enabled: !!clientName,
+    enabled: !!client?.id || !!clientName,
   });
 
   // Real operational renewal row for this client (never a derived placeholder).
@@ -323,9 +329,19 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       );
       setEditingRenewalProposal(renewalProposal ?? null);
     } else {
-      setProposalSource(null);
+      // Existing customer, outside a renewal cycle. The proposal is anchored on
+      // the CLIENT — a client uuid must never be written into a deal column.
+      setProposalSource(
+        clientProposalSource({
+          clientId: client.id,
+          partnerUuid: client?.partner_uuid ?? null,
+          contractId: primaryContract?.id ?? null,
+          licenseId: primaryLicense?.id ?? null,
+        }),
+      );
       setEditingRenewalProposal(null);
     }
+
     setCommercialCtx(buildContext(mode));
     setShowProposal(true);
   };
@@ -586,9 +602,9 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         <CreateProposalDialog
           open={showProposal}
           onOpenChange={setShowProposal}
-          leadId={proposalSource ? undefined : client.id}
           proposalSource={proposalSource}
-          editingProposal={proposalSource ? editingRenewalProposal : null}
+          editingProposal={proposalSource?.source_type === "renewal" ? editingRenewalProposal : null}
+
           defaultClientName={clientName}
           defaultCountry={client.country || null}
           commercialContext={commercialCtx}

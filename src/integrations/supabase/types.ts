@@ -5794,6 +5794,10 @@ export type Database = {
         Returns: undefined
       }
       can_access_academy: { Args: never; Returns: boolean }
+      can_access_client_proposal: {
+        Args: { _client_id: string; _partner_uuid: string }
+        Returns: boolean
+      }
       can_access_renewal_proposal: {
         Args: { _client_id: string; _partner_uuid: string; _renewal_id: string }
         Returns: boolean
