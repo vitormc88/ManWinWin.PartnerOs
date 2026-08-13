@@ -630,6 +630,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    */
   useEffect(() => {
     if (!planChangeAvailable) return;
+    // Never derive lines while an existing proposal is still hydrating.
+    if (hydrationPending) return;
     const signature = `${changeMode}|${planChangeItemsKey ?? ""}`;
     if (planChangeAppliedRef.current === signature) return;
     if (planChangeAppliedRef.current === null) {
