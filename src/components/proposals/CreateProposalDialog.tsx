@@ -1039,20 +1039,41 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         total_year_1: money.totalYear1,
         total_recurring: money.totalRecurring,
         // Renewal plan change — explicit, structured, never inferred later.
-        renewal_change_mode: planChange.applicable ? changeMode : "straight",
-        source_plan: planChange.applicable ? planChange.currentPlan : null,
-        target_plan: planChange.applicable ? planChange.targetPlan : null,
+        // When the plan-change panel is not active (e.g. a client-sourced
+        // change proposal reopened for editing) the persisted definition is
+        // carried over verbatim instead of being wiped.
+        renewal_change_mode: planChange.applicable ? changeMode : persistedChange?.changeMode ?? "straight",
+        source_plan: planChange.applicable ? planChange.currentPlan : persistedChange?.sourcePlan ?? null,
+        target_plan: planChange.applicable ? planChange.targetPlan : persistedChange?.targetPlan ?? null,
         // Entitlements + incremental implementation provenance (renewals).
-        entitlements: planChange.applicable ? planChange.entitlementSnapshot : null,
-        implementation_source: planChange.applicable ? planChange.implementation.source : null,
-        implementation_hours: planChange.applicable ? planChange.implementation.hours ?? null : null,
-        implementation_hourly_rate: planChange.applicable ? planChange.implementation.hourlyRate ?? null : null,
-        implementation_gross: planChange.applicable ? planChange.implementationGross : null,
-        implementation_discount_amount: planChange.applicable ? planChange.implementationDiscountAmount : null,
-        implementation_net: planChange.applicable ? planChange.implementationNet : null,
-        implementation_transition_rule_id: planChange.applicable ? planChange.implementation.transitionRuleId : null,
-        implementation_transition_rule_code: planChange.applicable ? planChange.implementation.transitionRuleCode : null,
-        implementation_justification: planChange.applicable ? planChange.implementation.justification ?? null : null,
+        entitlements: planChange.applicable ? planChange.entitlementSnapshot : persistedChange?.entitlements ?? null,
+        implementation_source: planChange.applicable
+          ? planChange.implementation.source
+          : persistedChange?.implementationSource ?? null,
+        implementation_hours: planChange.applicable
+          ? planChange.implementation.hours ?? null
+          : persistedChange?.implementationHours ?? null,
+        implementation_hourly_rate: planChange.applicable
+          ? planChange.implementation.hourlyRate ?? null
+          : persistedChange?.implementationHourlyRate ?? null,
+        implementation_gross: planChange.applicable
+          ? planChange.implementationGross
+          : persistedChange?.implementationGross ?? null,
+        implementation_discount_amount: planChange.applicable
+          ? planChange.implementationDiscountAmount
+          : persistedChange?.implementationDiscountAmount ?? null,
+        implementation_net: planChange.applicable
+          ? planChange.implementationNet
+          : persistedChange?.implementationNet ?? null,
+        implementation_transition_rule_id: planChange.applicable
+          ? planChange.implementation.transitionRuleId
+          : persistedChange?.implementationTransitionRuleId ?? null,
+        implementation_transition_rule_code: planChange.applicable
+          ? planChange.implementation.transitionRuleCode
+          : persistedChange?.implementationTransitionRuleCode ?? null,
+        implementation_justification: planChange.applicable
+          ? planChange.implementation.justification ?? null
+          : persistedChange?.implementationJustification ?? null,
         created_by: user?.id || null,
       };
 
