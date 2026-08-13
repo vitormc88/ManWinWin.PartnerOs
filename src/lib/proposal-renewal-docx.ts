@@ -249,12 +249,75 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
             cell(it.item_name + (it.is_recurring ? " (recurring)" : " (one-time)"), { width: 5160 }),
             cell(String(it.qty ?? 1), { width: 800, align: AlignmentType.CENTER }),
             cell(money(Number(it.unit_price) || 0, lang), { width: 1700, align: AlignmentType.RIGHT }),
-            cell(money(Number(it.total) || 0, lang), { width: 1700, align: AlignmentType.RIGHT }),
+            cell(money(Number(it.net_total ?? it.total) || 0, lang), { width: 1700, align: AlignmentType.RIGHT }),
           ],
         }),
     ),
   ];
   children.push(table(lineRows, [5160, 800, 1700, 1700]));
+
+  // ── Accesses: licensed capacity vs billable quantity ──────────────────
+  const accessLines = items.filter((it: any) => it.access_type || it.total_licensed_qty != null);
+  if (accessLines.length) {
+    children.push(p("Accesses", { bold: true, spacing: { before: 200, after: 80 } }));
+    children.push(
+      table(
+        [
+          new TableRow({
+            children: [
+              cell("Access", { bold: true, bg: GREY_BG, width: 3360 }),
+              cell("Total licensed", { bold: true, bg: GREY_BG, width: 2000, align: AlignmentType.CENTER }),
+              cell("Included", { bold: true, bg: GREY_BG, width: 2000, align: AlignmentType.CENTER }),
+              cell("Additional billable", { bold: true, bg: GREY_BG, width: 2000, align: AlignmentType.CENTER }),
+            ],
+          }),
+          ...accessLines.map((it: any) =>
+            new TableRow({
+              children: [
+                cell(it.item_name, { width: 3360 }),
+                cell(String(it.total_licensed_qty ?? NOT_RECORDED), { width: 2000, align: AlignmentType.CENTER }),
+                cell(String(it.included_qty ?? NOT_RECORDED), { width: 2000, align: AlignmentType.CENTER }),
+                cell(String(it.billable_qty ?? NOT_RECORDED), { width: 2000, align: AlignmentType.CENTER }),
+              ],
+            }),
+          ),
+        ],
+        [3360, 2000, 2000, 2000],
+      ),
+    );
+    children.push(
+      p("Total licensed capacity is preserved; only quantities above what the product includes are billed.", {
+        size: 18,
+        color: "6B7280",
+      }),
+    );
+  }
+
+  // ── Incremental implementation provenance ─────────────────────────────
+  const implLine: any = items.find((it: any) => it.change_kind === "implementation_delta");
+  if (implLine) {
+    children.push(p("Incremental implementation", { bold: true, spacing: { before: 200, after: 80 } }));
+    const detail =
+      implLine.implementation_source === "transition_rule"
+        ? implLine.implementation_hours != null && implLine.implementation_hourly_rate != null
+          ? `Transition rule ${implLine.transition_rule_code} · ${implLine.implementation_hours}h × ${money(
+              Number(implLine.implementation_hourly_rate),
+              lang,
+            )}`
+          : `Transition rule ${implLine.transition_rule_code}`
+        : "Confirmed incremental effort";
+    children.push(p(detail, { size: 20 }));
+    if (implLine.justification) children.push(p(String(implLine.justification), { size: 18, color: "6B7280" }));
+    children.push(
+      p(
+        `Gross ${money(Number(implLine.gross_total) || 0, lang)} · Discount ${money(
+          -(Number(implLine.discount_amount) || 0),
+          lang,
+        )} · Net ${money(Number(implLine.net_total) || 0, lang)} (one-time, not part of the recurring value)`,
+        { size: 20 },
+      ),
+    );
+  }
 
   // ── Financial summary: three separated concepts ───────────────────────
   children.push(redBarHeading("Financial Summary"));
