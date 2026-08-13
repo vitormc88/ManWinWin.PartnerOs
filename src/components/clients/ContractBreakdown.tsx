@@ -1,10 +1,17 @@
+import { useState } from "react";
 import { useContractLines } from "@/hooks/useContractLines";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, AlertTriangle, Info, Sparkles } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Info, ChevronDown, ChevronRight } from "lucide-react";
 import {
   computeContractFinancials,
   groupContractLines,
 } from "@/lib/contract-lines";
+import {
+  reconcileContract,
+  historicalSourceValues,
+  HISTORICAL_SOURCE_EXPLANATION,
+  type ContractHeaderLike,
+} from "@/lib/contract-reconciliation";
 
 function formatMoney(amount: number, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -16,28 +23,31 @@ function formatMoney(amount: number, currency: string) {
 
 interface Props {
   contractId: string;
+  /** Full contract header — current values plus preserved imported ones. */
+  contract?: ContractHeaderLike | null;
   legacyTotal: number | null | undefined;
   currency?: string | null;
   isImported?: boolean;
   manualAdjustment?: number | null;
 }
 
-export function ContractBreakdown({ contractId, legacyTotal, currency = "EUR", isImported = true, manualAdjustment = 0 }: Props) {
+export function ContractBreakdown({ contractId, contract = null, legacyTotal, currency = "EUR", isImported = true, manualAdjustment = 0 }: Props) {
   const { data: lines = [], isLoading } = useContractLines(contractId);
+  const [showHistorical, setShowHistorical] = useState(false);
 
   // Canonical vocabulary + conservative legacy classification (read-only).
   const groups = groupContractLines(lines);
   const financials = computeContractFinancials(lines);
 
-  const calculatedTotal = lines.reduce((s, l) => s + Number(l.amount || 0), 0);
-  const legacy = Number(legacyTotal || 0);
-  const diff = calculatedTotal - legacy;
-  const matched = Math.abs(diff) < 0.01;
   const cur = financials.currency || currency || "EUR";
+  const header: ContractHeaderLike = contract ?? { total_value: legacyTotal, is_imported: isImported };
+
+  // Current structured lines vs the CURRENT contract header only. Preserved
+  // imported headers never trigger a reconciliation warning.
+  const reconciliation = reconcileContract(header, financials, lines.length > 0);
+  const historical = historicalSourceValues(header);
 
   const hasAdjustment = Math.abs(Number(manualAdjustment || 0)) > 0.01;
-  const showReconciliation = isImported; // legacy contracts compare to legacy total_value
-  const showDifference = isImported || hasAdjustment;
 
   return (
     <div className="mt-5 border-t border-border/60 pt-4">
@@ -55,24 +65,19 @@ export function ContractBreakdown({ contractId, legacyTotal, currency = "EUR", i
             </Badge>
           )}
           {lines.length > 0 && (
-            showReconciliation ? (
-              matched ? (
-                <Badge variant="secondary" className="text-xs gap-1">
-                  <CheckCircle2 className="h-3 w-3" /> Matched
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-xs gap-1 border-warning text-warning">
-                  <AlertTriangle className="h-3 w-3" /> Needs reconciliation
-                </Badge>
-              )
+            reconciliation.isWarning ? (
+              <Badge variant="outline" className="text-xs gap-1 border-warning text-warning" title={reconciliation.detail}>
+                <AlertTriangle className="h-3 w-3" /> {reconciliation.label}
+              </Badge>
             ) : (
-              <Badge variant="secondary" className="text-xs gap-1">
-                <Sparkles className="h-3 w-3" /> Calculated from contract lines
+              <Badge variant="secondary" className="text-xs gap-1" title={reconciliation.detail}>
+                <CheckCircle2 className="h-3 w-3" /> {reconciliation.label}
               </Badge>
             )
           )}
         </div>
       </div>
+
 
       {isLoading ? (
         <p className="text-xs text-muted-foreground">Loading…</p>
