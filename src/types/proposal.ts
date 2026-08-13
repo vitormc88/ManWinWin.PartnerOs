@@ -85,10 +85,29 @@ export interface ProposalItem {
   target_plan?: number | null;
   /** Canonical contract vocabulary (license, mww_web, sat, implementation …). */
   line_type?: string | null;
-  /** "unchanged" | "plan_change" | "implementation_delta". */
+  /** "unchanged" | "plan_change" | "access_addition" | "implementation_delta". */
   change_kind?: string | null;
   /** Incremental value this line represents versus the current contract. */
   gross_delta?: number | null;
+
+  /* ── Entitlements (licensed capacity vs billable quantity) ───────────── */
+  /** "backoffice" | "web" when the line prices additional accesses. */
+  access_type?: string | null;
+  /** Licensed capacity behind this line — never charged in full. */
+  total_licensed_qty?: number | null;
+  /** Quantity included by the selected product (never charged). */
+  included_qty?: number | null;
+  /** Additional billable quantity = max(0, total − included). */
+  billable_qty?: number | null;
+
+  /* ── Incremental implementation provenance ───────────────────────────── */
+  /** "transition_rule" | "manual_hq". */
+  implementation_source?: string | null;
+  transition_rule_code?: string | null;
+  implementation_hours?: number | null;
+  implementation_hourly_rate?: number | null;
+  /** Mandatory justification for an HQ-authorized manual amount. */
+  justification?: string | null;
 }
 
 export interface Proposal {
