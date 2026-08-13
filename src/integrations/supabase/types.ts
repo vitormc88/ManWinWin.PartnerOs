@@ -5341,6 +5341,27 @@ export type Database = {
         }
         Relationships: []
       }
+      zzv_p0_results: {
+        Row: {
+          created_at: string
+          detail: string | null
+          passed: boolean
+          step: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          passed: boolean
+          step: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          passed?: boolean
+          step?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       client_commercial_intelligence: {

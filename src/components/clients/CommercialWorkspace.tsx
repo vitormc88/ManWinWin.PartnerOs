@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +34,7 @@ import { resolveRenewal, isOpenRenewal, type ResolvedRenewal } from "@/lib/renew
 import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
 
 import { renewalProposalSource, clientProposalSource, type ProposalSource } from "@/lib/proposal-source";
+import { proposalSourceFromRecord, isProposalReadOnly, proposalActionLabel } from "@/lib/proposal-reopen";
 import {
   buildCommercialSummary,
   buildHistory,
@@ -73,7 +73,6 @@ interface Props {
 }
 
 export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [], readOnly = false, intelligence = null, resolvedRenewal = null }: Props) {
-  const navigate = useNavigate();
   const { canEdit: canEditModule } = useModuleAccess();
   const canCreateTask = canEditModule("tasks");
   const createNote = useCreateNote();
@@ -83,6 +82,10 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   const [commercialCtx, setCommercialCtx] = useState<CommercialContext | null>(null);
   const [proposalSource, setProposalSource] = useState<ProposalSource | null>(null);
   const [editingRenewalProposal, setEditingRenewalProposal] = useState<any | null>(null);
+  /** Persisted proposal reopened from Opportunities / History. */
+  const [reopenedProposal, setReopenedProposal] = useState<any | null>(null);
+  const [reopenReadOnly, setReopenReadOnly] = useState(false);
+  const [reopeningId, setReopeningId] = useState<string | null>(null);
   const [showMeeting, setShowMeeting] = useState(false);
   const [showNote, setShowNote] = useState(false);
 
@@ -101,7 +104,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     queryKey: ["proposals", "by-client", client?.id, clientName],
     queryFn: async () => {
       const cols =
-        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, proposal_date, created_at";
+        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, implementation_net, renewal_change_mode, version, proposal_date, created_at";
       const filters: string[] = [];
       if (client?.id) filters.push(`client_id.eq.${client.id}`);
       if (clientName) filters.push(`client_name.eq.${clientName.replace(/[(),]/g, " ")}`);
@@ -312,7 +315,53 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   };
 
 
+  /**
+   * Reopen a PERSISTED proposal in the canonical Proposal Builder.
+   * The record and its items are loaded first, so nothing is ever rendered
+   * (or re-saved) from wizard defaults.
+   */
+  const reopenProposal = async (proposalId: string) => {
+    if (!proposalId || reopeningId) return;
+    setReopeningId(proposalId);
+    try {
+      const { data: prop, error } = await supabase
+        .from("proposals")
+        .select("*")
+        .eq("id", proposalId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!prop) {
+        toast.error("This proposal is no longer available.");
+        return;
+      }
+      const { data: propItems, error: itemsError } = await supabase
+        .from("proposal_items")
+        .select("*")
+        .eq("proposal_id", proposalId)
+        .order("sort_order", { ascending: true });
+      if (itemsError) throw itemsError;
+
+      const src = proposalSourceFromRecord(prop as any);
+      if (!src) {
+        toast.error("This proposal has no valid source record.");
+        return;
+      }
+      setProposalSource(src);
+      setEditingRenewalProposal(null);
+      setCommercialCtx(null);
+      setReopenReadOnly(isProposalReadOnly((prop as any).status, !readOnly));
+      setReopenedProposal({ ...(prop as any), items: propItems || [] });
+      setShowProposal(true);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not open this proposal");
+    } finally {
+      setReopeningId(null);
+    }
+  };
+
   const openProposal = (mode: CommercialProposalMode) => {
+    setReopenedProposal(null);
+    setReopenReadOnly(false);
     if (mode === "renew_agreement") {
       if (!renewalRow?.id) {
         toast.error("No operational renewal record exists for this client yet.");
@@ -373,7 +422,13 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           key: `proposal-${p.id}`,
           kind: "proposal" as const,
           title: `Proposal — ${p.project_name || p.client_name}`,
-          meta: p.status ? `Status: ${p.status}` : null,
+          meta: [
+            proposalActionLabel(p),
+            p.status ? `Status: ${p.status}` : null,
+            p.total_recurring ? `Recurring ${formatMoney(p.total_recurring)}` : null,
+            p.implementation_net ? `One-time ${formatMoney(p.implementation_net)}` : null,
+            p.total_year_1 ? `Year 1 ${formatMoney(p.total_year_1)}` : null,
+          ].filter(Boolean).join(" · ") || null,
           eventDate: p.proposal_date || p.created_at,
           recordedAt: p.created_at,
         })),
@@ -475,15 +530,19 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
               {realOpportunities.slice(0, 8).map((p: any) => (
                 <button
                   key={p.id}
-                  onClick={() => navigate(`/proposals/${p.id}`)}
+                  onClick={() => reopenProposal(p.id)}
+                  disabled={reopeningId === p.id}
                   className="w-full flex items-center justify-between gap-3 rounded-lg border border-border/50 p-3 hover:bg-secondary/40 transition-colors text-left"
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{p.project_name || p.client_name}</p>
                     <p className="text-xs text-muted-foreground break-words">
+                      {proposalActionLabel(p)}
+                      {" · "}
                       {p.proposal_date ? formatDateOnly(p.proposal_date) : "—"}
-                      {p.total_year_1 ? ` · Year 1 ${formatMoney(p.total_year_1)}` : ""}
                       {p.total_recurring ? ` · Recurring ${formatMoney(p.total_recurring)}` : ""}
+                      {p.implementation_net ? ` · One-time ${formatMoney(p.implementation_net)}` : ""}
+                      {p.total_year_1 ? ` · Year 1 ${formatMoney(p.total_year_1)}` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -569,8 +628,25 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
             <div className="space-y-3">
               {history.map((e) => {
                 const Icon = e.kind === "proposal" ? FileText : e.kind === "note" ? MessageSquare : Sparkles;
+                const proposalId = e.kind === "proposal" ? e.key.replace(/^proposal-/, "") : null;
                 return (
-                  <div key={e.key} className="flex gap-3">
+                  <div
+                    key={e.key}
+                    className={`flex gap-3 ${proposalId ? "cursor-pointer rounded-md hover:bg-secondary/40 transition-colors" : ""}`}
+                    role={proposalId ? "button" : undefined}
+                    tabIndex={proposalId ? 0 : undefined}
+                    onClick={proposalId ? () => reopenProposal(proposalId) : undefined}
+                    onKeyDown={
+                      proposalId
+                        ? (ev) => {
+                            if (ev.key === "Enter" || ev.key === " ") {
+                              ev.preventDefault();
+                              reopenProposal(proposalId);
+                            }
+                          }
+                        : undefined
+                    }
+                  >
                     <div className="mt-0.5 h-7 w-7 shrink-0 rounded-full bg-secondary flex items-center justify-center">
                       <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                     </div>
@@ -601,9 +677,18 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       {showProposal && (
         <CreateProposalDialog
           open={showProposal}
-          onOpenChange={setShowProposal}
+          onOpenChange={(o) => {
+            setShowProposal(o);
+            if (!o) {
+              setReopenedProposal(null);
+              setReopenReadOnly(false);
+            }
+          }}
           proposalSource={proposalSource}
-          editingProposal={proposalSource?.source_type === "renewal" ? editingRenewalProposal : null}
+          editingProposal={
+            reopenedProposal ?? (proposalSource?.source_type === "renewal" ? editingRenewalProposal : null)
+          }
+          readOnly={reopenReadOnly}
 
           defaultClientName={clientName}
           defaultCountry={client.country || null}
