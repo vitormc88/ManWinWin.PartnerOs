@@ -166,39 +166,58 @@ export function ContractBreakdown({ contractId, contract = null, legacyTotal, cu
             </div>
           </div>
 
-          <div className={`mt-3 grid grid-cols-1 gap-3 text-sm ${showDifference ? "md:grid-cols-3" : isImported ? "md:grid-cols-2" : "md:grid-cols-1"}`}>
-            {isImported && (
-              <div className="rounded-md border border-border/60 p-3">
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Legacy Total (source)</div>
-                <div className="font-semibold tabular-nums mt-0.5">{formatMoney(legacy, cur)}</div>
-              </div>
-            )}
-            <div className="rounded-md border border-border/60 p-3">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Sum of Lines</div>
-              <div className="font-semibold tabular-nums mt-0.5">{formatMoney(calculatedTotal, cur)}</div>
+          {reconciliation.isWarning && (
+            <div className="mt-3 rounded-md border border-warning/60 bg-warning/5 p-3 text-xs text-warning flex items-start gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{reconciliation.detail}</span>
             </div>
-            {showDifference && (
-              <div className={`rounded-md border p-3 ${matched ? "border-border/60" : "border-warning/60 bg-warning/5"}`}>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {isImported ? "Difference" : "Manual Adjustment"}
+          )}
+
+          {hasAdjustment && (
+            <div className="mt-3 rounded-md border border-border/60 p-3 text-sm">
+              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">Manual Adjustment</div>
+              <div className="font-semibold tabular-nums mt-0.5">{formatMoney(Number(manualAdjustment || 0), cur)}</div>
+            </div>
+          )}
+
+          {historical.length > 0 && (
+            <div className="mt-4 rounded-md border border-border/50 bg-muted/20">
+              <button
+                type="button"
+                onClick={() => setShowHistorical((v) => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium text-muted-foreground"
+              >
+                <span className="flex items-center gap-1.5">
+                  {showHistorical ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  Historical source values
+                </span>
+                <span className="text-[10px] uppercase tracking-wide">{historical.length} preserved</span>
+              </button>
+              {showHistorical && (
+                <div className="px-3 pb-3 space-y-1.5">
+                  {historical.map((h) => (
+                    <div key={h.key} className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{h.label}</span>
+                      <span className="tabular-nums">{formatMoney(h.amount, cur)}</span>
+                    </div>
+                  ))}
+                  <p className="text-[11px] text-muted-foreground pt-1.5 border-t border-border/40">
+                    {HISTORICAL_SOURCE_EXPLANATION}
+                  </p>
                 </div>
-                <div className={`font-semibold tabular-nums mt-0.5 ${matched ? "" : "text-warning"}`}>
-                  {isImported
-                    ? (matched ? "—" : `${diff > 0 ? "+" : ""}${formatMoney(diff, cur)}`)
-                    : formatMoney(Number(manualAdjustment || 0), cur)}
-                </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </>
       )}
 
       <p className="text-[11px] text-muted-foreground mt-3 flex items-start gap-1.5">
         <Info className="h-3 w-3 mt-0.5 shrink-0" />
         {isImported
-          ? "Contract lines are the structured calculation source. Legacy header totals are kept as informational source values and are never added to the lines."
+          ? "Contract lines are the structured calculation source. Imported header totals are kept as historical source values and are never added to the lines."
           : "This contract was generated from an approved proposal. Contract lines are the source of truth."}
       </p>
+
     </div>
   );
 }
