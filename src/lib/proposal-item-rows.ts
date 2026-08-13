@@ -23,6 +23,15 @@ export const PROPOSAL_ITEM_PROVENANCE_FIELDS = [
   "line_type",
   "change_kind",
   "gross_delta",
+  "access_type",
+  "total_licensed_qty",
+  "included_qty",
+  "billable_qty",
+  "implementation_source",
+  "transition_rule_code",
+  "implementation_hours",
+  "implementation_hourly_rate",
+  "justification",
 ] as const;
 
 export type ProposalItemRow = Record<string, unknown>;
@@ -63,6 +72,17 @@ export function buildProposalItemRow(
     line_type: item.line_type ?? null,
     change_kind: item.change_kind ?? null,
     gross_delta: item.gross_delta ?? null,
+    // Entitlements — licensed capacity vs billable quantity.
+    access_type: item.access_type ?? null,
+    total_licensed_qty: item.total_licensed_qty ?? null,
+    included_qty: item.included_qty ?? null,
+    billable_qty: item.billable_qty ?? null,
+    // Incremental implementation provenance.
+    implementation_source: item.implementation_source ?? null,
+    transition_rule_code: item.transition_rule_code ?? null,
+    implementation_hours: item.implementation_hours ?? null,
+    implementation_hourly_rate: item.implementation_hourly_rate ?? null,
+    justification: item.justification ?? null,
   };
 }
 
@@ -106,5 +126,14 @@ export function proposalItemFromRow(row: ProposalItemRow): ProposalItem {
     line_type: r.line_type ?? null,
     change_kind: r.change_kind ?? null,
     gross_delta: r.gross_delta ?? null,
+    access_type: r.access_type ?? null,
+    total_licensed_qty: r.total_licensed_qty ?? null,
+    included_qty: r.included_qty ?? null,
+    billable_qty: r.billable_qty ?? null,
+    implementation_source: r.implementation_source ?? null,
+    transition_rule_code: r.transition_rule_code ?? null,
+    implementation_hours: r.implementation_hours ?? null,
+    implementation_hourly_rate: r.implementation_hourly_rate ?? null,
+    justification: r.justification ?? null,
   } as ProposalItem;
 }
