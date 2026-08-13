@@ -15,6 +15,7 @@ import { usePricingRules, useProposalItems } from "@/hooks/useProposals";
 import {
   hydrateRenewalProposal,
   assertSafeRenewalOverwrite,
+  implementationGrossFromItems,
 } from "@/lib/renewal-proposal-hydration";
 import {
   dealProposalSource,
@@ -184,11 +185,13 @@ interface Props {
   defaultCountry?: string | null;
   editingProposal?: (Proposal & { items?: ProposalItem[] }) | null;
   commercialContext?: CommercialContext | null;
+  /** Historical/closed proposal: opened for inspection, never re-saved. */
+  readOnly?: boolean;
 }
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null }: Props) {
+export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null, readOnly = false }: Props) {
   const source = useMemo<ProposalSource>(
     () => proposalSource ?? dealProposalSource(leadId),
     [proposalSource, leadId],
@@ -932,6 +935,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     ]);
   };
 
+  /** Any persistence path is blocked while saving or in read-only mode. */
+  const writeBlocked = saving || readOnly;
+
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
@@ -950,6 +956,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   };
 
   const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
+    if (readOnly) {
+      toast.error("This proposal is closed and can only be viewed.");
+      return null;
+    }
     if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
     if (!isValidProposalSource(source)) {
@@ -968,7 +978,9 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         hydration,
         currentMode: changeMode,
         currentTargetPlan: targetPlan,
-        currentImplementationGross: planChange.applicable ? planChange.implementationGross : null,
+        currentImplementationGross: planChange.applicable
+          ? planChange.implementationGross
+          : implementationGrossFromItems(items),
         itemCount: items.length,
       });
       if (!guard.ok) {
@@ -977,6 +989,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       }
     }
     setSaving(true);
+    /** Persisted change definition to carry over when the panel is inactive. */
+    const persistedChange = !planChange.applicable && hydration?.isRenewalChange ? hydration : null;
     try {
       // Auto-assign version on first save (new proposal). Editing keeps existing version.
       const versionForInsert = editingProposal?.version || (await computeNextVersion());
@@ -1027,20 +1041,41 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         total_year_1: money.totalYear1,
         total_recurring: money.totalRecurring,
         // Renewal plan change — explicit, structured, never inferred later.
-        renewal_change_mode: planChange.applicable ? changeMode : "straight",
-        source_plan: planChange.applicable ? planChange.currentPlan : null,
-        target_plan: planChange.applicable ? planChange.targetPlan : null,
+        // When the plan-change panel is not active (e.g. a client-sourced
+        // change proposal reopened for editing) the persisted definition is
+        // carried over verbatim instead of being wiped.
+        renewal_change_mode: planChange.applicable ? changeMode : persistedChange?.changeMode ?? "straight",
+        source_plan: planChange.applicable ? planChange.currentPlan : persistedChange?.sourcePlan ?? null,
+        target_plan: planChange.applicable ? planChange.targetPlan : persistedChange?.targetPlan ?? null,
         // Entitlements + incremental implementation provenance (renewals).
-        entitlements: planChange.applicable ? planChange.entitlementSnapshot : null,
-        implementation_source: planChange.applicable ? planChange.implementation.source : null,
-        implementation_hours: planChange.applicable ? planChange.implementation.hours ?? null : null,
-        implementation_hourly_rate: planChange.applicable ? planChange.implementation.hourlyRate ?? null : null,
-        implementation_gross: planChange.applicable ? planChange.implementationGross : null,
-        implementation_discount_amount: planChange.applicable ? planChange.implementationDiscountAmount : null,
-        implementation_net: planChange.applicable ? planChange.implementationNet : null,
-        implementation_transition_rule_id: planChange.applicable ? planChange.implementation.transitionRuleId : null,
-        implementation_transition_rule_code: planChange.applicable ? planChange.implementation.transitionRuleCode : null,
-        implementation_justification: planChange.applicable ? planChange.implementation.justification ?? null : null,
+        entitlements: planChange.applicable ? planChange.entitlementSnapshot : persistedChange?.entitlements ?? null,
+        implementation_source: planChange.applicable
+          ? planChange.implementation.source
+          : persistedChange?.implementationSource ?? null,
+        implementation_hours: planChange.applicable
+          ? planChange.implementation.hours ?? null
+          : persistedChange?.implementationHours ?? null,
+        implementation_hourly_rate: planChange.applicable
+          ? planChange.implementation.hourlyRate ?? null
+          : persistedChange?.implementationHourlyRate ?? null,
+        implementation_gross: planChange.applicable
+          ? planChange.implementationGross
+          : persistedChange?.implementationGross ?? null,
+        implementation_discount_amount: planChange.applicable
+          ? planChange.implementationDiscountAmount
+          : persistedChange?.implementationDiscountAmount ?? null,
+        implementation_net: planChange.applicable
+          ? planChange.implementationNet
+          : persistedChange?.implementationNet ?? null,
+        implementation_transition_rule_id: planChange.applicable
+          ? planChange.implementation.transitionRuleId
+          : persistedChange?.implementationTransitionRuleId ?? null,
+        implementation_transition_rule_code: planChange.applicable
+          ? planChange.implementation.transitionRuleCode
+          : persistedChange?.implementationTransitionRuleCode ?? null,
+        implementation_justification: planChange.applicable
+          ? planChange.implementation.justification ?? null
+          : persistedChange?.implementationJustification ?? null,
         created_by: user?.id || null,
       };
 
@@ -1389,8 +1424,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="h-5 w-5" />
-            {editingProposal ? `Edit Proposal v${editingProposal.version}` : "New Proposal"}
+            {editingProposal
+              ? `${readOnly ? "Proposal" : "Edit Proposal"} v${editingProposal.version}`
+              : "New Proposal"}
             {!showWizard && ` — ${STEPS[step]}`}
+            {readOnly && (
+              <Badge variant="outline" className="ml-1 text-[10px] font-medium">Read-only</Badge>
+            )}
             {commercialContext && !editingProposal && (
               <Badge variant="secondary" className="ml-1 text-[10px] font-medium">
                 Existing Customer · {commercialContext.label}
@@ -1398,6 +1438,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
             )}
           </DialogTitle>
         </DialogHeader>
+
 
         {commercialContext && !editingProposal && !commercialContext.existingCustomer?.license && (
           <div className="mt-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
@@ -2114,7 +2155,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                     ))}
                   </div>
                   <div className="flex justify-center gap-2 flex-wrap">
-                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={writeBlocked}>Save as Draft</Button>
                     <Button onClick={handleGenerateRenewalDocx} disabled={saving || !renewalReadiness.ok}>
                       <Download className="h-4 w-4 mr-2" />Generate Renewal DOCX
 
@@ -2137,16 +2178,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                     )}
                   </div>
                   <div className="flex justify-center gap-2 flex-wrap">
-                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving || businessBlocked}>Save as Draft</Button>
-                    <Button onClick={handleGenerateBusinessDocx} disabled={saving || businessBlocked}>
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={writeBlocked || businessBlocked}>Save as Draft</Button>
+                    <Button onClick={handleGenerateBusinessDocx} disabled={writeBlocked || businessBlocked}>
                       <Download className="h-4 w-4 mr-2" />Generate DOCX
                     </Button>
-                    <Button variant="outline" onClick={handleGenerateBusinessPdf} disabled={saving || businessBlocked}>
+                    <Button variant="outline" onClick={handleGenerateBusinessPdf} disabled={writeBlocked || businessBlocked}>
                       <Download className="h-4 w-4 mr-2" />Generate PDF
                     </Button>
                     <Button
                       variant="outline"
-                      disabled={saving || businessBlocked}
+                      disabled={writeBlocked || businessBlocked}
                       onClick={async () => {
                         const prop = await persistProposal("Draft");
                         if (!prop) return;
@@ -2172,8 +2213,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                     </p>
                   </div>
                   <div className="flex justify-center gap-2">
-                    <Button variant="outline" onClick={handleSaveDraft} disabled={saving}>Save as Draft</Button>
-                    <Button onClick={handleGenerate} disabled={saving}>
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={writeBlocked}>Save as Draft</Button>
+                    <Button onClick={handleGenerate} disabled={writeBlocked}>
                       <Download className="h-4 w-4 mr-2" />Generate DOCX
                     </Button>
                   </div>

@@ -206,6 +206,24 @@ export function hydrateRenewalProposal(input: {
 }
 
 /**
+ * Incremental implementation gross proven by the CURRENT in-memory line items.
+ *
+ * The plan-change panel only drives this value while a renewal baseline is
+ * active. When a persisted change proposal is reopened outside that panel
+ * (e.g. a client-sourced mid-cycle upgrade), the implementation line itself is
+ * the proof that the amount survived hydration.
+ */
+export function implementationGrossFromItems(items: ProposalItem[] | null | undefined): number | null {
+  const lines = (items || []).filter((it) => it.change_kind === "implementation_delta");
+  if (lines.length === 0) return null;
+  const total = lines.reduce(
+    (sum, it) => sum + (num(it.gross_total) ?? num(it.total) ?? Number(it.qty || 0) * Number(it.unit_price || 0)),
+    0,
+  );
+  return total > 0 ? round2(total) : null;
+}
+
+/**
  * Guard for the write path. A persisted upgrade/downgrade may only be
  * overwritten when the dialog state still represents that same change and the
  * hydration was complete. Otherwise the save must be refused.
