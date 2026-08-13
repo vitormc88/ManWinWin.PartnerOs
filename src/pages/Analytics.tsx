@@ -1048,10 +1048,11 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     const ownerName = ownerProfile?.full_name || ownerProfile?.email || null;
     return {
       ...p,
-      // "Revenue" here means BILLED revenue. The deal-derived figure is kept
-      // separately as won_deal_value so the two are never conflated.
-      won_deal_value: p.revenue,
-      revenue: billedByPartner.get(p.partner_id) || 0,
+      // Billed revenue and won new business are never conflated.
+      won_deal_value: p.won_new_business_value,
+      revenue: billedByPartner.get(p.partner_id) || p.billed_revenue_lifetime || 0,
+      billed_revenue_ytd: p.billed_revenue_ytd,
+
       health: m?.health_score ?? 0,
       open_leads: leadsByPartner.get(p.partner_id) || 0,
       renewals_count: renewalsByPartner.get(p.partner_id) || 0,
