@@ -73,6 +73,22 @@ export interface ProposalItem {
   is_override: boolean;
   is_recurring: boolean;
   sort_order: number;
+
+  /* ── Structured provenance (renewal plan changes) ────────────────────
+   * Persisted so a line can be audited without parsing its description. */
+  /** Catalogue rule that priced this line, when it came from pricing_rules. */
+  pricing_rule_code?: string | null;
+  pricing_rule_id?: string | null;
+  /** Plan proven by the source contract at proposal time. */
+  source_plan?: number | null;
+  /** Plan proposed by this renewal change. */
+  target_plan?: number | null;
+  /** Canonical contract vocabulary (license, mww_web, sat, implementation …). */
+  line_type?: string | null;
+  /** "unchanged" | "plan_change" | "implementation_delta". */
+  change_kind?: string | null;
+  /** Incremental value this line represents versus the current contract. */
+  gross_delta?: number | null;
 }
 
 export interface Proposal {

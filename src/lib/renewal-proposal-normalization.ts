@@ -17,6 +17,8 @@ export interface RenewalNormalizationContext {
   isBusinessProduct: boolean;
   /** Baseline-proven Professional plan, when the source proves it. */
   baselinePlan?: number | null;
+  /** Explicitly selected target plan for an upgrade/downgrade renewal. */
+  targetPlan?: number | null;
   /** Variant resolved from the baseline or explicitly chosen for the proposal. */
   effectiveVariant?: "keepit" | "useit" | null;
   /** True when the baseline does not record the commercial variant. */
@@ -73,8 +75,9 @@ export function normalizeProposalPayload<T extends Record<string, any>>(
 
   const next: Record<string, any> = { ...payload };
 
-  // 1. Plan — only a Professional plan proven by the source survives.
-  next.plan = ctx.isBusinessProduct ? null : ctx.baselinePlan ?? null;
+  // 1. Plan — an explicitly selected target plan, otherwise only a Professional
+  //    plan proven by the source. Never a catalogue default.
+  next.plan = ctx.isBusinessProduct ? null : ctx.targetPlan ?? ctx.baselinePlan ?? null;
 
   // 2. Implementation — never invented for a renewal.
   next.implementation_type = null;
@@ -118,7 +121,7 @@ export function validateRenewalReadiness(
       "Commercial variant is not recorded. Select KeepIT or UseIT before generating the renewal proposal.",
     );
   }
-  if (!ctx.isBusinessProduct && ctx.baselinePlan == null) {
+  if (!ctx.isBusinessProduct && (ctx.targetPlan ?? ctx.baselinePlan) == null) {
     blockers.push(
       "Professional plan is not recorded. The exact plan must be resolved before generating the renewal proposal.",
     );
