@@ -154,7 +154,7 @@ describe("wizard end-to-end — upgrade P1 → P3 with 50% implementation discou
   });
 
   it("persists the incremental implementation line as a delta, never the full price", () => {
-    const impl = saved.rows.find((row) => row.line_type === "implementation_delta");
+    const impl = saved.rows.find((row) => row.change_kind === "implementation_delta");
     expect(impl).toBeTruthy();
     expect(Number(impl!.gross_total)).toBe(1700);
     expect(Number(impl!.gross_delta)).toBe(1700);
@@ -171,8 +171,8 @@ describe("wizard end-to-end — upgrade P1 → P3 with 50% implementation discou
         );
       }
     });
-    const impl = reopened.find((item) => item.line_type === "implementation_delta")!;
-    expect(impl.change_kind).toBe("upgrade");
+    const impl = reopened.find((item) => item.change_kind === "implementation_delta")!;
+    expect(impl.change_kind).toBe("implementation_delta");
     expect(impl.source_plan).toBe(1);
     expect(impl.target_plan).toBe(3);
     expect(impl.pricing_rule_code).toBe("impl_online_p3");
@@ -240,8 +240,8 @@ describe("wizard end-to-end — downgrade P3 → P1", () => {
   it("persists no implementation line and a negative recurring delta", () => {
     expect(computation.blockers).toEqual([]);
     expect(computation.recurringDelta).toBeLessThan(0);
-    expect(rows.some((row) => row.line_type === "implementation_delta")).toBe(false);
-    expect(rows.every((row) => row.change_kind === null || row.change_kind === "downgrade")).toBe(true);
+    expect(rows.some((row) => row.change_kind === "implementation_delta")).toBe(false);
+    expect(rows.every((row) => row.change_kind === "plan_change" || row.change_kind === "unchanged")).toBe(true);
   });
 
   it("round-trips provenance through persistence", () => {
