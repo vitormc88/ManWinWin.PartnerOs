@@ -30,6 +30,8 @@ import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTim
 import { ClientOverviewPanel } from "@/components/clients/ClientOverviewPanel";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { resolveRenewal, assessRenewalRisk } from "@/lib/renewal-resolution";
+import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
+
 import { RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
 import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { ContactsCard } from "@/components/clients/ContactsCard";
