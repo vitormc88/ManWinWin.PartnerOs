@@ -14,6 +14,7 @@
 
 import { describe, it, expect } from "vitest";
 import { computePlanChange, type RenewalChangeMode } from "@/lib/renewal-plan-change";
+import type { PlanTransitionRule } from "@/lib/renewal-implementation";
 import { buildBaselineProposalItems, type RenewalBaseline } from "@/lib/renewal-baseline";
 import {
   buildProposalItemRows,
@@ -22,14 +23,14 @@ import {
 } from "@/lib/proposal-item-rows";
 import type { PricingRule, ProposalItem, ProposalPlan } from "@/types/proposal";
 
-function r(code: string, label: string, category: string, unit_price: number): PricingRule {
+function r(code: string, label: string, category: string, unit_price: number, unit_type?: string): PricingRule {
   return {
     id: `id-${code}`,
     code,
     label,
     category,
     unit_price,
-    unit_type: category === "service" ? "one-time" : "yearly",
+    unit_type: unit_type ?? (category === "service" ? "one-time" : "yearly"),
     currency: "EUR",
     active: true,
     notes: null,
@@ -43,6 +44,24 @@ const rules: PricingRule[] = [
   r("plan_3_annual", "ManWinWin Professional - Plan 3 (annual license)", "software", 1800),
   r("impl_online_p1", "Online Implementation - Plan 1", "service", 1890),
   r("impl_online_p3", "Online Implementation - Plan 3", "service", 3590),
+  r("web_user", "ManWinWin WEB / Mobility additional access", "addon", 20, "per-user-month"),
+];
+
+/** HQ-configured incremental effort for the transition (never a package delta). */
+const transitionRules: PlanTransitionRule[] = [
+  {
+    id: "tr-p1-p3",
+    code: "TR_P1_P3_STD",
+    label: "Professional 1 → 3 incremental implementation",
+    source_family: "Professional",
+    target_family: "Professional",
+    source_plan: 1,
+    target_plan: 3,
+    implementation_kind: "standard",
+    pricing_mode: "fixed",
+    incremental_gross: 1650,
+    active: true,
+  },
 ];
 
 /** APS-equivalent fixture — isolated, never real data. */
@@ -101,6 +120,7 @@ function runWizard(opts: {
     mode: opts.mode,
     targetPlan: opts.targetPlan,
     implementationKind: "standard",
+    transitionRules,
     implementationDiscount: { type: "percent", value: opts.implementationDiscountPct ?? 0 },
   });
   const items =
@@ -130,9 +150,9 @@ describe("wizard end-to-end — upgrade P1 → P3 with 50% implementation discou
 
   it("computes the accepted commercial outcome", () => {
     expect(first.computation.blockers).toEqual([]);
-    expect(first.computation.proposedRecurring).toBe(2760);
-    expect(first.computation.recurringDelta).toBe(1104);
-    expect(first.computation.implementationNet).toBe(850);
+    expect(first.computation.proposedRecurring).toBe(2520);
+    expect(first.computation.recurringDelta).toBe(864);
+    expect(first.computation.implementationNet).toBe(825);
   });
 
   it("persists every computed line with its money intact", () => {
@@ -145,21 +165,34 @@ describe("wizard end-to-end — upgrade P1 → P3 with 50% implementation discou
     const recurringTotal = saved.rows
       .filter((row) => row.is_recurring)
       .reduce((sum, row) => sum + Number(row.net_total), 0);
-    expect(recurringTotal).toBe(2760);
+    expect(recurringTotal).toBe(2520);
     const oneOffTotal = saved.rows
       .filter((row) => !row.is_recurring)
       .reduce((sum, row) => sum + Number(row.net_total), 0);
-    expect(oneOffTotal).toBe(850);
-    expect(recurringTotal + oneOffTotal).toBe(3610); // Year 1
+    expect(oneOffTotal).toBe(825);
+    expect(recurringTotal + oneOffTotal).toBe(3345); // Year 1
   });
 
-  it("persists the incremental implementation line as a delta, never the full price", () => {
+  it("persists the incremental implementation line, never a package delta", () => {
     const impl = saved.rows.find((row) => row.change_kind === "implementation_delta");
     expect(impl).toBeTruthy();
-    expect(Number(impl!.gross_total)).toBe(1700);
-    expect(Number(impl!.gross_delta)).toBe(1700);
-    expect(Number(impl!.net_total)).toBe(850);
+    expect(Number(impl!.gross_total)).toBe(1650);
+    expect(Number(impl!.net_total)).toBe(825);
+    expect(impl!.implementation_source).toBe("transition_rule");
+    expect(impl!.transition_rule_code).toBe("TR_P1_P3_STD");
+    // Neither the full target package nor the old blind delta.
     expect(Number(impl!.gross_total)).not.toBe(3590);
+    expect(Number(impl!.gross_total)).not.toBe(1700);
+  });
+
+  it("persists the licensed capacity vs billable split on the access line", () => {
+    const access = saved.rows.find((row) => row.change_kind === "access_addition");
+    expect(access).toBeTruthy();
+    expect(access!.access_type).toBe("web");
+    expect(access!.total_licensed_qty).toBe(4);
+    expect(access!.included_qty).toBe(1);
+    expect(access!.billable_qty).toBe(3);
+    expect(Number(access!.net_total)).toBe(720);
   });
 
   it("keeps provenance on the reopened items", () => {
@@ -175,7 +208,7 @@ describe("wizard end-to-end — upgrade P1 → P3 with 50% implementation discou
     expect(impl.change_kind).toBe("implementation_delta");
     expect(impl.source_plan).toBe(1);
     expect(impl.target_plan).toBe(3);
-    expect(impl.pricing_rule_code).toBe("impl_online_p3");
+    expect(impl.implementation_source).toBe("transition_rule");
   });
 
   it("survives close + reopen without recomputation drift", () => {
@@ -187,6 +220,7 @@ describe("wizard end-to-end — upgrade P1 → P3 with 50% implementation discou
       mode: saved.renewal_change_mode,
       targetPlan: saved.target_plan,
       implementationKind: "standard",
+      transitionRules,
       implementationDiscount: { type: "percent", value: 50 },
     });
     expect(reopenedComputation.proposedRecurring).toBe(first.computation.proposedRecurring);
@@ -221,10 +255,10 @@ describe("wizard end-to-end — downgrade P3 → P1", () => {
     plan: 3,
     product: "Professional 3",
     variantLabel: "Professional 3",
-    currentRecurring: 2760,
+    currentRecurring: 2520,
     recurringLines: [
       { key: "l1", label: "ManWinWin Professional 3 — annual license", lineType: "license", amount: 1800, needsReview: false },
-      { key: "l2", label: "ManWinWin WEB — 4 accesses", lineType: "mww_web", amount: 960, needsReview: false },
+      { key: "l2", label: "ManWinWin WEB — 4 accesses", lineType: "mww_web", amount: 720, needsReview: false },
     ],
   } as RenewalBaseline;
 
@@ -241,7 +275,14 @@ describe("wizard end-to-end — downgrade P3 → P1", () => {
     expect(computation.blockers).toEqual([]);
     expect(computation.recurringDelta).toBeLessThan(0);
     expect(rows.some((row) => row.change_kind === "implementation_delta")).toBe(false);
-    expect(rows.every((row) => row.change_kind === "plan_change" || row.change_kind === "unchanged")).toBe(true);
+    expect(
+      rows.every(
+        (row) =>
+          row.change_kind === "plan_change" ||
+          row.change_kind === "unchanged" ||
+          row.change_kind === "access_addition",
+      ),
+    ).toBe(true);
   });
 
   it("round-trips provenance through persistence", () => {
