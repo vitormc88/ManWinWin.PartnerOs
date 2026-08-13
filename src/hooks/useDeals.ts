@@ -169,8 +169,6 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
         Contract: "Contract",
         SAT: "Support & Maintenance",
       };
-      const isClosed = (s?: string) => s === "Completed" || s === "Lost" || s === "Won";
-
       const byClient = new Map<string, any[]>();
       const orphans: any[] = []; // rows without client_id stay as-is
       for (const r of all) {
@@ -182,26 +180,20 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
 
       const consolidated: any[] = [];
       for (const [clientId, components] of byClient.entries()) {
-        // Pick the primary component: earliest open renewal_date; else latest closed.
-        const open = components.filter((c) => !isClosed(c.status));
-        const closed = components.filter((c) => isClosed(c.status));
-        const pickFrom = open.length ? open : closed;
-        const sorted = [...pickFrom].sort((a, b) => {
-          const da = a.renewal_date || "";
-          const db = b.renewal_date || "";
-          return open.length ? da.localeCompare(db) : db.localeCompare(da);
-        });
-        const primary = sorted[0];
+        // Active pipeline = the open operational cycle. Closed history and stale
+        // derived rows must never shadow the cycle created by a closure.
+        const selection = selectActiveCycle(components);
+        if (!selection) continue;
+        const primary = selection.primary;
+        const scope = selection.valueComponents;
 
         // Prefer an explicit (non-derived) row for ownership / notes / id.
-        // Keep it consistent with the primary component: once a cycle is closed the
-        // next (open) cycle owns the row, so the id and the status never disagree.
-        const isExplicit = (c: any) => !String(c.id || "").startsWith("derived-");
-        const explicitRow = sorted.find(isExplicit) || components.find(isExplicit);
+        const isExplicit = (c: any) => !isDerivedComponent(c);
+        const explicitRow = (isExplicit(primary) ? primary : scope.find(isExplicit)) || null;
         const base = explicitRow || primary;
 
-        // Highest estimated value across all components (most relevant commercial figure).
-        const value = components.reduce(
+        // Highest estimated value within the selected cycle.
+        const value = scope.reduce(
           (max, c) => Math.max(max, Number(c.estimated_value || 0)),
           0,
         );
