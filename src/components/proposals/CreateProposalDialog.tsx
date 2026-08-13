@@ -204,6 +204,31 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    */
   const usesContractBaselineItems = isRenewalProposal && !!renewalBaseline?.hasRealData;
 
+  /* ── Canonical hydration of an EXISTING proposal ─────────────────────
+   * The caller may pass the proposal row without its items. The dialog is
+   * the single place that guarantees the persisted line items are loaded,
+   * so a saved renewal upgrade is never rendered (or re-saved) from
+   * straight-renewal defaults. */
+  const { data: fetchedItems, isLoading: fetchedItemsLoading } = useProposalItems(
+    open && editingProposal?.id && !editingProposal?.items?.length ? editingProposal.id : undefined,
+  );
+  const persistedItems = useMemo<ProposalItem[] | null>(() => {
+    if (!editingProposal?.id) return null;
+    if (editingProposal.items?.length) return editingProposal.items;
+    return fetchedItems ? (fetchedItems as ProposalItem[]) : null;
+  }, [editingProposal, fetchedItems]);
+  /** True while an existing proposal's own state is still being loaded. */
+  const hydrationPending =
+    !!editingProposal?.id && !editingProposal.items?.length && (fetchedItemsLoading || fetchedItems == null);
+  const hydration = useMemo(
+    () =>
+      editingProposal?.id
+        ? hydrateRenewalProposal({ proposal: editingProposal as any, items: persistedItems || [] })
+        : null,
+    [editingProposal, persistedItems],
+  );
+
+
   const { user, profile, isHQ } = useAuth();
   const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
   // Conservative limits while partner data is still missing/loading.
