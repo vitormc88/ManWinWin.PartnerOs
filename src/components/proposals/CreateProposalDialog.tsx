@@ -1165,6 +1165,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;
       }
+      // ── Client source: existing customer, no deal to value or log ────────
+      // A mid-cycle commercial action must never create or touch a Won Deal,
+      // and must never write pipeline value.
+      if (isClientProposal) {
+        qc.invalidateQueries({ queryKey: ["proposals"] });
+        qc.invalidateQueries({ queryKey: ["proposals", "client", source.client_id] });
+        qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] });
+        return prop as unknown as Proposal;
+      }
+
       const expectedValue = money.totalYear1;
 
       await supabase.from("deals").update({ expected_value: expectedValue }).eq("id", source.deal_id as string);
@@ -1179,6 +1189,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       qc.invalidateQueries({ queryKey: ["deals"] });
       qc.invalidateQueries({ queryKey: ["deal_activities", source.deal_id] });
       return prop as unknown as Proposal;
+
     } catch (e: any) {
       toast.error(e?.message || "Failed to save proposal");
       return null;
