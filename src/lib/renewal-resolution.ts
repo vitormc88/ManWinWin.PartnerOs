@@ -69,8 +69,11 @@ export function isValidDateString(value: string | null | undefined): boolean {
 
 export function isOpenRenewal(r: RenewalRecordLike | null | undefined): boolean {
   if (!r || !isValidDateString(r.renewal_date)) return false;
+  if (r.closed_at) return false;
+  if ((r.outcome || "").trim()) return false;
   return !CLOSED_RENEWAL_STATUSES.has((r.status || "").trim().toLowerCase());
 }
+
 
 function daysBetween(target: string, today: Date): number {
   const t = new Date(`${target}T00:00:00Z`).getTime();
