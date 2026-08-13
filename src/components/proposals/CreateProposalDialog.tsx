@@ -1007,6 +1007,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         implementation_hours: planChange.applicable ? planChange.implementation.hours ?? null : null,
         implementation_hourly_rate: planChange.applicable ? planChange.implementation.hourlyRate ?? null : null,
         implementation_gross: planChange.applicable ? planChange.implementationGross : null,
+        implementation_discount_amount: planChange.applicable ? planChange.implementationDiscountAmount : null,
+        implementation_net: planChange.applicable ? planChange.implementationNet : null,
+        implementation_transition_rule_id: planChange.applicable ? planChange.implementation.transitionRuleId : null,
+        implementation_transition_rule_code: planChange.applicable ? planChange.implementation.transitionRuleCode : null,
         implementation_justification: planChange.applicable ? planChange.implementation.justification ?? null : null,
         created_by: user?.id || null,
       };
