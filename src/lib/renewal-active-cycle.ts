@@ -17,6 +17,7 @@ export interface RenewalComponentLike {
   id?: string | null;
   status?: string | null;
   closed_at?: string | null;
+  outcome?: string | null;
   renewal_date?: string | null;
   estimated_value?: number | null;
 }
@@ -24,8 +25,10 @@ export interface RenewalComponentLike {
 export function isClosedComponent(c: RenewalComponentLike | null | undefined): boolean {
   if (!c) return false;
   if (c.closed_at) return true;
+  if ((c.outcome || "").trim()) return true;
   return CLOSED_RENEWAL_STATUSES.has((c.status || "").trim());
 }
+
 
 export function isDerivedComponent(c: RenewalComponentLike | null | undefined): boolean {
   return String(c?.id || "").startsWith("derived-");
