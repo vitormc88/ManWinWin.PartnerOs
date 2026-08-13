@@ -644,7 +644,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     } else if (changeMode === "straight" && renewalBaseline) {
       setItems(buildBaselineProposalItems(renewalBaseline));
     }
-  }, [planChangeAvailable, changeMode, planChangeItemsKey, renewalBaseline]);
+  }, [planChangeAvailable, changeMode, planChangeItemsKey, renewalBaseline, hydrationPending]);
 
   // Keep the Business proposal mode aligned with the variant chosen for this proposal.
   useEffect(() => {
