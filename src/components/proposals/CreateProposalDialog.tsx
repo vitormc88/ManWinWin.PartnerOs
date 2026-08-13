@@ -329,10 +329,34 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         mode: planChangeAvailable ? changeMode : "straight",
         targetPlan,
         implementationKind: implKind,
+        transitionRules,
+        manualImplementation:
+          manualImplGross != null
+            ? {
+                gross: manualImplGross,
+                justification: manualImplJustification,
+                authorized: isHQ,
+                confirmedBy: user?.id ?? null,
+              }
+            : null,
         implementationDiscount: { type: "percent", value: clampedImplDiscount },
       }),
-    [renewalBaseline, rules, planChangeAvailable, changeMode, targetPlan, implKind, clampedImplDiscount],
+    [
+      renewalBaseline,
+      rules,
+      planChangeAvailable,
+      changeMode,
+      targetPlan,
+      implKind,
+      clampedImplDiscount,
+      transitionRules,
+      manualImplGross,
+      manualImplJustification,
+      isHQ,
+      user?.id,
+    ],
   );
+
   const planChangeReady = planChange.applicable && planChange.blockers.length === 0;
   /** Re-apply the computed lines only when the change definition really moves. */
   const planChangeItemsKey = planChangeReady ? JSON.stringify(planChange.items) : null;
