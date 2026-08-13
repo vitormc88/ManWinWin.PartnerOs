@@ -268,7 +268,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const [targetPlan, setTargetPlan] = useState<ProposalPlan | null>(null);
   const [implKind, setImplKind] = useState<ImplementationKind>("standard");
   const [implDiscountPct, setImplDiscountPct] = useState(0);
+  /** Incremental implementation confirmed manually by HQ (precedence 2). */
+  const [manualImplGross, setManualImplGross] = useState<number | null>(null);
+  const [manualImplJustification, setManualImplJustification] = useState("");
   const planChangeAvailable = isContractRenewal && !isBusinessProduct;
+
+  /** HQ-configured plan-transition rules (precedence 1). Read-only. */
+  const { data: transitionRules = [] } = useQuery({
+    queryKey: ["plan_transition_rules"],
+    enabled: open && planChangeAvailable,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("plan_transition_rules" as any).select("*").eq("active", true);
+      if (error) throw error;
+      return (data || []) as unknown as PlanTransitionRule[];
+    },
+  });
+
 
 
 
