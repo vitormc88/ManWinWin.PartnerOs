@@ -34,7 +34,7 @@ import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { resolveRenewal, isOpenRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
 import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
 
-import { renewalProposalSource, type ProposalSource } from "@/lib/proposal-source";
+import { renewalProposalSource, clientProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import {
   buildCommercialSummary,
   buildHistory,
