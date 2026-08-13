@@ -5852,6 +5852,14 @@ export type Database = {
         Args: { _renewal_id: string }
         Returns: string
       }
+      renewal_line_class: {
+        Args: {
+          _description: string
+          _is_recurring?: boolean
+          _line_type: string
+        }
+        Returns: string
+      }
       renewal_line_type_for: {
         Args: { _category: string; _name: string; _recurring: boolean }
         Returns: string
