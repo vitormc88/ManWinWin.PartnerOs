@@ -1,6 +1,7 @@
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ProposalPlan } from "@/types/proposal";
@@ -11,6 +12,7 @@ import {
   type PlanChangeComputation,
   type RenewalChangeMode,
 } from "@/lib/renewal-plan-change";
+import { entitlementLabel } from "@/lib/renewal-entitlements";
 
 interface Props {
   mode: RenewalChangeMode;
@@ -24,6 +26,12 @@ interface Props {
   maxServicesDiscountPct: number;
   currentProductLabel: string | null;
   computation: PlanChangeComputation;
+  /** HQ-authorized manual incremental implementation (precedence 2). */
+  manualImplementationGross: number | null;
+  onManualImplementationGrossChange: (value: number | null) => void;
+  manualJustification: string;
+  onManualJustificationChange: (value: string) => void;
+  canAuthorizeManualImplementation: boolean;
   /** Compact read-only summary (used in the Preview step). */
   summaryOnly?: boolean;
 }
@@ -61,12 +69,26 @@ export function RenewalPlanChangePanel({
   maxServicesDiscountPct,
   currentProductLabel,
   computation: c,
+  manualImplementationGross,
+  onManualImplementationGrossChange,
+  manualJustification,
+  onManualJustificationChange,
+  canAuthorizeManualImplementation,
   summaryOnly = false,
 }: Props) {
   const isChange = mode !== "straight";
   const currency = c.currency || "EUR";
   const deltaLabel =
     c.recurringDelta == null ? "—" : `${c.recurringDelta >= 0 ? "+" : "−"}${money(Math.abs(c.recurringDelta), currency)}`;
+  const entitlements = isChange ? c.proposedEntitlements : c.currentEntitlements;
+  const implementationProvenance =
+    c.implementation.source === "transition_rule"
+      ? c.implementation.hours != null && c.implementation.hourlyRate != null
+        ? `Transition rule ${c.implementation.transitionRuleCode} · ${c.implementation.hours}h × ${money(c.implementation.hourlyRate, currency)}`
+        : `Transition rule ${c.implementation.transitionRuleCode}`
+      : c.implementation.source === "manual_hq"
+      ? "HQ-confirmed incremental amount"
+      : "Not confirmed";
 
   return (
     <div className="space-y-4">
@@ -99,50 +121,103 @@ export function RenewalPlanChangePanel({
         </div>
       )}
 
+      {/* Licensed capacity vs billable quantity — always visible. */}
+      <div className="rounded-lg border bg-background p-3 space-y-1">
+        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          Accesses ({entitlements.family ?? "product not recorded"})
+        </p>
+        {entitlements.list.map((e) => (
+          <p key={e.accessType} className="text-xs text-foreground">
+            {entitlementLabel(e)}
+            {e.billable > 0 && e.annualUnitPrice != null && (
+              <span className="text-muted-foreground"> · {money(e.annualUnitPrice, currency)}/year each</span>
+            )}
+          </p>
+        ))}
+        <p className="text-[11px] text-muted-foreground">
+          Total licensed capacity is preserved. Only quantities above what the product includes are billed.
+        </p>
+      </div>
+
       {isChange && !summaryOnly && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <Label>Target plan</Label>
-            <Select
-              value={targetPlan ? String(targetPlan) : ""}
-              onValueChange={(v) => onTargetPlanChange(Number(v) as ProposalPlan)}
-            >
-              <SelectTrigger><SelectValue placeholder="Select target plan" /></SelectTrigger>
-              <SelectContent>
-                {PROFESSIONAL_PLANS.map((p) => (
-                  <SelectItem key={p} value={String(p)}>Professional {p}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <Label>Target plan</Label>
+              <Select
+                value={targetPlan ? String(targetPlan) : ""}
+                onValueChange={(v) => onTargetPlanChange(Number(v) as ProposalPlan)}
+              >
+                <SelectTrigger><SelectValue placeholder="Select target plan" /></SelectTrigger>
+                <SelectContent>
+                  {PROFESSIONAL_PLANS.map((p) => (
+                    <SelectItem key={p} value={String(p)}>Professional {p}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Implementation type</Label>
+              <Select value={implementationKind} onValueChange={(v) => onImplementationKindChange(v as ImplementationKind)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Standard</SelectItem>
+                  <SelectItem value="light">Light</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">Matched like-for-like; never mixed.</p>
+            </div>
+
+            <div>
+              <Label>Discount on incremental implementation (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={maxServicesDiscountPct}
+                value={implementationDiscountPct}
+                disabled={mode === "downgrade" || c.implementationGross <= 0}
+                onChange={(e) => onImplementationDiscountChange(Number(e.target.value) || 0)}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Max {maxServicesDiscountPct}%. Recurring software is never discounted here.
+              </p>
+            </div>
           </div>
 
-          <div>
-            <Label>Implementation type</Label>
-            <Select value={implementationKind} onValueChange={(v) => onImplementationKindChange(v as ImplementationKind)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
-                <SelectItem value="light">Light</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-muted-foreground mt-1">Matched like-for-like; never mixed.</p>
-          </div>
-
-          <div>
-            <Label>Discount on incremental implementation (%)</Label>
-            <Input
-              type="number"
-              min={0}
-              max={maxServicesDiscountPct}
-              value={implementationDiscountPct}
-              disabled={mode === "downgrade" || c.implementationGrossDelta <= 0}
-              onChange={(e) => onImplementationDiscountChange(Number(e.target.value) || 0)}
-            />
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Max {maxServicesDiscountPct}%. Recurring software is never discounted here.
-            </p>
-          </div>
-        </div>
+          {mode === "upgrade" && c.implementation.source !== "transition_rule" && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <Label>Incremental implementation (gross)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={manualImplementationGross ?? ""}
+                  placeholder="Confirm the real incremental effort"
+                  disabled={!canAuthorizeManualImplementation}
+                  onChange={(e) =>
+                    onManualImplementationGrossChange(e.target.value === "" ? null : Number(e.target.value))
+                  }
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  {canAuthorizeManualImplementation
+                    ? "No configured transition rule — HQ must confirm the real incremental effort."
+                    : "Only HQ can confirm a manual incremental implementation amount."}
+                </p>
+              </div>
+              <div className="sm:col-span-2">
+                <Label>Justification (mandatory)</Label>
+                <Textarea
+                  rows={2}
+                  value={manualJustification}
+                  disabled={!canAuthorizeManualImplementation}
+                  onChange={(e) => onManualJustificationChange(e.target.value)}
+                  placeholder="What new modules / configuration justify this incremental effort?"
+                />
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {isChange && c.blockers.length > 0 && (
@@ -168,19 +243,19 @@ export function RenewalPlanChangePanel({
           <div>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Recurring</p>
             <Row label="Current contract recurring" value={money(c.currentRecurring, currency)} />
-            <Row label={`Target plan (${c.targetPlanLabel})`} value={money(c.targetPlanPrice, currency)} />
+            <Row label={`Target product (${c.targetPlanLabel})`} value={money(c.targetPlanPrice, currency)} />
+            <Row label="Billable additional accesses" value={money(c.billableAccessTotal, currency)} />
             <Row label="Unchanged configuration kept" value={money(c.unchangedRecurringTotal, currency)} />
             <Row label="Proposed recurring" value={money(c.proposedRecurring, currency)} strong />
             <Row label="Annual difference" value={deltaLabel} accent />
           </div>
 
           <div>
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Implementation</p>
-            <Row label="Target-plan implementation" value={money(c.targetImplementation, currency)} />
-            <Row label="Current-plan credit" value={money(c.currentImplementationCredit, currency)} />
-            <Row label="Incremental (gross)" value={money(c.implementationGrossDelta, currency)} />
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-1">Incremental implementation</p>
+            <Row label="Source" value={implementationProvenance} />
+            <Row label="Gross" value={money(c.implementationGross, currency)} />
             <Row label="Discount" value={money(-c.implementationDiscountAmount, currency)} />
-            <Row label="Incremental (net)" value={money(c.implementationNet, currency)} strong />
+            <Row label="Net (one-time, never ARR)" value={money(c.implementationNet, currency)} strong />
           </div>
 
           <div className="border-t pt-2">

@@ -86,7 +86,10 @@ import {
   type ImplementationKind,
   type RenewalChangeMode,
 } from "@/lib/renewal-plan-change";
+import type { PlanTransitionRule } from "@/lib/renewal-implementation";
+import { useQuery } from "@tanstack/react-query";
 import { RenewalPlanChangePanel } from "./RenewalPlanChangePanel";
+
 
 // Append a "[Staged from wizard]" line to the notes textarea without clobbering it.
 function appendStagedLine(prev: string, line: string): string {
@@ -268,7 +271,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const [targetPlan, setTargetPlan] = useState<ProposalPlan | null>(null);
   const [implKind, setImplKind] = useState<ImplementationKind>("standard");
   const [implDiscountPct, setImplDiscountPct] = useState(0);
+  /** Incremental implementation confirmed manually by HQ (precedence 2). */
+  const [manualImplGross, setManualImplGross] = useState<number | null>(null);
+  const [manualImplJustification, setManualImplJustification] = useState("");
   const planChangeAvailable = isContractRenewal && !isBusinessProduct;
+
+  /** HQ-configured plan-transition rules (precedence 1). Read-only. */
+  const { data: transitionRules = [] } = useQuery({
+    queryKey: ["plan_transition_rules"],
+    enabled: open && planChangeAvailable,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("plan_transition_rules" as any).select("*").eq("active", true);
+      if (error) throw error;
+      return (data || []) as unknown as PlanTransitionRule[];
+    },
+  });
+
 
 
 
@@ -311,10 +329,34 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         mode: planChangeAvailable ? changeMode : "straight",
         targetPlan,
         implementationKind: implKind,
+        transitionRules,
+        manualImplementation:
+          manualImplGross != null
+            ? {
+                gross: manualImplGross,
+                justification: manualImplJustification,
+                authorized: isHQ,
+                confirmedBy: user?.id ?? null,
+              }
+            : null,
         implementationDiscount: { type: "percent", value: clampedImplDiscount },
       }),
-    [renewalBaseline, rules, planChangeAvailable, changeMode, targetPlan, implKind, clampedImplDiscount],
+    [
+      renewalBaseline,
+      rules,
+      planChangeAvailable,
+      changeMode,
+      targetPlan,
+      implKind,
+      clampedImplDiscount,
+      transitionRules,
+      manualImplGross,
+      manualImplJustification,
+      isHQ,
+      user?.id,
+    ],
   );
+
   const planChangeReady = planChange.applicable && planChange.blockers.length === 0;
   /** Re-apply the computed lines only when the change definition really moves. */
   const planChangeItemsKey = planChangeReady ? JSON.stringify(planChange.items) : null;
@@ -902,6 +944,13 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         renewal_change_mode: planChange.applicable ? changeMode : "straight",
         source_plan: planChange.applicable ? planChange.currentPlan : null,
         target_plan: planChange.applicable ? planChange.targetPlan : null,
+        // Entitlements + incremental implementation provenance (renewals).
+        entitlements: planChange.applicable ? planChange.entitlementSnapshot : null,
+        implementation_source: planChange.applicable ? planChange.implementation.source : null,
+        implementation_hours: planChange.applicable ? planChange.implementation.hours ?? null : null,
+        implementation_hourly_rate: planChange.applicable ? planChange.implementation.hourlyRate ?? null : null,
+        implementation_gross: planChange.applicable ? planChange.implementationGross : null,
+        implementation_justification: planChange.applicable ? planChange.implementation.justification ?? null : null,
         created_by: user?.id || null,
       };
 
@@ -1673,6 +1722,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   maxServicesDiscountPct={discountLimits.services}
                   currentProductLabel={renewalBaseline?.product ?? null}
                   computation={planChange}
+                  manualImplementationGross={manualImplGross}
+                  onManualImplementationGrossChange={setManualImplGross}
+                  manualJustification={manualImplJustification}
+                  onManualJustificationChange={setManualImplJustification}
+                  canAuthorizeManualImplementation={isHQ}
                 />
               )}
             </div>
@@ -1761,6 +1815,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   maxServicesDiscountPct={discountLimits.services}
                   currentProductLabel={renewalBaseline?.product ?? null}
                   computation={planChange}
+                  manualImplementationGross={manualImplGross}
+                  onManualImplementationGrossChange={setManualImplGross}
+                  manualJustification={manualImplJustification}
+                  onManualJustificationChange={setManualImplJustification}
+                  canAuthorizeManualImplementation={isHQ}
                 />
               )}
               <div className="border rounded-lg overflow-hidden">

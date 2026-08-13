@@ -2891,6 +2891,8 @@ export type Database = {
           api_access: boolean
           backoffice_employee_users: number | null
           backoffice_users: number | null
+          billable_backoffice_users: number | null
+          billable_web_accesses: number | null
           billing_frequency: string | null
           client_id: string
           contract_id: string | null
@@ -2901,8 +2903,11 @@ export type Database = {
           deal_id: string | null
           deployment_type: string | null
           edition: string | null
+          entitlement_provenance: Json | null
           environment: string | null
           id: string
+          included_backoffice_users: number | null
+          included_web_accesses: number | null
           initial_contract_value: number | null
           is_draft: boolean
           lic_code: string | null
@@ -2932,6 +2937,8 @@ export type Database = {
           api_access?: boolean
           backoffice_employee_users?: number | null
           backoffice_users?: number | null
+          billable_backoffice_users?: number | null
+          billable_web_accesses?: number | null
           billing_frequency?: string | null
           client_id: string
           contract_id?: string | null
@@ -2942,8 +2949,11 @@ export type Database = {
           deal_id?: string | null
           deployment_type?: string | null
           edition?: string | null
+          entitlement_provenance?: Json | null
           environment?: string | null
           id?: string
+          included_backoffice_users?: number | null
+          included_web_accesses?: number | null
           initial_contract_value?: number | null
           is_draft?: boolean
           lic_code?: string | null
@@ -2973,6 +2983,8 @@ export type Database = {
           api_access?: boolean
           backoffice_employee_users?: number | null
           backoffice_users?: number | null
+          billable_backoffice_users?: number | null
+          billable_web_accesses?: number | null
           billing_frequency?: string | null
           client_id?: string
           contract_id?: string | null
@@ -2983,8 +2995,11 @@ export type Database = {
           deal_id?: string | null
           deployment_type?: string | null
           edition?: string | null
+          entitlement_provenance?: Json | null
           environment?: string | null
           id?: string
+          included_backoffice_users?: number | null
+          included_web_accesses?: number | null
           initial_contract_value?: number | null
           is_draft?: boolean
           lic_code?: string | null
@@ -4049,6 +4064,66 @@ export type Database = {
           },
         ]
       }
+      plan_transition_rules: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          currency: string
+          hourly_rate: number | null
+          hours: number | null
+          id: string
+          implementation_kind: string
+          incremental_gross: number | null
+          label: string
+          notes: string | null
+          pricing_mode: string
+          source_family: string | null
+          source_plan: number | null
+          target_family: string | null
+          target_plan: number | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          currency?: string
+          hourly_rate?: number | null
+          hours?: number | null
+          id?: string
+          implementation_kind?: string
+          incremental_gross?: number | null
+          label: string
+          notes?: string | null
+          pricing_mode?: string
+          source_family?: string | null
+          source_plan?: number | null
+          target_family?: string | null
+          target_plan?: number | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          currency?: string
+          hourly_rate?: number | null
+          hours?: number | null
+          id?: string
+          implementation_kind?: string
+          incremental_gross?: number | null
+          label?: string
+          notes?: string | null
+          pricing_mode?: string
+          source_family?: string | null
+          source_plan?: number | null
+          target_family?: string | null
+          target_plan?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       plugins_catalog: {
         Row: {
           category: string | null
@@ -4238,7 +4313,9 @@ export type Database = {
       }
       proposal_items: {
         Row: {
+          access_type: string | null
           apply_discount_to_renewal: boolean
+          billable_qty: number | null
           category: string
           change_kind: string | null
           created_at: string
@@ -4250,10 +4327,15 @@ export type Database = {
           gross_delta: number | null
           gross_total: number
           id: string
+          implementation_hourly_rate: number | null
+          implementation_hours: number | null
+          implementation_source: string | null
+          included_qty: number | null
           is_override: boolean
           is_recurring: boolean
           item_code: string | null
           item_name: string
+          justification: string | null
           line_type: string | null
           net_total: number
           pricing_rule_code: string | null
@@ -4264,10 +4346,14 @@ export type Database = {
           source_plan: number | null
           target_plan: number | null
           total: number
+          total_licensed_qty: number | null
+          transition_rule_code: string | null
           unit_price: number
         }
         Insert: {
+          access_type?: string | null
           apply_discount_to_renewal?: boolean
+          billable_qty?: number | null
           category?: string
           change_kind?: string | null
           created_at?: string
@@ -4279,10 +4365,15 @@ export type Database = {
           gross_delta?: number | null
           gross_total?: number
           id?: string
+          implementation_hourly_rate?: number | null
+          implementation_hours?: number | null
+          implementation_source?: string | null
+          included_qty?: number | null
           is_override?: boolean
           is_recurring?: boolean
           item_code?: string | null
           item_name: string
+          justification?: string | null
           line_type?: string | null
           net_total?: number
           pricing_rule_code?: string | null
@@ -4293,10 +4384,14 @@ export type Database = {
           source_plan?: number | null
           target_plan?: number | null
           total?: number
+          total_licensed_qty?: number | null
+          transition_rule_code?: string | null
           unit_price?: number
         }
         Update: {
+          access_type?: string | null
           apply_discount_to_renewal?: boolean
+          billable_qty?: number | null
           category?: string
           change_kind?: string | null
           created_at?: string
@@ -4308,10 +4403,15 @@ export type Database = {
           gross_delta?: number | null
           gross_total?: number
           id?: string
+          implementation_hourly_rate?: number | null
+          implementation_hours?: number | null
+          implementation_source?: string | null
+          included_qty?: number | null
           is_override?: boolean
           is_recurring?: boolean
           item_code?: string | null
           item_name?: string
+          justification?: string | null
           line_type?: string | null
           net_total?: number
           pricing_rule_code?: string | null
@@ -4322,6 +4422,8 @@ export type Database = {
           source_plan?: number | null
           target_plan?: number | null
           total?: number
+          total_licensed_qty?: number | null
+          transition_rule_code?: string | null
           unit_price?: number
         }
         Relationships: [
@@ -4386,9 +4488,21 @@ export type Database = {
           discount_pct: number | null
           discount_scope: string
           docx_url: string | null
+          entitlements: Json | null
           generated_at: string | null
           hosting: string
           id: string
+          implementation_confirmed_at: string | null
+          implementation_confirmed_by: string | null
+          implementation_discount_amount: number | null
+          implementation_gross: number | null
+          implementation_hourly_rate: number | null
+          implementation_hours: number | null
+          implementation_justification: string | null
+          implementation_net: number | null
+          implementation_source: string | null
+          implementation_transition_rule_code: string | null
+          implementation_transition_rule_id: string | null
           implementation_type: string | null
           include_requests_module: boolean
           language: string
@@ -4418,6 +4532,7 @@ export type Database = {
           source_type: string
           status: string
           target_plan: number | null
+          target_product_family: string | null
           total_recurring: number | null
           total_year_1: number | null
           updated_at: string
@@ -4440,9 +4555,21 @@ export type Database = {
           discount_pct?: number | null
           discount_scope?: string
           docx_url?: string | null
+          entitlements?: Json | null
           generated_at?: string | null
           hosting?: string
           id?: string
+          implementation_confirmed_at?: string | null
+          implementation_confirmed_by?: string | null
+          implementation_discount_amount?: number | null
+          implementation_gross?: number | null
+          implementation_hourly_rate?: number | null
+          implementation_hours?: number | null
+          implementation_justification?: string | null
+          implementation_net?: number | null
+          implementation_source?: string | null
+          implementation_transition_rule_code?: string | null
+          implementation_transition_rule_id?: string | null
           implementation_type?: string | null
           include_requests_module?: boolean
           language?: string
@@ -4472,6 +4599,7 @@ export type Database = {
           source_type?: string
           status?: string
           target_plan?: number | null
+          target_product_family?: string | null
           total_recurring?: number | null
           total_year_1?: number | null
           updated_at?: string
@@ -4494,9 +4622,21 @@ export type Database = {
           discount_pct?: number | null
           discount_scope?: string
           docx_url?: string | null
+          entitlements?: Json | null
           generated_at?: string | null
           hosting?: string
           id?: string
+          implementation_confirmed_at?: string | null
+          implementation_confirmed_by?: string | null
+          implementation_discount_amount?: number | null
+          implementation_gross?: number | null
+          implementation_hourly_rate?: number | null
+          implementation_hours?: number | null
+          implementation_justification?: string | null
+          implementation_net?: number | null
+          implementation_source?: string | null
+          implementation_transition_rule_code?: string | null
+          implementation_transition_rule_id?: string | null
           implementation_type?: string | null
           include_requests_module?: boolean
           language?: string
@@ -4526,6 +4666,7 @@ export type Database = {
           source_type?: string
           status?: string
           target_plan?: number | null
+          target_product_family?: string | null
           total_recurring?: number | null
           total_year_1?: number | null
           updated_at?: string
@@ -4568,6 +4709,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_deal_ownership_status"
             referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "proposals_implementation_transition_rule_id_fkey"
+            columns: ["implementation_transition_rule_id"]
+            isOneToOne: false
+            referencedRelation: "plan_transition_rules"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "proposals_parent_proposal_id_fkey"
