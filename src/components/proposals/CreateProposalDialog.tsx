@@ -11,7 +11,11 @@ import { Trash2, Plus, ChevronLeft, ChevronRight, FileText, Download, AlertTrian
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { usePricingRules } from "@/hooks/useProposals";
+import { usePricingRules, useProposalItems } from "@/hooks/useProposals";
+import {
+  hydrateRenewalProposal,
+  assertSafeRenewalOverwrite,
+} from "@/lib/renewal-proposal-hydration";
 import {
   dealProposalSource,
   isRenewalSource,
