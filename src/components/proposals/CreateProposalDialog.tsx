@@ -930,12 +930,16 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  /** Compute next available version number within the same source (deal or renewal). */
+  /** Compute next available version number within the same source (deal, renewal or client). */
   const computeNextVersion = async (): Promise<number> => {
     let q = supabase.from("proposals").select("version");
-    q = isRenewalProposal
-      ? q.eq("renewal_id", source.renewal_id as string)
-      : q.eq("lead_id", source.deal_id as string);
+    if (isRenewalProposal) {
+      q = q.eq("renewal_id", source.renewal_id as string);
+    } else if (isClientProposal) {
+      q = q.eq("client_id", source.client_id as string).eq("source_type", "client");
+    } else {
+      q = q.eq("lead_id", source.deal_id as string);
+    }
     const { data: siblings } = await q.order("version", { ascending: false }).limit(1);
     return (siblings?.[0]?.version || 0) + 1;
   };
@@ -944,9 +948,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
     if (!isValidProposalSource(source)) {
-      toast.error("This proposal has no valid source record (deal or renewal).");
+      toast.error("This proposal has no valid source record (deal, renewal or client).");
       return null;
     }
+
     // Destructive-write protection: an existing renewal change may never be
     // overwritten from a partially hydrated (straight-renewal) state.
     if (editingProposal?.id) {
