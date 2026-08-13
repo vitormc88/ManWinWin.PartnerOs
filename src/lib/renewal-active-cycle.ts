@@ -73,3 +73,19 @@ export function selectActiveCycle<T extends RenewalComponentLike>(
   const closed = [...components].sort(byDateDesc);
   return { primary: closed[0], valueComponents: closed, isClosed: true };
 }
+
+/**
+ * The renewal record a client screen must treat as the NEXT renewal.
+ *
+ * Returns the explicit open cycle (Upcoming / Due Soon / In Progress / At Risk).
+ * Closed cycles are history: they never become the next renewal, even when they
+ * carry the most recent date. Returns null when only closed cycles exist, so the
+ * caller can fall back to contract / license dates.
+ */
+export function selectActiveRenewalRecord<T extends RenewalComponentLike>(
+  components: T[] | null | undefined
+): T | null {
+  const selection = selectActiveCycle(components || []);
+  if (!selection || selection.isClosed) return null;
+  return selection.primary;
+}
