@@ -156,9 +156,10 @@ export default function Analytics() {
         out.push({ tone: "yellow", text: `${p.company_name} has pipeline but no active clients`, onClick: () => navigate(`/partners/${p.partner_id}`) });
       }
     });
-    if (topPartner && topPartner.won_deal_count >= 3) {
-      out.push({ tone: "green", text: `${topPartner.company_name} closed ${topPartner.won_deal_count} deals (${fmtEuroK(topPartner.revenue)})`, onClick: () => navigate(`/partners/${topPartner.partner_id}`) });
+    if (topPartner && topPartner.won_new_business_count >= 3) {
+      out.push({ tone: "green", text: `${topPartner.company_name} closed ${topPartner.won_new_business_count} deals (${fmtEuroK(topPartner.won_new_business_value)} won new business)`, onClick: () => navigate(`/partners/${topPartner.partner_id}`) });
     }
+
     return out.slice(0, 5);
   }, [overdueRenewals, bottleneckStage, partners.data, topPartner, navigate]);
 
