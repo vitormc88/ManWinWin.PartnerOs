@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,6 +79,13 @@ import { useRenewalBaseline } from "@/hooks/useRenewalBaseline";
 import { RenewalBaselinePanel } from "./RenewalBaselinePanel";
 import { buildBaselineProposalItems, baselineLicenseModel } from "@/lib/renewal-baseline";
 import { downloadRenewalProposalDocx } from "@/lib/proposal-renewal-docx";
+import {
+  computePlanChange,
+  validatePlanChangeDiscounts,
+  type ImplementationKind,
+  type RenewalChangeMode,
+} from "@/lib/renewal-plan-change";
+import { RenewalPlanChangePanel } from "./RenewalPlanChangePanel";
 
 // Append a "[Staged from wizard]" line to the notes textarea without clobbering it.
 function appendStagedLine(prev: string, line: string): string {
@@ -252,6 +259,18 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   /** Renewals P0D — contract-driven renewal: no catalogue control applies. */
   const isContractRenewal = usesContractBaselineItems;
 
+  /**
+   * Renewal plan changes (upgrade / downgrade) — Professional renewals only.
+   * A straight renewal keeps the current contract exactly as it is.
+   */
+  const [changeMode, setChangeMode] = useState<RenewalChangeMode>("straight");
+  const [targetPlan, setTargetPlan] = useState<ProposalPlan | null>(null);
+  const [implKind, setImplKind] = useState<ImplementationKind>("standard");
+  const [implDiscountPct, setImplDiscountPct] = useState(0);
+  const planChangeAvailable = isContractRenewal && !isBusinessProduct;
+
+
+
 
 
   // Step 2
@@ -277,6 +296,29 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
   // Items (editable)
   const [items, setItems] = useState<ProposalItem[]>([]);
+
+  /**
+   * Renewal plan change — pure computation from the real contract baseline and
+   * the active pricing catalogue. Nothing here mutates any record.
+   */
+  const clampedImplDiscount = clampDiscountPct(implDiscountPct, discountLimits.services);
+  const planChange = useMemo(
+    () =>
+      computePlanChange({
+        baseline: renewalBaseline,
+        rules,
+        mode: planChangeAvailable ? changeMode : "straight",
+        targetPlan,
+        implementationKind: implKind,
+        implementationDiscount: { type: "percent", value: clampedImplDiscount },
+      }),
+    [renewalBaseline, rules, planChangeAvailable, changeMode, targetPlan, implKind, clampedImplDiscount],
+  );
+  const planChangeReady = planChange.applicable && planChange.blockers.length === 0;
+  /** Re-apply the computed lines only when the change definition really moves. */
+  const planChangeItemsKey = planChangeReady ? JSON.stringify(planChange.items) : null;
+  const planChangeAppliedRef = useRef<string | null>(null);
+
 
   useEffect(() => {
     if (!open) return;
@@ -471,6 +513,39 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     setProposalVariant(stored === "keepit" || stored === "useit" ? stored : null);
   }, [open, editingProposal]);
 
+  // Restore / reset the renewal change definition for this dialog session.
+  useEffect(() => {
+    if (!open) return;
+    planChangeAppliedRef.current = null;
+    const storedMode = (editingProposal as any)?.renewal_change_mode as RenewalChangeMode | undefined;
+    const storedTarget = (editingProposal as any)?.target_plan as number | null | undefined;
+    setChangeMode(storedMode === "upgrade" || storedMode === "downgrade" ? storedMode : "straight");
+    setTargetPlan(storedTarget ? (Number(storedTarget) as ProposalPlan) : null);
+    setImplKind("standard");
+    setImplDiscountPct(0);
+  }, [open, editingProposal]);
+
+  /**
+   * Apply the plan-change lines to the editable items. The first pass is
+   * skipped so a saved proposal (or the untouched baseline) is never
+   * overwritten before the user changes anything.
+   */
+  useEffect(() => {
+    if (!planChangeAvailable) return;
+    const signature = `${changeMode}|${planChangeItemsKey ?? ""}`;
+    if (planChangeAppliedRef.current === signature) return;
+    if (planChangeAppliedRef.current === null) {
+      planChangeAppliedRef.current = signature;
+      return;
+    }
+    planChangeAppliedRef.current = signature;
+    if (planChangeItemsKey) {
+      setItems(JSON.parse(planChangeItemsKey) as ProposalItem[]);
+    } else if (changeMode === "straight" && renewalBaseline) {
+      setItems(buildBaselineProposalItems(renewalBaseline));
+    }
+  }, [planChangeAvailable, changeMode, planChangeItemsKey, renewalBaseline]);
+
   // Keep the Business proposal mode aligned with the variant chosen for this proposal.
   useEffect(() => {
     if (!usesContractBaselineItems || !effectiveVariant) return;
@@ -640,20 +715,34 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   }, [isBusinessCatalogue, businessHeadline, totals]);
 
   /** Renewals P0D — gate for Ready status and document generation. */
-  const renewalReadiness = useMemo(
-    () =>
-      validateRenewalReadiness(
-        {
-          usesContractBaselineItems,
-          isBusinessProduct,
-          baselinePlan: renewalBaseline?.plan ?? null,
-          effectiveVariant,
-          variantNeedsReview: !!renewalBaseline?.variantNeedsReview,
-        },
-        { totalYear1: money.totalYear1, itemCount: items.length },
-      ),
-    [usesContractBaselineItems, isBusinessProduct, renewalBaseline, effectiveVariant, money.totalYear1, items.length],
-  );
+  const renewalReadiness = useMemo(() => {
+    const base = validateRenewalReadiness(
+      {
+        usesContractBaselineItems,
+        isBusinessProduct,
+        baselinePlan: renewalBaseline?.plan ?? null,
+        targetPlan: planChange.applicable ? planChange.targetPlan : null,
+        effectiveVariant,
+        variantNeedsReview: !!renewalBaseline?.variantNeedsReview,
+      },
+      { totalYear1: money.totalYear1, itemCount: items.length },
+    );
+    // A declared upgrade/downgrade must be fully resolved before a document.
+    if (!planChange.applicable || planChange.blockers.length === 0) return base;
+    return {
+      ok: false,
+      blockers: [...planChange.blockers, ...base.blockers],
+      warnings: [...base.warnings, ...planChange.warnings],
+    };
+  }, [
+    usesContractBaselineItems,
+    isBusinessProduct,
+    renewalBaseline,
+    effectiveVariant,
+    money.totalYear1,
+    items.length,
+    planChange,
+  ]);
 
   const i18n = t(language);
 
@@ -701,6 +790,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     if (!res.ok) {
       toast.error(res.message || "Discount exceeds your authorization limit");
       return false;
+    }
+    // A plan change may only discount the incremental implementation line.
+    if (planChange.applicable) {
+      const scope = validatePlanChangeDiscounts(items);
+      if (!scope.ok) {
+        toast.error(scope.message || "This discount is not allowed on a plan change");
+        return false;
+      }
     }
     return true;
   };
@@ -800,6 +897,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         discount_amount: money.discountAmount,
         total_year_1: money.totalYear1,
         total_recurring: money.totalRecurring,
+        // Renewal plan change — explicit, structured, never inferred later.
+        renewal_change_mode: planChange.applicable ? changeMode : "straight",
+        source_plan: planChange.applicable ? planChange.currentPlan : null,
+        target_plan: planChange.applicable ? planChange.targetPlan : null,
         created_by: user?.id || null,
       };
 
@@ -810,6 +911,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         usesContractBaselineItems,
         isBusinessProduct,
         baselinePlan: renewalBaseline?.plan ?? null,
+        targetPlan: planChange.applicable ? planChange.targetPlan : null,
         effectiveVariant,
         variantNeedsReview: !!renewalBaseline?.variantNeedsReview,
         canonical: isRenewalProposal
@@ -824,6 +926,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       const payload = normalizeProposalPayload(insertData, normalizationCtx);
 
       if (status === "Ready") {
+        if (planChange.applicable && planChange.blockers.length > 0) {
+          toast.error(planChange.blockers[0]);
+          return null;
+        }
         const readiness = validateRenewalReadiness(normalizationCtx, {
           totalYear1: money.totalYear1,
           itemCount: items.length,
@@ -887,6 +993,15 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
             is_recurring: it.is_recurring,
             apply_discount_to_renewal: Boolean(it.apply_discount_to_renewal),
             sort_order: idx,
+            // Structured provenance (renewal plan changes) — auditable without
+            // parsing descriptions.
+            pricing_rule_code: it.pricing_rule_code ?? null,
+            pricing_rule_id: it.pricing_rule_id ?? null,
+            source_plan: it.source_plan ?? null,
+            target_plan: it.target_plan ?? null,
+            line_type: it.line_type ?? null,
+            change_kind: it.change_kind ?? null,
+            gross_delta: it.gross_delta ?? null,
           };
         });
       };
@@ -1574,6 +1689,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   Software is taken from the linked contract and license. Catalogue plans and modules do not apply to a renewal — edit the real lines in the Preview step.
                 </p>
               </div>
+
+              {planChangeAvailable && (
+                <RenewalPlanChangePanel
+                  mode={changeMode}
+                  onModeChange={setChangeMode}
+                  targetPlan={targetPlan}
+                  onTargetPlanChange={setTargetPlan}
+                  implementationKind={implKind}
+                  onImplementationKindChange={setImplKind}
+                  implementationDiscountPct={clampedImplDiscount}
+                  onImplementationDiscountChange={setImplDiscountPct}
+                  maxServicesDiscountPct={discountLimits.services}
+                  currentProductLabel={renewalBaseline?.product ?? null}
+                  computation={planChange}
+                />
+              )}
             </div>
           )}
 
@@ -1644,6 +1775,22 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   ctx={commercialContext}
                   newRecurring={totals.totalRecurring}
                   slot="summary"
+                />
+              )}
+              {planChangeAvailable && planChange.applicable && (
+                <RenewalPlanChangePanel
+                  summaryOnly
+                  mode={changeMode}
+                  onModeChange={setChangeMode}
+                  targetPlan={targetPlan}
+                  onTargetPlanChange={setTargetPlan}
+                  implementationKind={implKind}
+                  onImplementationKindChange={setImplKind}
+                  implementationDiscountPct={clampedImplDiscount}
+                  onImplementationDiscountChange={setImplDiscountPct}
+                  maxServicesDiscountPct={discountLimits.services}
+                  currentProductLabel={renewalBaseline?.product ?? null}
+                  computation={planChange}
                 />
               )}
               <div className="border rounded-lg overflow-hidden">

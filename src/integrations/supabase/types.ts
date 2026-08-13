@@ -4240,66 +4240,87 @@ export type Database = {
         Row: {
           apply_discount_to_renewal: boolean
           category: string
+          change_kind: string | null
           created_at: string
           description: string | null
           discount_amount: number
           discount_type: string
           discount_value: number
           frequency: string
+          gross_delta: number | null
           gross_total: number
           id: string
           is_override: boolean
           is_recurring: boolean
           item_code: string | null
           item_name: string
+          line_type: string | null
           net_total: number
+          pricing_rule_code: string | null
+          pricing_rule_id: string | null
           proposal_id: string
           qty: number
           sort_order: number
+          source_plan: number | null
+          target_plan: number | null
           total: number
           unit_price: number
         }
         Insert: {
           apply_discount_to_renewal?: boolean
           category?: string
+          change_kind?: string | null
           created_at?: string
           description?: string | null
           discount_amount?: number
           discount_type?: string
           discount_value?: number
           frequency?: string
+          gross_delta?: number | null
           gross_total?: number
           id?: string
           is_override?: boolean
           is_recurring?: boolean
           item_code?: string | null
           item_name: string
+          line_type?: string | null
           net_total?: number
+          pricing_rule_code?: string | null
+          pricing_rule_id?: string | null
           proposal_id: string
           qty?: number
           sort_order?: number
+          source_plan?: number | null
+          target_plan?: number | null
           total?: number
           unit_price?: number
         }
         Update: {
           apply_discount_to_renewal?: boolean
           category?: string
+          change_kind?: string | null
           created_at?: string
           description?: string | null
           discount_amount?: number
           discount_type?: string
           discount_value?: number
           frequency?: string
+          gross_delta?: number | null
           gross_total?: number
           id?: string
           is_override?: boolean
           is_recurring?: boolean
           item_code?: string | null
           item_name?: string
+          line_type?: string | null
           net_total?: number
+          pricing_rule_code?: string | null
+          pricing_rule_id?: string | null
           proposal_id?: string
           qty?: number
           sort_order?: number
+          source_plan?: number | null
+          target_plan?: number | null
           total?: number
           unit_price?: number
         }
@@ -4385,6 +4406,7 @@ export type Database = {
           project_name: string | null
           proposal_date: string
           proposal_mode: string | null
+          renewal_change_mode: string
           renewal_id: string | null
           service_days: number | null
           service_hours: number | null
@@ -4392,8 +4414,10 @@ export type Database = {
           services_subtotal: number | null
           software_discount_pct: number
           software_subtotal: number | null
+          source_plan: number | null
           source_type: string
           status: string
+          target_plan: number | null
           total_recurring: number | null
           total_year_1: number | null
           updated_at: string
@@ -4436,6 +4460,7 @@ export type Database = {
           project_name?: string | null
           proposal_date?: string
           proposal_mode?: string | null
+          renewal_change_mode?: string
           renewal_id?: string | null
           service_days?: number | null
           service_hours?: number | null
@@ -4443,8 +4468,10 @@ export type Database = {
           services_subtotal?: number | null
           software_discount_pct?: number
           software_subtotal?: number | null
+          source_plan?: number | null
           source_type?: string
           status?: string
+          target_plan?: number | null
           total_recurring?: number | null
           total_year_1?: number | null
           updated_at?: string
@@ -4487,6 +4514,7 @@ export type Database = {
           project_name?: string | null
           proposal_date?: string
           proposal_mode?: string | null
+          renewal_change_mode?: string
           renewal_id?: string | null
           service_days?: number | null
           service_hours?: number | null
@@ -4494,8 +4522,10 @@ export type Database = {
           services_subtotal?: number | null
           software_discount_pct?: number
           software_subtotal?: number | null
+          source_plan?: number | null
           source_type?: string
           status?: string
+          target_plan?: number | null
           total_recurring?: number | null
           total_year_1?: number | null
           updated_at?: string
