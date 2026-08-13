@@ -544,7 +544,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     // Renewals P0: never reset a real customer to Plan 1 + implementation.
     if (usesContractBaselineItems) return;
     if (rules.length === 0) return;
-    if (editingProposal?.items?.length && open) return;
+    // Never rebuild an existing proposal before its own state is hydrated.
+    if (open && editingProposal?.id && (hydrationPending || persistedItems?.length)) return;
     setItems(
       buildDefaultItems({
         rules,
@@ -556,13 +557,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         language,
       }),
     );
-  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusinessProduct, usesContractBaselineItems]);
+  }, [rules, plan, implType, includeRequests, webUsers, onsiteDays, language, isBusinessProduct, usesContractBaselineItems, hydrationPending, persistedItems]);
 
   // ── Renewals P0: prepopulate from the real contract baseline ──────────
-  // Runs once per open, only when the proposal has no persisted items yet.
+  // Runs once per open, only when the proposal has no persisted state at all.
   useEffect(() => {
     if (!open || !usesContractBaselineItems || !renewalBaseline) return;
-    if (editingProposal?.items?.length) return;
+    // Hydration of an existing proposal always wins over the baseline.
+    if (editingProposal?.id && (hydrationPending || persistedItems?.length)) return;
     if (renewalBaseline.productFamily) setProductFamily(renewalBaseline.productFamily);
     if (renewalBaseline.plan) setPlan(renewalBaseline.plan);
     if (renewalBaseline.hosting) {
@@ -581,7 +583,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
       !prev.trim() || prev === GENERIC_PROJECT_NAME ? defaultRenewalProjectName(defaultClientName) : prev,
     );
     setItems(buildBaselineProposalItems(renewalBaseline));
-  }, [open, usesContractBaselineItems, renewalBaseline, editingProposal]);
+  }, [open, usesContractBaselineItems, renewalBaseline, editingProposal, hydrationPending, persistedItems]);
 
   // Renewals P0C — restore the proposal-only variant chosen on a previous save.
   useEffect(() => {
@@ -590,17 +592,36 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     setProposalVariant(stored === "keepit" || stored === "useit" ? stored : null);
   }, [open, editingProposal]);
 
-  // Restore / reset the renewal change definition for this dialog session.
+  /**
+   * Canonical renewal-change hydration.
+   *
+   * For an existing proposal every field of the change definition is restored
+   * from the saved proposal (or safely derived from its persisted items)
+   * BEFORE any financial derivation. A new proposal starts from the neutral
+   * straight-renewal defaults.
+   */
   useEffect(() => {
     if (!open) return;
     planChangeAppliedRef.current = null;
-    const storedMode = (editingProposal as any)?.renewal_change_mode as RenewalChangeMode | undefined;
-    const storedTarget = (editingProposal as any)?.target_plan as number | null | undefined;
-    setChangeMode(storedMode === "upgrade" || storedMode === "downgrade" ? storedMode : "straight");
-    setTargetPlan(storedTarget ? (Number(storedTarget) as ProposalPlan) : null);
-    setImplKind("standard");
-    setImplDiscountPct(0);
-  }, [open, editingProposal]);
+    if (!editingProposal?.id) {
+      setChangeMode("straight");
+      setTargetPlan(null);
+      setImplKind("standard");
+      setImplDiscountPct(0);
+      setManualImplGross(null);
+      setManualImplJustification("");
+      return;
+    }
+    // Wait for the persisted items — never seed defaults in the meantime.
+    if (hydrationPending || !hydration) return;
+    setChangeMode(hydration.changeMode);
+    setTargetPlan(hydration.targetPlan);
+    setImplKind(hydration.implementationKind);
+    setImplDiscountPct(hydration.implementationDiscountPct);
+    setManualImplGross(hydration.manualImplementationGross);
+    setManualImplJustification(hydration.implementationJustification ?? "");
+  }, [open, editingProposal, hydration, hydrationPending]);
+
 
   /**
    * Apply the plan-change lines to the editable items. The first pass is
