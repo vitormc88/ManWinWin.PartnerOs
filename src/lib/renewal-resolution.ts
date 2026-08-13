@@ -13,7 +13,14 @@
 
 export type RenewalSource = "renewal_record" | "contract_end" | "license_end" | "unknown";
 
-const CLOSED_RENEWAL_STATUSES = new Set(["completed", "cancelled", "canceled", "lost", "renewed"]);
+const CLOSED_RENEWAL_STATUSES = new Set([
+  "completed",
+  "cancelled",
+  "canceled",
+  "lost",
+  "renewed",
+  "won",
+]);
 
 export interface RenewalRecordLike {
   id?: string | null;
@@ -24,7 +31,11 @@ export interface RenewalRecordLike {
   target_type?: string | null;
   target_id?: string | null;
   client_id?: string | null;
+  /** Closure markers — a closed cycle is history, never the next renewal. */
+  closed_at?: string | null;
+  outcome?: string | null;
 }
+
 
 export interface ContractLike {
   contract_end_date?: string | null;
@@ -58,8 +69,11 @@ export function isValidDateString(value: string | null | undefined): boolean {
 
 export function isOpenRenewal(r: RenewalRecordLike | null | undefined): boolean {
   if (!r || !isValidDateString(r.renewal_date)) return false;
+  if (r.closed_at) return false;
+  if ((r.outcome || "").trim()) return false;
   return !CLOSED_RENEWAL_STATUSES.has((r.status || "").trim().toLowerCase());
 }
+
 
 function daysBetween(target: string, today: Date): number {
   const t = new Date(`${target}T00:00:00Z`).getTime();

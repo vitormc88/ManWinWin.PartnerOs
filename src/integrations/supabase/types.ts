@@ -1272,6 +1272,110 @@ export type Database = {
           },
         ]
       }
+      client_revenue_history: {
+        Row: {
+          amount: number
+          client_id: string
+          contract_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          notes: string | null
+          partner_id: string | null
+          proposal_id: string | null
+          renewal_id: string | null
+          revenue_date: string
+          revenue_type: string
+          source: string
+          source_reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          contract_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string | null
+          proposal_id?: string | null
+          renewal_id?: string | null
+          revenue_date: string
+          revenue_type: string
+          source?: string
+          source_reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          contract_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          notes?: string | null
+          partner_id?: string | null
+          proposal_id?: string | null
+          renewal_id?: string | null
+          revenue_date?: string
+          revenue_type?: string
+          source?: string
+          source_reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_revenue_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_renewal_id_fkey"
+            columns: ["renewal_id"]
+            isOneToOne: false
+            referencedRelation: "renewals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           account_manager: string | null
@@ -5408,14 +5512,19 @@ export type Database = {
       }
       v_analytics_partner_summary: {
         Row: {
+          active_client_count: number | null
+          billed_revenue_lifetime: number | null
+          billed_revenue_ytd: number | null
           client_count: number | null
           company_name: string | null
           country: string | null
           open_deal_count: number | null
+          open_pipeline: number | null
           partner_id: string | null
           pipeline: number | null
-          revenue: number | null
           won_deal_count: number | null
+          won_new_business_count: number | null
+          won_new_business_value: number | null
         }
         Relationships: []
       }
@@ -5529,6 +5638,15 @@ export type Database = {
         }
         Relationships: []
       }
+      v_client_revenue_summary: {
+        Row: {
+          clients_with_revenue: number | null
+          lifetime_revenue: number | null
+          revenue_entry_count: number | null
+          revenue_ytd: number | null
+        }
+        Relationships: []
+      }
       v_deal_ownership_status: {
         Row: {
           assigned_user_id: string | null
@@ -5557,6 +5675,30 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_analytics_sales_performance"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      v_revenue_history_enriched: {
+        Row: {
+          amount: number | null
+          client_id: string | null
+          country: string | null
+          currency: string | null
+          id: string | null
+          partner_name: string | null
+          partner_uuid: string | null
+          revenue_date: string | null
+          revenue_type: string | null
+          source: string | null
+          source_reference: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_revenue_history_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5898,6 +6040,10 @@ export type Database = {
           _status: string
         }
         Returns: string
+      }
+      renewal_revenue_backfill: {
+        Args: { _dry_run?: boolean; _renewal_id?: string }
+        Returns: Json
       }
       reset_user_to_role_template: {
         Args: { _user_id: string }

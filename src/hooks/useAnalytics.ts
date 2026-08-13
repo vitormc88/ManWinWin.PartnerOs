@@ -101,11 +101,26 @@ export function useSalesPerformance() {
   });
 }
 
+/**
+ * Per-partner commercial summary.
+ *
+ * Billed revenue (client_revenue_history) and won new business (deals) are two
+ * different concepts and are aggregated independently server-side. `revenue`
+ * here always means BILLED revenue — never the won-deal value.
+ */
 export interface PartnerSummaryRow {
   partner_id: string;
   company_name: string;
   country: string | null;
+  /** Lifetime billed revenue. */
   revenue: number;
+  billed_revenue_lifetime: number;
+  billed_revenue_ytd: number;
+  won_new_business_value: number;
+  won_new_business_count: number;
+  open_pipeline: number;
+  active_client_count: number;
+  /** Legacy aliases kept for existing consumers. */
   pipeline: number;
   open_deal_count: number;
   won_deal_count: number;
@@ -120,19 +135,31 @@ export function usePartnerAnalytics() {
       const { data, error } = await supabase.from("v_analytics_partner_summary" as any).select("*");
       if (error) throw error;
       return (data || [])
-        .map((r: any) => ({
-          partner_id: r.partner_id,
-          company_name: r.company_name,
-          country: r.country,
-          revenue: num(r.revenue),
-          pipeline: num(r.pipeline),
-          open_deal_count: num(r.open_deal_count),
-          won_deal_count: num(r.won_deal_count),
-          client_count: num(r.client_count),
-        }))
+        .map((r: any) => {
+          const billedLifetime = num(r.billed_revenue_lifetime);
+          const pipeline = num(r.open_pipeline ?? r.pipeline);
+          const clients = num(r.active_client_count ?? r.client_count);
+          return {
+            partner_id: r.partner_id,
+            company_name: r.company_name,
+            country: r.country,
+            revenue: billedLifetime,
+            billed_revenue_lifetime: billedLifetime,
+            billed_revenue_ytd: num(r.billed_revenue_ytd),
+            won_new_business_value: num(r.won_new_business_value),
+            won_new_business_count: num(r.won_new_business_count),
+            open_pipeline: pipeline,
+            active_client_count: clients,
+            pipeline,
+            open_deal_count: num(r.open_deal_count),
+            won_deal_count: num(r.won_new_business_count ?? r.won_deal_count),
+            client_count: clients,
+          };
+        })
         .sort((a, b) => b.revenue - a.revenue) as PartnerSummaryRow[];
     },
   });
+
 }
 
 export interface RenewalsSummary {

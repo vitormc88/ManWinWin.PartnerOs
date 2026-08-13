@@ -156,9 +156,10 @@ export default function Analytics() {
         out.push({ tone: "yellow", text: `${p.company_name} has pipeline but no active clients`, onClick: () => navigate(`/partners/${p.partner_id}`) });
       }
     });
-    if (topPartner && topPartner.won_deal_count >= 3) {
-      out.push({ tone: "green", text: `${topPartner.company_name} closed ${topPartner.won_deal_count} deals (${fmtEuroK(topPartner.revenue)})`, onClick: () => navigate(`/partners/${topPartner.partner_id}`) });
+    if (topPartner && topPartner.won_new_business_count >= 3) {
+      out.push({ tone: "green", text: `${topPartner.company_name} closed ${topPartner.won_new_business_count} deals (${fmtEuroK(topPartner.won_new_business_value)} won new business)`, onClick: () => navigate(`/partners/${topPartner.partner_id}`) });
     }
+
     return out.slice(0, 5);
   }, [overdueRenewals, bottleneckStage, partners.data, topPartner, navigate]);
 
@@ -979,12 +980,19 @@ type PartnerRow = {
   partner_id: string;
   company_name: string;
   country: string | null;
+  /** Lifetime billed revenue (client_revenue_history). */
   revenue: number;
+  billed_revenue_lifetime: number;
+  billed_revenue_ytd: number;
+  /** Won deals only — never labelled "revenue". */
+  won_new_business_value: number;
+  won_new_business_count: number;
   pipeline: number;
   client_count: number;
   open_deal_count: number;
   won_deal_count: number;
 };
+
 
 function healthBandColor(score: number) {
   if (score > 80) return { row: "bg-emerald-50/50 hover:bg-emerald-50", dot: "bg-emerald-500", text: "text-emerald-700" };
@@ -992,7 +1000,7 @@ function healthBandColor(score: number) {
   return { row: "bg-red-50/40 hover:bg-red-50", dot: "bg-red-500", text: "text-red-700" };
 }
 
-type SortKey = "company_name" | "country" | "revenue" | "pipeline" | "client_count" | "health" | "open_leads" | "renewals" | "relationship";
+type SortKey = "company_name" | "country" | "revenue" | "billed_ytd" | "won_new_business" | "pipeline" | "client_count" | "health" | "open_leads" | "renewals" | "relationship";
 
 function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; navigate: (path: string) => void }) {
   const metricsQ = usePartnerMetrics();
@@ -1047,10 +1055,11 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     const ownerName = ownerProfile?.full_name || ownerProfile?.email || null;
     return {
       ...p,
-      // "Revenue" here means BILLED revenue. The deal-derived figure is kept
-      // separately as won_deal_value so the two are never conflated.
-      won_deal_value: p.revenue,
-      revenue: billedByPartner.get(p.partner_id) || 0,
+      // Billed revenue and won new business are never conflated.
+      won_deal_value: p.won_new_business_value,
+      revenue: billedByPartner.get(p.partner_id) || p.billed_revenue_lifetime || 0,
+      billed_revenue_ytd: p.billed_revenue_ytd,
+
       health: m?.health_score ?? 0,
       open_leads: leadsByPartner.get(p.partner_id) || 0,
       renewals_count: renewalsByPartner.get(p.partner_id) || 0,
@@ -1127,6 +1136,8 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
         case "company_name": return r.company_name?.toLowerCase() || "";
         case "country": return r.country?.toLowerCase() || "";
         case "revenue": return r.revenue;
+        case "billed_ytd": return r.billed_revenue_ytd;
+        case "won_new_business": return r.won_deal_value;
         case "pipeline": return r.pipeline;
         case "client_count": return r.client_count;
         case "health": return r.health;
@@ -1224,6 +1235,8 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
                 <SortHeader label="Partner" k="company_name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Country" k="country" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Billed Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Billed YTD" k="billed_ytd" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Won New Business" k="won_new_business" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Pipeline" k="pipeline" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Clients" k="client_count" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Health" k="health" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
@@ -1245,6 +1258,11 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
                     <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">{r.company_name}</td>
                     <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{r.country || "—"}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtEuro(r.revenue)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtEuro(r.billed_revenue_ytd)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+                      {fmtEuro(r.won_deal_value)}
+                      <span className="text-[10px] text-muted-foreground ml-1">({r.won_new_business_count})</span>
+                    </td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtEuro(r.pipeline)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{r.client_count}</td>
                     <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${band.text}`}>
@@ -1266,7 +1284,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
                 );
               })}
               {sortedRows.length === 0 && (
-                <tr><td colSpan={10} className="p-0"><EmptyState /></td></tr>
+                <tr><td colSpan={12} className="p-0"><EmptyState /></td></tr>
               )}
             </tbody>
           </table>

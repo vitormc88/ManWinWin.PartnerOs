@@ -30,6 +30,8 @@ import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTim
 import { ClientOverviewPanel } from "@/components/clients/ClientOverviewPanel";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { resolveRenewal, assessRenewalRisk } from "@/lib/renewal-resolution";
+import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
+
 import { RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
 import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { ContactsCard } from "@/components/clients/ContactsCard";
@@ -189,19 +191,40 @@ export default function ClientDetail() {
   const primaryLicense = validLicenses[0] || null;
   const primaryContract = contracts[0] || null;
   const { data: intelligence } = useClientCommercialIntelligence(id);
-  // Single source of truth for renewal timing (Phase 2):
-  // open workflow renewal → contract end date → license end date → unknown.
+
+  // Operational renewal cycles for this client. The ACTIVE cycle (never a closed
+  // one) drives the "next renewal" date across the client screens.
+  const { data: clientRenewals = [] } = useQuery({
+    queryKey: ["renewals", "client-cycles", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("renewals")
+        .select("id, renewal_date, status, outcome, closed_at, estimated_value, assigned_user_id")
+        .eq("client_id", id)
+        .order("renewal_date", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
+  // Single source of truth for renewal timing:
+  // active (non-closed) renewal cycle → contract end date → license end date.
+  const activeRenewalRecord = useMemo(
+    () => selectActiveRenewalRecord(clientRenewals as any[]),
+    [clientRenewals]
+  );
   const resolvedRenewal = useMemo(
     () =>
       resolveRenewal({
-        renewals: intelligence?.next_renewal_date
-          ? [{ renewal_date: intelligence.next_renewal_date, status: "Open" }]
-          : [],
+        renewals: activeRenewalRecord ? [activeRenewalRecord as any] : [],
         contract: primaryContract,
         license: primaryLicense,
       }),
-    [intelligence?.next_renewal_date, primaryContract, primaryLicense]
+    [activeRenewalRecord, primaryContract, primaryLicense]
   );
+
   const renewalEndDate = resolvedRenewal.date;
   const renewalInfo = useMemo(() => getRenewalInfo(renewalEndDate), [renewalEndDate]);
 
@@ -1291,11 +1314,13 @@ export default function ClientDetail() {
                 {editingContractId !== co.id && (
                   <ContractBreakdown
                     contractId={co.id}
+                    contract={co as any}
                     legacyTotal={co.total_value}
                     currency={co.currency}
                     isImported={(co as any).is_imported !== false}
                     manualAdjustment={(co as any).manual_adjustment_amount}
                   />
+
                 )}
               </CardContent>
             </Card>

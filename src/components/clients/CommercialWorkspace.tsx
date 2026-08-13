@@ -32,6 +32,8 @@ import {
 } from "@/lib/license-evolution";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { resolveRenewal, isOpenRenewal, type ResolvedRenewal } from "@/lib/renewal-resolution";
+import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
+
 import { renewalProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import {
   buildCommercialSummary,
@@ -116,12 +118,14 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     queryFn: async () => {
       const { data, error } = await supabase
         .from("renewals")
-        .select("id, client_id, partner_uuid, contract_id, license_id, renewal_date, status, source_proposal_id")
+        .select("id, client_id, partner_uuid, contract_id, license_id, renewal_date, status, outcome, closed_at, source_proposal_id")
         .eq("client_id", client.id)
         .order("renewal_date", { ascending: true });
       if (error) throw error;
       const rows = (data || []) as any[];
-      return rows.find((r) => isOpenRenewal(r)) ?? rows[0] ?? null;
+      // Only the active cycle can be worked on — a closed cycle is history.
+      return selectActiveRenewalRecord(rows);
+
     },
     enabled: !!client?.id,
   });
