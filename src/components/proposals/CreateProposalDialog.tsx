@@ -49,7 +49,7 @@ import {
 import { buildProposalItemRows } from "@/lib/proposal-item-rows";
 import { t, formatEuro, standardPaymentTerms } from "@/lib/proposal-i18n";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
-import { storeProposalDocument } from "@/lib/proposal-document-storage";
+import { storeProposalDocument, signProposalDocument } from "@/lib/proposal-document-storage";
 
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
