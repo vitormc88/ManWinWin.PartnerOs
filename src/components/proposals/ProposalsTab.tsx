@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil, FileSpreadsheet } from "lucide-react";
 import { useLeadProposals, useDeleteProposal, useDuplicateProposal, usePricingRules } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
+import { storeProposalDocument } from "@/lib/proposal-document-storage";
+
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
 import { printBusinessProposal } from "@/lib/proposal-business-print";
