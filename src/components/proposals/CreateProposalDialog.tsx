@@ -1311,6 +1311,19 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const handleGenerate = () =>
     generateStoredDocx((prop, docItems) => downloadProposalDocx(prop, docItems as any));
 
+  /** Reopened proposals can re-download the document already stored. */
+  const storedDocxPath = (editingProposal as any)?.docx_url as string | undefined;
+  const handleDownloadStoredDocx = async () => {
+    if (!storedDocxPath) return;
+    const url = await signProposalDocument(storedDocxPath);
+    if (!url) {
+      toast.error("Stored document is not available");
+      return;
+    }
+    window.open(url, "_blank", "noopener");
+  };
+
+
 
   /**
    * Renewals P0B — contract-driven renewals produce a dedicated renewal
