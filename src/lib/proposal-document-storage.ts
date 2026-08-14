@@ -39,9 +39,13 @@ export function proposalDocumentPath(
   return `${prefix}/${proposalId}/${safeDocxFileName(fileName)}`;
 }
 
-export type ProposalDocResult =
-  | { ok: true; path: string; fileName: string }
-  | { ok: false; error: string };
+export type ProposalDocResult = {
+  ok: boolean;
+  path?: string;
+  fileName?: string;
+  error?: string;
+};
+
 
 /**
  * Upload the generated DOCX and record its reference on the proposal.
