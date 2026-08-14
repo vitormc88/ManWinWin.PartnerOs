@@ -2236,6 +2236,14 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   </div>
                 </>
               )}
+              {storedDocxPath && (
+                <div className="flex justify-center">
+                  <Button variant="ghost" size="sm" onClick={handleDownloadStoredDocx}>
+                    <Download className="h-4 w-4 mr-2" />Download stored DOCX
+                  </Button>
+                </div>
+              )}
+
             </div>
           )}
         </div>
