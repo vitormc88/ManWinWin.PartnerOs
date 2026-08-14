@@ -1241,55 +1241,74 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     }
   };
 
-  const handleGenerate = async () => {
-    const prop = await persistProposal("Ready");
-    if (!prop) return;
+  /**
+   * Canonical document generation for new AND reopened proposals.
+   *
+   * It reads the CURRENT persisted proposal + items, renders the document,
+   * uploads it and records only the document reference. It never changes
+   * status, commercial values or proposal items.
+   */
+  const generateStoredDocx = async (
+    build: (prop: Proposal, docItems: any[]) => Promise<{ blob: Blob; fileName: string }>,
+  ) => {
+    // A brand-new proposal must exist before it can own a document; creating
+    // it as Draft is not a lifecycle transition.
+    const base = editingProposal?.id
+      ? ({ id: editingProposal.id } as Proposal)
+      : await persistProposal("Draft");
+    if (!base) return;
+
     try {
-      // Add ids to items for renderer
-      const itemsForDoc = items.map((it, idx) => ({ ...it, sort_order: idx }));
-      const { fileName } = await downloadProposalDocx(prop, itemsForDoc);
-      // Optionally upload to storage
-      try {
-        const blob = (await downloadProposalDocx(prop, itemsForDoc)).blob;
-        const path = `${storagePrefix}/${prop.id}/${fileName}`;
-        const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          upsert: true,
-        });
-        if (!upErr) {
-          await supabase
-            .from("proposals")
-            .update({ docx_url: path, generated_at: new Date().toISOString() })
-            .eq("id", prop.id);
-        }
-      } catch {
-        /* upload best-effort */
+      const { data: prop, error: propErr } = await supabase
+        .from("proposals")
+        .select("*")
+        .eq("id", base.id)
+        .single();
+      if (propErr || !prop) throw propErr || new Error("Proposal not found");
+
+      const { data: rows, error: itemsErr } = await supabase
+        .from("proposal_items")
+        .select("*")
+        .eq("proposal_id", prop.id)
+        .order("sort_order", { ascending: true });
+      if (itemsErr) throw itemsErr;
+
+      const docItems = (rows || []).map((r: any, idx: number) => ({
+        ...r,
+        sort_order: r.sort_order ?? idx,
+      }));
+
+      const { blob, fileName } = await build(prop as unknown as Proposal, docItems);
+
+      const anchorId =
+        (prop as any).client_id ||
+        (prop as any).deal_id ||
+        (prop as any).lead_id ||
+        (prop as any).renewal_id ||
+        storagePrefix;
+
+      const stored = await storeProposalDocument({
+        proposalId: prop.id,
+        anchorId,
+        fileName,
+        blob,
+      });
+      if (!stored.ok) {
+        toast.error(stored.error);
+        return;
       }
-      toast.success(editingProposal ? "Proposal updated" : "Proposal generated");
-      onOpenChange(false);
+
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+      qc.invalidateQueries({ queryKey: ["proposal", prop.id] });
+      toast.success("Document generated (proposal not modified)");
     } catch (e: any) {
       toast.error("Generation failed: " + (e?.message || ""));
     }
   };
 
-  /** Upload a Business DOCX blob to storage and persist URL on the proposal. */
-  const uploadBusinessDocx = async (prop: Proposal, blob: Blob, fileName: string) => {
-    try {
-      const path = `${storagePrefix}/${prop.id}/${fileName}`;
-      const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
-        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        upsert: true,
-      });
-      if (upErr) return;
-      await supabase
-        .from("proposals")
-        .update({ docx_url: path, status: "Ready", generated_at: new Date().toISOString() })
-        .eq("id", prop.id);
-      qc.invalidateQueries({ queryKey: ["proposals"] });
-    } catch {
-      /* upload best-effort */
-    }
-  };
+  const handleGenerate = () =>
+    generateStoredDocx((prop, docItems) => downloadProposalDocx(prop, docItems as any));
+
 
   /**
    * Renewals P0B — contract-driven renewals produce a dedicated renewal
