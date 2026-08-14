@@ -175,11 +175,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     const cfg = buildBusinessCfg(cfgRaw);
     try {
       printBusinessProposal({ proposal: res.prop as Proposal, cfg, rules });
-      await supabase
-        .from("proposals")
-        .update({ status: "Ready", generated_at: new Date().toISOString() })
-        .eq("id", res.prop.id);
-      qc.invalidateQueries({ queryKey: ["proposals"] });
+
     } catch (e: any) {
       toast.error("PDF generation failed: " + (e?.message || ""));
     }
