@@ -5813,6 +5813,10 @@ export type Database = {
       can_manage_client: { Args: { _client_id: string }; Returns: boolean }
       can_manage_deal: { Args: { _deal_id: string }; Returns: boolean }
       can_manage_partner: { Args: { _partner_id: string }; Returns: boolean }
+      can_manage_proposal_document: {
+        Args: { _proposal_id: string }
+        Returns: boolean
+      }
       can_manage_proposal_source: {
         Args: {
           _client_id: string
@@ -5830,6 +5834,10 @@ export type Database = {
         Returns: boolean
       }
       can_view_partner: { Args: { _partner_id: string }; Returns: boolean }
+      can_view_proposal_document: {
+        Args: { _proposal_id: string }
+        Returns: boolean
+      }
       can_view_proposal_source: {
         Args: {
           _client_id: string

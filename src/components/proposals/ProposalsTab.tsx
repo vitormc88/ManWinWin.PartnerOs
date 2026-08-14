@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil, FileSpreadsheet } from "lucide-react";
 import { useLeadProposals, useDeleteProposal, useDuplicateProposal, usePricingRules } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
+import { storeProposalDocument } from "@/lib/proposal-document-storage";
+
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
 import { printBusinessProposal } from "@/lib/proposal-business-print";
@@ -137,23 +139,25 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     const cfg = buildBusinessCfg(cfgRaw);
     try {
       const { blob, fileName } = await downloadBusinessProposalDocx({ proposal: res.prop as Proposal, cfg, rules });
-      // Upload to storage and update proposal record
-      try {
-        const path = `${res.prop.lead_id}/${res.prop.id}/${fileName}`;
-        const { error: upErr } = await supabase.storage.from("proposals").upload(path, blob, {
-          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          upsert: true,
-        });
-        if (!upErr) {
-          await supabase
-            .from("proposals")
-            .update({ docx_url: path, status: "Ready", generated_at: new Date().toISOString() })
-            .eq("id", res.prop.id);
-          qc.invalidateQueries({ queryKey: ["proposals"] });
-        }
-      } catch {
-        /* upload best-effort */
+      // Generation is non-mutating: store the document reference only.
+      const anchorId =
+        (res.prop as any).client_id ||
+        (res.prop as any).deal_id ||
+        (res.prop as any).lead_id ||
+        (res.prop as any).renewal_id ||
+        "unassigned";
+      const stored = await storeProposalDocument({
+        proposalId: res.prop.id,
+        anchorId,
+        fileName,
+        blob,
+      });
+      if (!stored.ok) {
+        toast.error(stored.error || "Document upload failed");
+        return;
       }
+      qc.invalidateQueries({ queryKey: ["proposals"] });
+
       toast.success("Business DOCX downloaded");
     } catch (e: any) {
       toast.error("DOCX generation failed: " + (e?.message || ""));
@@ -171,11 +175,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     const cfg = buildBusinessCfg(cfgRaw);
     try {
       printBusinessProposal({ proposal: res.prop as Proposal, cfg, rules });
-      await supabase
-        .from("proposals")
-        .update({ status: "Ready", generated_at: new Date().toISOString() })
-        .eq("id", res.prop.id);
-      qc.invalidateQueries({ queryKey: ["proposals"] });
+
     } catch (e: any) {
       toast.error("PDF generation failed: " + (e?.message || ""));
     }
