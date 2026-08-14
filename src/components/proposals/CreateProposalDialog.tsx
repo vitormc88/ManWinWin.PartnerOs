@@ -1352,35 +1352,30 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     }
   };
 
-  const handleGenerateBusinessDocx = async () => {
-    const prop = await persistProposal("Ready");
-    if (!prop) return;
-    try {
-      const { blob, fileName } = await downloadBusinessProposalDocx({ proposal: prop, cfg: businessConfig, rules });
-      await uploadBusinessDocx(prop, blob, fileName);
-      toast.success("Business DOCX generated");
-      onOpenChange(false);
-    } catch (e: any) {
-      toast.error("DOCX generation failed: " + (e?.message || ""));
-    }
-  };
+  const handleGenerateBusinessDocx = () =>
+    generateStoredDocx((prop) =>
+      downloadBusinessProposalDocx({ proposal: prop, cfg: businessConfig, rules }),
+    );
 
   const handleGenerateBusinessPdf = async () => {
-    const prop = await persistProposal("Ready");
-    if (!prop) return;
+    const base = editingProposal?.id
+      ? ({ id: editingProposal.id } as Proposal)
+      : await persistProposal("Draft");
+    if (!base) return;
     try {
-      printBusinessProposal({ proposal: prop, cfg: businessConfig, rules });
-      await supabase
+      const { data: prop, error } = await supabase
         .from("proposals")
-        .update({ status: "Ready", generated_at: new Date().toISOString() })
-        .eq("id", prop.id);
-      qc.invalidateQueries({ queryKey: ["proposals"] });
+        .select("*")
+        .eq("id", base.id)
+        .single();
+      if (error || !prop) throw error || new Error("Proposal not found");
+      printBusinessProposal({ proposal: prop as unknown as Proposal, cfg: businessConfig, rules });
       toast.success("PDF preview opened — use the print dialog to save as PDF");
-      onOpenChange(false);
     } catch (e: any) {
       toast.error("PDF generation failed: " + (e?.message || ""));
     }
   };
+
 
   const formatPrice = (n: number) => formatEuro(n, language);
 
