@@ -4,6 +4,7 @@ import {
   assetSnippet,
   buildAssetUsageIndex,
   filterAssets,
+  isInlineImageAsset,
   parseAssetFence,
   referencedAssetKeys,
   suggestAssetKey,
@@ -98,5 +99,39 @@ describe("asset library helpers", () => {
     expect(filterAssets(assets, { search: "matrix" })).toHaveLength(1);
     expect(filterAssets(assets, { category: "frameworks" })[0].id).toBe("2");
     expect(filterAssets(assets, { tag: "ops" })[0].id).toBe("2");
+  });
+});
+
+describe("module 5 P2 asset directives", () => {
+  it("keeps unknown options such as loading in params", () => {
+    const ref = parseAssetFence("id: m5-hero-banner-qualification\nloading: eager");
+    expect(ref?.params.loading).toBe("eager");
+  });
+
+  it("parses the migration snippet used for module 5 visuals", () => {
+    const md = [
+      "## Mission 1",
+      "",
+      ":::asset",
+      "id: qualification-opportunity-scorecard",
+      "width: full",
+      "align: center",
+      ":::",
+      "",
+      "Body",
+    ].join("\n");
+    const blocks = parseRichBlocks(md);
+    const assetBlock = blocks.find((b) => b.type === "asset");
+    expect(assetBlock && assetBlock.type === "asset" && assetBlock.reference).toMatchObject({
+      id: "qualification-opportunity-scorecard",
+      width: "full",
+      align: "center",
+    });
+  });
+
+  it("treats root-relative svg assets as inline images", () => {
+    expect(
+      isInlineImageAsset(asset({ asset_type: "diagram", mime_type: "image/svg+xml" }))
+    ).toBe(true);
   });
 });
