@@ -31,12 +31,13 @@ import {
   useSubmitAttempt,
 } from "@/hooks/useAcademyCertification";
 import {
-  CLASSIFICATION_BUCKETS,
   categoryLabel,
+  certClassificationBuckets,
   formatCountdown,
   isAnswerComplete,
   type CertExamQuestion,
 } from "@/lib/academy-certification";
+
 
 /** One-question-at-a-time, server-timed certification runner. */
 export default function AcademyCertificationExam() {
