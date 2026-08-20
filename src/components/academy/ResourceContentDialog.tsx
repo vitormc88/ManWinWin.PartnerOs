@@ -36,8 +36,9 @@ export function ResourceContentDialog({
           </Button>
         </div>
         <div className="academy-prose">
-          <MissionContent markdown={resource.content ?? ""} readOnlyChecklist />
+          <MissionContent markdown={resource.content ?? ""} readOnlyChecklist hideLeadingH1 />
         </div>
+
       </DialogContent>
     </Dialog>
   );
