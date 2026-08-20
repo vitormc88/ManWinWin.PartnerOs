@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Download, ExternalLink, FileText, FileSpreadsheet, FileType, ListChecks, Play, Link2, Loader2 } from "lucide-react";
+import { BookOpen, Download, ExternalLink, FileText, FileSpreadsheet, FileType, ListChecks, Play, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { signFileUrl } from "@/lib/storage-url";
+import { ResourceContentDialog } from "@/components/academy/ResourceContentDialog";
+import { resourceAction } from "@/lib/academy-resources";
 import {
   ACADEMY_STORAGE_BUCKET,
   isSafeExternalUrl,
@@ -23,6 +25,7 @@ const ICONS: Record<string, typeof FileText> = {
 
 export function ResourceList({ resources }: { resources: AcademyResource[] }) {
   const [pending, setPending] = useState<string | null>(null);
+  const [reading, setReading] = useState<AcademyResource | null>(null);
   const visible = resources.filter((r) => r.status === "published");
   if (visible.length === 0) return null;
 
@@ -52,8 +55,7 @@ export function ResourceList({ resources }: { resources: AcademyResource[] }) {
         {visible.map((r) => {
           const type = (r.resource_type ?? "").toLowerCase();
           const Icon = ICONS[type] ?? FileText;
-          const externalUrl = isSafeExternalUrl(r.external_url) ? r.external_url! : null;
-          const hasFile = !!r.file_path;
+          const action = resourceAction(r);
           const isVideo = type === "video";
           const busy = pending === r.id;
           return (
@@ -66,15 +68,15 @@ export function ResourceList({ resources }: { resources: AcademyResource[] }) {
                   {r.version && <Badge variant="outline" className="text-[10px]">v{r.version}</Badge>}
                 </div>
                 {r.description && <p className="text-xs text-muted-foreground">{r.description}</p>}
-                {isVideo && !externalUrl ? (
+                {isVideo && action.mode !== "external" ? (
                   <p className="text-xs text-muted-foreground italic">Video playback coming soon</p>
-                ) : externalUrl ? (
+                ) : action.mode === "external" ? (
                   <Button variant="outline" size="sm" className="h-7 mt-1" asChild>
-                    <a href={externalUrl} target="_blank" rel="noreferrer noopener">
-                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />Open
+                    <a href={action.href} target="_blank" rel="noreferrer noopener">
+                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" />{action.label}
                     </a>
                   </Button>
-                ) : hasFile ? (
+                ) : action.mode === "file" ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -84,11 +86,15 @@ export function ResourceList({ resources }: { resources: AcademyResource[] }) {
                   >
                     {busy ? (
                       <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Preparing…</>
-                    ) : r.is_downloadable ? (
-                      <><Download className="h-3.5 w-3.5 mr-1.5" />Download</>
+                    ) : action.download ? (
+                      <><Download className="h-3.5 w-3.5 mr-1.5" />{action.label}</>
                     ) : (
-                      <><ExternalLink className="h-3.5 w-3.5 mr-1.5" />Open</>
+                      <><ExternalLink className="h-3.5 w-3.5 mr-1.5" />{action.label}</>
                     )}
+                  </Button>
+                ) : action.mode === "content" ? (
+                  <Button variant="outline" size="sm" className="h-7 mt-1" onClick={() => setReading(r)}>
+                    <BookOpen className="h-3.5 w-3.5 mr-1.5" />{action.label}
                   </Button>
                 ) : (
                   <p className="text-xs text-muted-foreground italic">Not available yet</p>
@@ -98,6 +104,11 @@ export function ResourceList({ resources }: { resources: AcademyResource[] }) {
           );
         })}
       </div>
+      <ResourceContentDialog
+        resource={reading}
+        open={!!reading}
+        onOpenChange={(o) => !o && setReading(null)}
+      />
     </div>
   );
 }

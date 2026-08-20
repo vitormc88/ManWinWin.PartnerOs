@@ -283,7 +283,7 @@ BEGIN
            'user_id', c.user_id,
            'learner_name', coalesce(p.full_name, 'Academy learner'),
            'partner_id', p.partner_id,
-           'partner_name', pa.commercial_name,
+           'partner_name', pa.company_name,
            'module_id', c.module_id,
            'module_title', m.title,
            'module_slug', m.slug,
@@ -319,7 +319,7 @@ AS $$
 DECLARE _uid uuid := auth.uid(); _admin boolean; _mine uuid; _rows jsonb;
 BEGIN
   IF _uid IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
-  _admin := public.is_academy_admin() OR public.is_hq_user();
+  _admin := public.is_academy_admin() OR public.is_hq_user(_uid);
   _mine  := public.get_user_partner_id(_uid);
 
   IF NOT _admin THEN
@@ -337,7 +337,7 @@ BEGIN
            'learner_name', coalesce(p.full_name, 'Academy learner'),
            'learner_email', CASE WHEN _admin THEN p.email ELSE NULL END,
            'partner_id', p.partner_id,
-           'partner_name', pa.commercial_name,
+           'partner_name', pa.company_name,
            'module_id', c.module_id,
            'module_title', m.title,
            'module_slug', m.slug,

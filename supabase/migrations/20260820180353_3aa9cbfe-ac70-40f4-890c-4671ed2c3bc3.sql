@@ -87,46 +87,40 @@ BEGIN
    WHERE module_id = _mod AND content_markdown LIKE '%See you in the next module!%';
 
   -- 4) Publish the Qualification Checklist resource in place --------------
-  SELECT id INTO _res FROM public.academy_resources
-   WHERE id = '81ca8468-8a80-41fb-abde-da40507bf4ff'::uuid;
-
-  IF _res IS NULL THEN
-    SELECT id INTO _res FROM public.academy_resources
-     WHERE module_id = _mod AND resource_type = 'checklist'
-     ORDER BY sort_order, created_at
-     LIMIT 1;
-  END IF;
-
+  -- The resource must already exist and belong to the resolved Module 5.
+  -- No fallback insert: a missing or mis-parented row is a data defect that
+  -- must fail loudly rather than silently create a duplicate checklist.
   SELECT count(*) INTO _n FROM public.academy_resources
    WHERE module_id = _mod AND resource_type = 'checklist';
-  IF _n > 1 THEN
-    RAISE EXCEPTION 'Expected at most one checklist resource for Module 5, found %', _n;
+  IF _n <> 1 THEN
+    RAISE EXCEPTION 'Expected exactly one checklist resource for Module 5, found %', _n;
+  END IF;
+
+  SELECT id INTO _res FROM public.academy_resources
+   WHERE id = '81ca8468-8a80-41fb-abde-da40507bf4ff'::uuid
+     AND module_id = _mod;
+  IF _res IS NULL THEN
+    RAISE EXCEPTION
+      'Checklist resource 81ca8468-8a80-41fb-abde-da40507bf4ff is missing or does not belong to Module 5 (%)', _mod;
   END IF;
 
   SELECT content_markdown INTO _lesson FROM public.academy_missions
    WHERE module_id = _mod AND slug = 'qualification-checklist';
 
-  IF _res IS NULL THEN
-    INSERT INTO public.academy_resources
-      (module_id, title, description, resource_type, status, version, content, is_downloadable, sort_order)
-    VALUES
-      (_mod, 'Qualification Checklist',
-       'Field checklist to run before committing time to an opportunity - TIMD coverage, T-FORM completeness and the explicit qualification decision.',
-       'checklist', 'published', '1.0', coalesce(_lesson, ''), true, 1);
-  ELSE
-    UPDATE public.academy_resources
-       SET title = 'Qualification Checklist',
-           description = 'Field checklist to run before committing time to an opportunity - TIMD coverage, T-FORM completeness and the explicit qualification decision.',
-           resource_type = 'checklist',
-           status = 'published',
-           version = coalesce(nullif(version, ''), '1.0'),
-           content = CASE
-             WHEN coalesce(content, '') = '' OR content ILIKE '%placeholder%'
-               THEN coalesce(nullif(_lesson, ''), content)
-             ELSE content
-           END,
-           is_downloadable = true,
-           module_id = _mod
-     WHERE id = _res;
-  END IF;
+  UPDATE public.academy_resources
+     SET title = 'Qualification Checklist',
+         description = 'Field checklist to run before committing time to an opportunity - TIMD coverage, T-FORM completeness and the explicit qualification decision.',
+         resource_type = 'checklist',
+         status = 'published',
+         version = coalesce(nullif(version, ''), '1.0'),
+         content = CASE
+           WHEN coalesce(content, '') = '' OR content ILIKE '%placeholder%'
+             THEN coalesce(nullif(_lesson, ''), content)
+           ELSE content
+         END,
+         -- Content-only resource: there is no stored file or external URL, so
+         -- it is read and printed in-app, never offered as a file download.
+         is_downloadable = false,
+         module_id = _mod
+   WHERE id = _res;
 END $$;
