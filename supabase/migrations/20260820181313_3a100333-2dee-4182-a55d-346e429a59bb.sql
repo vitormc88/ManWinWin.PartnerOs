@@ -48,7 +48,7 @@ AS $$
 DECLARE _uid uuid := auth.uid(); _admin boolean; _mine uuid; _rows jsonb;
 BEGIN
   IF _uid IS NULL THEN RAISE EXCEPTION 'Not authenticated'; END IF;
-  _admin := public.is_academy_admin() OR public.is_hq_user();
+  _admin := public.is_academy_admin() OR public.is_hq_user(_uid);
   _mine  := public.get_user_partner_id(_uid);
 
   IF NOT _admin THEN
