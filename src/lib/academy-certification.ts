@@ -6,6 +6,13 @@
  * interprets what the server returns.
  */
 
+import {
+  FALLBACK_CLASSIFICATION_BUCKETS,
+  classificationBucketsFor,
+} from "@/lib/academy-answers";
+
+
+
 export const CERT_PASS_SCORE = 80;
 export const CERT_SCENARIO_PASS_SCORE = 60;
 export const CERT_QUESTION_COUNT = 20;
