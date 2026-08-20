@@ -91,6 +91,9 @@ export interface CertExamQuestion {
   classification_labels?: string[] | null;
   answered: boolean;
   selected_answer: unknown;
+}
+
+
 
 
 export interface CertAttemptState {
