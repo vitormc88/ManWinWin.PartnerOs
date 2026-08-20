@@ -16,7 +16,7 @@ import {
   useMyMissionProgress,
 } from "@/hooks/useAcademy";
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
-import { accessRowFor, isItemUnlocked } from "@/lib/academy-access";
+import { isItemUnlocked } from "@/lib/academy-access";
 import {
   actionLabel,
   countableMissions,
@@ -129,7 +129,6 @@ export default function AcademyModule() {
         {ordered.map((m) => {
           const done = completedIds.has(m.id);
           const unlocked = isItemUnlocked(access, m.id);
-          void accessRowFor;
 
           const row = (
             <div className="flex items-center gap-3 p-4">
