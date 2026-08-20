@@ -4,6 +4,8 @@ import { useClients, useCreateClient } from "@/hooks/useClients";
 import { useDeals } from "@/hooks/useDeals";
 import { useRenewals } from "@/hooks/useDeals";
 import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
+import { useManagedCertificates } from "@/hooks/useAcademyCertificates";
+import { certificateStatusLabel, certificatesForPartner, formatCertificateDate, isCertificateValid, moduleVersionLabel } from "@/lib/academy-certificates";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { usePartnerNotes, useAddPartnerNote, useDeletePartnerNote } from "@/hooks/usePartnerNotes";
 import { RelationshipEntryDialog } from "@/components/partners/RelationshipEntryDialog";
@@ -65,6 +67,8 @@ export default function PartnerDetail() {
   const updatePartner = useUpdatePartner();
   const archivePartner = useArchivePartner();
   const createClient = useCreateClient();
+  const { data: academyCertsAll = [] } = useManagedCertificates(id);
+  const academyCerts = certificatesForPartner(academyCertsAll, id);
   const { data: certs = [], refetch: refetchCerts } = useQuery({
     queryKey: ["partner_certs", id],
     queryFn: async () => {
