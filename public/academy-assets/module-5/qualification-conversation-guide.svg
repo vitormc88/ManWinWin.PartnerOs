@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="100%" role="img" aria-labelledby="qualification-conversation-guide-title qualification-conversation-guide-desc" preserveAspectRatio="xMidYMid meet">
+  <title id="qualification-conversation-guide-title">Qualification conversation guide</title>
+  <desc id="qualification-conversation-guide-desc">A five-step conversation loop: open question, probe, evidence, confirm, next step.</desc>
+  <rect x="0" y="0" width="960" height="470" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="960" height="6" fill="#E30613"/>
+  <text x="40" y="62" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="27" font-weight="bold" fill="#132238" text-anchor="start">Qualification Conversation Guide</text>
+  <text x="40" y="90" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" fill="#6B7684" text-anchor="start">One disciplined loop that turns a conversation into qualified evidence.</text>
+  <rect x="40" y="130" width="164" height="196" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <circle cx="70" cy="164" r="16" fill="#E30613"/>
+  <text x="70" y="170" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#FFFFFF" text-anchor="middle">1</text>
+  <text x="56" y="214" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Open question</text>
+  <text x="56" y="260" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Invite the customer</text>
+  <text x="56" y="277" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">to describe the</text>
+  <text x="56" y="294" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">situation in their</text>
+  <text x="56" y="311" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">own words.</text>
+  <path d="M208 228 L220 228 M214 222 L220 228 L214 234" fill="none" stroke="#132238" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="224" y="130" width="164" height="196" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <circle cx="254" cy="164" r="16" fill="#E30613"/>
+  <text x="254" y="170" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#FFFFFF" text-anchor="middle">2</text>
+  <text x="240" y="214" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Probe</text>
+  <text x="240" y="260" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Ask why, since when,</text>
+  <text x="240" y="277" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">how often — turn a</text>
+  <text x="240" y="294" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">statement into</text>
+  <text x="240" y="311" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">detail.</text>
+  <path d="M392 228 L404 228 M398 222 L404 228 L398 234" fill="none" stroke="#132238" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="408" y="130" width="164" height="196" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <circle cx="438" cy="164" r="16" fill="#E30613"/>
+  <text x="438" y="170" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#FFFFFF" text-anchor="middle">3</text>
+  <text x="424" y="214" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Evidence</text>
+  <text x="424" y="260" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Request the fact: a</text>
+  <text x="424" y="277" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">number, a document, a</text>
+  <text x="424" y="294" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">name, a date.</text>
+  <path d="M576 228 L588 228 M582 222 L588 228 L582 234" fill="none" stroke="#132238" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="592" y="130" width="164" height="196" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <circle cx="622" cy="164" r="16" fill="#E30613"/>
+  <text x="622" y="170" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#FFFFFF" text-anchor="middle">4</text>
+  <text x="608" y="214" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Confirm</text>
+  <text x="608" y="260" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Repeat what you</text>
+  <text x="608" y="277" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">understood and let</text>
+  <text x="608" y="294" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">the customer correct</text>
+  <text x="608" y="311" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">you.</text>
+  <path d="M760 228 L772 228 M766 222 L772 228 L766 234" fill="none" stroke="#132238" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="776" y="130" width="164" height="196" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <circle cx="806" cy="164" r="16" fill="#E30613"/>
+  <text x="806" y="170" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="bold" fill="#FFFFFF" text-anchor="middle">5</text>
+  <text x="792" y="214" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Next step</text>
+  <text x="792" y="260" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Agree a dated action</text>
+  <text x="792" y="277" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">owned by both sides</text>
+  <text x="792" y="294" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">before the call ends.</text>
+  <rect x="40" y="356" width="880" height="72" rx="10" fill="#FFF3F4" stroke="#F4B9BE" stroke-width="1.5"/>
+  <text x="64" y="386" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#132238" text-anchor="start">Never leave a step empty</text>
+  <text x="64" y="410" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">If you cannot record the evidence or the next step, the conversation did not qualify anything yet.</text>
+</svg>

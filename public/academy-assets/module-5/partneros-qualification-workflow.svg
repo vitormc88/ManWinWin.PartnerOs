@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" width="100%" role="img" aria-labelledby="partneros-qualification-workflow-title partneros-qualification-workflow-desc" preserveAspectRatio="xMidYMid meet">
+  <title id="partneros-qualification-workflow-title">PartnerOS qualification workflow</title>
+  <desc id="partneros-qualification-workflow-desc">Six-step workflow: capture notes, update TIMD, complete the T-FORM, decide the status, create the next task and maintain the forecast.</desc>
+  <rect x="0" y="0" width="960" height="520" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="960" height="6" fill="#E30613"/>
+  <text x="40" y="62" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="27" font-weight="bold" fill="#132238" text-anchor="start">Executing Qualification in PartnerOS</text>
+  <text x="40" y="90" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" fill="#6B7684" text-anchor="start">The operational loop that keeps qualification visible and auditable.</text>
+  <rect x="40" y="124" width="264" height="148" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="40" y="124" width="264" height="5" rx="2.5" fill="#E30613"/>
+  <circle cx="72" cy="168" r="15" fill="#132238"/>
+  <text x="72" y="174" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">1</text>
+  <text x="98" y="174" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Capture notes</text>
+  <text x="60" y="220" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Log the conversation on the lead</text>
+  <text x="60" y="237" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">or opportunity while it is fresh.</text>
+  <path d="M308 198 L328 198 M321 192 L328 198 L321 204" fill="none" stroke="#132238" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="336" y="124" width="264" height="148" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="336" y="124" width="264" height="5" rx="2.5" fill="#E30613"/>
+  <circle cx="368" cy="168" r="15" fill="#132238"/>
+  <text x="368" y="174" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">2</text>
+  <text x="394" y="174" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Update TIMD</text>
+  <text x="356" y="220" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Record Timing, Interest, Money and</text>
+  <text x="356" y="237" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Decision-making evidence.</text>
+  <path d="M604 198 L624 198 M617 192 L624 198 L617 204" fill="none" stroke="#132238" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="632" y="124" width="264" height="148" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="632" y="124" width="264" height="5" rx="2.5" fill="#E30613"/>
+  <circle cx="664" cy="168" r="15" fill="#132238"/>
+  <text x="664" y="174" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">3</text>
+  <text x="690" y="174" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Complete T-FORM</text>
+  <text x="652" y="220" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Fill the Technical, Financial,</text>
+  <text x="652" y="237" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Operational and Relationship view.</text>
+  <rect x="40" y="296" width="264" height="148" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="40" y="296" width="264" height="5" rx="2.5" fill="#E30613"/>
+  <circle cx="72" cy="340" r="15" fill="#132238"/>
+  <text x="72" y="346" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">4</text>
+  <text x="98" y="346" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Decide status</text>
+  <text x="60" y="392" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Qualify, nurture or disqualify —</text>
+  <text x="60" y="409" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">never leave it undecided.</text>
+  <path d="M308 370 L328 370 M321 364 L328 370 L321 376" fill="none" stroke="#132238" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="336" y="296" width="264" height="148" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="336" y="296" width="264" height="5" rx="2.5" fill="#E30613"/>
+  <circle cx="368" cy="340" r="15" fill="#132238"/>
+  <text x="368" y="346" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">5</text>
+  <text x="394" y="346" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Create next task</text>
+  <text x="356" y="392" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Assign a dated action with a clear</text>
+  <text x="356" y="409" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">owner.</text>
+  <path d="M604 370 L624 370 M617 364 L624 370 L617 376" fill="none" stroke="#132238" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="632" y="296" width="264" height="148" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="632" y="296" width="264" height="5" rx="2.5" fill="#E30613"/>
+  <circle cx="664" cy="340" r="15" fill="#132238"/>
+  <text x="664" y="346" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#FFFFFF" text-anchor="middle">6</text>
+  <text x="690" y="346" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="16" font-weight="bold" fill="#132238" text-anchor="start">Maintain forecast</text>
+  <text x="652" y="392" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Keep value, stage and dates honest</text>
+  <text x="652" y="409" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">so the pipeline stays trustworthy.</text>
+  <text x="40" y="484" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#6B7684" text-anchor="start">Qualification is not a one-off form: revisit TIMD and T-FORM every time new evidence appears.</text>
+</svg>

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" width="100%" role="img" aria-labelledby="t-form-canvas-title t-form-canvas-desc" preserveAspectRatio="xMidYMid meet">
+  <title id="t-form-canvas-title">T-FORM qualification canvas</title>
+  <desc id="t-form-canvas-desc">Four-quadrant canvas covering Technical, Financial, Operational and Relationship dimensions, each with three qualification prompts.</desc>
+  <rect x="0" y="0" width="960" height="620" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="960" height="6" fill="#E30613"/>
+  <text x="40" y="62" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="27" font-weight="bold" fill="#132238" text-anchor="start">The T-FORM Qualification Canvas</text>
+  <text x="40" y="90" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" fill="#6B7684" text-anchor="start">Four dimensions to complete before you commit effort to an opportunity.</text>
+  <rect x="40" y="120" width="428" height="212" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="40" y="120" width="428" height="44" rx="10" fill="#132238"/>
+  <rect x="40" y="150" width="428" height="14" fill="#132238"/>
+  <text x="60" y="149" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF" text-anchor="start">Technical</text>
+  <circle cx="68" cy="195" r="4" fill="#E30613"/>
+  <text x="84" y="200" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Assets, sites and equipment volume</text>
+  <circle cx="68" cy="239" r="4" fill="#E30613"/>
+  <text x="84" y="244" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Current system or spreadsheets in use</text>
+  <circle cx="68" cy="283" r="4" fill="#E30613"/>
+  <text x="84" y="288" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Integrations and data to migrate</text>
+  <rect x="492" y="120" width="428" height="212" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="492" y="120" width="428" height="44" rx="10" fill="#132238"/>
+  <rect x="492" y="150" width="428" height="14" fill="#132238"/>
+  <text x="512" y="149" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF" text-anchor="start">Financial</text>
+  <circle cx="520" cy="195" r="4" fill="#E30613"/>
+  <text x="536" y="200" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Budget owner and approval route</text>
+  <circle cx="520" cy="239" r="4" fill="#E30613"/>
+  <text x="536" y="244" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Order of magnitude already discussed</text>
+  <circle cx="520" cy="283" r="4" fill="#E30613"/>
+  <text x="536" y="288" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Cost of doing nothing</text>
+  <rect x="40" y="352" width="428" height="212" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="40" y="352" width="428" height="44" rx="10" fill="#132238"/>
+  <rect x="40" y="382" width="428" height="14" fill="#132238"/>
+  <text x="60" y="381" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF" text-anchor="start">Operational</text>
+  <circle cx="68" cy="427" r="4" fill="#E30613"/>
+  <text x="84" y="432" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Teams and users affected</text>
+  <circle cx="68" cy="471" r="4" fill="#E30613"/>
+  <text x="84" y="476" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Maintenance processes in place today</text>
+  <circle cx="68" cy="515" r="4" fill="#E30613"/>
+  <text x="84" y="520" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Who runs the project internally</text>
+  <rect x="492" y="352" width="428" height="212" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="492" y="352" width="428" height="44" rx="10" fill="#132238"/>
+  <rect x="492" y="382" width="428" height="14" fill="#132238"/>
+  <text x="512" y="381" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF" text-anchor="start">Relationship</text>
+  <circle cx="520" cy="427" r="4" fill="#E30613"/>
+  <text x="536" y="432" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Quality of access to the business</text>
+  <circle cx="520" cy="471" r="4" fill="#E30613"/>
+  <text x="536" y="476" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Level of trust and responsiveness</text>
+  <circle cx="520" cy="515" r="4" fill="#E30613"/>
+  <text x="536" y="520" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Champion and detractors identified</text>
+  <text x="40" y="604" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#6B7684" text-anchor="start">A quadrant with no evidence is a gap, not a detail. Close it before forecasting.</text>
+</svg>

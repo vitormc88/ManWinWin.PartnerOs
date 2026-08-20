@@ -15,7 +15,13 @@ interface Props {
   checklistState?: ChecklistState;
   onToggleChecklistItem?: (itemId: string, checked: boolean) => void;
   readOnlyChecklist?: boolean;
+  /**
+   * Drops a leading `# Title` when the surrounding shell already renders the
+   * title, so the document keeps a single top-level heading.
+   */
+  hideLeadingH1?: boolean;
 }
+
 
 /** Inline markdown: bold, italic, inline code and links. */
 function Inline({ text }: { text: string }) {
@@ -78,12 +84,18 @@ export function MissionContent({
   checklistState,
   onToggleChecklistItem,
   readOnlyChecklist,
+  hideLeadingH1,
 }: Props) {
-  const blocks = parseRichBlocks(markdown);
+  const parsed = parseRichBlocks(markdown);
+  const blocks =
+    hideLeadingH1 && parsed[0]?.type === "heading" && parsed[0].level === 1
+      ? parsed.slice(1)
+      : parsed;
 
   if (blocks.length === 0) {
     return <p className="text-sm text-muted-foreground">No content yet for this item.</p>;
   }
+
 
   // Stable, de-duplicated heading ids — must match `headingToc()`.
   const seen = new Map<string, number>();
