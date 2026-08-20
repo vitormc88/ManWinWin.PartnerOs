@@ -32,6 +32,9 @@ import AcademyAnalytics from "@/pages/academy/AcademyAnalytics";
 import AcademyCertificationExam from "@/pages/academy/AcademyCertificationExam";
 import AcademyCertificationResult from "@/pages/academy/AcademyCertificationResult";
 import Certifications from "@/pages/Certifications";
+import CertificateDetail from "@/pages/CertificateDetail";
+import CertificateVerify from "@/pages/CertificateVerify";
+
 import PartnerTiers from "@/pages/PartnerTiers";
 import PartnerPerformance from "@/pages/PartnerPerformance";
 import KnowledgeBase from "@/pages/KnowledgeBase";
