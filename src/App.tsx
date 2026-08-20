@@ -73,6 +73,9 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* Public certificate verification — minimized payload only */}
+            <Route path="/verify/:reference" element={<CertificateVerify />} />
+
             <Route element={<AuthScopeBoundary><ProtectedRoute><AppLayout /></ProtectedRoute></AuthScopeBoundary>}>
 
               <Route path="/" element={<Dashboard />} />
