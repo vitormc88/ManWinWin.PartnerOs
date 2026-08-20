@@ -442,6 +442,80 @@ export type Database = {
           },
         ]
       }
+      academy_attempt_snapshots: {
+        Row: {
+          attempt_id: string
+          category: string
+          correct_answer_json: Json
+          created_at: string
+          difficulty: string
+          explanation: string | null
+          mission_id: string | null
+          mission_title: string | null
+          module_id: string
+          module_version: number
+          options_json: Json
+          position: number
+          question_code: string
+          question_id: string
+          question_text: string
+          question_type: string
+          question_version: number
+          scenario_text: string | null
+          weight: number
+        }
+        Insert: {
+          attempt_id: string
+          category: string
+          correct_answer_json?: Json
+          created_at?: string
+          difficulty: string
+          explanation?: string | null
+          mission_id?: string | null
+          mission_title?: string | null
+          module_id: string
+          module_version?: number
+          options_json?: Json
+          position: number
+          question_code: string
+          question_id: string
+          question_text: string
+          question_type: string
+          question_version?: number
+          scenario_text?: string | null
+          weight?: number
+        }
+        Update: {
+          attempt_id?: string
+          category?: string
+          correct_answer_json?: Json
+          created_at?: string
+          difficulty?: string
+          explanation?: string | null
+          mission_id?: string | null
+          mission_title?: string | null
+          module_id?: string
+          module_version?: number
+          options_json?: Json
+          position?: number
+          question_code?: string
+          question_id?: string
+          question_text?: string
+          question_type?: string
+          question_version?: number
+          scenario_text?: string | null
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_attempt_snapshots_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "academy_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academy_attempts: {
         Row: {
           attempt_number: number
@@ -5730,6 +5804,7 @@ export type Database = {
             }
             Returns: boolean
           }
+      academy_attempt_audit: { Args: { _attempt_id: string }; Returns: Json }
       academy_cert_answer: {
         Args: { _answer: Json; _attempt_id: string; _question_id: string }
         Returns: undefined
@@ -5762,17 +5837,27 @@ export type Database = {
         }
         Returns: Json
       }
+      academy_item_access: { Args: { _module_id: string }; Returns: Json }
+      academy_managed_certificates: {
+        Args: { _partner_id?: string }
+        Returns: Json
+      }
       academy_module_progress_pct: {
         Args: { _module_id: string; _user_id: string }
         Returns: number
       }
       academy_my_analytics_perms: { Args: never; Returns: Json }
+      academy_my_certificates: { Args: never; Returns: Json }
       academy_resolve_option: {
         Args: { _options: Json; _value: Json }
         Returns: string
       }
       academy_set_checklist_state: {
         Args: { _mission_id: string; _state: Json }
+        Returns: undefined
+      }
+      academy_snapshot_attempt: {
+        Args: { _attempt_id: string }
         Returns: undefined
       }
       academy_swap_sort_order: {
@@ -5787,6 +5872,10 @@ export type Database = {
           _patch: Json
         }
         Returns: string
+      }
+      academy_verify_certificate: {
+        Args: { _reference: string }
+        Returns: Json
       }
       academy_visible_learners: {
         Args: never
