@@ -15,7 +15,13 @@ interface Props {
   checklistState?: ChecklistState;
   onToggleChecklistItem?: (itemId: string, checked: boolean) => void;
   readOnlyChecklist?: boolean;
+  /**
+   * Drops a leading `# Title` when the surrounding shell already renders the
+   * title, so the document keeps a single top-level heading.
+   */
+  hideLeadingH1?: boolean;
 }
+
 
 /** Inline markdown: bold, italic, inline code and links. */
 function Inline({ text }: { text: string }) {
