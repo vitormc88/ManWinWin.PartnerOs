@@ -41,19 +41,23 @@ function AssetFigure({ asset, reference }: { asset: AcademyAsset; reference: Ass
   const url = useAssetUrl(asset);
   const caption = reference.caption ?? asset.caption ?? null;
   const wrapper = `${ASSET_WIDTH_CLASS[reference.width]} ${ASSET_ALIGN_CLASS[reference.align]}`;
+  // Above-the-fold visuals (module heroes) may opt out of lazy loading.
+  const eager = (reference.params.loading ?? "").toLowerCase() === "eager";
 
   return (
-    <figure className={`my-6 ${wrapper}`}>
+    <figure className={`my-6 max-w-full ${wrapper}`}>
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
         {isInlineImageAsset(asset) ? (
           url ? (
             <img
               src={url}
               alt={asset.alt_text || asset.title}
-              loading="lazy"
-              decoding="async"
-              className="w-full h-auto object-contain bg-background"
+              role="img"
+              loading={eager ? "eager" : "lazy"}
+              decoding={eager ? "sync" : "async"}
+              className="w-full h-auto max-w-full object-contain bg-background"
             />
+
           ) : (
             <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
               <ImageOff className="h-4 w-4" />
