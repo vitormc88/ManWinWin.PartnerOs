@@ -291,6 +291,15 @@ function QuestionInput({
 
   if (type === "classification") {
     const map = (value ?? {}) as Record<string, string>;
+    const { labels, derived } = certClassificationBuckets(question);
+    if (!derived) {
+      return (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+          This question is not configured correctly — its classification labels are missing. Please
+          report it to an Academy Admin; it cannot be answered.
+        </div>
+      );
+    }
     return (
       <div className="space-y-2">
         <p className="text-xs text-muted-foreground">Classify every item.</p>
@@ -298,11 +307,11 @@ function QuestionInput({
           <div key={o} className="flex items-center justify-between gap-3 rounded-lg border p-3">
             <span className="text-sm text-foreground">{o}</span>
             <Select value={map[o] ?? ""} onValueChange={(v) => onChange({ ...map, [o]: v })}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-56">
                 <SelectValue placeholder="Choose" />
               </SelectTrigger>
               <SelectContent>
-                {CLASSIFICATION_BUCKETS.map((b) => (
+                {labels.map((b) => (
                   <SelectItem key={b} value={b}>
                     {b}
                   </SelectItem>
@@ -314,6 +323,7 @@ function QuestionInput({
       </div>
     );
   }
+
 
   return (
     <RadioGroup value={(value as string) ?? ""} onValueChange={onChange} className="space-y-2">
