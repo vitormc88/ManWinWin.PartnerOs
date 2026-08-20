@@ -7,6 +7,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAcademyMissions, useAcademyModules } from "@/hooks/useAcademy";
+import { validateQuestionConfig } from "@/lib/academy-answers";
+
 import { QuestionImportWizard } from "@/components/academy/QuestionImportWizard";
 import {
   downloadTextFile,
