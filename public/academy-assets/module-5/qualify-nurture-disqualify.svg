@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="100%" role="img" aria-labelledby="qualify-nurture-disqualify-title qualify-nurture-disqualify-desc" preserveAspectRatio="xMidYMid meet">
+  <title id="qualify-nurture-disqualify-title">Qualify, nurture or disqualify outcomes</title>
+  <desc id="qualify-nurture-disqualify-desc">Three qualification outcomes with concise criteria: qualify, nurture and disqualify, each with the action that follows.</desc>
+  <rect x="0" y="0" width="960" height="560" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="960" height="6" fill="#E30613"/>
+  <text x="40" y="62" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="27" font-weight="bold" fill="#132238" text-anchor="start">Qualify, Nurture or Disqualify</text>
+  <text x="40" y="90" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" fill="#6B7684" text-anchor="start">Three legitimate outcomes — an undecided opportunity is the only wrong answer.</text>
+  <rect x="40" y="120" width="280" height="316" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="40" y="120" width="280" height="48" rx="10" fill="#E30613"/>
+  <rect x="40" y="154" width="280" height="14" fill="#E30613"/>
+  <text x="60" y="152" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#FFFFFF" text-anchor="start">QUALIFY</text>
+  <circle cx="66" cy="199" r="4" fill="#E30613"/>
+  <text x="82" y="204" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">Timing, Interest, Money and</text>
+  <text x="82" y="222" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">Decision-making evidenced</text>
+  <circle cx="66" cy="251" r="4" fill="#E30613"/>
+  <text x="82" y="256" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">T-FORM complete with no</text>
+  <text x="82" y="274" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">blocking gap</text>
+  <circle cx="66" cy="303" r="4" fill="#E30613"/>
+  <text x="82" y="308" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">Named next step with a date</text>
+  <line x1="60" y1="370" x2="300" y2="370" stroke="#D7DCE3" stroke-width="1.5"/>
+  <text x="60" y="398" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" fill="#132238" text-anchor="start">Advance in the pipeline and</text>
+  <text x="60" y="416" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" fill="#132238" text-anchor="start">forecast it.</text>
+  <rect x="340" y="120" width="280" height="316" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="340" y="120" width="280" height="48" rx="10" fill="#1F6FB2"/>
+  <rect x="340" y="154" width="280" height="14" fill="#1F6FB2"/>
+  <text x="360" y="152" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#FFFFFF" text-anchor="start">NURTURE</text>
+  <circle cx="366" cy="199" r="4" fill="#1F6FB2"/>
+  <text x="382" y="204" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">Genuine interest but timing or</text>
+  <text x="382" y="222" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">money not yet real</text>
+  <circle cx="366" cy="251" r="4" fill="#1F6FB2"/>
+  <text x="382" y="256" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">Decision-making path still</text>
+  <text x="382" y="274" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">unclear</text>
+  <circle cx="366" cy="303" r="4" fill="#1F6FB2"/>
+  <text x="382" y="308" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">No blocking disqualifier</text>
+  <line x1="360" y1="370" x2="600" y2="370" stroke="#D7DCE3" stroke-width="1.5"/>
+  <text x="360" y="398" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" fill="#132238" text-anchor="start">Park with a dated follow-up and</text>
+  <text x="360" y="416" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" fill="#132238" text-anchor="start">a reason to return.</text>
+  <rect x="640" y="120" width="280" height="316" rx="10" fill="#FFFFFF" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="640" y="120" width="280" height="48" rx="10" fill="#5C6672"/>
+  <rect x="640" y="154" width="280" height="14" fill="#5C6672"/>
+  <text x="660" y="152" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#FFFFFF" text-anchor="start">DISQUALIFY</text>
+  <circle cx="666" cy="199" r="4" fill="#5C6672"/>
+  <text x="682" y="204" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">No maintenance problem worth</text>
+  <text x="682" y="222" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">solving</text>
+  <circle cx="666" cy="251" r="4" fill="#5C6672"/>
+  <text x="682" y="256" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">No budget route and no timing</text>
+  <circle cx="666" cy="285" r="4" fill="#5C6672"/>
+  <text x="682" y="290" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">Unreachable or unwilling</text>
+  <text x="682" y="308" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="normal" fill="#3B4757" text-anchor="start">decision makers</text>
+  <line x1="660" y1="370" x2="900" y2="370" stroke="#D7DCE3" stroke-width="1.5"/>
+  <text x="660" y="398" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" fill="#132238" text-anchor="start">Close it honestly and free the</text>
+  <text x="660" y="416" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13.5" font-weight="bold" fill="#132238" text-anchor="start">capacity.</text>
+  <rect x="40" y="460" width="880" height="68" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <text x="64" y="490" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#3B4757" text-anchor="start">Decide on evidence, record the decision, and always leave a dated next action in PartnerOS.</text>
+</svg>

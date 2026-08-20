@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" width="100%" role="img" aria-labelledby="qualification-opportunity-scorecard-title qualification-opportunity-scorecard-desc" preserveAspectRatio="xMidYMid meet">
+  <title id="qualification-opportunity-scorecard-title">Qualification opportunity scorecard</title>
+  <desc id="qualification-opportunity-scorecard-desc">Six evidence signals — real maintenance pain, named decision-making path, real money, anchored timing, fit with ManWinWin and access to the business — scored on evidence rather than assumptions.</desc>
+  <rect x="0" y="0" width="960" height="640" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="960" height="6" fill="#E30613"/>
+  <text x="40" y="62" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="27" font-weight="bold" fill="#132238" text-anchor="start">Qualification Opportunity Scorecard</text>
+  <text x="40" y="90" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="15" font-weight="normal" fill="#6B7684" text-anchor="start">Six evidence signals that separate a real opportunity from a hopeful one.</text>
+  <rect x="40" y="120" width="264" height="162" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="40" y="120" width="4" height="162" rx="2" fill="#E30613"/>
+  <text x="60" y="152" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#E30613" text-anchor="start">01</text>
+  <text x="60" y="180" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#132238" text-anchor="start">Real maintenance pain</text>
+  <text x="60" y="218" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">A named problem the customer can</text>
+  <text x="60" y="236" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">describe with facts, not a vague</text>
+  <text x="60" y="254" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">interest.</text>
+  <rect x="336" y="120" width="264" height="162" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="336" y="120" width="4" height="162" rx="2" fill="#E30613"/>
+  <text x="356" y="152" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#E30613" text-anchor="start">02</text>
+  <text x="356" y="180" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#132238" text-anchor="start">Named decision-making</text>
+  <text x="356" y="202" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#132238" text-anchor="start">path</text>
+  <text x="356" y="240" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">You know who decides, who</text>
+  <text x="356" y="258" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">influences and how the decision</text>
+  <text x="356" y="276" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">is approved.</text>
+  <rect x="632" y="120" width="264" height="162" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="632" y="120" width="4" height="162" rx="2" fill="#E30613"/>
+  <text x="652" y="152" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#E30613" text-anchor="start">03</text>
+  <text x="652" y="180" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#132238" text-anchor="start">Money is real</text>
+  <text x="652" y="218" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Budget exists or a funding route</text>
+  <text x="652" y="236" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">is identified, with an order of</text>
+  <text x="652" y="254" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">magnitude.</text>
+  <rect x="40" y="298" width="264" height="162" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="40" y="298" width="4" height="162" rx="2" fill="#E30613"/>
+  <text x="60" y="330" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#E30613" text-anchor="start">04</text>
+  <text x="60" y="358" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#132238" text-anchor="start">Timing is anchored</text>
+  <text x="60" y="396" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">A date, event or obligation that</text>
+  <text x="60" y="414" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">makes acting this year</text>
+  <text x="60" y="432" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">necessary.</text>
+  <rect x="336" y="298" width="264" height="162" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="336" y="298" width="4" height="162" rx="2" fill="#E30613"/>
+  <text x="356" y="330" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#E30613" text-anchor="start">05</text>
+  <text x="356" y="358" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#132238" text-anchor="start">Fit with ManWinWin</text>
+  <text x="356" y="396" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Scope, assets and processes</text>
+  <text x="356" y="414" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">match what the product genuinely</text>
+  <text x="356" y="432" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">solves.</text>
+  <rect x="632" y="298" width="264" height="162" rx="10" fill="#F4F6F9" stroke="#D7DCE3" stroke-width="1.5"/>
+  <rect x="632" y="298" width="4" height="162" rx="2" fill="#E30613"/>
+  <text x="652" y="330" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="bold" fill="#E30613" text-anchor="start">06</text>
+  <text x="652" y="358" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#132238" text-anchor="start">Access to the business</text>
+  <text x="652" y="396" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">You can reach operations and</text>
+  <text x="652" y="414" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">finance, not only a single</text>
+  <text x="652" y="432" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">contact.</text>
+  <rect x="40" y="492" width="880" height="76" rx="10" fill="#FFF3F4" stroke="#F4B9BE" stroke-width="1.5"/>
+  <text x="64" y="524" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="18" font-weight="bold" fill="#132238" text-anchor="start">Evidence over assumptions</text>
+  <text x="64" y="548" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="13" font-weight="normal" fill="#3B4757" text-anchor="start">Score each signal only with something the customer said, sent or showed. No evidence means the signal is not met.</text>
+  <text x="40" y="604" font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="14" font-weight="normal" fill="#6B7684" text-anchor="start">0-2 signals: disqualify or nurture   ·   3-4 signals: qualify with gaps to close   ·   5-6 signals: qualified opportunity</text>
+</svg>
