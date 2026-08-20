@@ -123,6 +123,19 @@
   .print\:hidden { display: none !important; }
   aside, nav, header, [data-sidebar] { display: none !important; }
   main { padding: 0 !important; }
+  /* Content-only resources (e.g. the Qualification Checklist) print as a
+     plain document: dialog chrome and overlays are dropped. */
+  .print-document {
+    position: static !important;
+    transform: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  [data-radix-popper-content-wrapper] { position: static !important; transform: none !important; }
   .print-certificate {
     box-shadow: none !important;
     border: 2px solid hsl(var(--primary)) !important;
