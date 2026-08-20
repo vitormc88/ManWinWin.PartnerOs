@@ -130,6 +130,8 @@ export interface CertResult {
   next_attempt_at: string | null;
   total_questions: number;
   weak_areas: Array<{ mission_id: string; title: string; slug: string; missed: number }>;
+  /** False for the historical attempts taken before immutable snapshots existed. */
+  has_snapshot?: boolean;
   certification: {
     id: string;
     certificate_reference: string;

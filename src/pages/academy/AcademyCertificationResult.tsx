@@ -30,11 +30,6 @@ export default function AcademyCertificationResult() {
   const r = result.data;
   const passed = r.passed;
   const current = modules.find((m) => m.id === r.module_id);
-  const nextModule = current
-    ? modules
-        .filter((m) => m.status === "published" && m.sort_order > current.sort_order)
-        .sort((a, b) => a.sort_order - b.sort_order)[0]
-    : undefined;
   const weak = weakCategories(r.category_scores);
 
   return (
@@ -59,7 +54,8 @@ export default function AcademyCertificationResult() {
               Certification status: {passed ? "Passed" : "Not Passed"}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Qualification Module Certification · Attempt {r.attempt_number}
+              Passing requires weighted ≥ {CERT_PASS_SCORE}% and Scenario Analysis ≥{" "}
+              {CERT_SCENARIO_PASS_SCORE}% · Attempt {r.attempt_number}
               {r.submitted_at ? ` · ${formatAttemptDateTime(r.submitted_at)}` : ""}
             </p>
           </div>
@@ -96,6 +92,13 @@ export default function AcademyCertificationResult() {
           </div>
         )}
       </div>
+
+      {r.has_snapshot === false && (
+        <p className="text-xs text-muted-foreground">
+          Legacy attempt — recorded before question snapshots existed, so wording and mission mapping
+          are shown from the current question bank.
+        </p>
+      )}
 
       <div className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Performance by category</h2>
@@ -156,9 +159,11 @@ export default function AcademyCertificationResult() {
             </Link>
           </Button>
         )}
-        {passed && nextModule && (
+        {passed && r.certification && (
           <Button asChild>
-            <Link to={`/academy/modules/${nextModule.slug}`}>Continue to Next Module</Link>
+            <Link to={`/certifications/${encodeURIComponent(r.certification.certificate_reference)}`}>
+              View certificate
+            </Link>
           </Button>
         )}
       </div>
