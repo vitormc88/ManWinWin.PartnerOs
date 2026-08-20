@@ -136,6 +136,30 @@
     max-width: 100% !important;
   }
   [data-radix-popper-content-wrapper] { position: static !important; transform: none !important; }
+  /* Checklists must stay legible on paper: Radix renders the box as a button,
+     which browsers strip of background by default. */
+  .print-document [role="checkbox"] {
+    border: 1px solid #333 !important;
+    background: transparent !important;
+    width: 0.9rem !important;
+    height: 0.9rem !important;
+    border-radius: 2px !important;
+    opacity: 1 !important;
+  }
+  .print-document [role="checkbox"][data-state="checked"]::after {
+    content: "\2713";
+    display: block;
+    line-height: 0.85rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #000;
+  }
+  .print-document label { break-inside: avoid; page-break-inside: avoid; }
+  .print-document figure,
+  .print-document table { break-inside: avoid; page-break-inside: avoid; }
+  .print-document h1,
+  .print-document h2,
+  .print-document h3 { break-after: avoid; page-break-after: avoid; }
   .print-certificate {
     box-shadow: none !important;
     border: 2px solid hsl(var(--primary)) !important;
@@ -145,3 +169,4 @@
     page-break-inside: avoid;
   }
 }
+
