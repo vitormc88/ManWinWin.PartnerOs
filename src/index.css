@@ -116,3 +116,19 @@
 .stagger-4 { animation-delay: 240ms; }
 .stagger-5 { animation-delay: 300ms; }
 .stagger-6 { animation-delay: 360ms; }
+
+/* ── Printable certificates (browser Print / Save as PDF) ───────────────── */
+@media print {
+  body { background: hsl(var(--background)); }
+  .print\:hidden { display: none !important; }
+  aside, nav, header, [data-sidebar] { display: none !important; }
+  main { padding: 0 !important; }
+  .print-certificate {
+    box-shadow: none !important;
+    border: 2px solid hsl(var(--primary)) !important;
+    border-radius: 0 !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+}
