@@ -128,7 +128,9 @@ export default function AcademyModule() {
       <div className="bg-card rounded-xl border shadow-sm divide-y">
         {ordered.map((m) => {
           const done = completedIds.has(m.id);
-          const unlocked = isMissionUnlocked(ordered, m, completedIds);
+          const unlocked = isItemUnlocked(access, m.id);
+          void accessRowFor;
+
           const row = (
             <div className="flex items-center gap-3 p-4">
               {!unlocked ? (
