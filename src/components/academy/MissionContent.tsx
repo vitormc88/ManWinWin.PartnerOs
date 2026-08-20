@@ -2,8 +2,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AcademyAssetView } from "./AcademyAssetView";
 import { ContentCallout } from "./ContentCallout";
 import {
+  contentBlocks,
   parseInline,
-  parseRichBlocks,
   slugifyHeading,
   type ChecklistState,
   type RichBlock,
@@ -86,11 +86,7 @@ export function MissionContent({
   readOnlyChecklist,
   hideLeadingH1,
 }: Props) {
-  const parsed = parseRichBlocks(markdown);
-  const blocks =
-    hideLeadingH1 && parsed[0]?.type === "heading" && parsed[0].level === 1
-      ? parsed.slice(1)
-      : parsed;
+  const blocks = contentBlocks(markdown, { hideLeadingH1 });
 
   if (blocks.length === 0) {
     return <p className="text-sm text-muted-foreground">No content yet for this item.</p>;

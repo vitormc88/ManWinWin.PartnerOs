@@ -621,10 +621,31 @@ export interface TocEntry {
   text: string;
 }
 
+/**
+ * Blocks to render for a lesson. When the surrounding shell already prints the
+ * title, the document's leading `# Title` is dropped so the page keeps a single
+ * H1. Both the renderer and `headingToc()` go through here, so anchors and TOC
+ * links can never disagree.
+ */
+export function contentBlocks(
+  markdown: string | null | undefined,
+  options?: { hideLeadingH1?: boolean }
+): RichBlock[] {
+  const blocks = parseRichBlocks(markdown);
+  const first = blocks[0];
+  if (options?.hideLeadingH1 && first?.type === "heading" && first.level === 1) {
+    return blocks.slice(1);
+  }
+  return blocks;
+}
+
 /** Stable, de-duplicated heading ids for the mission body and its TOC. */
-export function headingToc(markdown: string | null | undefined): TocEntry[] {
+export function headingToc(
+  markdown: string | null | undefined,
+  options?: { hideLeadingH1?: boolean }
+): TocEntry[] {
   const seen = new Map<string, number>();
-  return parseRichBlocks(markdown)
+  return contentBlocks(markdown, options)
     .filter((b): b is Extract<RichBlock, { type: "heading" }> => b.type === "heading")
     .map((b) => {
       const base = slugifyHeading(b.text);
@@ -637,6 +658,7 @@ export function headingToc(markdown: string | null | undefined): TocEntry[] {
       };
     });
 }
+
 
 const WORDS_PER_MINUTE = 200;
 
