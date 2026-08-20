@@ -456,6 +456,22 @@ export const questionImportDescriptor: ImportEntityDescriptor<QuestionImportReco
       errors.push({ field: "correct", message: "Missing correct answer." });
     }
 
+    // Shared scoring invariants — the same gate used by the admin editor.
+    if (type && correct !== null) {
+      for (const issue of validateQuestionConfig({
+        question_code: code,
+        question_text: questionText,
+        question_type: type,
+        options,
+        correct_answer: correct,
+        weight,
+        status,
+      })) {
+        errors.push({ field: issue.field, message: issue.message });
+      }
+    }
+
+
     const tags = Array.isArray(raw.tags)
       ? (raw.tags as unknown[]).map((t) => norm(t)).filter(Boolean)
       : norm(raw.tags)
