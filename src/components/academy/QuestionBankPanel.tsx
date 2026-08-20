@@ -156,6 +156,29 @@ export function QuestionBankPanel({ moduleId }: { moduleId?: string }) {
       setJsonError("The correct answer must be valid JSON (string, array, or object).");
       return;
     }
+    const options = draft.optionsText
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    // Scoring invariants: never save an unanswerable question, never publish one.
+    const issues = validateQuestionConfig({
+      question_code: draft.question_code.trim(),
+      question_text: draft.question_text.trim(),
+      question_type: draft.question_type,
+      options,
+      correct_answer: correct,
+      weight: draft.weight,
+      status: draft.status,
+    });
+    if (issues.length) {
+      setJsonError(
+        (draft.status === "published"
+          ? "This question cannot be published — fix the configuration: "
+          : "Invalid question configuration: ") + issues.map((i) => `${i.field}: ${i.message}`).join(" · ")
+      );
+      return;
+    }
     setJsonError(null);
     save.mutate(
       {
@@ -171,15 +194,13 @@ export function QuestionBankPanel({ moduleId }: { moduleId?: string }) {
         status: draft.status,
         is_mandatory: draft.is_mandatory,
         explanation: draft.explanation.trim() || null,
-        options_json: draft.optionsText
-          .split("\n")
-          .map((s) => s.trim())
-          .filter(Boolean),
+        options_json: options,
         correct_answer_json: correct as never,
       },
       { onSuccess: () => setDraft(null) }
     );
   };
+
 
   const doExport = (format: ImportFormat, missionId?: string) => {
     const rows = missionId ? questions.filter((q) => q.mission_id === missionId) : questions;
