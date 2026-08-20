@@ -111,6 +111,8 @@ const App = () => (
               <Route path="/onboarding/*" element={<LegacyOnboardingRedirect />} />
               <Route path="/onboarding" element={<LegacyOnboardingRedirect />} />
               <Route path="/certifications" element={<Certifications />} />
+              <Route path="/certifications/:reference" element={<CertificateDetail />} />
+
               <Route path="/tiers" element={<PartnerTiers />} />
               <Route path="/performance" element={<PartnerPerformance />} />
               <Route path="/analytics" element={<Analytics />} />
