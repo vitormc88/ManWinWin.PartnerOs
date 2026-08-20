@@ -9,6 +9,7 @@
  * Pure functions only — no IO, no Supabase.
  */
 
+import { validateQuestionConfig } from "@/lib/academy-answers";
 import {
   CERT_CATEGORIES,
   CERT_CATEGORY_LABELS,
@@ -18,6 +19,7 @@ import {
   type CertCategory,
   type CertQuestionType,
 } from "@/lib/academy-certification";
+
 
 export type ImportFormat = "json" | "csv";
 export type DuplicateMode = "skip" | "update" | "cancel";
