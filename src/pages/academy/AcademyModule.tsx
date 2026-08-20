@@ -15,16 +15,18 @@ import {
   useAcademyResources,
   useMyMissionProgress,
 } from "@/hooks/useAcademy";
+import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
+import { accessRowFor, isItemUnlocked } from "@/lib/academy-access";
 import {
   actionLabel,
   countableMissions,
   difficultyLabel,
   formatDuration,
   formatUpdatedAt,
-  isMissionUnlocked,
   moduleProgressPct,
   nextMission,
 } from "@/lib/academy";
+
 
 export default function AcademyModule() {
   const { slug } = useParams();
