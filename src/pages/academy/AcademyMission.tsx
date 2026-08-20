@@ -224,13 +224,14 @@ export default function AcademyMission() {
         )}
       </div>
 
-      <MissionToc markdown={mission.content_markdown} />
+      <MissionToc markdown={mission.content_markdown} hideLeadingH1 />
 
       <div className="bg-card rounded-xl border shadow-sm p-5 sm:p-8">
         <MissionContent
           markdown={mission.content_markdown}
           checklistState={checklist}
           onToggleChecklistItem={onToggleChecklistItem}
+          hideLeadingH1
         />
       </div>
 

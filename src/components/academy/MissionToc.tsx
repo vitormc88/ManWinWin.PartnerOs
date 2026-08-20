@@ -5,8 +5,15 @@ import { headingToc } from "@/lib/academy";
  * Table of contents generated from the mission headings.
  * Renders nothing when the content has fewer than two headings.
  */
-export function MissionToc({ markdown }: { markdown: string | null | undefined }) {
-  const entries = headingToc(markdown);
+export function MissionToc({
+  markdown,
+  hideLeadingH1,
+}: {
+  markdown: string | null | undefined;
+  /** Must mirror the renderer, otherwise the TOC links to a removed anchor. */
+  hideLeadingH1?: boolean;
+}) {
+  const entries = headingToc(markdown, { hideLeadingH1 });
   if (entries.length < 2) return null;
 
   const go = (id: string) => {
