@@ -87,9 +87,11 @@ export interface CertExamQuestion {
   question_text: string;
   scenario_text: string | null;
   options: string[];
+  /** Classification questions only: labels derived from the stored answer map. */
+  classification_labels?: string[] | null;
   answered: boolean;
   selected_answer: unknown;
-}
+
 
 export interface CertAttemptState {
   attempt_id: string;
