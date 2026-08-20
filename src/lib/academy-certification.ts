@@ -205,16 +205,28 @@ export function isAnswerComplete(q: CertExamQuestion, answer: unknown): boolean 
       return Array.isArray(answer) && answer.length > 0;
     case "ordering":
       return Array.isArray(answer) && answer.length === q.options.length;
-    case "classification":
+    case "classification": {
+      const buckets = certClassificationBuckets(q).labels;
+      if (buckets.length === 0) return false;
       return (
         typeof answer === "object" &&
         answer !== null &&
-        q.options.every((o) => Boolean((answer as Record<string, string>)[o]))
+        q.options.every((o) => buckets.includes(String((answer as Record<string, string>)[o] ?? "")))
       );
+    }
     default:
       return typeof answer === "string" && answer.length > 0;
   }
 }
 
-/** Buckets offered for classification questions (Module 5 decision vocabulary). */
-export const CLASSIFICATION_BUCKETS = ["Qualify", "Nurture", "Disqualify"] as const;
+/**
+ * Classification buckets for an exam question: always the labels the server
+ * derived from that question's own answer map, never a global vocabulary.
+ */
+export function certClassificationBuckets(q: CertExamQuestion): { labels: string[]; derived: boolean } {
+  return classificationBucketsFor(q.classification_labels ?? null);
+}
+
+/** Legacy fallback vocabulary, used only when a question is misconfigured. */
+export const CLASSIFICATION_BUCKETS = FALLBACK_CLASSIFICATION_BUCKETS;
+
