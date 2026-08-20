@@ -38,6 +38,10 @@ export default function AcademyModule() {
   const { data: missions = [] } = missionsQuery;
   const { data: resources = [] } = useAcademyResources(mod?.id);
   const { data: missionProgress = [] } = useMyMissionProgress();
+  // Server-authoritative sequencing: the list mirrors exactly what the server
+  // would allow, so a locked row can never be opened by URL either.
+  const { data: access } = useAcademyItemAccess(mod?.id);
+
 
   const completedIds = useMemo(
     () => new Set(missionProgress.filter((p) => p.is_completed).map((p) => p.mission_id)),
