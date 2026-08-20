@@ -1,0 +1,151 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { referencedAssetKeys } from "@/lib/academy-assets";
+
+/**
+ * The Module 5 diagrams must sit under the section they explain. Production
+ * proved that "insert only when absent" migrations silently leave a badly
+ * placed diagram where it is, so this suite pins the exact heading anchors and
+ * exercises the move itself on production-shaped lesson bodies.
+ */
+const MIGRATION_FILE = "20260820205051_c638b2ab-502d-4bc0-b809-9af708cc53cf.sql";
+const MIGRATION = readFileSync(
+  resolve(__dirname, "../../../supabase/migrations/", MIGRATION_FILE),
+  "utf8"
+);
+
+/** The single source of truth for where each Module 5 diagram belongs. */
+const PLACEMENTS = [
+  { slug: "mission-3-t-form", key: "m5-t-form-canvas", heading: "# What is the T-FORM?" },
+  {
+    slug: "mission-4-better-questions",
+    key: "m5-qualification-conversation-guide",
+    heading: "# Learn to Dig Deeper",
+  },
+  {
+    slug: "mission-5-decision",
+    key: "m5-qualify-nurture-disqualify",
+    heading: "# The Three Possible Outcomes",
+  },
+  {
+    slug: "mission-6-in-partneros",
+    key: "m5-partneros-qualification-workflow",
+    heading: "# What Should Be Updated?",
+  },
+] as const;
+
+const fence = (key: string) => `:::asset\nid: ${key}\nwidth: full\nalign: center\n:::`;
+
+/** Mirrors the migration: strip the fence anywhere, re-insert under the heading. */
+function movePlacement(markdown: string, key: string, heading: string): string {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let out = markdown.replace(
+    new RegExp(
+      String.raw`^:::asset[ \t]*\n(?:(?!:::)[^\n]*\n)*?id: ${key}[ \t]*\n(?:(?!:::)[^\n]*\n)*?:::[ \t]*(?:\n|$)`,
+      "gm"
+    ),
+    ""
+  );
+  out = out.replace(/\n{3,}/g, "\n\n");
+  out = out.replace(
+    new RegExp(String.raw`^(${escaped}[ \t]*\n)`, "m"),
+    `$1\n${fence(key)}\n\n`
+  );
+  return out.replace(/\n{3,}/g, "\n\n");
+}
+
+/** True when the fence follows the heading with at most one blank line. */
+function anchoredUnder(markdown: string, key: string, heading: string): boolean {
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(
+    String.raw`^${escaped}[ \t]*\n[ \t]*\n?:::asset[ \t]*\nid: ${key}[ \t]*$`,
+    "m"
+  ).test(markdown);
+}
+
+const occurrences = (markdown: string, key: string) =>
+  markdown.split("\n").filter((line) => line.trim() === `id: ${key}`).length;
+
+describe("Module 5 placement migration", () => {
+  it("declares exactly the four intended slug / asset / heading anchors", () => {
+    for (const { slug, key, heading } of PLACEMENTS) {
+      // The exact heading text, not a loose keyword pattern.
+      expect(MIGRATION).toContain(`'${heading}'`);
+      expect(MIGRATION).toMatch(
+        new RegExp(`'${slug}'\\s*,\\s*'${key}'\\s*,\\s*'${heading.replace(/[?]/g, "\\?")}'`)
+      );
+    }
+    const rows = MIGRATION.match(/'mission-[^']+',\s*'m5-[^']+',\s*'#[^']+'/g) ?? [];
+    expect(rows).toHaveLength(PLACEMENTS.length);
+  });
+
+  it("removes before re-inserting, instead of only inserting when absent", () => {
+    expect(MIGRATION).toContain("^:::asset\\s*\\n(?:(?!:::)[^\\n]*\\n)*?id: ' || v_row.asset_key");
+    expect(MIGRATION).toContain("Asset % must appear exactly once in %");
+    expect(MIGRATION).toContain("Asset % is not immediately after");
+    expect(MIGRATION).toContain("Mission 5 decision tree is no longer at the top");
+    // Version bumps only on a real content change.
+    expect(MIGRATION).toContain("IF v_new IS DISTINCT FROM v_md THEN");
+  });
+
+  it("refuses to guess when a heading is ambiguous", () => {
+    expect(MIGRATION).toContain("refusing to guess placement");
+    expect(MIGRATION).toContain("Module 5 (Qualification) must resolve to exactly one row");
+    expect(MIGRATION).toContain("Module 5 mission % is missing");
+  });
+});
+
+describe("placement transform on production-shaped lessons", () => {
+  it("moves a diagram from the lesson opening down to its section", () => {
+    const { key, heading } = PLACEMENTS[0];
+    const before = `## Mission 3 — Using the T-FORM\n\n${fence(key)}\n\nIntro paragraph.\n\n${heading}\n\nBody text.\n\n# Next section\n\nMore.\n`;
+    const after = movePlacement(before, key, heading);
+
+    expect(occurrences(after, key)).toBe(1);
+    expect(anchoredUnder(after, key, heading)).toBe(true);
+    expect(after).toContain("Intro paragraph.");
+    expect(after).toContain("Body text.");
+    expect(after).not.toMatch(/\n{3,}/);
+    // Still parseable, and the diagram no longer opens the lesson.
+    expect(referencedAssetKeys(after)).toEqual([key]);
+    expect(after.indexOf(heading)).toBeLessThan(after.indexOf(`id: ${key}`));
+  });
+
+  it("moves a trailing diagram up and keeps Mission 5's decision tree on top", () => {
+    const { key, heading } = PLACEMENTS[2];
+    const before = `## Mission 5 — Qualify, Nurture or Disqualify\n\n${fence("m5-qualification-decision-tree")}\n\nIntro.\n\n${heading}\n\nBody text.\n\n# Later\n\nTail.\n\n${fence(key)}\n`;
+    const after = movePlacement(before, key, heading);
+
+    expect(referencedAssetKeys(after)).toEqual(["m5-qualification-decision-tree", key]);
+    expect(anchoredUnder(after, key, heading)).toBe(true);
+    expect(after).toContain("Tail.");
+    expect(after.trimEnd().endsWith(":::")).toBe(false);
+  });
+
+  it("is idempotent once the diagram is already anchored", () => {
+    for (const { key, heading } of PLACEMENTS) {
+      const source = `## Lesson\n\nIntro.\n\n${heading}\n\n${fence(key)}\n\nBody.\n`;
+      const once = movePlacement(source, key, heading);
+      expect(once).toBe(source);
+      expect(movePlacement(once, key, heading)).toBe(once);
+    }
+  });
+
+  it("never swallows a neighbouring asset block", () => {
+    const { key, heading } = PLACEMENTS[3];
+    const before = `## Mission 6\n\n${fence(key)}\n\n${fence("m5-t-form-canvas")}\n\n${heading}\n\nBody.\n`;
+    const after = movePlacement(before, key, heading);
+
+    expect(referencedAssetKeys(after)).toEqual(["m5-t-form-canvas", key]);
+    expect(anchoredUnder(after, key, heading)).toBe(true);
+  });
+
+  it("leaves the lesson untouched when the heading is absent", () => {
+    const { key, heading } = PLACEMENTS[1];
+    const placeholder = `## Mission 4 — Asking Better Qualification Questions\n\n${fence(key)}\n\nPlaceholder content.\n`;
+    expect(placeholder.includes(heading)).toBe(false);
+    // The migration skips this case rather than dropping the diagram.
+    expect(occurrences(placeholder, key)).toBe(1);
+  });
+});
