@@ -32,6 +32,9 @@ import AcademyAnalytics from "@/pages/academy/AcademyAnalytics";
 import AcademyCertificationExam from "@/pages/academy/AcademyCertificationExam";
 import AcademyCertificationResult from "@/pages/academy/AcademyCertificationResult";
 import Certifications from "@/pages/Certifications";
+import CertificateDetail from "@/pages/CertificateDetail";
+import CertificateVerify from "@/pages/CertificateVerify";
+
 import PartnerTiers from "@/pages/PartnerTiers";
 import PartnerPerformance from "@/pages/PartnerPerformance";
 import KnowledgeBase from "@/pages/KnowledgeBase";
@@ -73,6 +76,9 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* Public certificate verification — minimized payload only */}
+            <Route path="/verify/:reference" element={<CertificateVerify />} />
+
             <Route element={<AuthScopeBoundary><ProtectedRoute><AppLayout /></ProtectedRoute></AuthScopeBoundary>}>
 
               <Route path="/" element={<Dashboard />} />
@@ -108,6 +114,8 @@ const App = () => (
               <Route path="/onboarding/*" element={<LegacyOnboardingRedirect />} />
               <Route path="/onboarding" element={<LegacyOnboardingRedirect />} />
               <Route path="/certifications" element={<Certifications />} />
+              <Route path="/certifications/:reference" element={<CertificateDetail />} />
+
               <Route path="/tiers" element={<PartnerTiers />} />
               <Route path="/performance" element={<PartnerPerformance />} />
               <Route path="/analytics" element={<Analytics />} />

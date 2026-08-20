@@ -22,11 +22,12 @@ import {
   checklistCompletion,
   formatDuration,
   formatReadingTime,
-  isMissionUnlocked,
   loadReadingPosition,
   saveReadingPosition,
   type ChecklistState,
 } from "@/lib/academy";
+import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
+import { accessRowFor, isItemUnlocked, lockMessage } from "@/lib/academy-access";
 
 
 
@@ -41,6 +42,8 @@ export default function AcademyMission() {
   const { data: resources = [] } = useAcademyResources(mod?.id);
   const { data: missionProgress = [] } = useMyMissionProgress();
   const complete = useCompleteMission();
+  // Direct-route protection mirrors the server rule exactly.
+  const { data: access, isLoading: accessLoading } = useAcademyItemAccess(mod?.id);
   const toggleChecklist = useToggleChecklistItem();
 
 
@@ -109,10 +112,11 @@ export default function AcademyMission() {
 
 
   const phase = phases.find((p) => p.id === mod.phase_id);
-  const unlocked = isMissionUnlocked(ordered, mission, completedIds);
+  const accessRow = accessRowFor(access, mission.id);
+  const unlocked = isItemUnlocked(access, mission.id);
   const prev = index > 0 ? ordered[index - 1] : undefined;
   const nextItem = index < ordered.length - 1 ? ordered[index + 1] : undefined;
-  const nextUnlocked = nextItem ? isMissionUnlocked(ordered, nextItem, completedIds) : false;
+  const nextUnlocked = nextItem ? isItemUnlocked(access, nextItem.id) : false;
   const isDone = completedIds.has(mission.id);
   const check = checklistCompletion(mission.content_markdown, checklist);
   const missionResources = resources.filter((r) => r.mission_id === mission.id);
@@ -128,9 +132,12 @@ export default function AcademyMission() {
   };
 
 
-  // Certification items always render: the panel itself explains what is still
-  // outstanding, which is more useful than a generic "previous mission" lock.
-  if (!unlocked && !isCertification) {
+  if (accessLoading && !access) {
+    return <AcademyState kind="loading" title="Checking your access…" />;
+  }
+
+  // Server-authoritative lock: the same rule that would refuse the write.
+  if (!unlocked) {
     return (
       <div className="max-w-3xl mx-auto space-y-4">
         <AcademyBreadcrumbs
@@ -144,7 +151,7 @@ export default function AcademyMission() {
         <div className="bg-card rounded-xl border shadow-sm p-6 text-center space-y-2">
           <Lock className="h-5 w-5 mx-auto text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            This mission unlocks when you complete the previous one.
+            {lockMessage(accessRow) || "This item unlocks when you complete the previous one."}
           </p>
           {prev && (
             <Button size="sm" asChild>

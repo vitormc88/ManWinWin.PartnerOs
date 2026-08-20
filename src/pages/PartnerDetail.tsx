@@ -4,6 +4,8 @@ import { useClients, useCreateClient } from "@/hooks/useClients";
 import { useDeals } from "@/hooks/useDeals";
 import { useRenewals } from "@/hooks/useDeals";
 import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
+import { useManagedCertificates } from "@/hooks/useAcademyCertificates";
+import { certificateStatusLabel, certificatesForPartner, formatCertificateDate, isCertificateValid, moduleVersionLabel } from "@/lib/academy-certificates";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { usePartnerNotes, useAddPartnerNote, useDeletePartnerNote } from "@/hooks/usePartnerNotes";
 import { RelationshipEntryDialog } from "@/components/partners/RelationshipEntryDialog";
@@ -65,6 +67,8 @@ export default function PartnerDetail() {
   const updatePartner = useUpdatePartner();
   const archivePartner = useArchivePartner();
   const createClient = useCreateClient();
+  const { data: academyCertsAll = [] } = useManagedCertificates(id);
+  const academyCerts = certificatesForPartner(academyCertsAll, id);
   const { data: certs = [], refetch: refetchCerts } = useQuery({
     queryKey: ["partner_certs", id],
     queryFn: async () => {
@@ -945,9 +949,53 @@ export default function PartnerDetail() {
 
 
         <TabsContent value="certifications" className="mt-5 animate-fade-in space-y-3">
-          <div className="flex justify-end">
+          {/* Partner Academy certificates — authoritative source, association
+              derived at read time from each user's profile.partner_id. */}
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Partner Academy certificates</h3>
+            <p className="text-xs text-muted-foreground">Issued automatically by the Academy when a learner passes a module certification.</p>
+          </div>
+          {academyCerts.length === 0 ? (
+            <div className="bg-card rounded-xl border shadow-sm p-6 text-center text-sm text-muted-foreground">
+              No Academy certificates for this partner's users yet.
+            </div>
+          ) : (
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b bg-secondary/50">
+                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Learner</th>
+                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Module</th>
+                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Reference</th>
+                  <th className="text-right px-5 py-3 font-medium text-muted-foreground">Weighted</th>
+                  <th className="text-right px-5 py-3 font-medium text-muted-foreground">Scenario</th>
+                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Issued</th>
+                  <th className="text-left px-5 py-3 font-medium text-muted-foreground">Status</th>
+                </tr></thead>
+                <tbody className="divide-y">
+                  {academyCerts.map((c) => (
+                    <tr key={c.id} className="hover:bg-secondary/30">
+                      <td className="px-5 py-3 font-medium">{c.learner_name}</td>
+                      <td className="px-5 py-3 text-muted-foreground">{c.module_title} · {moduleVersionLabel(c.module_version)}</td>
+                      <td className="px-5 py-3"><Link to={`/verify/${encodeURIComponent(c.certificate_reference)}`} className="text-primary hover:underline">{c.certificate_reference}</Link></td>
+                      <td className="px-5 py-3 text-right tabular-nums">{c.score}%</td>
+                      <td className="px-5 py-3 text-right tabular-nums">{c.scenario_score}%</td>
+                      <td className="px-5 py-3 tabular-nums text-muted-foreground">{formatCertificateDate(c.issued_at)}</td>
+                      <td className="px-5 py-3"><Badge variant={isCertificateValid(c.status) ? "success" : "destructive"}>{certificateStatusLabel(c.status)}</Badge></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="flex items-end justify-between pt-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Legacy partner certifications</h3>
+              <p className="text-xs text-muted-foreground">Manually recorded outside the Academy.</p>
+            </div>
             <Button size="sm" onClick={() => setShowAddCert(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Certification</Button>
           </div>
+
           {certs.length === 0 ? (
             <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">No certifications yet.</div>
           ) : (
