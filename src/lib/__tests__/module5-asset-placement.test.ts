@@ -9,7 +9,7 @@ import { referencedAssetKeys } from "@/lib/academy-assets";
  * placed diagram where it is, so this suite pins the exact heading anchors and
  * exercises the move itself on production-shaped lesson bodies.
  */
-const MIGRATION_FILE = "20260820205051_c638b2ab-502d-4bc0-b809-9af708cc53cf.sql";
+const MIGRATION_FILE = "20260820205345_34f93468-b67a-4bf9-bcd1-29f6e76c795b.sql";
 const MIGRATION = readFileSync(
   resolve(__dirname, "../../../supabase/migrations/", MIGRATION_FILE),
   "utf8"
@@ -40,9 +40,12 @@ const fence = (key: string) => `:::asset\nid: ${key}\nwidth: full\nalign: center
 /** Mirrors the migration: strip the fence anywhere, re-insert under the heading. */
 function movePlacement(markdown: string, key: string, heading: string): string {
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  let out = markdown.replace(
+  // 1. Literal removal of the canonical fence — no regex, exactly like the SQL.
+  let out = markdown.split(`${fence(key)}\n`).join("").split(fence(key)).join("");
+  // 1b. Tolerate trailing horizontal whitespace, still without any lookaround.
+  out = out.replace(
     new RegExp(
-      String.raw`^:::asset[ \t]*\n(?:(?!:::)[^\n]*\n)*?id: ${key}[ \t]*\n(?:(?!:::)[^\n]*\n)*?:::[ \t]*(?:\n|$)`,
+      String.raw`^[ \t]*:::asset[ \t]*\n[ \t]*id:[ \t]*${key}[ \t]*\n[ \t]*width:[ \t]*full[ \t]*\n[ \t]*align:[ \t]*center[ \t]*\n[ \t]*:::[ \t]*(?:\n|$)`,
       "gm"
     ),
     ""
@@ -80,13 +83,28 @@ describe("Module 5 placement migration", () => {
     expect(rows).toHaveLength(PLACEMENTS.length);
   });
 
-  it("removes before re-inserting, instead of only inserting when absent", () => {
-    expect(MIGRATION).toContain("^:::asset\\s*\\n(?:(?!:::)[^\\n]*\\n)*?id: ' || v_row.asset_key");
+  it("uses only PostgreSQL-supported regexp features", () => {
+    // PostgreSQL ARE support for lookaround is not something we rely on.
+    expect(MIGRATION).not.toContain("(?!");
+    expect(MIGRATION).not.toContain("(?=");
+    expect(MIGRATION).not.toContain("(?<=");
+    expect(MIGRATION).not.toContain("(?<!");
+  });
+
+  it("removes the canonical fence literally before re-inserting", () => {
+    expect(MIGRATION).toContain("v_new := replace(v_md, v_fence, '');");
+    expect(MIGRATION).toContain("E':::asset\\nid: ' || v_row.asset_key || E'\\nwidth: full\\nalign: center\\n:::'");
+    expect(MIGRATION).toContain("[ \\t]*:::asset[ \\t]*\\n[ \\t]*id:[ \\t]*' || v_row.asset_key");
     expect(MIGRATION).toContain("Asset % must appear exactly once in %");
     expect(MIGRATION).toContain("Asset % is not immediately after");
-    expect(MIGRATION).toContain("Mission 5 decision tree is no longer at the top");
     // Version bumps only on a real content change.
     expect(MIGRATION).toContain("IF v_new IS DISTINCT FROM v_md THEN");
+  });
+
+  it("checks the Mission 5 decision tree by position, not by a brittle regex", () => {
+    expect(MIGRATION).toContain("position('id: m5-qualification-decision-tree' in v_m5)");
+    expect(MIGRATION).toContain("no longer the first diagram in the lesson");
+    expect(MIGRATION).toContain("Mission 5 decision tree is no longer at the top");
   });
 
   it("refuses to guess when a heading is ambiguous", () => {
