@@ -6,6 +6,13 @@
  * interprets what the server returns.
  */
 
+import {
+  FALLBACK_CLASSIFICATION_BUCKETS,
+  classificationBucketsFor,
+} from "@/lib/academy-answers";
+
+
+
 export const CERT_PASS_SCORE = 80;
 export const CERT_SCENARIO_PASS_SCORE = 60;
 export const CERT_QUESTION_COUNT = 20;
@@ -80,9 +87,14 @@ export interface CertExamQuestion {
   question_text: string;
   scenario_text: string | null;
   options: string[];
+  /** Classification questions only: labels derived from the stored answer map. */
+  classification_labels?: string[] | null;
   answered: boolean;
   selected_answer: unknown;
 }
+
+
+
 
 export interface CertAttemptState {
   attempt_id: string;
@@ -205,16 +217,28 @@ export function isAnswerComplete(q: CertExamQuestion, answer: unknown): boolean 
       return Array.isArray(answer) && answer.length > 0;
     case "ordering":
       return Array.isArray(answer) && answer.length === q.options.length;
-    case "classification":
+    case "classification": {
+      const buckets = certClassificationBuckets(q).labels;
+      if (buckets.length === 0) return false;
       return (
         typeof answer === "object" &&
         answer !== null &&
-        q.options.every((o) => Boolean((answer as Record<string, string>)[o]))
+        q.options.every((o) => buckets.includes(String((answer as Record<string, string>)[o] ?? "")))
       );
+    }
     default:
       return typeof answer === "string" && answer.length > 0;
   }
 }
 
-/** Buckets offered for classification questions (Module 5 decision vocabulary). */
-export const CLASSIFICATION_BUCKETS = ["Qualify", "Nurture", "Disqualify"] as const;
+/**
+ * Classification buckets for an exam question: always the labels the server
+ * derived from that question's own answer map, never a global vocabulary.
+ */
+export function certClassificationBuckets(q: CertExamQuestion): { labels: string[]; derived: boolean } {
+  return classificationBucketsFor(q.classification_labels ?? null);
+}
+
+/** Legacy fallback vocabulary, used only when a question is misconfigured. */
+export const CLASSIFICATION_BUCKETS = FALLBACK_CLASSIFICATION_BUCKETS;
+

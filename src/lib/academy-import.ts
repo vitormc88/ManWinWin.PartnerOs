@@ -9,6 +9,7 @@
  * Pure functions only — no IO, no Supabase.
  */
 
+import { validateQuestionConfig } from "@/lib/academy-answers";
 import {
   CERT_CATEGORIES,
   CERT_CATEGORY_LABELS,
@@ -18,6 +19,7 @@ import {
   type CertCategory,
   type CertQuestionType,
 } from "@/lib/academy-certification";
+
 
 export type ImportFormat = "json" | "csv";
 export type DuplicateMode = "skip" | "update" | "cancel";
@@ -455,6 +457,22 @@ export const questionImportDescriptor: ImportEntityDescriptor<QuestionImportReco
     } else if (!norm(raw.correct ?? raw.correct_answer)) {
       errors.push({ field: "correct", message: "Missing correct answer." });
     }
+
+    // Shared scoring invariants — the same gate used by the admin editor.
+    if (type && correct !== null) {
+      for (const issue of validateQuestionConfig({
+        question_code: code,
+        question_text: questionText,
+        question_type: type,
+        options,
+        correct_answer: correct,
+        weight,
+        status,
+      })) {
+        errors.push({ field: issue.field, message: issue.message });
+      }
+    }
+
 
     const tags = Array.isArray(raw.tags)
       ? (raw.tags as unknown[]).map((t) => norm(t)).filter(Boolean)
