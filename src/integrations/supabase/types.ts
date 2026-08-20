@@ -5716,10 +5716,20 @@ export type Database = {
         Returns: Json
       }
       academy_analytics_user: { Args: { _user_id: string }; Returns: Json }
-      academy_answer_is_correct: {
-        Args: { _correct: Json; _given: Json; _type: string }
-        Returns: boolean
-      }
+      academy_answer_is_correct:
+        | {
+            Args: { _correct: Json; _given: Json; _type: string }
+            Returns: boolean
+          }
+        | {
+            Args: {
+              _correct: Json
+              _given: Json
+              _options: Json
+              _type: string
+            }
+            Returns: boolean
+          }
       academy_cert_answer: {
         Args: { _answer: Json; _attempt_id: string; _question_id: string }
         Returns: undefined
@@ -5757,6 +5767,10 @@ export type Database = {
         Returns: number
       }
       academy_my_analytics_perms: { Args: never; Returns: Json }
+      academy_resolve_option: {
+        Args: { _options: Json; _value: Json }
+        Returns: string
+      }
       academy_set_checklist_state: {
         Args: { _mission_id: string; _state: Json }
         Returns: undefined
