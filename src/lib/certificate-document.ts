@@ -47,6 +47,20 @@ export function shouldShowScenarioScore(value: number | null | undefined): boole
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
+/**
+ * Non-lossy percentage rendering: keep the meaningful decimals of the stored
+ * score (98.5 -> "98.5%") while integers stay clean (100 -> "100%").
+ * Never rounds away a real fractional score.
+ */
+export function formatCertificatePercent(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) return "—";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  const trimmed = Number(n.toFixed(2));
+  return `${trimmed}%`;
+}
+
+
 export function buildCertificateDocument(
   certificate: AcademyCertificate,
   origin?: string
@@ -64,9 +78,9 @@ export function buildCertificateDocument(
     moduleLine: version === "—" ? certificate.module_title : `${certificate.module_title} · ${version}`,
     issuedOn: formatCertificateDate(certificate.issued_at),
     organisation: partnerLabel(certificate),
-    weightedScore: `${Math.round(Number(certificate.score))}%`,
+    weightedScore: formatCertificatePercent(certificate.score),
     scenarioScore: shouldShowScenarioScore(certificate.scenario_score)
-      ? `${Math.round(Number(certificate.scenario_score))}%`
+      ? formatCertificatePercent(certificate.scenario_score)
       : null,
     reference: certificate.certificate_reference,
     verificationUrl: verificationUrl(certificate.certificate_reference, origin),

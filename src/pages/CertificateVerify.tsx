@@ -11,7 +11,7 @@ import {
   moduleVersionLabel,
   partnerLabel,
 } from "@/lib/academy-certificates";
-import { shouldShowScenarioScore } from "@/lib/certificate-document";
+import { formatCertificatePercent, shouldShowScenarioScore } from "@/lib/certificate-document";
 
 /**
  * Certificate verification — the authenticity page.
@@ -80,10 +80,10 @@ export default function CertificateVerify() {
                 <Field label="Issue date" value={formatCertificateDate(data?.issued_at)} />
                 <Field
                   label="Weighted score"
-                  value={owned ? `${Math.round(Number(owned.score))}%` : "Not publicly disclosed"}
+                  value={owned ? formatCertificatePercent(owned.score) : "Not publicly disclosed"}
                 />
                 {owned && shouldShowScenarioScore(owned.scenario_score) && (
-                  <Field label="Scenario analysis" value={`${Math.round(Number(owned.scenario_score))}%`} />
+                  <Field label="Scenario analysis" value={formatCertificatePercent(owned.scenario_score)} />
                 )}
                 <Field label="Certificate reference" value={data?.certificate_reference ?? "—"} />
               </dl>
