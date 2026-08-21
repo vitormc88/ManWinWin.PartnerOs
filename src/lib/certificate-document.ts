@@ -53,6 +53,7 @@ export function shouldShowScenarioScore(value: number | null | undefined): boole
  * Never rounds away a real fractional score.
  */
 export function formatCertificatePercent(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || (typeof value === "string" && value.trim() === "")) return "—";
   const n = Number(value);
   if (!Number.isFinite(n)) return "—";
   const trimmed = Number(n.toFixed(2));
