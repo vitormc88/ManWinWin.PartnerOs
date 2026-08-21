@@ -59,7 +59,15 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        certificate: {
+          paper: "hsl(var(--certificate-paper))",
+          ink: "hsl(var(--certificate-ink))",
+          muted: "hsl(var(--certificate-muted))",
+          frame: "hsl(var(--certificate-frame))",
+          accent: "hsl(var(--certificate-accent))",
+        },
         sidebar: {
+
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
           primary: "hsl(var(--sidebar-primary))",

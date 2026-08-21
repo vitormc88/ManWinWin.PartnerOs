@@ -56,7 +56,15 @@
     --sidebar-border: 207 12% 22%;
     --sidebar-ring: 353 94% 55%;
     --sidebar-muted: 207 12% 58%;
+
+    /* Partner Academy certificate document (institutional print palette) */
+    --certificate-paper: 40 33% 98%;
+    --certificate-ink: 210 34% 17%;
+    --certificate-muted: 210 16% 42%;
+    --certificate-frame: 210 32% 30%;
+    --certificate-accent: 353 94% 55%;
   }
+
 }
 
 @layer base {
@@ -160,13 +168,191 @@
   .print-document h1,
   .print-document h2,
   .print-document h3 { break-after: avoid; page-break-after: avoid; }
-  .print-certificate {
-    box-shadow: none !important;
-    border: 2px solid hsl(var(--primary)) !important;
-    border-radius: 0 !important;
-    margin: 0 auto !important;
-    max-width: 100% !important;
+}
+
+/* ── Partner Academy certificate document ───────────────────────────────────
+   A4 landscape (297 × 210 mm), one page. Typography is expressed in container
+   units so the on-screen render is proportionally identical to the print. */
+.certificate-canvas {
+  container-type: inline-size;
+  width: 100%;
+  aspect-ratio: 297 / 210;
+  background: hsl(var(--certificate-paper));
+  color: hsl(var(--certificate-ink));
+  overflow: hidden;
+}
+
+.certificate-frame {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 0.12cqw solid hsl(var(--certificate-frame));
+  outline: 0.35cqw solid hsl(var(--certificate-paper));
+  outline-offset: -1.1cqw;
+  box-shadow: inset 0 0 0 0.12cqw hsl(var(--certificate-frame) / 0.45);
+  padding: 4.2cqw 5.4cqw 3.4cqw;
+}
+
+.certificate-header {
+  display: flex;
+  align-items: center;
+  gap: 1.4cqw;
+}
+.certificate-logo {
+  height: 3.6cqw;
+  width: auto;
+  object-fit: contain;
+}
+.certificate-eyebrow {
+  font-size: 1.05cqw;
+  letter-spacing: 0.42cqw;
+  font-weight: 600;
+  color: hsl(var(--certificate-muted));
+}
+
+.certificate-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.certificate-title {
+  font-size: 3.2cqw;
+  font-weight: 300;
+  letter-spacing: 0.55cqw;
+  color: hsl(var(--certificate-ink));
+}
+.certificate-rule {
+  display: block;
+  width: 7cqw;
+  height: 0.28cqw;
+  margin: 1.4cqw 0 2.2cqw;
+  background: hsl(var(--certificate-accent));
+}
+.certificate-lead,
+.certificate-statement {
+  font-size: 1.28cqw;
+  color: hsl(var(--certificate-muted));
+}
+.certificate-statement {
+  max-width: 58cqw;
+  line-height: 1.7;
+  margin-top: 1.6cqw;
+}
+.certificate-learner {
+  font-size: 4.6cqw;
+  font-weight: 600;
+  letter-spacing: -0.05cqw;
+  line-height: 1.15;
+  margin-top: 1.1cqw;
+}
+.certificate-module {
+  font-size: 1.85cqw;
+  font-weight: 600;
+  margin-top: 1cqw;
+}
+.certificate-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 3.4cqw;
+  margin-top: 2.8cqw;
+}
+.certificate-meta dt {
+  font-size: 0.82cqw;
+  letter-spacing: 0.18cqw;
+  text-transform: uppercase;
+  color: hsl(var(--certificate-muted));
+}
+.certificate-meta dd {
+  font-size: 1.16cqw;
+  font-weight: 600;
+  margin-top: 0.3cqw;
+}
+
+.certificate-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 3cqw;
+  padding-top: 2.4cqw;
+}
+.certificate-signline {
+  display: block;
+  width: 18cqw;
+  height: 0.1cqw;
+  background: hsl(var(--certificate-frame) / 0.6);
+  margin-bottom: 0.8cqw;
+}
+.certificate-issuer-name {
+  font-size: 1.15cqw;
+  font-weight: 600;
+}
+.certificate-tagline {
+  font-size: 0.95cqw;
+  letter-spacing: 0.1cqw;
+  color: hsl(var(--certificate-muted));
+  margin-top: 0.25cqw;
+}
+.certificate-verify {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.1cqw;
+  text-align: right;
+}
+.certificate-qr {
+  width: 6.2cqw;
+  height: 6.2cqw;
+  display: block;
+}
+.certificate-reference {
+  font-size: 1.05cqw;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.certificate-verify-url {
+  font-size: 0.78cqw;
+  color: hsl(var(--certificate-muted));
+  margin-top: 0.2cqw;
+  word-break: break-all;
+  max-width: 26cqw;
+}
+
+/* Print / Save as PDF: exactly one A4 landscape page, no app chrome. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  html:has(.certificate-canvas),
+  body:has(.certificate-canvas) {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: hsl(var(--certificate-paper)) !important;
+  }
+  body:has(.certificate-canvas) .certificate-print-root {
+    position: absolute;
+    inset: 0;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .certificate-canvas {
+    width: 297mm !important;
+    height: 210mm !important;
+    aspect-ratio: auto !important;
+    page-break-after: avoid;
     page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .certificate-canvas,
+  .certificate-frame,
+  .certificate-canvas * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
+
 

@@ -69,12 +69,15 @@ export function certificateStatusLabel(status: CertificateStatus | undefined | n
       return "Valid";
     case "revoked":
       return "Revoked";
+    case "superseded":
+      return "Superseded";
     case "expired":
       return "Expired";
     default:
       return "Unknown";
   }
 }
+
 
 export function formatCertificateDate(iso: string | null | undefined): string {
   if (!iso) return "—";

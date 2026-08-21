@@ -33,6 +33,8 @@ import AcademyCertificationExam from "@/pages/academy/AcademyCertificationExam";
 import AcademyCertificationResult from "@/pages/academy/AcademyCertificationResult";
 import Certifications from "@/pages/Certifications";
 import CertificateDetail from "@/pages/CertificateDetail";
+import CertificatePreview from "@/pages/CertificatePreview";
+
 import CertificateVerify from "@/pages/CertificateVerify";
 
 import PartnerTiers from "@/pages/PartnerTiers";
@@ -114,7 +116,9 @@ const App = () => (
               <Route path="/onboarding/*" element={<LegacyOnboardingRedirect />} />
               <Route path="/onboarding" element={<LegacyOnboardingRedirect />} />
               <Route path="/certifications" element={<Certifications />} />
+              <Route path="/certifications/preview" element={<CertificatePreview />} />
               <Route path="/certifications/:reference" element={<CertificateDetail />} />
+
 
               <Route path="/tiers" element={<PartnerTiers />} />
               <Route path="/performance" element={<PartnerPerformance />} />
