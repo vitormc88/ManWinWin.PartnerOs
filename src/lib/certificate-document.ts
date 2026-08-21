@@ -47,6 +47,19 @@ export function shouldShowScenarioScore(value: number | null | undefined): boole
   return typeof value === "number" && Number.isFinite(value) && value > 0;
 }
 
+/**
+ * Non-lossy percentage rendering: keep the meaningful decimals of the stored
+ * score (98.5 -> "98.5%") while integers stay clean (100 -> "100%").
+ * Never rounds away a real fractional score.
+ */
+export function formatCertificatePercent(value: number | string | null | undefined): string {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "—";
+  const trimmed = Number(n.toFixed(2));
+  return `${Number.isInteger(trimmed) ? trimmed : trimmed}%`;
+}
+
+
 export function buildCertificateDocument(
   certificate: AcademyCertificate,
   origin?: string
