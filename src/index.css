@@ -356,9 +356,6 @@
     max-width: none !important;
     overflow: hidden !important;
   }
-  .certificate-print-root > *:not(:has(.certificate-canvas)) {
-    display: none !important;
-  }
   .certificate-canvas {
     width: 297mm !important;
     height: 210mm !important;
