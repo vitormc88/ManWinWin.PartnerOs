@@ -330,14 +330,34 @@
   body:has(.certificate-canvas) {
     margin: 0 !important;
     padding: 0 !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    overflow: hidden !important;
     background: hsl(var(--certificate-paper)) !important;
   }
+  /* Everything that is not the certificate keeps its box but paints nothing,
+     so no app chrome, control or stray rule reaches the paper. */
+  body:has(.certificate-canvas) * {
+    visibility: hidden !important;
+    box-shadow: none !important;
+  }
+  .certificate-print-root,
+  .certificate-print-root * {
+    visibility: visible !important;
+  }
   body:has(.certificate-canvas) .certificate-print-root {
-    position: absolute;
-    inset: 0;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 297mm !important;
+    height: 210mm !important;
     margin: 0 !important;
     padding: 0 !important;
     max-width: none !important;
+    overflow: hidden !important;
+  }
+  .certificate-print-root > *:not(:has(.certificate-canvas)) {
+    display: none !important;
   }
   .certificate-canvas {
     width: 297mm !important;
@@ -347,6 +367,7 @@
     page-break-inside: avoid;
     break-inside: avoid;
   }
+
   .certificate-canvas,
   .certificate-frame,
   .certificate-canvas * {
