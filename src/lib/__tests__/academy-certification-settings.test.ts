@@ -7,6 +7,8 @@ import {
   certSettings,
   certificationPasses,
   hasScenarioGate,
+  isRawScoring,
+  requiredCorrectAnswers,
 } from "@/lib/academy-certification";
 
 /** Module 5 keeps the legacy behaviour; Module 1 has no scenario gate. */
@@ -14,6 +16,7 @@ const M5 = {
   question_count: 20,
   pass_score: 80,
   scenario_pass_score: 60,
+  scoring_mode: "weighted" as const,
   time_limit_minutes: 25,
   estimated_minutes_min: 20,
   estimated_minutes_max: 25,
@@ -23,6 +26,7 @@ const M1 = {
   question_count: 10,
   pass_score: 80,
   scenario_pass_score: null,
+  scoring_mode: "raw_percentage" as const,
   time_limit_minutes: 15,
   estimated_minutes_min: 5,
   estimated_minutes_max: 7,
@@ -65,5 +69,29 @@ describe("certificationPasses", () => {
   it("matches the 8-of-10 rule used by Module 1", () => {
     expect(certificationPasses((8 / 10) * 100, null, 80, null)).toBe(true);
     expect(certificationPasses((7 / 10) * 100, null, 80, null)).toBe(false);
+  });
+});
+
+describe("scoring mode", () => {
+  it("defaults to weighted scoring", () => {
+    expect(isRawScoring(undefined)).toBe(false);
+    expect(certSettings(undefined).scoring_mode).toBe("weighted");
+    expect(isRawScoring(M5)).toBe(false);
+  });
+
+  it("uses raw correct-answer scoring for Module 1", () => {
+    expect(isRawScoring(M1)).toBe(true);
+    expect(certSettings(M1).scoring_mode).toBe("raw_percentage");
+    expect(requiredCorrectAnswers(M1)).toBe(8);
+  });
+
+  it("ignores unknown scoring modes", () => {
+    expect(
+      certSettings({ ...M1, scoring_mode: "bogus" as unknown as "weighted" }).scoring_mode
+    ).toBe("weighted");
+  });
+
+  it("derives the required correct answers for Module 5", () => {
+    expect(requiredCorrectAnswers(M5)).toBe(16);
   });
 });
