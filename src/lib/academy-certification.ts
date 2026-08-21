@@ -64,11 +64,16 @@ export const CERT_TYPES = Object.keys(CERT_TYPE_LABELS) as CertQuestionType[];
  * Per-module certification configuration, resolved server-side from
  * `academy_modules.certification_settings`. A null `scenario_pass_score`
  * means the module has no separate Scenario Analysis gate at all.
+ * `scoring_mode` decides how the effective score is computed:
+ * `weighted` (question weights) or `raw_percentage` (number correct).
  */
+export type CertScoringMode = "weighted" | "raw_percentage";
+
 export interface CertSettings {
   question_count: number;
   pass_score: number;
   scenario_pass_score: number | null;
+  scoring_mode: CertScoringMode;
   time_limit_minutes: number;
   estimated_minutes_min?: number | null;
   estimated_minutes_max?: number | null;
@@ -78,6 +83,7 @@ export const CERT_DEFAULT_SETTINGS: CertSettings = {
   question_count: CERT_QUESTION_COUNT,
   pass_score: CERT_PASS_SCORE,
   scenario_pass_score: CERT_SCENARIO_PASS_SCORE,
+  scoring_mode: "weighted",
   time_limit_minutes: CERT_TIME_LIMIT_MINUTES,
   estimated_minutes_min: 20,
   estimated_minutes_max: 25,
@@ -90,6 +96,8 @@ export function certSettings(
   return {
     ...CERT_DEFAULT_SETTINGS,
     ...(s ?? {}),
+    scoring_mode:
+      s?.scoring_mode === "raw_percentage" ? "raw_percentage" : "weighted",
     scenario_pass_score:
       s && "scenario_pass_score" in s
         ? (s.scenario_pass_score ?? null)
@@ -102,6 +110,20 @@ export function hasScenarioGate(s: Partial<CertSettings> | null | undefined): bo
   return typeof certSettings(s).scenario_pass_score === "number";
 }
 
+/** True when the module is scored purely on the number of correct answers. */
+export function isRawScoring(s: Partial<CertSettings> | null | undefined): boolean {
+  return certSettings(s).scoring_mode === "raw_percentage";
+}
+
+/** Number of correct answers needed to pass, e.g. 8 of 10. */
+export function requiredCorrectAnswers(
+  s: Partial<CertSettings> | null | undefined
+): number {
+  const c = certSettings(s);
+  return Math.ceil((c.pass_score / 100) * c.question_count);
+}
+
+
 /** Estimated duration copy, e.g. "5–7 minutes" or "25 minutes". */
 export function certDurationLabel(s: Partial<CertSettings> | null | undefined): string {
   const c = certSettings(s);
@@ -113,6 +135,8 @@ export function certDurationLabel(s: Partial<CertSettings> | null | undefined): 
 
 export interface CertEligibility {
   state: CertificationState;
+  /** False when the module is unpublished or its certification is switched off. */
+  available?: boolean;
   required_total: number;
   required_done: number;
   missing_items: Array<{ id: string; title: string; slug: string }>;

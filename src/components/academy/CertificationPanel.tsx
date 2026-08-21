@@ -21,6 +21,8 @@ import {
   certDurationLabel,
   certSettings,
   formatAttemptDateTime,
+  isRawScoring,
+  requiredCorrectAnswers,
 } from "@/lib/academy-certification";
 
 
@@ -86,9 +88,11 @@ export function CertificationPanel({
           <h2 className="text-lg font-semibold text-foreground">Module Certification</h2>
           <p className="text-sm text-muted-foreground">
             {cfg.question_count} questions · {certDurationLabel(cfg)} · pass at {cfg.pass_score}%
-            {cfg.scenario_pass_score !== null
-              ? ` weighted and ${cfg.scenario_pass_score}% Scenario Analysis.`
-              : ` (${Math.ceil((cfg.pass_score / 100) * cfg.question_count)} of ${cfg.question_count} correct).`}
+            {isRawScoring(cfg)
+              ? ` (${requiredCorrectAnswers(cfg)} of ${cfg.question_count} correct answers).`
+              : cfg.scenario_pass_score !== null
+                ? ` weighted and ${cfg.scenario_pass_score}% Scenario Analysis.`
+                : ` weighted.`}
           </p>
 
         </div>
