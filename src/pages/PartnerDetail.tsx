@@ -6,6 +6,7 @@ import { useRenewals } from "@/hooks/useDeals";
 import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
 import { useManagedCertificates } from "@/hooks/useAcademyCertificates";
 import { certificateStatusLabel, certificatesForPartner, formatCertificateDate, isCertificateValid, moduleVersionLabel } from "@/lib/academy-certificates";
+import { formatCertificatePercent, shouldShowScenarioScore } from "@/lib/certificate-document";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { usePartnerNotes, useAddPartnerNote, useDeletePartnerNote } from "@/hooks/usePartnerNotes";
 import { RelationshipEntryDialog } from "@/components/partners/RelationshipEntryDialog";
@@ -977,8 +978,8 @@ export default function PartnerDetail() {
                       <td className="px-5 py-3 font-medium">{c.learner_name}</td>
                       <td className="px-5 py-3 text-muted-foreground">{c.module_title} · {moduleVersionLabel(c.module_version)}</td>
                       <td className="px-5 py-3"><Link to={`/verify/${encodeURIComponent(c.certificate_reference)}`} className="text-primary hover:underline">{c.certificate_reference}</Link></td>
-                      <td className="px-5 py-3 text-right tabular-nums">{c.score}%</td>
-                      <td className="px-5 py-3 text-right tabular-nums">{c.scenario_score}%</td>
+                      <td className="px-5 py-3 text-right tabular-nums">{formatCertificatePercent(c.score)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums">{shouldShowScenarioScore(c.scenario_score) ? formatCertificatePercent(c.scenario_score) : "—"}</td>
                       <td className="px-5 py-3 tabular-nums text-muted-foreground">{formatCertificateDate(c.issued_at)}</td>
                       <td className="px-5 py-3"><Badge variant={isCertificateValid(c.status) ? "success" : "destructive"}>{certificateStatusLabel(c.status)}</Badge></td>
                     </tr>

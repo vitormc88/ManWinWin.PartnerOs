@@ -60,6 +60,57 @@ export const CERT_DIFFICULTIES = ["easy", "medium", "hard", "expert"] as const;
 export const CERT_CATEGORIES = Object.keys(CERT_CATEGORY_LABELS) as CertCategory[];
 export const CERT_TYPES = Object.keys(CERT_TYPE_LABELS) as CertQuestionType[];
 
+/**
+ * Per-module certification configuration, resolved server-side from
+ * `academy_modules.certification_settings`. A null `scenario_pass_score`
+ * means the module has no separate Scenario Analysis gate at all.
+ */
+export interface CertSettings {
+  question_count: number;
+  pass_score: number;
+  scenario_pass_score: number | null;
+  time_limit_minutes: number;
+  estimated_minutes_min?: number | null;
+  estimated_minutes_max?: number | null;
+}
+
+export const CERT_DEFAULT_SETTINGS: CertSettings = {
+  question_count: CERT_QUESTION_COUNT,
+  pass_score: CERT_PASS_SCORE,
+  scenario_pass_score: CERT_SCENARIO_PASS_SCORE,
+  time_limit_minutes: CERT_TIME_LIMIT_MINUTES,
+  estimated_minutes_min: 20,
+  estimated_minutes_max: 25,
+};
+
+/** Settings as returned by the server, falling back to the legacy defaults. */
+export function certSettings(
+  s: Partial<CertSettings> | null | undefined
+): CertSettings {
+  return {
+    ...CERT_DEFAULT_SETTINGS,
+    ...(s ?? {}),
+    scenario_pass_score:
+      s && "scenario_pass_score" in s
+        ? (s.scenario_pass_score ?? null)
+        : CERT_DEFAULT_SETTINGS.scenario_pass_score,
+  };
+}
+
+/** True when the module gates on Scenario Analysis as well as the overall score. */
+export function hasScenarioGate(s: Partial<CertSettings> | null | undefined): boolean {
+  return typeof certSettings(s).scenario_pass_score === "number";
+}
+
+/** Estimated duration copy, e.g. "5–7 minutes" or "25 minutes". */
+export function certDurationLabel(s: Partial<CertSettings> | null | undefined): string {
+  const c = certSettings(s);
+  const min = c.estimated_minutes_min ?? null;
+  const max = c.estimated_minutes_max ?? null;
+  if (min && max && min !== max) return `${min}–${max} minutes`;
+  return `${min ?? max ?? c.time_limit_minutes} minutes`;
+}
+
 export interface CertEligibility {
   state: CertificationState;
   required_total: number;
@@ -69,15 +120,17 @@ export interface CertEligibility {
   next_attempt_at: string | null;
   last_attempt_id: string | null;
   attempts_used: number;
+  settings?: CertSettings | null;
   certification: {
     id: string;
     score: number;
-    scenario_score: number;
+    scenario_score: number | null;
     issued_at: string;
     certificate_reference: string;
     attempt_id: string | null;
   } | null;
 }
+
 
 export interface CertExamQuestion {
   position: number;
@@ -124,11 +177,14 @@ export interface CertResult {
   passed: boolean;
   raw_score: number;
   weighted_score: number;
-  scenario_score: number;
+  scenario_score: number | null;
   category_scores: Record<string, CertCategoryScore>;
   submitted_at: string | null;
   next_attempt_at: string | null;
   total_questions: number;
+  /** Thresholds actually applied to this attempt, from the module settings. */
+  pass_score?: number;
+  scenario_pass_score?: number | null;
   weak_areas: Array<{ mission_id: string; title: string; slug: string; missed: number }>;
   /** False for the historical attempts taken before immutable snapshots existed. */
   has_snapshot?: boolean;
@@ -137,14 +193,25 @@ export interface CertResult {
     certificate_reference: string;
     issued_at: string;
     score: number;
-    scenario_score: number;
+    scenario_score: number | null;
   } | null;
 }
 
-/** Mirrors the server rule: both thresholds are mandatory. */
-export function certificationPasses(weighted: number, scenario: number): boolean {
-  return weighted >= CERT_PASS_SCORE && scenario >= CERT_SCENARIO_PASS_SCORE;
+/**
+ * Mirrors the server rule: the overall threshold always applies; the scenario
+ * threshold only when the module defines one.
+ */
+export function certificationPasses(
+  weighted: number,
+  scenario: number | null,
+  passScore: number = CERT_PASS_SCORE,
+  scenarioPassScore: number | null = CERT_SCENARIO_PASS_SCORE
+): boolean {
+  if (weighted < passScore) return false;
+  if (scenarioPassScore === null) return true;
+  return (scenario ?? 0) >= scenarioPassScore;
 }
+
 
 /** Retake waiting period after the Nth consecutive failed attempt, in hours. */
 export function retakeWaitHours(failedAttempts: number): number {

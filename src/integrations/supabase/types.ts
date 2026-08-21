@@ -528,7 +528,7 @@ export type Database = {
           next_attempt_at: string | null
           passed: boolean
           raw_score: number
-          scenario_score: number
+          scenario_score: number | null
           started_at: string
           status: string
           submitted_at: string | null
@@ -547,7 +547,7 @@ export type Database = {
           next_attempt_at?: string | null
           passed?: boolean
           raw_score?: number
-          scenario_score?: number
+          scenario_score?: number | null
           started_at?: string
           status?: string
           submitted_at?: string | null
@@ -566,7 +566,7 @@ export type Database = {
           next_attempt_at?: string | null
           passed?: boolean
           raw_score?: number
-          scenario_score?: number
+          scenario_score?: number | null
           started_at?: string
           status?: string
           submitted_at?: string | null
@@ -593,7 +593,7 @@ export type Database = {
           issued_at: string
           module_id: string
           module_version: number
-          scenario_score: number
+          scenario_score: number | null
           score: number
           status: string
           user_id: string
@@ -606,7 +606,7 @@ export type Database = {
           issued_at?: string
           module_id: string
           module_version?: number
-          scenario_score: number
+          scenario_score?: number | null
           score: number
           status?: string
           user_id: string
@@ -619,7 +619,7 @@ export type Database = {
           issued_at?: string
           module_id?: string
           module_version?: number
-          scenario_score?: number
+          scenario_score?: number | null
           score?: number
           status?: string
           user_id?: string
@@ -5809,13 +5809,18 @@ export type Database = {
         Args: { _answer: Json; _attempt_id: string; _question_id: string }
         Returns: undefined
       }
-      academy_cert_blueprint_ok: { Args: { _ids: string[] }; Returns: boolean }
+      academy_cert_blueprint_ok:
+        | { Args: { _ids: string[] }; Returns: boolean }
+        | { Args: { _ids: string[]; _settings: Json }; Returns: boolean }
+      academy_cert_default_settings: { Args: never; Returns: Json }
       academy_cert_eligibility: { Args: { _module_id: string }; Returns: Json }
       academy_cert_result: { Args: { _attempt_id: string }; Returns: Json }
       academy_cert_select_questions: {
         Args: { _module_id: string; _prev: string[] }
         Returns: string[]
       }
+      academy_cert_settings: { Args: { _module_id: string }; Returns: Json }
+      academy_cert_settings_error: { Args: { _s: Json }; Returns: string }
       academy_cert_start: { Args: { _module_id: string }; Returns: string }
       academy_cert_state: { Args: { _attempt_id: string }; Returns: Json }
       academy_cert_submit: { Args: { _attempt_id: string }; Returns: Json }

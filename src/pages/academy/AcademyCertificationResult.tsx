@@ -9,11 +9,11 @@ import { useAttemptResult } from "@/hooks/useAcademyCertification";
 import { useAcademyModules } from "@/hooks/useAcademy";
 import {
   CERT_PASS_SCORE,
-  CERT_SCENARIO_PASS_SCORE,
   categoryLabel,
   formatAttemptDateTime,
   weakCategories,
 } from "@/lib/academy-certification";
+
 
 /** Passed / not-passed result for one certification attempt. */
 export default function AcademyCertificationResult() {
@@ -29,7 +29,10 @@ export default function AcademyCertificationResult() {
 
   const r = result.data;
   const passed = r.passed;
+  const passScore = r.pass_score ?? CERT_PASS_SCORE;
+  const scenarioPass = r.scenario_pass_score ?? null;
   const current = modules.find((m) => m.id === r.module_id);
+
   const weak = weakCategories(r.category_scores);
 
   return (
@@ -54,21 +57,29 @@ export default function AcademyCertificationResult() {
               Certification status: {passed ? "Passed" : "Not Passed"}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Passing requires weighted ≥ {CERT_PASS_SCORE}% and Scenario Analysis ≥{" "}
-              {CERT_SCENARIO_PASS_SCORE}% · Attempt {r.attempt_number}
+              Passing requires {scenarioPass !== null ? "weighted" : "a score"} ≥ {passScore}%
+              {scenarioPass !== null ? ` and Scenario Analysis ≥ ${scenarioPass}%` : ""} · Attempt{" "}
+              {r.attempt_number}
               {r.submitted_at ? ` · ${formatAttemptDateTime(r.submitted_at)}` : ""}
             </p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <ScoreTile label="Weighted score" value={`${r.weighted_score}%`} hint={`Required ${CERT_PASS_SCORE}%`} />
           <ScoreTile
-            label="Scenario Analysis"
-            value={`${r.scenario_score}%`}
-            hint={`Required ${CERT_SCENARIO_PASS_SCORE}%`}
+            label={scenarioPass !== null ? "Weighted score" : "Score"}
+            value={`${r.weighted_score}%`}
+            hint={`Required ${passScore}%`}
           />
+          {scenarioPass !== null && (
+            <ScoreTile
+              label="Scenario Analysis"
+              value={`${r.scenario_score ?? 0}%`}
+              hint={`Required ${scenarioPass}%`}
+            />
+          )}
           <ScoreTile label="Correct answers" value={`${r.raw_score} / ${r.total_questions}`} hint="Raw count" />
+
         </div>
 
         {passed && r.certification && (

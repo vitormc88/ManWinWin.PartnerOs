@@ -22,7 +22,7 @@ export interface AcademyCertificate {
   module_slug: string;
   module_version: number | null;
   score: number;
-  scenario_score: number;
+  scenario_score: number | null;
   issued_at: string;
   status: CertificateStatus;
   attempt_id: string | null;

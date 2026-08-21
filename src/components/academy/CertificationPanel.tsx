@@ -16,14 +16,13 @@ import {
 import { AcademyState } from "@/components/academy/AcademyState";
 import { useCertEligibility, useStartCertification } from "@/hooks/useAcademyCertification";
 import {
-  CERT_PASS_SCORE,
-  CERT_QUESTION_COUNT,
-  CERT_SCENARIO_PASS_SCORE,
-  CERT_TIME_LIMIT_MINUTES,
   certButtonEnabled,
   certButtonLabel,
+  certDurationLabel,
+  certSettings,
   formatAttemptDateTime,
 } from "@/lib/academy-certification";
+
 
 /**
  * Qualification Module Certification launcher, rendered inside the existing
@@ -55,6 +54,9 @@ export function CertificationPanel({
   if (eligibility.isLoading || !e)
     return <AcademyState kind="loading" title="Checking certification eligibility…" />;
 
+  const cfg = certSettings(e.settings);
+
+
   const onClick = () => {
     if (e.state === "passed") {
       navigate(
@@ -81,11 +83,14 @@ export function CertificationPanel({
       <div className="flex items-start gap-3">
         <Award className="h-5 w-5 text-primary shrink-0 mt-0.5" />
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold text-foreground">Qualification Module Certification</h2>
+          <h2 className="text-lg font-semibold text-foreground">Module Certification</h2>
           <p className="text-sm text-muted-foreground">
-            {CERT_QUESTION_COUNT} questions · {CERT_TIME_LIMIT_MINUTES} minutes · pass at{" "}
-            {CERT_PASS_SCORE}% weighted and {CERT_SCENARIO_PASS_SCORE}% Scenario Analysis.
+            {cfg.question_count} questions · {certDurationLabel(cfg)} · pass at {cfg.pass_score}%
+            {cfg.scenario_pass_score !== null
+              ? ` weighted and ${cfg.scenario_pass_score}% Scenario Analysis.`
+              : ` (${Math.ceil((cfg.pass_score / 100) * cfg.question_count)} of ${cfg.question_count} correct).`}
           </p>
+
         </div>
       </div>
 
@@ -157,9 +162,10 @@ export function CertificationPanel({
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-sm">
                 <p>
-                  You have {CERT_TIME_LIMIT_MINUTES} minutes to answer {CERT_QUESTION_COUNT}{" "}
+                  You have {cfg.time_limit_minutes} minutes to answer {cfg.question_count}{" "}
                   questions. The timer runs on the server and keeps counting if you close the page.
                 </p>
+
                 <p>
                   Questions are shown one at a time. Once you confirm an answer you{" "}
                   <strong>cannot go back</strong> to that question or change it.

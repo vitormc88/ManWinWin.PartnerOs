@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Award, CheckCircle2, Search, ShieldCheck, ShieldX, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatCertificatePercent, shouldShowScenarioScore } from "@/lib/certificate-document";
 import { useMyCertificates, useManagedCertificates } from "@/hooks/useAcademyCertificates";
 import {
   certificateStatusLabel,
@@ -96,8 +97,10 @@ export default function Certifications() {
                       <Badge variant={isCertificateValid(c.status) ? "success" : "destructive"}>
                         {certificateStatusLabel(c.status)}
                       </Badge>
-                      <Badge variant="outline" className="text-[11px]">Weighted {c.score}%</Badge>
-                      <Badge variant="outline" className="text-[11px]">Scenario {c.scenario_score}%</Badge>
+                      <Badge variant="outline" className="text-[11px]">Score {formatCertificatePercent(c.score)}</Badge>
+                      {shouldShowScenarioScore(c.scenario_score) && (
+                        <Badge variant="outline" className="text-[11px]">Scenario {formatCertificatePercent(c.scenario_score)}</Badge>
+                      )}
                       <Badge variant="outline" className="text-[11px]">{partnerLabel(c)}</Badge>
                     </div>
                   </div>
@@ -182,8 +185,8 @@ export default function Certifications() {
                             {c.certificate_reference}
                           </Link>
                         </td>
-                        <td className="px-5 py-3 text-right tabular-nums">{c.score}%</td>
-                        <td className="px-5 py-3 text-right tabular-nums">{c.scenario_score}%</td>
+                        <td className="px-5 py-3 text-right tabular-nums">{formatCertificatePercent(c.score)}</td>
+                        <td className="px-5 py-3 text-right tabular-nums">{shouldShowScenarioScore(c.scenario_score) ? formatCertificatePercent(c.scenario_score) : "—"}</td>
                         <td className="px-5 py-3 text-muted-foreground">{formatCertificateDate(c.issued_at)}</td>
                         <td className="px-5 py-3">
                           <Badge variant={isCertificateValid(c.status) ? "success" : "destructive"}>
