@@ -6,6 +6,7 @@ import {
   CERTIFICATE_TAGLINE,
   CERTIFICATE_TITLE,
   buildCertificateDocument,
+  formatCertificatePercent,
   shouldShowScenarioScore,
 } from "@/lib/certificate-document";
 import type { AcademyCertificate } from "@/lib/academy-certificates";
@@ -90,5 +91,27 @@ describe("<CertificateDocument />", () => {
   it("hides the scenario score row when there is none", () => {
     render(<CertificateDocument certificate={{ ...cert, scenario_score: 0 }} origin="https://x.test" />);
     expect(screen.queryByText("Scenario analysis")).toBeNull();
+  });
+});
+
+describe("non-lossy percentage formatting", () => {
+  it("keeps meaningful decimals and trims noise", () => {
+    expect(formatCertificatePercent(98.5)).toBe("98.5%");
+    expect(formatCertificatePercent(100)).toBe("100%");
+    expect(formatCertificatePercent(92)).toBe("92%");
+    expect(formatCertificatePercent("98.50")).toBe("98.5%");
+    expect(formatCertificatePercent(66.666)).toBe("66.67%");
+    expect(formatCertificatePercent(null)).toBe("—");
+    expect(formatCertificatePercent(undefined)).toBe("—");
+  });
+
+  it("renders the exact decimal weighted score on the certificate", async () => {
+    const doc = buildCertificateDocument({ ...cert, score: 98.5, scenario_score: 87.5 }, "https://x.test");
+    expect(doc.weightedScore).toBe("98.5%");
+    expect(doc.scenarioScore).toBe("87.5%");
+
+    render(<CertificateDocument model={doc} />);
+    await waitFor(() => expect(screen.getByText("98.5%")).toBeInTheDocument());
+    expect(screen.getByText("87.5%")).toBeInTheDocument();
   });
 });
