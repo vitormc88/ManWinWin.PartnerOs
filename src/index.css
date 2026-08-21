@@ -341,8 +341,9 @@
     visibility: hidden !important;
     box-shadow: none !important;
   }
-  .certificate-print-root,
-  .certificate-print-root * {
+  body:has(.certificate-canvas) .certificate-print-root,
+  body:has(.certificate-canvas) .certificate-print-root .certificate-canvas,
+  body:has(.certificate-canvas) .certificate-print-root .certificate-canvas * {
     visibility: visible !important;
   }
   body:has(.certificate-canvas) .certificate-print-root {
