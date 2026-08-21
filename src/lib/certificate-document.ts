@@ -56,7 +56,7 @@ export function formatCertificatePercent(value: number | string | null | undefin
   const n = Number(value);
   if (!Number.isFinite(n)) return "—";
   const trimmed = Number(n.toFixed(2));
-  return `${Number.isInteger(trimmed) ? trimmed : trimmed}%`;
+  return `${trimmed}%`;
 }
 
 
@@ -77,9 +77,9 @@ export function buildCertificateDocument(
     moduleLine: version === "—" ? certificate.module_title : `${certificate.module_title} · ${version}`,
     issuedOn: formatCertificateDate(certificate.issued_at),
     organisation: partnerLabel(certificate),
-    weightedScore: `${Math.round(Number(certificate.score))}%`,
+    weightedScore: formatCertificatePercent(certificate.score),
     scenarioScore: shouldShowScenarioScore(certificate.scenario_score)
-      ? `${Math.round(Number(certificate.scenario_score))}%`
+      ? formatCertificatePercent(certificate.scenario_score)
       : null,
     reference: certificate.certificate_reference,
     verificationUrl: verificationUrl(certificate.certificate_reference, origin),
