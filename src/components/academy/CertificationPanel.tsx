@@ -21,6 +21,8 @@ import {
   certDurationLabel,
   certSettings,
   formatAttemptDateTime,
+  isRawScoring,
+  requiredCorrectAnswers,
 } from "@/lib/academy-certification";
 
 
