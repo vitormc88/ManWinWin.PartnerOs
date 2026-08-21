@@ -135,6 +135,8 @@ export function certDurationLabel(s: Partial<CertSettings> | null | undefined): 
 
 export interface CertEligibility {
   state: CertificationState;
+  /** False when the module is unpublished or its certification is switched off. */
+  available?: boolean;
   required_total: number;
   required_done: number;
   missing_items: Array<{ id: string; title: string; slug: string }>;
