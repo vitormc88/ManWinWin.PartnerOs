@@ -358,6 +358,9 @@
     overflow: hidden !important;
   }
   .certificate-canvas {
+    box-sizing: border-box !important;
+    /* Controlled safety margin so the navy frame is never cut by the trim. */
+    padding: 2mm !important;
     width: 297mm !important;
     height: 210mm !important;
     aspect-ratio: auto !important;
