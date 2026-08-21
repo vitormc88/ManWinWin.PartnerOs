@@ -129,7 +129,7 @@
 @media print {
   body { background: hsl(var(--background)); }
   .print\:hidden { display: none !important; }
-  aside, nav, header, [data-sidebar] { display: none !important; }
+  aside, nav, header:not(.certificate-header), [data-sidebar] { display: none !important; }
   main { padding: 0 !important; }
   /* Content-only resources (e.g. the Qualification Checklist) print as a
      plain document: dialog chrome and overlays are dropped. */
