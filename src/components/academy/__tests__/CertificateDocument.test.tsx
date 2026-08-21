@@ -110,7 +110,7 @@ describe("non-lossy percentage formatting", () => {
     expect(doc.weightedScore).toBe("98.5%");
     expect(doc.scenarioScore).toBe("87.5%");
 
-    render(<CertificateDocument model={doc} />);
+    render(<CertificateDocument certificate={{ ...cert, score: 98.5, scenario_score: 87.5 }} origin="https://x.test" />);
     await waitFor(() => expect(screen.getByText("98.5%")).toBeInTheDocument());
     expect(screen.getByText("87.5%")).toBeInTheDocument();
   });
