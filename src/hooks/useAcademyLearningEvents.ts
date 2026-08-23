@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,24 +8,14 @@ import {
   type LearningEventName,
   type LearningEventProperties,
 } from "@/lib/academy-events";
-
-/** A random id that never leaves the browser session. */
-function randomId(): string {
-  const c = globalThis.crypto as Crypto | undefined;
-  if (c?.randomUUID) return c.randomUUID();
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (ch) => {
-    const r = (Math.random() * 16) | 0;
-    const v = ch === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+import { loadEventSession, rememberEvent } from "@/lib/academy-event-session";
 
 export interface TrackOptions {
   stepId?: string | null;
   properties?: Record<string, unknown>;
-  /** Emit at most once per player session for this key. */
+  /** Emit at most once per tab session for this dedupe key. */
   once?: boolean;
-  /** Extra discriminator for the dedupe key (e.g. an option id). */
+  /** Extra discriminator for the dedupe key (e.g. the chosen option id). */
   dedupeOn?: string | null;
 }
 
@@ -36,10 +26,16 @@ export type TrackLearningEvent = (name: LearningEventName, options?: TrackOption
  *
  * Guarantees:
  *  - never throws and never rejects — a failed insert cannot break the lesson;
- *  - one `session_id` per mounted player, stable across StrictMode remounts of
- *    the same mission;
- *  - `client_event_id` makes retries idempotent (unique per user in the DB);
- *  - noisy "view" events are de-duplicated in-session via `once`.
+ *  - one `session_id` per mission per browser TAB, held in sessionStorage so it
+ *    genuinely survives component remounts (StrictMode double-mount, route
+ *    re-entry, refetch-driven re-renders) rather than only re-renders;
+ *  - "once" events (mission start/resume, step views) are therefore emitted a
+ *    single time per tab session, not once per mount;
+ *  - a repeated dedupe key reuses its `client_event_id`, so any replay collides
+ *    with the DB unique index instead of writing a near-duplicate row;
+ *  - answer events discriminate on the answer itself (`dedupeOn`), so changing
+ *    an answer is a new event with a new id while re-picking the same answer is
+ *    de-duplicated.
  */
 export function useLearningEventTracker(params: {
   missionId: string | undefined;
@@ -47,31 +43,27 @@ export function useLearningEventTracker(params: {
   enabled?: boolean;
 }): { track: TrackLearningEvent; sessionId: string } {
   const { missionId, moduleId, enabled = true } = params;
-  const sessionRef = useRef<{ key: string; id: string } | null>(null);
-  const key = `${missionId ?? "-"}:${moduleId ?? "-"}`;
-  if (!sessionRef.current || sessionRef.current.key !== key) {
-    sessionRef.current = { key, id: randomId() };
-  }
-  const sessionId = sessionRef.current.id;
 
-  const sentRef = useRef<Map<string, string>>(new Map());
-  const sessionKeyRef = useRef(key);
-  if (sessionKeyRef.current !== key) {
-    sessionKeyRef.current = key;
-    sentRef.current = new Map();
-  }
+  const sessionId = useMemo(() => {
+    if (!missionId || !moduleId) return "";
+    try {
+      return loadEventSession(missionId, moduleId).id;
+    } catch {
+      return "";
+    }
+  }, [missionId, moduleId]);
 
   const track = useCallback<TrackLearningEvent>(
     (name, options = {}) => {
       try {
         if (!enabled || !missionId || !moduleId) return;
         const dedupe = eventDedupeKey(name, options.stepId, options.dedupeOn);
-        if (options.once && sentRef.current.has(dedupe)) return;
-
-        // Reuse the same client_event_id for a repeated dedupe key so a retry
-        // is idempotent server-side instead of creating a near-duplicate row.
-        const clientEventId = sentRef.current.get(dedupe) ?? randomId();
-        sentRef.current.set(dedupe, clientEventId);
+        const { clientEventId, alreadySent, sessionId: sid } = rememberEvent(
+          missionId,
+          moduleId,
+          dedupe
+        );
+        if (options.once && alreadySent) return;
 
         const properties = sanitizeEventProperties(options.properties);
         void supabase
@@ -82,7 +74,7 @@ export function useLearningEventTracker(params: {
             event_name: name,
             step_id: options.stepId ?? null,
             client_event_id: clientEventId,
-            session_id: sessionId,
+            session_id: sid,
             properties: properties as never,
             occurred_at: new Date().toISOString(),
           })
@@ -94,11 +86,12 @@ export function useLearningEventTracker(params: {
         /* telemetry must never break the learning experience */
       }
     },
-    [enabled, missionId, moduleId, sessionId]
+    [enabled, missionId, moduleId]
   );
 
   return useMemo(() => ({ track, sessionId }), [track, sessionId]);
 }
+
 
 export interface LearningEventRow {
   id: string;

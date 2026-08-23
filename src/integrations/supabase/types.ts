@@ -6212,6 +6212,10 @@ export type Database = {
         Returns: Json
       }
       academy_item_access: { Args: { _module_id: string }; Returns: Json }
+      academy_learning_events_safe_token: {
+        Args: { _value: string }
+        Returns: boolean
+      }
       academy_managed_certificates: {
         Args: { _partner_id?: string }
         Returns: Json

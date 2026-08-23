@@ -34,7 +34,9 @@ import {
   reconcileChecklistState,
   type MissionPlayerV2State,
 } from "@/lib/academy-player";
+import { toggleMissionCompletion } from "@/lib/academy-mission-complete";
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
+
 import { accessRowFor, isItemUnlocked, lockMessage } from "@/lib/academy-access";
 
 /** Stable empty array so loading states don't invalidate memos every render. */
@@ -166,14 +168,24 @@ export default function AcademyMission() {
 
   const onToggleComplete = () => {
     const completing = !isDone;
-    complete.mutate({ missionId: mission.id, completed: completing });
-    if (completing && experience) {
-      trackLearning("mission_completed", {
-        once: true,
-        properties: { steps_total: experience.steps.length },
-      });
-    }
+    // `mission_completed` is emitted from the mutation's success callback only:
+    // never optimistically, never on error, never when marking incomplete.
+    toggleMissionCompletion({
+      mutate: complete.mutate,
+      missionId: mission.id,
+      completing,
+      telemetry: experience
+        ? {
+            onCompleted: () =>
+              trackLearning("mission_completed", {
+                once: true,
+                properties: { steps_total: experience.steps.length },
+              }),
+          }
+        : null,
+    });
   };
+
 
 
   if (accessLoading && !access) {
