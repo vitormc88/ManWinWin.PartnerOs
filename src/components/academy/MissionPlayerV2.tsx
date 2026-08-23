@@ -614,26 +614,59 @@ function SeenOnMount({ id, onStepDone }: { id: string; onStepDone: (id: string) 
   return null;
 }
 
-function HookStep({ step, onStepDone }: { step: PlayerStep; onStepDone: (id: string) => void }) {
+function HookStep({
+  step,
+  onStepDone,
+  track,
+}: {
+  step: PlayerStep;
+  onStepDone: (id: string) => void;
+  track: TrackLearningEvent;
+}) {
   return (
     <Card className="space-y-5">
       <SeenOnMount id={step.id} onStepDone={onStepDone} />
       <StepHeading step={step} />
       {step.scenario && <p className="text-sm sm:text-base text-muted-foreground">{step.scenario}</p>}
       {step.video && (
-        <div
-          className="relative rounded-xl border bg-secondary/60 aspect-video flex flex-col items-center justify-center gap-2"
-          role="img"
-          aria-label={`Video placeholder: ${step.video.label}`}
-        >
-          <div className="h-12 w-12 rounded-full bg-background/90 border flex items-center justify-center shadow-sm">
-            <Play className="h-5 w-5 text-primary" />
-          </div>
-          <p className="text-sm font-medium text-foreground">{step.video.label}</p>
-          <Badge variant="outline" className="text-[11px] bg-background">{step.video.duration}</Badge>
-          <span className="absolute bottom-3 text-[11px] text-muted-foreground">Video coming soon</span>
-        </div>
+        <MissionMedia
+          kind="video"
+          assetKey={step.video.assetKey}
+          posterAssetKey={step.video.posterAssetKey}
+          captionsAssetKey={step.video.captionsAssetKey}
+          transcript={step.video.transcript}
+          label={step.video.label}
+          onStarted={({ assetKey, durationBucket }) =>
+            track("video_started", {
+              stepId: step.id,
+              once: true,
+              properties: { asset_key: assetKey, media_kind: "video", duration_bucket: durationBucket },
+            })
+          }
+          onCompleted={({ assetKey, positionBucket }) =>
+            track("video_completed", {
+              stepId: step.id,
+              once: true,
+              properties: { asset_key: assetKey, media_kind: "video", position_bucket: positionBucket },
+            })
+          }
+          placeholder={
+            <div
+              className="relative rounded-xl border bg-secondary/60 aspect-video flex flex-col items-center justify-center gap-2"
+              role="img"
+              aria-label={`Video placeholder: ${step.video.label}`}
+            >
+              <div className="h-12 w-12 rounded-full bg-background/90 border flex items-center justify-center shadow-sm">
+                <Play className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm font-medium text-foreground">{step.video.label}</p>
+              <Badge variant="outline" className="text-[11px] bg-background">{step.video.duration}</Badge>
+              <span className="absolute bottom-3 text-[11px] text-muted-foreground">Video coming soon</span>
+            </div>
+          }
+        />
       )}
+
       {step.insight && (
         <div className="rounded-xl border bg-secondary/40 p-4 flex gap-3">
           <Lightbulb className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
