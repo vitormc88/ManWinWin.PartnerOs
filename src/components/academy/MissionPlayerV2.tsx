@@ -569,33 +569,36 @@ function StepView({
   state,
   onUpdate,
   onStepDone,
+  track,
 }: {
   step: PlayerStep;
   state: MissionPlayerV2State;
   onUpdate: (patch: Partial<MissionPlayerV2State>) => void;
   onStepDone: (id: string) => void;
+  track: TrackLearningEvent;
 }) {
   switch (step.type) {
     case "hook":
-      return <HookStep step={step} onStepDone={onStepDone} />;
+      return <HookStep step={step} onStepDone={onStepDone} track={track} />;
     case "learn":
       return <LearnStep step={step} onStepDone={onStepDone} />;
     case "interactive-framework":
       return <FrameworkStep step={step} onStepDone={onStepDone} />;
     case "challenge":
     case "knowledge-check":
-      return <ChoiceStep step={step} state={state} onUpdate={onUpdate} />;
+      return <ChoiceStep step={step} state={state} onUpdate={onUpdate} track={track} />;
     case "scenario":
-      return <ScenarioStep step={step} state={state} onUpdate={onUpdate} />;
+      return <ScenarioStep step={step} state={state} onUpdate={onUpdate} track={track} />;
     case "ai-moment":
     case "takeaway":
       return <NoteStep step={step} state={state} onUpdate={onUpdate} />;
     case "apply":
-      return <ApplyStep step={step} state={state} onUpdate={onUpdate} />;
+      return <ApplyStep step={step} state={state} onUpdate={onUpdate} track={track} />;
     default:
       return null;
   }
 }
+
 
 function StepHeading({ step }: { step: PlayerStep }) {
   return (
