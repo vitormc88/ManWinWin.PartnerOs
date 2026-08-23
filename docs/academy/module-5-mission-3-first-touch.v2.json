@@ -1,0 +1,202 @@
+{
+  "kind": "academy-learning-experience-v2",
+  "version": 1,
+  "title": "Build a Relevant First Touch",
+  "subtitle": "Module 5 — Outreach & Engagement",
+  "intro": {
+    "eyebrow": "Mission 3",
+    "headline": "Build a Relevant First Touch",
+    "description": "A guided mission: decide what earns attention, apply a four-move relevance framework, and build a first touch you can actually use.",
+    "bullets": [
+      "10 short steps, roughly 20 minutes.",
+      "Inline feedback on every decision.",
+      "You finish with a saved first-touch draft. Nothing is sent from PartnerOS."
+    ],
+    "startLabel": "Start mission"
+  },
+  "audioBrief": {
+    "title": "Mission audio brief",
+    "duration": "5–6 min",
+    "status": "coming-soon"
+  },
+  "deepDiveTitle": "Full Lesson — Build a Relevant First Touch",
+  "steps": [
+    {
+      "id": "hook",
+      "type": "hook",
+      "navLabel": "Hook",
+      "title": "Why should Daniel care?",
+      "scenario": "Atlas Foods is expanding production. Daniel leads operations. He has probably seen dozens of software messages. What would make this one worth his time?",
+      "video": { "duration": "01:18", "label": "The first-touch test" },
+      "insight": "A first touch earns attention when it makes the next conversation feel relevant before it tries to make the product impressive."
+    },
+    {
+      "id": "challenge",
+      "type": "challenge",
+      "navLabel": "Challenge",
+      "title": "Which opening earns the next 20 seconds?",
+      "options": [
+        {
+          "id": "a",
+          "label": "A",
+          "text": "ManWinWin is a leading CMMS platform with powerful features for maintenance teams.",
+          "feedback": "Credible product information, but it starts with us and asks Daniel to do the relevance work."
+        },
+        {
+          "id": "b",
+          "label": "B",
+          "text": "Daniel — expanding production usually puts extra pressure on uptime, planning and spare-parts coordination. Is that one of the operational priorities at Atlas Foods this quarter?",
+          "correct": true,
+          "feedback": "It starts with Daniel's context, connects it to a credible operational issue, and asks a proportionate question. It creates a reason to continue without pretending to know more than the evidence supports."
+        },
+        {
+          "id": "c",
+          "label": "C",
+          "text": "I noticed Atlas Foods is growing and thought ManWinWin could be a great fit. Can I show you a demo?",
+          "feedback": "It uses a signal, but jumps from growth to product fit and a demo too quickly."
+        }
+      ]
+    },
+    {
+      "id": "start-with-them",
+      "type": "learn",
+      "navLabel": "Start With Them",
+      "title": "Start with them",
+      "body": "The buyer should recognize their world before they are asked to understand ours.",
+      "bullets": [
+        "Lead with a verified signal.",
+        "Translate it into a plausible operational implication.",
+        "Keep assumptions explicit and proportionate.",
+        "Make the first sentence useful even if they never reply."
+      ]
+    },
+    {
+      "id": "framework",
+      "type": "interactive-framework",
+      "navLabel": "Framework",
+      "title": "Build relevance in four moves",
+      "items": [
+        { "id": "context", "title": "Context", "question": "What verified signal makes this timely?" },
+        { "id": "relevance", "title": "Relevance", "question": "What plausible maintenance or operational implication could matter?" },
+        { "id": "credibility", "title": "Credibility", "question": "Why is ManWinWin or the partner relevant to this conversation?" },
+        { "id": "next-step", "title": "Next Step", "question": "What small, useful action is proportionate now?" }
+      ]
+    },
+    {
+      "id": "evidence",
+      "type": "knowledge-check",
+      "navLabel": "Evidence",
+      "title": "Evidence before assumption",
+      "prompt": "Atlas Foods has announced a new production line. Which sentence goes beyond the evidence?",
+      "options": [
+        { "id": "a", "label": "A", "text": "A new line may increase coordination demands across maintenance and operations." },
+        { "id": "b", "label": "B", "text": "The expansion could make planning, asset data and spare-parts visibility more important." },
+        { "id": "c", "label": "C", "text": "Atlas Foods is currently losing 14 hours of production every month because its CMMS is outdated.", "correct": true },
+        { "id": "d", "label": "D", "text": "It may be useful to understand how the maintenance team is preparing for the additional asset load." }
+      ],
+      "correctFeedback": "Correct. The 14-hour loss and outdated-CMMS claim are unsupported. Relevant outreach can interpret a verified signal, but it cannot invent operational facts.",
+      "incorrectFeedback": "Not quite. Look for the sentence that turns a plausible implication into a specific, unverified fact."
+    },
+    {
+      "id": "business-relevance",
+      "type": "scenario",
+      "navLabel": "Business Relevance",
+      "title": "Turn context into business relevance",
+      "prompt": "Choose the best first-touch sentence for Daniel.",
+      "options": [
+        {
+          "id": "a",
+          "label": "Brochure",
+          "text": "ManWinWin includes preventive maintenance, inventory, work orders and reporting.",
+          "feedback": "This is a brochure. It is accurate, but it starts with the product instead of Daniel's situation."
+        },
+        {
+          "id": "b",
+          "label": "Mind Reader",
+          "text": "Your maintenance team is struggling to control downtime during the expansion.",
+          "feedback": "This assumes a problem the evidence does not support. Assumption presented as fact damages credibility."
+        },
+        {
+          "id": "c",
+          "label": "Creepy",
+          "text": "I saw your LinkedIn post at 08:42 and noticed three Atlas Foods employees viewed our page.",
+          "feedback": "Surveillance detail feels invasive. Relevance is about their business context, not their digital footprint."
+        },
+        {
+          "id": "d",
+          "label": "Relevant",
+          "text": "Daniel — with Atlas Foods adding a new production line, maintenance planning and asset readiness may become more important. How are you preparing for that operationally?",
+          "correct": true,
+          "feedback": "This is relevant, not invasive or assumptive. It uses a verified public signal, offers a plausible implication rather than an invented fact, and asks a proportionate question Daniel can easily answer."
+        }
+      ],
+      "reasoningPrompt": "Why does this option work? Select every reason that applies.",
+      "reasoningOptions": [
+        { "id": "r1", "text": "It starts with a verified business signal.", "correct": true },
+        { "id": "r2", "text": "It connects the signal to a plausible operational implication.", "correct": true },
+        { "id": "r3", "text": "It proves ManWinWin is the best CMMS." },
+        { "id": "r4", "text": "It asks for a small, relevant next step.", "correct": true },
+        { "id": "r5", "text": "It creates urgency by assuming a problem." }
+      ],
+      "reasoningFeedback": "Option D works because it is relevant — grounded in a verified signal, plausible rather than assumptive, and proportionate in what it asks. It never claims to know Daniel's problems and never relies on invasive detail."
+    },
+    {
+      "id": "next-step",
+      "type": "knowledge-check",
+      "navLabel": "Proportionate Next Step",
+      "title": "Ask for the smallest useful next step",
+      "prompt": "Which next step creates the least friction while still moving the conversation forward?",
+      "options": [
+        { "id": "a", "label": "A", "text": "Can you send your full asset register so I can prepare a proposal?" },
+        { "id": "b", "label": "B", "text": "Can we book a 60-minute demo with operations, maintenance and IT?" },
+        { "id": "c", "label": "C", "text": "Would a 15-minute exchange on how you are preparing maintenance for the new line be useful?", "correct": true },
+        { "id": "d", "label": "D", "text": "Should I send pricing today?" }
+      ],
+      "correctFeedback": "Exactly. It is specific, relevant and easy to accept or decline.",
+      "incorrectFeedback": "The best first step should reduce commitment, not accelerate the buying process before relevance is established."
+    },
+    {
+      "id": "ai-moment",
+      "type": "ai-moment",
+      "navLabel": "AI Moment",
+      "title": "Use AI without outsourcing judgement",
+      "prompt": "Draft a concise first-touch message for Daniel at Atlas Foods using only the verified expansion signal and the four-move framework. Clearly label any assumption.",
+      "rule": "AI drafts. Evidence anchors. Human approves.",
+      "noteLabel": "Your draft",
+      "notePlaceholder": "Write or paste your first-touch draft here…",
+      "saveLabel": "Save draft"
+    },
+    {
+      "id": "takeaway",
+      "type": "takeaway",
+      "navLabel": "Mission Takeaway",
+      "title": "Mission Takeaway",
+      "quote": "The first touch sells the conversation. Not the product.",
+      "bullets": [
+        "Relevance starts with the buyer's context.",
+        "Evidence protects credibility.",
+        "Business value should be plausible, not invented.",
+        "The next step should be proportionate."
+      ],
+      "noteLabel": "Your personal takeaway",
+      "notePlaceholder": "What will you change in your next first touch?",
+      "saveLabel": "Save takeaway"
+    },
+    {
+      "id": "apply",
+      "type": "apply",
+      "navLabel": "Apply",
+      "title": "Build your first touch",
+      "intro": "Choose one real account. Build a first touch you can review, improve and use later. Nothing is sent from PartnerOS.",
+      "requireAccountName": true,
+      "accountLabel": "Account name",
+      "fields": [
+        { "id": "context", "label": "Context", "placeholder": "What verified signal makes this timely?" },
+        { "id": "relevance", "label": "Relevance", "placeholder": "What plausible operational implication could matter?" },
+        { "id": "credibility", "label": "Credibility", "placeholder": "Why are you relevant to this conversation?" },
+        { "id": "next_step", "label": "Next Step", "placeholder": "What small action are you asking for?" }
+      ],
+      "saveLabel": "Save first-touch draft"
+    }
+  ]
+}

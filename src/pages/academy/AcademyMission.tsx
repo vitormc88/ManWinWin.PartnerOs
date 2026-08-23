@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { MissionToc } from "@/components/academy/MissionToc";
 import { ResourceList } from "@/components/academy/ResourceList";
 import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
 import { CertificationPanel } from "@/components/academy/CertificationPanel";
+import { MissionPlayerV2 } from "@/components/academy/MissionPlayerV2";
 import {
   useAcademyMissions,
   useAcademyModules,
@@ -26,13 +27,21 @@ import {
   saveReadingPosition,
   type ChecklistState,
 } from "@/lib/academy";
+import {
+  mergePlayerState,
+  parseMissionExperience,
+  type MissionPlayerV2State,
+} from "@/lib/academy-player";
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
 import { accessRowFor, isItemUnlocked, lockMessage } from "@/lib/academy-access";
 
 
 
+
+
 export default function AcademyMission() {
   const { slug, missionSlug } = useParams();
+  const navigate = useNavigate();
   const modulesQuery = useAcademyModules();
   const { data: modules = [], isLoading } = modulesQuery;
   const { data: phases = [] } = useAcademyPhases();
@@ -60,6 +69,12 @@ export default function AcademyMission() {
   const mission = index >= 0 ? ordered[index] : undefined;
   const isCertification = mission?.item_kind === "certification";
 
+  /** v2 activates only for a valid `academy-learning-experience-v2` payload. */
+  const experience = useMemo(
+    () => parseMissionExperience(mission?.content_json),
+    [mission?.content_json]
+  );
+
   const savedChecklist = useMemo<ChecklistState>(() => {
     const row = missionProgress.find((p) => p.mission_id === mission?.id);
     return (row?.checklist_state as ChecklistState) ?? {};
@@ -67,6 +82,7 @@ export default function AcademyMission() {
 
   const [checklist, setChecklist] = useState<ChecklistState>({});
   useEffect(() => setChecklist(savedChecklist), [savedChecklist]);
+
 
   // ── Reading position memory (per mission, per browser) ──────────────────
   const missionId = mission?.id;
@@ -162,6 +178,39 @@ export default function AcademyMission() {
       </div>
     );
   }
+
+  // ── Mission Player v2 (opt-in per mission via content_json) ─────────────
+  if (experience && !isCertification) {
+    const onPersistPlayer = (patch: Partial<MissionPlayerV2State>) => {
+      const next = mergePlayerState(checklist, patch) as ChecklistState;
+      setChecklist(next);
+      toggleChecklist.mutate({ missionId: mission.id, checklistState: next });
+    };
+
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <AcademyBreadcrumbs
+          items={[
+            { label: "Partner Academy", to: "/academy" },
+            ...(phase ? [{ label: phase.title }] : []),
+            { label: mod.title, to: `/academy/modules/${mod.slug}` },
+            { label: mission.title },
+          ]}
+        />
+        <MissionPlayerV2
+          experience={experience}
+          markdown={mission.content_markdown}
+          checklistState={checklist}
+          onPersist={onPersistPlayer}
+          isCompleted={isDone}
+          isCompleting={complete.isPending}
+          onComplete={onToggleComplete}
+          onBackToModule={() => navigate(`/academy/modules/${mod.slug}`)}
+        />
+      </div>
+    );
+  }
+
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">

@@ -66,6 +66,8 @@ export interface AcademyMission {
   short_description: string | null;
   estimated_duration_minutes: number;
   content_markdown: string | null;
+  /** Optional structured experience definition (Mission Player v2). */
+  content_json?: unknown;
   item_kind: MissionItemKind;
   is_locked: boolean;
   sort_order: number;
@@ -384,7 +386,12 @@ export function checklistItemIds(markdown: string | null | undefined): string[] 
     .flatMap((b) => b.items.map((_, idx) => `${b.key}#${idx}`));
 }
 
-export type ChecklistState = Record<string, boolean>;
+/**
+ * Persisted mission state. Markdown checklist ids map to booleans; namespaced
+ * keys (e.g. `__missionPlayerV2`) may hold richer objects, so values are
+ * `unknown` and must be narrowed by their owner.
+ */
+export type ChecklistState = Record<string, unknown>;
 
 export function checklistCompletion(
   markdown: string | null | undefined,

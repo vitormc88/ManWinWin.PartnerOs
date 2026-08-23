@@ -13,6 +13,11 @@ import { AssetLibraryPanel } from "@/components/academy/AssetLibraryPanel";
 import { AssetPickerDialog } from "@/components/academy/AssetPickerDialog";
 import { toast } from "sonner";
 import {
+  MISSION_PLAYER_V2_KIND,
+  isMissionPlayerV2,
+  validateMissionExperience,
+} from "@/lib/academy-player";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -74,7 +79,7 @@ type Table = AcademyTable;
 type Field = {
   key: string;
   label: string;
-  type: "text" | "textarea" | "markdown" | "number" | "status" | "boolean" | "select" | "file";
+  type: "text" | "textarea" | "markdown" | "number" | "status" | "boolean" | "select" | "file" | "json";
   options?: string[];
 };
 
@@ -108,6 +113,11 @@ const FIELDS: Record<Table, Field[]> = {
     { key: "short_description", label: "Short description", type: "textarea" },
     { key: "estimated_duration_minutes", label: "Duration (min)", type: "number" },
     { key: "content_markdown", label: "Content (Markdown)", type: "markdown" },
+    {
+      key: "content_json",
+      label: "Experience JSON (optional — Mission Player v2)",
+      type: "json",
+    },
     { key: "sort_order", label: "Order", type: "number" },
     { key: "is_required", label: "Required", type: "boolean" },
     { key: "is_locked", label: "Locked", type: "boolean" },
@@ -442,16 +452,29 @@ function RecordDialog({
     const payload: Record<string, any> = form.id
       ? { id: form.id, _expectedUpdatedAt: baseUpdatedAt.current }
       : {};
+    let jsonInvalid = false;
     fields.forEach((f) => {
       const raw = form[f.key];
       if (raw === undefined) return;
       if (f.type === "number") {
         const n = Number(raw);
         payload[f.key] = Number.isFinite(n) ? Math.max(0, n) : 0;
+      } else if (f.type === "json") {
+        const parsed = parseJsonField(raw);
+        if (!parsed.ok) {
+          jsonInvalid = true;
+          return;
+        }
+        payload[f.key] = parsed.value;
       } else {
         payload[f.key] = raw;
       }
     });
+    if (jsonInvalid) {
+      toast.error("Fix the Experience JSON before saving.");
+      return;
+    }
+
     if (statusOverride) payload.status = statusOverride;
 
     // The previous attachment is only removed once the record save succeeded,
@@ -531,6 +554,8 @@ function RecordDialog({
               <Label htmlFor={f.key}>{f.label}</Label>
               {f.type === "markdown" ? (
                 <MarkdownEditor value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
+              ) : f.type === "json" ? (
+                <JsonExperienceField value={form[f.key]} onChange={(v) => set(f.key, v)} />
               ) : f.type === "file" ? (
                 <AttachmentField value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
               ) : f.type === "textarea" ? (
@@ -793,3 +818,94 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
+
+// ── Optional structured experience (Mission Player v2) ───────────────────
+
+/** Normalises a `json` field value (object from the DB, or edited text). */
+function parseJsonField(raw: unknown): { ok: true; value: unknown } | { ok: false } {
+  if (raw === null || raw === undefined) return { ok: true, value: null };
+  if (typeof raw !== "string") return { ok: true, value: raw };
+  if (raw.trim() === "") return { ok: true, value: null };
+  try {
+    return { ok: true, value: JSON.parse(raw) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function toJsonText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Optional JSON editor for `academy_missions.content_json`. Empty means the
+ * mission keeps the legacy Markdown player; a payload is only accepted when it
+ * validates against the Mission Player v2 schema.
+ */
+function JsonExperienceField({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (v: string) => void;
+}) {
+  const text = toJsonText(value);
+  const parsed = parseJsonField(text);
+
+  let status: { tone: "ok" | "warn" | "error"; message: string; errors?: string[] };
+  if (!parsed.ok) {
+    status = { tone: "error", message: "Invalid JSON — this record cannot be saved yet." };
+  } else if (parsed.value === null) {
+    status = { tone: "ok", message: "Empty — this mission uses the standard Markdown player." };
+  } else if (!isMissionPlayerV2(parsed.value)) {
+    status = {
+      tone: "warn",
+      message: `Stored as-is. The guided player only activates when "kind" is "${MISSION_PLAYER_V2_KIND}".`,
+    };
+  } else {
+    const result = validateMissionExperience(parsed.value);
+    const errors = "errors" in result ? result.errors : [];
+    if (result.ok) {
+      status = { tone: "ok", message: `Valid experience — ${result.experience.steps.length} steps.` };
+    } else {
+      status = { tone: "error", message: "Experience JSON is invalid:", errors };
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Textarea
+        id="content_json"
+        rows={12}
+        value={text}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder='Leave empty for the standard Markdown mission. Paste an "academy-learning-experience-v2" payload to enable the guided player.'
+        className="font-mono text-xs resize-y"
+      />
+      <div
+        className={
+          status.tone === "error"
+            ? "text-xs text-destructive"
+            : status.tone === "warn"
+              ? "text-xs text-amber-600 dark:text-amber-400"
+              : "text-xs text-muted-foreground"
+        }
+      >
+        <p>{status.message}</p>
+        {status.errors && (
+          <ul className="list-disc pl-5 mt-1 space-y-0.5">
+            {status.errors.slice(0, 8).map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
