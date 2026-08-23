@@ -470,7 +470,9 @@ export function MissionPlayerV2({
             state={state}
             onUpdate={update}
             onStepDone={markStepDone}
+            track={track}
           />
+
 
           {/* Desktop navigation */}
           <div className="hidden lg:flex items-center justify-between gap-3">
