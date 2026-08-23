@@ -67,7 +67,7 @@ describe("validateMissionExperience — optional media refs", () => {
       steps: [base.steps[0], { ...base.steps[1], assetKey: "Not A Key" }],
     });
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.errors.join(" ")).toMatch(/assetKey/);
+    if (result.ok === false) expect(result.errors.join(" ")).toMatch(/assetKey/);
   });
 
   it("rejects an invalid video/audio asset key and a non-string transcript", () => {
