@@ -1038,10 +1038,12 @@ function ApplyStep({
   step,
   state,
   onUpdate,
+  track,
 }: {
   step: PlayerStep;
   state: MissionPlayerV2State;
   onUpdate: (patch: Partial<MissionPlayerV2State>) => void;
+  track: TrackLearningEvent;
 }) {
   const savedApply = state.apply;
   const [account, setAccount] = useState(savedApply.account ?? "");
@@ -1083,12 +1085,19 @@ function ApplyStep({
       <div className="flex flex-wrap items-center gap-3">
         <Button
           disabled={missing}
-          onClick={() =>
+          onClick={() => {
             onUpdate({
               apply: { account, values, saved_at: new Date().toISOString() },
               completed: [step.id],
-            })
-          }
+            });
+            track("apply_completed", {
+              stepId: step.id,
+              once: true,
+              properties: {
+                fields_filled: Object.values(values).filter((v) => v.trim()).length,
+              },
+            });
+          }}
         >
           {step.saveLabel ?? "Save draft"}
         </Button>
