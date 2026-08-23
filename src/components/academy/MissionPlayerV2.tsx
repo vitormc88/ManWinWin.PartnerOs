@@ -34,6 +34,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { MissionContent } from "@/components/academy/MissionContent";
+import { MissionMedia } from "@/components/academy/MissionMedia";
+import type { TrackLearningEvent } from "@/hooks/useAcademyLearningEvents";
 import {
   STEP_TYPE_LABELS,
   canFinishMission,
@@ -50,6 +52,8 @@ import {
   type PlayerStep,
 } from "@/lib/academy-player";
 
+const noopTrack: TrackLearningEvent = () => {};
+
 interface Props {
   experience: MissionExperienceV2;
   /** Untouched legacy markdown, rendered as the Deep Dive / Full Lesson. */
@@ -63,7 +67,10 @@ interface Props {
   onComplete: () => void;
   /** Optional link back to the module overview. */
   onBackToModule?: () => void;
+  /** Optional, failure-isolated learning telemetry sink. */
+  onEvent?: TrackLearningEvent;
 }
+
 
 export function MissionPlayerV2({
   experience,
