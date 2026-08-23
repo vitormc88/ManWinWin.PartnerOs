@@ -108,6 +108,11 @@ const FIELDS: Record<Table, Field[]> = {
     { key: "short_description", label: "Short description", type: "textarea" },
     { key: "estimated_duration_minutes", label: "Duration (min)", type: "number" },
     { key: "content_markdown", label: "Content (Markdown)", type: "markdown" },
+    {
+      key: "content_json",
+      label: "Experience JSON (optional — Mission Player v2)",
+      type: "json",
+    },
     { key: "sort_order", label: "Order", type: "number" },
     { key: "is_required", label: "Required", type: "boolean" },
     { key: "is_locked", label: "Locked", type: "boolean" },
