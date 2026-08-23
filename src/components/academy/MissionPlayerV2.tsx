@@ -841,10 +841,12 @@ function ScenarioStep({
   step,
   state,
   onUpdate,
+  track,
 }: {
   step: PlayerStep;
   state: MissionPlayerV2State;
   onUpdate: (patch: Partial<MissionPlayerV2State>) => void;
+  track: TrackLearningEvent;
 }) {
   const selected = state.choices[step.id];
   const option = optionById(step, selected);
@@ -860,6 +862,17 @@ function ScenarioStep({
       reasoning: { [step.id]: next },
       completed: correct && next.length > 0 ? [step.id] : [],
     });
+    track("scenario_answered", {
+      stepId: step.id,
+      once: true,
+      dedupeOn: `${selected ?? "-"}:${next.slice().sort().join(",")}`,
+      properties: {
+        option_id: selected,
+        correct,
+        reasoning_option_ids: next,
+        reasoning_correct: isReasoningCorrect(step, next),
+      },
+    });
   };
 
   return (
@@ -874,10 +887,19 @@ function ScenarioStep({
             text={o.text}
             selected={selected === o.id}
             state={!selected ? "neutral" : o.id === selected ? (o.correct ? "correct" : "incorrect") : "neutral"}
-            onClick={() => onUpdate({ choices: { [step.id]: o.id } })}
+            onClick={() => {
+              onUpdate({ choices: { [step.id]: o.id } });
+              track("scenario_answered", {
+                stepId: step.id,
+                once: true,
+                dedupeOn: o.id,
+                properties: { option_id: o.id, correct: o.correct === true },
+              });
+            }}
           />
         ))}
       </div>
+
       {selected && option?.feedback && <Feedback correct={correct} text={option.feedback} />}
 
       {correct && reasoningOptions.length > 0 && (
