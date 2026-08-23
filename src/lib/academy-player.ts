@@ -237,6 +237,11 @@ export function validateMissionExperience(raw: unknown): ValidationResult {
       if (s.bullets !== undefined && !isStringArray(s.bullets)) {
         errors.push(`${where}: "bullets" must be an array of strings`);
       }
+      if (s.assetKey !== undefined && s.assetKey !== null && !isValidMediaAssetKey(s.assetKey)) {
+        errors.push(`${where}.assetKey: must be a valid asset key`);
+      }
+      if (isRecord(s.video)) validateMediaRefs(s.video, `${where}.video`, errors);
+
 
       switch (s.type) {
         case "challenge":
