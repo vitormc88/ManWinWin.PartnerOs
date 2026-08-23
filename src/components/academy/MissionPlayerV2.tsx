@@ -81,7 +81,9 @@ export function MissionPlayerV2({
   isCompleting,
   onComplete,
   onBackToModule,
+  onEvent,
 }: Props) {
+  const track = onEvent ?? noopTrack;
   const saved = useMemo(() => readPlayerState(checklistState), [checklistState]);
   const [state, setState] = useState<MissionPlayerV2State>(saved);
   const [hydrated, setHydrated] = useState(false);
@@ -89,6 +91,7 @@ export function MissionPlayerV2({
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+
 
   // Resume from server state; keep syncing if the row arrives (or refreshes) later.
   const savedKey = useMemo(() => JSON.stringify(saved), [saved]);
