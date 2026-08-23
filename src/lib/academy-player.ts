@@ -107,13 +107,19 @@ export interface PlayerStep {
   requireAccountName?: boolean;
   accountLabel?: string;
   fields?: PlayerApplyField[];
+  /** Optional Asset Library image for this step (e.g. the Takeaway card). */
+  assetKey?: string;
+  assetCaption?: string;
+  assetAlt?: string;
 }
 
-export interface PlayerAudioBrief {
+export interface PlayerAudioBrief extends PlayerMediaRefs {
   title: string;
   duration: string;
-  status: "coming-soon";
+  /** Legacy marker; when an `assetKey` resolves, real audio is rendered. */
+  status?: "coming-soon" | "available";
 }
+
 
 export interface MissionExperienceV2 {
   kind: typeof MISSION_PLAYER_V2_KIND;
