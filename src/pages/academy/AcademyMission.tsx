@@ -37,8 +37,8 @@ import {
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
 import { accessRowFor, isItemUnlocked, lockMessage } from "@/lib/academy-access";
 
-
-
+/** Stable empty array so loading states don't invalidate memos every render. */
+const EMPTY_PROGRESS: NonNullable<ReturnType<typeof useMyMissionProgress>["data"]> = [];
 
 
 export default function AcademyMission() {
