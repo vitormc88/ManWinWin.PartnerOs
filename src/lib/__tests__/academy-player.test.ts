@@ -159,3 +159,24 @@ describe("journey logic", () => {
     expect(isApplyDraftSaved(experience, missingField)).toBe(false);
   });
 });
+
+describe("mergePlayerState sequential persists", () => {
+  it("accumulates completed steps across chained merges (no lost update)", () => {
+    let outer: unknown = {};
+    outer = mergePlayerState(outer, { completed: ["hook"], started: true });
+    outer = mergePlayerState(outer, { currentStepId: "learn", started: true });
+    outer = mergePlayerState(outer, { completed: ["learn"] });
+    outer = mergePlayerState(outer, { currentStepId: "framework", started: true });
+    outer = mergePlayerState(outer, { completed: ["framework"] });
+
+    const state = readPlayerState(outer);
+    expect(state.completed.sort()).toEqual(["framework", "hook", "learn"]);
+    expect(state.currentStepId).toBe("framework");
+  });
+
+  it("keeps unrelated checklist keys intact", () => {
+    const outer = mergePlayerState({ "legacy-item": true }, { completed: ["hook"] });
+    expect(outer["legacy-item"]).toBe(true);
+    expect(readPlayerState(outer).completed).toEqual(["hook"]);
+  });
+});

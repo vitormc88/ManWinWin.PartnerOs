@@ -28,8 +28,10 @@ import {
   type ChecklistState,
 } from "@/lib/academy";
 import {
+  MISSION_PLAYER_V2_STATE_KEY,
   mergePlayerState,
   parseMissionExperience,
+  readPlayerState,
   type MissionPlayerV2State,
 } from "@/lib/academy-player";
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
@@ -81,7 +83,25 @@ export default function AcademyMission() {
   }, [missionProgress, mission?.id]);
 
   const [checklist, setChecklist] = useState<ChecklistState>({});
-  useEffect(() => setChecklist(savedChecklist), [savedChecklist]);
+  /** Always-current mirror so rapid successive persists never merge stale state. */
+  const checklistRef = useRef<ChecklistState>({});
+  useEffect(() => {
+    // A refetch can land before an in-flight write is visible: union the server
+    // state with what is already in the mirror instead of replacing it.
+    const local = checklistRef.current;
+    if (Object.keys(local).length === 0) {
+      checklistRef.current = savedChecklist;
+      setChecklist(savedChecklist);
+      return;
+    }
+    const base: ChecklistState = { ...savedChecklist, ...local };
+    // Let mergePlayerState union the two player states (server = base, local = patch).
+    base[MISSION_PLAYER_V2_STATE_KEY] = savedChecklist[MISSION_PLAYER_V2_STATE_KEY];
+    const merged = mergePlayerState(base, readPlayerState(local)) as ChecklistState;
+    if (JSON.stringify(merged) === JSON.stringify(local)) return;
+    checklistRef.current = merged;
+    setChecklist(merged);
+  }, [savedChecklist]);
 
 
   // ── Reading position memory (per mission, per browser) ──────────────────
@@ -138,7 +158,8 @@ export default function AcademyMission() {
   const missionResources = resources.filter((r) => r.mission_id === mission.id);
 
   const onToggleChecklistItem = (itemId: string, checked: boolean) => {
-    const next = { ...checklist, [itemId]: checked };
+    const next = { ...checklistRef.current, [itemId]: checked };
+    checklistRef.current = next;
     setChecklist(next);
     toggleChecklist.mutate({ missionId: mission.id, checklistState: next });
   };
@@ -182,7 +203,8 @@ export default function AcademyMission() {
   // ── Mission Player v2 (opt-in per mission via content_json) ─────────────
   if (experience && !isCertification) {
     const onPersistPlayer = (patch: Partial<MissionPlayerV2State>) => {
-      const next = mergePlayerState(checklist, patch) as ChecklistState;
+      const next = mergePlayerState(checklistRef.current, patch) as ChecklistState;
+      checklistRef.current = next;
       setChecklist(next);
       toggleChecklist.mutate({ missionId: mission.id, checklistState: next });
     };

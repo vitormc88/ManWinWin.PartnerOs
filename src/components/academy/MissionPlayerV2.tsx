@@ -76,13 +76,28 @@ export function MissionPlayerV2({
   const [toolsOpen, setToolsOpen] = useState(false);
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
 
-  // Resume once, from server state.
+  // Resume from server state; keep syncing if the row arrives (or refreshes) later.
+  const savedKey = useMemo(() => JSON.stringify(saved), [saved]);
   useEffect(() => {
-    if (hydrated) return;
-    setState(saved);
-    setIndex(resumeStepIndex(experience, saved));
-    setHydrated(true);
-  }, [saved, experience, hydrated]);
+    setState((prev) => {
+      const next: MissionPlayerV2State = {
+        ...saved,
+        choices: { ...saved.choices, ...prev.choices },
+        reasoning: { ...saved.reasoning, ...prev.reasoning },
+        notes: { ...saved.notes, ...prev.notes },
+        completed: Array.from(new Set([...saved.completed, ...prev.completed])),
+        apply: saved.apply.saved_at ? saved.apply : prev.apply,
+        started: saved.started || prev.started,
+        currentStepId: prev.currentStepId ?? saved.currentStepId,
+      };
+      return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
+    });
+    if (!hydrated) {
+      setIndex(resumeStepIndex(experience, saved));
+      setHydrated(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
 
   const steps = experience.steps;
   const step = steps[Math.min(index, steps.length - 1)];
