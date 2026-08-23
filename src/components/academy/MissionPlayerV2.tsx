@@ -349,8 +349,28 @@ export function MissionPlayerV2({
         <p className="text-xs text-muted-foreground">
           {experience.audioBrief?.duration ?? "—"} · Audio version of this mission.
         </p>
-        <Badge variant="outline" className="text-[11px]">Coming soon</Badge>
+        <MissionMedia
+          kind="audio"
+          assetKey={experience.audioBrief?.assetKey}
+          captionsAssetKey={experience.audioBrief?.captionsAssetKey}
+          transcript={experience.audioBrief?.transcript}
+          label={experience.audioBrief?.title ?? "Mission audio brief"}
+          placeholder={<Badge variant="outline" className="text-[11px]">Coming soon</Badge>}
+          onStarted={({ assetKey, durationBucket }) =>
+            track("audio_started", {
+              once: true,
+              properties: { asset_key: assetKey, media_kind: "audio", duration_bucket: durationBucket },
+            })
+          }
+          onCompleted={({ assetKey, positionBucket }) =>
+            track("audio_completed", {
+              once: true,
+              properties: { asset_key: assetKey, media_kind: "audio", position_bucket: positionBucket },
+            })
+          }
+        />
       </div>
+
 
       <div className="rounded-xl border bg-card p-4 space-y-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
