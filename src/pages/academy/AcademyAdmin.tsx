@@ -549,6 +549,8 @@ function RecordDialog({
               <Label htmlFor={f.key}>{f.label}</Label>
               {f.type === "markdown" ? (
                 <MarkdownEditor value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
+              ) : f.type === "json" ? (
+                <JsonExperienceField value={form[f.key]} onChange={(v) => set(f.key, v)} />
               ) : f.type === "file" ? (
                 <AttachmentField value={form[f.key] ?? ""} onChange={(v) => set(f.key, v)} />
               ) : f.type === "textarea" ? (
