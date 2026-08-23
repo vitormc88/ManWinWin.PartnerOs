@@ -66,6 +66,8 @@ export interface AcademyMission {
   short_description: string | null;
   estimated_duration_minutes: number;
   content_markdown: string | null;
+  /** Optional structured experience definition (Mission Player v2). */
+  content_json?: unknown;
   item_kind: MissionItemKind;
   is_locked: boolean;
   sort_order: number;
