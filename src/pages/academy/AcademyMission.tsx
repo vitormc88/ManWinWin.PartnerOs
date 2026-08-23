@@ -51,7 +51,10 @@ export default function AcademyMission() {
   const missionsQuery = useAcademyMissions(mod?.id);
   const { data: missions = [] } = missionsQuery;
   const { data: resources = [] } = useAcademyResources(mod?.id);
-  const { data: missionProgress = [] } = useMyMissionProgress();
+  const { data: missionProgressData } = useMyMissionProgress();
+  // Stable identity while the query is still loading, otherwise the memo below
+  // (and its effect) would re-run on every render.
+  const missionProgress = missionProgressData ?? EMPTY_PROGRESS;
   const complete = useCompleteMission();
   // Direct-route protection mirrors the server rule exactly.
   const { data: access, isLoading: accessLoading } = useAcademyItemAccess(mod?.id);
