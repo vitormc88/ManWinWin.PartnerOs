@@ -92,7 +92,10 @@ export function MissionPlayerV2({
       };
       return JSON.stringify(next) === JSON.stringify(prev) ? prev : next;
     });
-    if (!hydrated) {
+    // Only lock in the resume position once real saved state has arrived.
+    const hasSavedState =
+      saved.started || saved.completed.length > 0 || Boolean(saved.currentStepId);
+    if (!hydrated && hasSavedState) {
       setIndex(resumeStepIndex(experience, saved));
       setHydrated(true);
     }
