@@ -447,16 +447,29 @@ function RecordDialog({
     const payload: Record<string, any> = form.id
       ? { id: form.id, _expectedUpdatedAt: baseUpdatedAt.current }
       : {};
+    let jsonInvalid = false;
     fields.forEach((f) => {
       const raw = form[f.key];
       if (raw === undefined) return;
       if (f.type === "number") {
         const n = Number(raw);
         payload[f.key] = Number.isFinite(n) ? Math.max(0, n) : 0;
+      } else if (f.type === "json") {
+        const parsed = parseJsonField(raw);
+        if (!parsed.ok) {
+          jsonInvalid = true;
+          return;
+        }
+        payload[f.key] = parsed.value;
       } else {
         payload[f.key] = raw;
       }
     });
+    if (jsonInvalid) {
+      toast.error("Fix the Experience JSON before saving.");
+      return;
+    }
+
     if (statusOverride) payload.status = statusOverride;
 
     // The previous attachment is only removed once the record save succeeded,
