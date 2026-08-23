@@ -835,10 +835,12 @@ function ApplyStep({
   const [account, setAccount] = useState(savedApply.account ?? "");
   const [values, setValues] = useState<Record<string, string>>(savedApply.values ?? {});
 
+  const savedValuesKey = JSON.stringify(savedApply.values ?? {});
   useEffect(() => {
     setAccount(savedApply.account ?? "");
-    setValues(savedApply.values ?? {});
-  }, [savedApply.account, savedApply.values]);
+    setValues(JSON.parse(savedValuesKey) as Record<string, string>);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedApply.account, savedValuesKey]);
 
   const missing =
     (step.requireAccountName && !account.trim()) ||
