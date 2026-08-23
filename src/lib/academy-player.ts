@@ -302,7 +302,10 @@ export function validateMissionExperience(raw: unknown): ValidationResult {
     });
   }
 
+  if (isRecord(raw.audioBrief)) validateMediaRefs(raw.audioBrief, "audioBrief", errors);
+
   if (errors.length > 0) return { ok: false, errors };
+
   return { ok: true, experience: raw as unknown as MissionExperienceV2 };
 }
 
