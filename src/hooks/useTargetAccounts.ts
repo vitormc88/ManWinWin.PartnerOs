@@ -174,7 +174,7 @@ export function useCreateTargetAccount() {
 export function useUpdateTargetAccount() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<TargetAccount>) => {
+    mutationFn: async ({ id, ...updates }: { id: string } & Record<string, unknown>) => {
       const payload: Record<string, unknown> = { ...updates };
       delete payload.priority_total; // generated column
       if (typeof updates.website === "string") {
@@ -182,7 +182,7 @@ export function useUpdateTargetAccount() {
       }
       const { data, error } = await supabase
         .from("target_accounts")
-        .update(payload)
+        .update(payload as never)
         .eq("id", id)
         .select()
         .single();
