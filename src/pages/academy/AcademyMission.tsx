@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { MissionToc } from "@/components/academy/MissionToc";
 import { ResourceList } from "@/components/academy/ResourceList";
 import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
 import { CertificationPanel } from "@/components/academy/CertificationPanel";
+import { MissionPlayerV2 } from "@/components/academy/MissionPlayerV2";
 import {
   useAcademyMissions,
   useAcademyModules,
@@ -26,8 +27,15 @@ import {
   saveReadingPosition,
   type ChecklistState,
 } from "@/lib/academy";
+import {
+  mergePlayerState,
+  parseMissionExperience,
+  type MissionPlayerV2State,
+} from "@/lib/academy-player";
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
 import { accessRowFor, isItemUnlocked, lockMessage } from "@/lib/academy-access";
+
+
 
 
 

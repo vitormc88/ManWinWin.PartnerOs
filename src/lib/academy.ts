@@ -384,7 +384,12 @@ export function checklistItemIds(markdown: string | null | undefined): string[] 
     .flatMap((b) => b.items.map((_, idx) => `${b.key}#${idx}`));
 }
 
-export type ChecklistState = Record<string, boolean>;
+/**
+ * Persisted mission state. Markdown checklist ids map to booleans; namespaced
+ * keys (e.g. `__missionPlayerV2`) may hold richer objects, so values are
+ * `unknown` and must be narrowed by their owner.
+ */
+export type ChecklistState = Record<string, unknown>;
 
 export function checklistCompletion(
   markdown: string | null | undefined,
