@@ -641,6 +641,63 @@ export type Database = {
           },
         ]
       }
+      academy_learning_events: {
+        Row: {
+          client_event_id: string
+          created_at: string
+          event_name: string
+          id: string
+          mission_id: string
+          module_id: string
+          occurred_at: string
+          properties: Json
+          session_id: string
+          step_id: string | null
+          user_id: string
+        }
+        Insert: {
+          client_event_id: string
+          created_at?: string
+          event_name: string
+          id?: string
+          mission_id: string
+          module_id: string
+          occurred_at?: string
+          properties?: Json
+          session_id: string
+          step_id?: string | null
+          user_id?: string
+        }
+        Update: {
+          client_event_id?: string
+          created_at?: string
+          event_name?: string
+          id?: string
+          mission_id?: string
+          module_id?: string
+          occurred_at?: string
+          properties?: Json
+          session_id?: string
+          step_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "academy_learning_events_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "academy_missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "academy_learning_events_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "academy_modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       academy_mission_progress: {
         Row: {
           checklist_state: Json
