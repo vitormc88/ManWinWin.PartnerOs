@@ -34,7 +34,9 @@ import {
   reconcileChecklistState,
   type MissionPlayerV2State,
 } from "@/lib/academy-player";
+import { toggleMissionCompletion } from "@/lib/academy-mission-complete";
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
+
 import { accessRowFor, isItemUnlocked, lockMessage } from "@/lib/academy-access";
 
 /** Stable empty array so loading states don't invalidate memos every render. */
