@@ -179,6 +179,39 @@ export default function AcademyMission() {
     );
   }
 
+  // ── Mission Player v2 (opt-in per mission via content_json) ─────────────
+  if (experience && !isCertification) {
+    const onPersistPlayer = (patch: Partial<MissionPlayerV2State>) => {
+      const next = mergePlayerState(checklist, patch) as ChecklistState;
+      setChecklist(next);
+      toggleChecklist.mutate({ missionId: mission.id, checklistState: next });
+    };
+
+    return (
+      <div className="max-w-6xl mx-auto space-y-6">
+        <AcademyBreadcrumbs
+          items={[
+            { label: "Partner Academy", to: "/academy" },
+            ...(phase ? [{ label: phase.title }] : []),
+            { label: mod.title, to: `/academy/modules/${mod.slug}` },
+            { label: mission.title },
+          ]}
+        />
+        <MissionPlayerV2
+          experience={experience}
+          markdown={mission.content_markdown}
+          checklistState={checklist}
+          onPersist={onPersistPlayer}
+          isCompleted={isDone}
+          isCompleting={complete.isPending}
+          onComplete={onToggleComplete}
+          onBackToModule={() => navigate(`/academy/modules/${mod.slug}`)}
+        />
+      </div>
+    );
+  }
+
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <AcademyBreadcrumbs
