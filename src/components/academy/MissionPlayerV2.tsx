@@ -972,11 +972,21 @@ function NoteStep({
         )}
         <StepHeading step={step} />
       </div>
+      {step.assetKey && (
+        <MissionMedia
+          kind="image"
+          assetKey={step.assetKey}
+          label={step.assetAlt ?? step.title}
+          caption={step.assetCaption ?? null}
+          placeholder={null}
+        />
+      )}
       {step.quote && (
         <blockquote className="border-l-2 border-primary pl-4 text-base sm:text-lg font-medium text-foreground">
           {step.quote}
         </blockquote>
       )}
+
       {step.prompt && (
         <div className="rounded-xl border bg-secondary/40 p-4 text-sm text-foreground">{step.prompt}</div>
       )}
