@@ -152,6 +152,77 @@ export function MissionPlayerV2({
 
   const markStepDone = (id: string) => update({ completed: [id] });
 
+  // ── Learning telemetry (observability only; never affects progress) ──────
+  const startEmitted = useRef(false);
+  const emitStart = useCallback(
+    (resumed: boolean) => {
+      if (startEmitted.current) return;
+      startEmitted.current = true;
+      track(resumed ? "mission_resumed" : "mission_started", {
+        once: true,
+        properties: { resumed, steps_total: steps.length, completion_pct: progress },
+      });
+    },
+    [track, steps.length, progress]
+  );
+
+  const hasSavedState = saved.started || saved.completed.length > 0 || Boolean(saved.currentStepId);
+  useEffect(() => {
+    if (hasSavedState) emitStart(true);
+  }, [hasSavedState, emitStart]);
+
+  // Step views — de-duplicated per session so scrolling back is not noisy.
+  const currentStepId = state.started && !finished ? step?.id : undefined;
+  useEffect(() => {
+    if (!currentStepId) return;
+    const viewed = steps.find((s) => s.id === currentStepId);
+    if (!viewed) return;
+    track("step_viewed", {
+      stepId: viewed.id,
+      once: true,
+      properties: {
+        step_type: viewed.type,
+        step_index: steps.indexOf(viewed) + 1,
+        steps_total: steps.length,
+      },
+    });
+    if (viewed.type === "apply") {
+      track("apply_started", { stepId: viewed.id, once: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStepId]);
+
+  // Step completions — only those newly earned in this session.
+  const serverCompleted = useMemo(() => new Set(saved.completed), [saved.completed]);
+  const completionEmitted = useRef<Set<string>>(new Set());
+  const completedKey = state.completed.join("|");
+  useEffect(() => {
+    for (const id of state.completed) {
+      if (serverCompleted.has(id) || completionEmitted.current.has(id)) continue;
+      completionEmitted.current.add(id);
+      const done = steps.find((s) => s.id === id);
+      track("step_completed", {
+        stepId: id,
+        once: true,
+        properties: { step_type: done?.type, completion_pct: progress },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedKey]);
+
+  const setDeepDive = useCallback(
+    (open: boolean, source?: string) => {
+      setDeepDiveOpen(open);
+      track(open ? "deep_dive_opened" : "deep_dive_closed", {
+        stepId: step?.id ?? null,
+        properties: source ? { source } : undefined,
+      });
+    },
+    [track, step?.id]
+  );
+
+
+
   // ── Intro screen ────────────────────────────────────────────────────────
   if (!state.started && !finished) {
     return (
