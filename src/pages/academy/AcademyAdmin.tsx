@@ -870,9 +870,11 @@ function JsonExperienceField({
     };
   } else {
     const result = validateMissionExperience(parsed.value);
-    status = result.ok
-      ? { tone: "ok", message: `Valid experience — ${result.experience.steps.length} steps.` }
-      : { tone: "error", message: "Experience JSON is invalid:", errors: result.errors };
+    if (result.ok) {
+      status = { tone: "ok", message: `Valid experience — ${result.experience.steps.length} steps.` };
+    } else {
+      status = { tone: "error", message: "Experience JSON is invalid:", errors: result.errors };
+    }
   }
 
   return (
