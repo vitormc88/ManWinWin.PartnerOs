@@ -13,6 +13,11 @@ import { AssetLibraryPanel } from "@/components/academy/AssetLibraryPanel";
 import { AssetPickerDialog } from "@/components/academy/AssetPickerDialog";
 import { toast } from "sonner";
 import {
+  MISSION_PLAYER_V2_KIND,
+  isMissionPlayerV2,
+  validateMissionExperience,
+} from "@/lib/academy-player";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
