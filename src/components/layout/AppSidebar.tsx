@@ -25,7 +25,7 @@ import {
   Inbox,
   CheckSquare,
   Target,
-
+} from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { BrandMark } from "@/components/BrandMark";
 import { useLocation } from "react-router-dom";
