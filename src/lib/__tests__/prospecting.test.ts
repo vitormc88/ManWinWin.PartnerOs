@@ -129,7 +129,8 @@ describe("company identity", () => {
 
   it("strips legal suffixes for name matching only", () => {
     expect(normaliseCompanyName("ManWinWin Software, Lda.")).toBe("manwinwin software");
-    expect(normaliseCompanyName("Açores Metal S.A.")).toBe("acores metal metal".slice(0, 12));
+    expect(normaliseCompanyName("Açores Metal Group")).toBe("acores metal");
+
   });
 
   it("matches duplicates on domain first, then name", () => {
