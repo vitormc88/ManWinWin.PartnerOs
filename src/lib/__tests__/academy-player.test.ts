@@ -12,6 +12,7 @@ import {
   mergePlayerState,
   parseMissionExperience,
   readPlayerState,
+  reconcileChecklistState,
   resumeStepIndex,
   validateMissionExperience,
   type MissionExperienceV2,
@@ -178,5 +179,60 @@ describe("mergePlayerState sequential persists", () => {
     const outer = mergePlayerState({ "legacy-item": true }, { completed: ["hook"] });
     expect(outer["legacy-item"]).toBe(true);
     expect(readPlayerState(outer).completed).toEqual(["hook"]);
+  });
+});
+
+describe("reconcileChecklistState (resume / refetch race)", () => {
+  const server = (completed: string[], extra: Record<string, unknown> = {}) =>
+    mergePlayerState(extra, { completed, started: true });
+
+  it("adopts server state when the local mirror is still empty (first hydration)", () => {
+    const fromServer = server(["hook", "challenge"]);
+    const merged = reconcileChecklistState(fromServer, {});
+    expect(readPlayerState(merged).completed.sort()).toEqual(["challenge", "hook"]);
+    expect(readPlayerState(merged).started).toBe(true);
+  });
+
+  it("never drops local completions when a stale refetch lands mid-write", () => {
+    const stale = server(["hook"]);
+    const local = mergePlayerState(stale, { completed: ["challenge", "learn"] });
+    const merged = reconcileChecklistState(stale, local);
+    expect(readPlayerState(merged).completed.sort()).toEqual(["challenge", "hook", "learn"]);
+  });
+
+  it("unions server-only completions written by another tab", () => {
+    const local = server(["hook", "challenge"]);
+    const remote = server(["hook", "framework"]);
+    const merged = reconcileChecklistState(remote, local);
+    expect(readPlayerState(merged).completed.sort()).toEqual(["challenge", "framework", "hook"]);
+  });
+
+  it("keeps a locally saved apply draft and local notes over an older server row", () => {
+    const stale = server(["hook"]);
+    const local = mergePlayerState(stale, {
+      notes: { takeaway: "my note" },
+      apply: { account: "Atlas Foods", values: { context: "x" }, saved_at: "2026-08-23T10:00:00Z" },
+    });
+    const merged = reconcileChecklistState(stale, local);
+    const state = readPlayerState(merged);
+    expect(state.apply.account).toBe("Atlas Foods");
+    expect(state.apply.saved_at).toBe("2026-08-23T10:00:00Z");
+    expect(state.notes.takeaway).toBe("my note");
+  });
+
+  it("preserves unrelated legacy checklist keys from both sides", () => {
+    const remote = server(["hook"], { "legacy-a": true });
+    const local = mergePlayerState({ "legacy-b": true }, { completed: ["challenge"] });
+    const merged = reconcileChecklistState(remote, local);
+    expect(merged["legacy-a"]).toBe(true);
+    expect(merged["legacy-b"]).toBe(true);
+  });
+
+  it("is idempotent: reconciling twice yields an unchanged snapshot", () => {
+    const remote = server(["hook", "challenge"]);
+    const local = mergePlayerState(remote, { completed: ["learn"] });
+    const once = reconcileChecklistState(remote, local);
+    const twice = reconcileChecklistState(remote, once);
+    expect(JSON.stringify(twice)).toBe(JSON.stringify(once));
   });
 });

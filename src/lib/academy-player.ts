@@ -366,6 +366,26 @@ export function mergePlayerState(
   return existingOuter;
 }
 
+/**
+ * Reconciles a freshly fetched server checklist_state with the local mirror.
+ *
+ * A refetch can land before an in-flight write is visible, so a plain replace
+ * would drop just-completed steps. The union below keeps every server key,
+ * prefers local values for unrelated keys, and unions the player state so no
+ * completion, note, choice or saved apply draft is ever lost.
+ */
+export function reconcileChecklistState(
+  serverState: unknown,
+  localState: unknown
+): Record<string, unknown> {
+  const local: Record<string, unknown> = isRecord(localState) ? localState : {};
+  const server: Record<string, unknown> = isRecord(serverState) ? serverState : {};
+  if (Object.keys(local).length === 0) return server;
+  const base: Record<string, unknown> = { ...server, ...local };
+  base[MISSION_PLAYER_V2_STATE_KEY] = server[MISSION_PLAYER_V2_STATE_KEY];
+  return mergePlayerState(base, readPlayerState(local));
+}
+
 // ── Journey progress ──────────────────────────────────────────────────────
 
 export function stepIds(experience: MissionExperienceV2): string[] {

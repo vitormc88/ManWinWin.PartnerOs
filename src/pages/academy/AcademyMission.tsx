@@ -28,17 +28,16 @@ import {
   type ChecklistState,
 } from "@/lib/academy";
 import {
-  MISSION_PLAYER_V2_STATE_KEY,
   mergePlayerState,
   parseMissionExperience,
-  readPlayerState,
+  reconcileChecklistState,
   type MissionPlayerV2State,
 } from "@/lib/academy-player";
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
 import { accessRowFor, isItemUnlocked, lockMessage } from "@/lib/academy-access";
 
-
-
+/** Stable empty array so loading states don't invalidate memos every render. */
+const EMPTY_PROGRESS: NonNullable<ReturnType<typeof useMyMissionProgress>["data"]> = [];
 
 
 export default function AcademyMission() {
@@ -51,7 +50,10 @@ export default function AcademyMission() {
   const missionsQuery = useAcademyMissions(mod?.id);
   const { data: missions = [] } = missionsQuery;
   const { data: resources = [] } = useAcademyResources(mod?.id);
-  const { data: missionProgress = [] } = useMyMissionProgress();
+  const { data: missionProgressData } = useMyMissionProgress();
+  // Stable identity while the query is still loading, otherwise the memo below
+  // (and its effect) would re-run on every render.
+  const missionProgress = missionProgressData ?? EMPTY_PROGRESS;
   const complete = useCompleteMission();
   // Direct-route protection mirrors the server rule exactly.
   const { data: access, isLoading: accessLoading } = useAcademyItemAccess(mod?.id);
@@ -86,18 +88,8 @@ export default function AcademyMission() {
   /** Always-current mirror so rapid successive persists never merge stale state. */
   const checklistRef = useRef<ChecklistState>({});
   useEffect(() => {
-    // A refetch can land before an in-flight write is visible: union the server
-    // state with what is already in the mirror instead of replacing it.
     const local = checklistRef.current;
-    if (Object.keys(local).length === 0) {
-      checklistRef.current = savedChecklist;
-      setChecklist(savedChecklist);
-      return;
-    }
-    const base: ChecklistState = { ...savedChecklist, ...local };
-    // Let mergePlayerState union the two player states (server = base, local = patch).
-    base[MISSION_PLAYER_V2_STATE_KEY] = savedChecklist[MISSION_PLAYER_V2_STATE_KEY];
-    const merged = mergePlayerState(base, readPlayerState(local)) as ChecklistState;
+    const merged = reconcileChecklistState(savedChecklist, local) as ChecklistState;
     if (JSON.stringify(merged) === JSON.stringify(local)) return;
     checklistRef.current = merged;
     setChecklist(merged);
