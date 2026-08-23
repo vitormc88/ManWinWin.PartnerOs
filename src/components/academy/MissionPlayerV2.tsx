@@ -296,12 +296,19 @@ export function MissionPlayerV2({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="text-[11px]">
-            Step {index + 1} of {steps.length}
+            Viewing step {index + 1} of {steps.length}
           </Badge>
           <Badge variant="outline" className="text-[11px]">{STEP_TYPE_LABELS[step.type]}</Badge>
         </div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{experience.title}</h1>
-        <Progress value={progress} className="h-1.5" aria-label="Mission progress" />
+        <div className="space-y-1">
+          <Progress
+            value={progress}
+            className="h-1.5"
+            aria-label={`Mission progress: ${progress}% completed`}
+          />
+          <p className="text-[11px] text-muted-foreground">{progress}% completed</p>
+        </div>
       </div>
 
       {/* Mobile panel triggers */}
@@ -313,7 +320,12 @@ export function MissionPlayerV2({
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[85vw] sm:w-96 overflow-y-auto">
-            <SheetHeader><SheetTitle>Mission journey</SheetTitle></SheetHeader>
+            <SheetHeader>
+              <SheetTitle>Mission journey</SheetTitle>
+              <SheetDescription>
+                Viewing step {index + 1} of {steps.length} · {progress}% completed.
+              </SheetDescription>
+            </SheetHeader>
             <div className="mt-4">{journey}</div>
           </SheetContent>
         </Sheet>
@@ -324,11 +336,15 @@ export function MissionPlayerV2({
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-[85vw] sm:w-96 overflow-y-auto">
-            <SheetHeader><SheetTitle>Mission tools</SheetTitle></SheetHeader>
+            <SheetHeader>
+              <SheetTitle>Mission tools</SheetTitle>
+              <SheetDescription>Audio brief, full lesson and your progress.</SheetDescription>
+            </SheetHeader>
             <div className="mt-4">{tools}</div>
           </SheetContent>
         </Sheet>
       </div>
+
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)_260px]">
         <aside className="hidden lg:block">
