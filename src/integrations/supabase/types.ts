@@ -2740,6 +2740,7 @@ export type Database = {
           routing_reason: string | null
           sector: string | null
           sharpspring_id: string | null
+          source_target_account_id: string | null
           status: string
           timing_notes: string | null
           timing_status: string | null
@@ -2789,6 +2790,7 @@ export type Database = {
           routing_reason?: string | null
           sector?: string | null
           sharpspring_id?: string | null
+          source_target_account_id?: string | null
           status?: string
           timing_notes?: string | null
           timing_status?: string | null
@@ -2838,6 +2840,7 @@ export type Database = {
           routing_reason?: string | null
           sector?: string | null
           sharpspring_id?: string | null
+          source_target_account_id?: string | null
           status?: string
           timing_notes?: string | null
           timing_status?: string | null
@@ -2891,6 +2894,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_analytics_partner_summary"
             referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "incoming_leads_source_target_account_id_fkey"
+            columns: ["source_target_account_id"]
+            isOneToOne: false
+            referencedRelation: "target_accounts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5221,6 +5231,308 @@ export type Database = {
         }
         Relationships: []
       }
+      target_account_activities: {
+        Row: {
+          channel: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          outcome: string | null
+          performed_at: string
+          performed_by: string | null
+          person_id: string | null
+          target_account_id: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          person_id?: string | null
+          target_account_id: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          person_id?: string | null
+          target_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_account_activities_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "target_account_people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_account_activities_target_account_id_fkey"
+            columns: ["target_account_id"]
+            isOneToOne: false
+            referencedRelation: "target_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      target_account_evidence: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          evidence_date: string | null
+          fact: string
+          id: string
+          link: string | null
+          source: string | null
+          target_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          evidence_date?: string | null
+          fact: string
+          id?: string
+          link?: string | null
+          source?: string | null
+          target_account_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          evidence_date?: string | null
+          fact?: string
+          id?: string
+          link?: string | null
+          source?: string | null
+          target_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_account_evidence_target_account_id_fkey"
+            columns: ["target_account_id"]
+            isOneToOne: false
+            referencedRelation: "target_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      target_account_people: {
+        Row: {
+          conversation_role: string
+          created_at: string
+          created_by: string | null
+          email: string | null
+          full_name: string
+          id: string
+          is_primary_contact: boolean
+          job_title: string | null
+          linkedin_url: string | null
+          notes: string | null
+          phone: string | null
+          target_account_id: string
+        }
+        Insert: {
+          conversation_role?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          is_primary_contact?: boolean
+          job_title?: string | null
+          linkedin_url?: string | null
+          notes?: string | null
+          phone?: string | null
+          target_account_id: string
+        }
+        Update: {
+          conversation_role?: string
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_primary_contact?: boolean
+          job_title?: string | null
+          linkedin_url?: string | null
+          notes?: string | null
+          phone?: string | null
+          target_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_account_people_target_account_id_fkey"
+            columns: ["target_account_id"]
+            isOneToOne: false
+            referencedRelation: "target_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      target_account_signals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          signal_date: string | null
+          signal_type: string
+          source: string | null
+          target_account_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          signal_date?: string | null
+          signal_type: string
+          source?: string | null
+          target_account_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          signal_date?: string | null
+          signal_type?: string
+          source?: string | null
+          target_account_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_account_signals_target_account_id_fkey"
+            columns: ["target_account_id"]
+            isOneToOne: false
+            referencedRelation: "target_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      target_accounts: {
+        Row: {
+          access_score: number
+          company_name: string
+          complexity_score: number
+          confidence: string
+          converted_lead_id: string | null
+          country: string
+          created_at: string
+          created_by: string | null
+          deprioritised_reason: string | null
+          fit_indicators: Json
+          fit_score: number
+          id: string
+          industry: string | null
+          key_research_gap: string | null
+          maintenance_environment: string | null
+          maintenance_hypothesis: string | null
+          owner_user_id: string | null
+          partner_uuid: string | null
+          priority_total: number | null
+          signal_score: number
+          size_context: string | null
+          status: string
+          unknowns: Json
+          updated_at: string
+          website: string | null
+          website_domain: string | null
+        }
+        Insert: {
+          access_score?: number
+          company_name: string
+          complexity_score?: number
+          confidence?: string
+          converted_lead_id?: string | null
+          country: string
+          created_at?: string
+          created_by?: string | null
+          deprioritised_reason?: string | null
+          fit_indicators?: Json
+          fit_score?: number
+          id?: string
+          industry?: string | null
+          key_research_gap?: string | null
+          maintenance_environment?: string | null
+          maintenance_hypothesis?: string | null
+          owner_user_id?: string | null
+          partner_uuid?: string | null
+          priority_total?: number | null
+          signal_score?: number
+          size_context?: string | null
+          status?: string
+          unknowns?: Json
+          updated_at?: string
+          website?: string | null
+          website_domain?: string | null
+        }
+        Update: {
+          access_score?: number
+          company_name?: string
+          complexity_score?: number
+          confidence?: string
+          converted_lead_id?: string | null
+          country?: string
+          created_at?: string
+          created_by?: string | null
+          deprioritised_reason?: string | null
+          fit_indicators?: Json
+          fit_score?: number
+          id?: string
+          industry?: string | null
+          key_research_gap?: string | null
+          maintenance_environment?: string | null
+          maintenance_hypothesis?: string | null
+          owner_user_id?: string | null
+          partner_uuid?: string | null
+          priority_total?: number | null
+          signal_score?: number
+          size_context?: string | null
+          status?: string
+          unknowns?: Json
+          updated_at?: string
+          website?: string | null
+          website_domain?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_accounts_converted_lead_id_fkey"
+            columns: ["converted_lead_id"]
+            isOneToOne: false
+            referencedRelation: "incoming_leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_accounts_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "target_accounts_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "target_accounts_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+        ]
+      }
       training_courses: {
         Row: {
           category: string | null
@@ -5935,6 +6247,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      can_manage_target_account: {
+        Args: { _account_id: string }
+        Returns: boolean
+      }
       can_view_client: { Args: { _client_id: string }; Returns: boolean }
       can_view_deal: { Args: { _deal_id: string }; Returns: boolean }
       can_view_module: {
@@ -5954,6 +6270,10 @@ export type Database = {
           _renewal_id: string
           _source_type: string
         }
+        Returns: boolean
+      }
+      can_view_target_account: {
+        Args: { _account_id: string }
         Returns: boolean
       }
       close_renewal: {

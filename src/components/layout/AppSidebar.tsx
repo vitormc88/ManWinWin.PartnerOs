@@ -24,6 +24,7 @@ import {
   Zap,
   Inbox,
   CheckSquare,
+  Target,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { BrandMark } from "@/components/BrandMark";
@@ -60,6 +61,7 @@ const mainNav: NavItem[] = [
 ];
 
 const salesNav = [
+  { title: "Prospecting", url: "/prospecting", icon: Target },
   { title: "Pipeline", url: "/pipeline", icon: Kanban },
   { title: "Incoming Leads", url: "/incoming-leads", icon: Inbox },
   { title: "Deal Registrations", url: "/deal-registrations", icon: ShieldCheck },

@@ -44,6 +44,8 @@ import Announcements from "@/pages/Announcements";
 import Community from "@/pages/Community";
 import ComingSoon from "@/pages/ComingSoon";
 import IncomingLeads from "@/pages/IncomingLeads";
+import Prospecting from "@/pages/Prospecting";
+import TargetAccountDetail from "@/pages/TargetAccountDetail";
 import LeadDetail from "@/pages/LeadDetail";
 import UserManagement from "@/pages/UserManagement";
 import ResetPassword from "@/pages/ResetPassword";
@@ -96,6 +98,8 @@ const App = () => (
               <Route path="/deals/:id" element={<DealDetail />} />
               <Route path="/deals/new" element={<ComingSoon />} />
               <Route path="/deal-registrations" element={<DealRegistrations />} />
+              <Route path="/prospecting" element={<Prospecting />} />
+              <Route path="/prospecting/:id" element={<TargetAccountDetail />} />
               <Route path="/incoming-leads" element={<IncomingLeads />} />
               <Route path="/incoming-leads/:id" element={<LeadDetail />} />
               <Route path="/commissions" element={<Commissions />} />
