@@ -792,10 +792,12 @@ function ChoiceStep({
   step,
   state,
   onUpdate,
+  track,
 }: {
   step: PlayerStep;
   state: MissionPlayerV2State;
   onUpdate: (patch: Partial<MissionPlayerV2State>) => void;
+  track: TrackLearningEvent;
 }) {
   const selected = state.choices[step.id];
   const correct = isChoiceCorrect(step, selected);
@@ -817,12 +819,19 @@ function ChoiceStep({
             state={
               !selected ? "neutral" : o.id === selected ? (o.correct ? "correct" : "incorrect") : "neutral"
             }
-            onClick={() =>
-              onUpdate({ choices: { [step.id]: o.id }, completed: [step.id] })
-            }
+            onClick={() => {
+              onUpdate({ choices: { [step.id]: o.id }, completed: [step.id] });
+              track("knowledge_check_answered", {
+                stepId: step.id,
+                once: true,
+                dedupeOn: o.id,
+                properties: { option_id: o.id, correct: o.correct === true, step_type: step.type },
+              });
+            }}
           />
         ))}
       </div>
+
       {selected && feedback && <Feedback correct={correct} text={feedback} />}
     </Card>
   );
