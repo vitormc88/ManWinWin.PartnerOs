@@ -22,7 +22,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -284,7 +291,7 @@ export function MissionPlayerV2({
         </div>
         <Progress value={progress} className="h-2" />
         <p className="text-xs text-muted-foreground">
-          {progress}% of the journey · Apply draft {applySaved ? "saved" : "not saved yet"}.
+          {progress}% completed · Apply draft {applySaved ? "saved" : "not saved yet"}.
         </p>
       </div>
     </div>
@@ -296,12 +303,19 @@ export function MissionPlayerV2({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="text-[11px]">
-            Step {index + 1} of {steps.length}
+            Viewing step {index + 1} of {steps.length}
           </Badge>
           <Badge variant="outline" className="text-[11px]">{STEP_TYPE_LABELS[step.type]}</Badge>
         </div>
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">{experience.title}</h1>
-        <Progress value={progress} className="h-1.5" aria-label="Mission progress" />
+        <div className="space-y-1">
+          <Progress
+            value={progress}
+            className="h-1.5"
+            aria-label={`Mission progress: ${progress}% completed`}
+          />
+          <p className="text-[11px] text-muted-foreground">{progress}% completed</p>
+        </div>
       </div>
 
       {/* Mobile panel triggers */}
@@ -313,7 +327,12 @@ export function MissionPlayerV2({
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[85vw] sm:w-96 overflow-y-auto">
-            <SheetHeader><SheetTitle>Mission journey</SheetTitle></SheetHeader>
+            <SheetHeader>
+              <SheetTitle>Mission journey</SheetTitle>
+              <SheetDescription>
+                Viewing step {index + 1} of {steps.length} · {progress}% completed.
+              </SheetDescription>
+            </SheetHeader>
             <div className="mt-4">{journey}</div>
           </SheetContent>
         </Sheet>
@@ -324,11 +343,15 @@ export function MissionPlayerV2({
             </Button>
           </SheetTrigger>
           <SheetContent side="right" className="w-[85vw] sm:w-96 overflow-y-auto">
-            <SheetHeader><SheetTitle>Mission tools</SheetTitle></SheetHeader>
+            <SheetHeader>
+              <SheetTitle>Mission tools</SheetTitle>
+              <SheetDescription>Audio brief, full lesson and your progress.</SheetDescription>
+            </SheetHeader>
             <div className="mt-4">{tools}</div>
           </SheetContent>
         </Sheet>
       </div>
+
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)_260px]">
         <aside className="hidden lg:block">
@@ -417,13 +440,19 @@ function DeepDiveSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-        <SheetHeader><SheetTitle>{title}</SheetTitle></SheetHeader>
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>
+            The complete written lesson for this mission, for deeper reading.
+          </SheetDescription>
+        </SheetHeader>
         <div className="mt-4">
           <MissionContent markdown={markdown} readOnlyChecklist hideLeadingH1 />
         </div>
       </SheetContent>
     </Sheet>
   );
+
 }
 
 // ── Step rendering ────────────────────────────────────────────────────────
