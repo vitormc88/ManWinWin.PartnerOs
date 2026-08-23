@@ -190,7 +190,8 @@ export function useToggleChecklistItem() {
     mutationFn: async (input: { missionId: string; checklistState: ChecklistState }) => {
       const { error } = await supabase.rpc("academy_set_checklist_state", {
         _mission_id: input.missionId,
-        _state: input.checklistState,
+        // checklist_state is jsonb: markdown item booleans plus namespaced objects.
+        _state: input.checklistState as Database["public"]["Tables"]["academy_mission_progress"]["Row"]["checklist_state"],
       });
       if (error) throw error;
     },
