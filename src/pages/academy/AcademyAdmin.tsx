@@ -813,3 +813,91 @@ function MarkdownEditor({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
+
+// ── Optional structured experience (Mission Player v2) ───────────────────
+
+/** Normalises a `json` field value (object from the DB, or edited text). */
+function parseJsonField(raw: unknown): { ok: true; value: unknown } | { ok: false } {
+  if (raw === null || raw === undefined) return { ok: true, value: null };
+  if (typeof raw !== "string") return { ok: true, value: raw };
+  if (raw.trim() === "") return { ok: true, value: null };
+  try {
+    return { ok: true, value: JSON.parse(raw) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+function toJsonText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Optional JSON editor for `academy_missions.content_json`. Empty means the
+ * mission keeps the legacy Markdown player; a payload is only accepted when it
+ * validates against the Mission Player v2 schema.
+ */
+function JsonExperienceField({
+  value,
+  onChange,
+}: {
+  value: unknown;
+  onChange: (v: string) => void;
+}) {
+  const text = toJsonText(value);
+  const parsed = parseJsonField(text);
+
+  let status: { tone: "ok" | "warn" | "error"; message: string; errors?: string[] };
+  if (!parsed.ok) {
+    status = { tone: "error", message: "Invalid JSON — this record cannot be saved yet." };
+  } else if (parsed.value === null) {
+    status = { tone: "ok", message: "Empty — this mission uses the standard Markdown player." };
+  } else if (!isMissionPlayerV2(parsed.value)) {
+    status = {
+      tone: "warn",
+      message: `Stored as-is. The guided player only activates when "kind" is "${MISSION_PLAYER_V2_KIND}".`,
+    };
+  } else {
+    const result = validateMissionExperience(parsed.value);
+    status = result.ok
+      ? { tone: "ok", message: `Valid experience — ${result.experience.steps.length} steps.` }
+      : { tone: "error", message: "Experience JSON is invalid:", errors: result.errors };
+  }
+
+  return (
+    <div className="space-y-2">
+      <Textarea
+        id="content_json"
+        rows={12}
+        value={text}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder='Leave empty for the standard Markdown mission. Paste an "academy-learning-experience-v2" payload to enable the guided player.'
+        className="font-mono text-xs resize-y"
+      />
+      <div
+        className={
+          status.tone === "error"
+            ? "text-xs text-destructive"
+            : status.tone === "warn"
+              ? "text-xs text-amber-600 dark:text-amber-400"
+              : "text-xs text-muted-foreground"
+        }
+      >
+        <p>{status.message}</p>
+        {status.errors && (
+          <ul className="list-disc pl-5 mt-1 space-y-0.5">
+            {status.errors.slice(0, 8).map((e) => (
+              <li key={e}>{e}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
