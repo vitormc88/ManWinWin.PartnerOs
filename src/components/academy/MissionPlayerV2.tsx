@@ -251,11 +251,11 @@ export function MissionPlayerV2({
             </ul>
           )}
           <div className="flex flex-wrap justify-center gap-2 pt-2">
-            <Button onClick={() => { update({ started: true, currentStepId: steps[0].id }); setIndex(0); }}>
+            <Button onClick={() => { emitStart(false); update({ started: true, currentStepId: steps[0].id }); setIndex(0); }}>
               {experience.intro?.startLabel ?? "Start mission"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
-            <Button variant="outline" onClick={() => setDeepDiveOpen(true)}>
+            <Button variant="outline" onClick={() => setDeepDive(true, "button")}>
               <BookOpen className="h-4 w-4 mr-2" />
               {experience.deepDiveTitle ?? "Full lesson"}
             </Button>
@@ -263,7 +263,7 @@ export function MissionPlayerV2({
         </div>
         <DeepDiveSheet
           open={deepDiveOpen}
-          onOpenChange={setDeepDiveOpen}
+          onOpenChange={(v) => setDeepDive(v)}
           title={experience.deepDiveTitle ?? "Full Lesson"}
           markdown={markdown}
         />
@@ -290,7 +290,7 @@ export function MissionPlayerV2({
                 Back to module<ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             )}
-            <Button variant="outline" onClick={() => setDeepDiveOpen(true)}>
+            <Button variant="outline" onClick={() => setDeepDive(true, "button")}>
               <BookOpen className="h-4 w-4 mr-2" />Review full lesson
             </Button>
             <Button variant="ghost" onClick={onComplete} disabled={isCompleting}>
@@ -300,7 +300,7 @@ export function MissionPlayerV2({
         </div>
         <DeepDiveSheet
           open={deepDiveOpen}
-          onOpenChange={setDeepDiveOpen}
+          onOpenChange={(v) => setDeepDive(v)}
           title={experience.deepDiveTitle ?? "Full Lesson"}
           markdown={markdown}
         />
@@ -360,7 +360,7 @@ export function MissionPlayerV2({
         <p className="text-xs text-muted-foreground">
           The complete written lesson, unchanged, for deeper reading.
         </p>
-        <Button size="sm" variant="outline" className="w-full" onClick={() => { setToolsOpen(false); setDeepDiveOpen(true); }}>
+        <Button size="sm" variant="outline" className="w-full" onClick={() => { setToolsOpen(false); setDeepDive(true, "tools"); }}>
           Open Deep Dive
         </Button>
       </div>
@@ -497,7 +497,7 @@ export function MissionPlayerV2({
 
       <DeepDiveSheet
         open={deepDiveOpen}
-        onOpenChange={setDeepDiveOpen}
+        onOpenChange={(v) => setDeepDive(v)}
         title={experience.deepDiveTitle ?? "Full Lesson"}
         markdown={markdown}
       />
