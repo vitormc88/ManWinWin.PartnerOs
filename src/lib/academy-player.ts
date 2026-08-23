@@ -39,10 +39,30 @@ export interface PlayerOption {
   feedback?: string;
 }
 
-export interface PlayerVideo {
+/**
+ * Optional Asset Library references.
+ *
+ * Media is never inlined as a URL: content stores only an `asset_key` that is
+ * resolved against the existing `academy_assets` table (published rows only).
+ * When the key is missing, draft or unresolvable, the player keeps its current
+ * polished placeholder — content stays valid either way.
+ */
+export interface PlayerMediaRefs {
+  /** `academy_assets.asset_key` of the primary media file. */
+  assetKey?: string;
+  /** Optional poster/thumbnail asset (video only). */
+  posterAssetKey?: string;
+  /** Optional WebVTT captions asset. */
+  captionsAssetKey?: string;
+  /** Authored transcript shown next to the player (accessibility). */
+  transcript?: string;
+}
+
+export interface PlayerVideo extends PlayerMediaRefs {
   duration: string;
   label: string;
 }
+
 
 export interface PlayerFrameworkItem {
   id: string;
@@ -87,13 +107,19 @@ export interface PlayerStep {
   requireAccountName?: boolean;
   accountLabel?: string;
   fields?: PlayerApplyField[];
+  /** Optional Asset Library image for this step (e.g. the Takeaway card). */
+  assetKey?: string;
+  assetCaption?: string;
+  assetAlt?: string;
 }
 
-export interface PlayerAudioBrief {
+export interface PlayerAudioBrief extends PlayerMediaRefs {
   title: string;
   duration: string;
-  status: "coming-soon";
+  /** Legacy marker; when an `assetKey` resolves, real audio is rendered. */
+  status?: "coming-soon" | "available";
 }
+
 
 export interface MissionExperienceV2 {
   kind: typeof MISSION_PLAYER_V2_KIND;
@@ -123,6 +149,32 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 
 const isStringArray = (v: unknown): v is string[] =>
   Array.isArray(v) && v.every((x) => typeof x === "string");
+
+/**
+ * Asset keys used by the player are namespaced (e.g. `academy.m5m3.audio-brief`)
+ * so dots are allowed on top of the Asset Library slug characters.
+ */
+export function isValidMediaAssetKey(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z0-9][a-z0-9._-]{1,79}$/.test(value);
+}
+
+const MEDIA_KEY_FIELDS = ["assetKey", "posterAssetKey", "captionsAssetKey"] as const;
+
+/** Validates the optional Asset Library references on any container object. */
+function validateMediaRefs(raw: Record<string, unknown>, where: string, errors: string[]): void {
+  for (const field of MEDIA_KEY_FIELDS) {
+    const value = raw[field];
+    if (value === undefined || value === null) continue;
+    if (!isValidMediaAssetKey(value)) {
+      errors.push(`${where}.${field}: must be a valid asset key (a-z, 0-9, dot, dash, underscore)`);
+    }
+  }
+  if (raw.transcript !== undefined && typeof raw.transcript !== "string") {
+    errors.push(`${where}.transcript: must be a string`);
+  }
+}
+
+
 
 function validateOptions(
   raw: unknown,
@@ -185,6 +237,11 @@ export function validateMissionExperience(raw: unknown): ValidationResult {
       if (s.bullets !== undefined && !isStringArray(s.bullets)) {
         errors.push(`${where}: "bullets" must be an array of strings`);
       }
+      if (s.assetKey !== undefined && s.assetKey !== null && !isValidMediaAssetKey(s.assetKey)) {
+        errors.push(`${where}.assetKey: must be a valid asset key`);
+      }
+      if (isRecord(s.video)) validateMediaRefs(s.video, `${where}.video`, errors);
+
 
       switch (s.type) {
         case "challenge":
@@ -245,7 +302,10 @@ export function validateMissionExperience(raw: unknown): ValidationResult {
     });
   }
 
+  if (isRecord(raw.audioBrief)) validateMediaRefs(raw.audioBrief, "audioBrief", errors);
+
   if (errors.length > 0) return { ok: false, errors };
+
   return { ok: true, experience: raw as unknown as MissionExperienceV2 };
 }
 

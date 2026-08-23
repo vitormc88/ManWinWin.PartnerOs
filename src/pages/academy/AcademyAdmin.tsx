@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuestionBankPanel } from "@/components/academy/QuestionBankPanel";
 import { AssetLibraryPanel } from "@/components/academy/AssetLibraryPanel";
 import { AssetPickerDialog } from "@/components/academy/AssetPickerDialog";
+import { RecentLearningEvents } from "@/components/academy/RecentLearningEvents";
 import { toast } from "sonner";
 import {
   MISSION_PLAYER_V2_KIND,
@@ -591,6 +592,8 @@ function RecordDialog({
             </div>
           ))}
         </div>
+
+        {table === "academy_missions" && form.id && <RecentLearningEvents missionId={form.id} />}
 
         {hasStatus && publishIssues.length > 0 && (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-1">

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MissionPlayerV2 } from "../MissionPlayerV2";
 import {
   MISSION_PLAYER_V2_KIND,
@@ -38,17 +39,22 @@ const checklistState = {
 };
 
 function renderPlayer() {
+  // The Tools panel resolves optional Asset Library media through React Query.
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MissionPlayerV2
-      experience={experience}
-      markdown={"# Lesson\n\nSome legacy markdown."}
-      checklistState={checklistState}
-      onPersist={() => {}}
-      isCompleted={false}
-      onComplete={() => {}}
-    />
+    <QueryClientProvider client={client}>
+      <MissionPlayerV2
+        experience={experience}
+        markdown={"# Lesson\n\nSome legacy markdown."}
+        checklistState={checklistState}
+        onPersist={() => {}}
+        isCompleted={false}
+        onComplete={() => {}}
+      />
+    </QueryClientProvider>
   );
 }
+
 
 describe("MissionPlayerV2 polish", () => {
   let errorSpy: ReturnType<typeof vi.spyOn>;

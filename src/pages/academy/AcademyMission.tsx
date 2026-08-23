@@ -9,6 +9,7 @@ import { ResourceList } from "@/components/academy/ResourceList";
 import { AcademyBreadcrumbs } from "@/components/academy/AcademyBreadcrumbs";
 import { CertificationPanel } from "@/components/academy/CertificationPanel";
 import { MissionPlayerV2 } from "@/components/academy/MissionPlayerV2";
+import { useLearningEventTracker } from "@/hooks/useAcademyLearningEvents";
 import {
   useAcademyMissions,
   useAcademyModules,
@@ -78,6 +79,13 @@ export default function AcademyMission() {
     () => parseMissionExperience(mission?.content_json),
     [mission?.content_json]
   );
+
+  /** Fire-and-forget learning telemetry; only for v2 mission journeys. */
+  const { track: trackLearning } = useLearningEventTracker({
+    missionId: mission?.id,
+    moduleId: mod?.id,
+    enabled: Boolean(experience) && !isCertification,
+  });
 
   const savedChecklist = useMemo<ChecklistState>(() => {
     const row = missionProgress.find((p) => p.mission_id === mission?.id);
@@ -157,7 +165,14 @@ export default function AcademyMission() {
   };
 
   const onToggleComplete = () => {
-    complete.mutate({ missionId: mission.id, completed: !isDone });
+    const completing = !isDone;
+    complete.mutate({ missionId: mission.id, completed: completing });
+    if (completing && experience) {
+      trackLearning("mission_completed", {
+        once: true,
+        properties: { steps_total: experience.steps.length },
+      });
+    }
   };
 
 
@@ -220,6 +235,7 @@ export default function AcademyMission() {
           isCompleting={complete.isPending}
           onComplete={onToggleComplete}
           onBackToModule={() => navigate(`/academy/modules/${mod.slug}`)}
+          onEvent={trackLearning}
         />
       </div>
     );

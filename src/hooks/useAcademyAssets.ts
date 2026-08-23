@@ -282,3 +282,26 @@ export function useAssetsByKey(): { byKey: Record<string, AcademyAsset>; isLoadi
   }, [data]);
   return { byKey, isLoading };
 }
+
+export interface ResolvedMediaAsset {
+  asset: AcademyAsset | null;
+  url: string | null;
+  /** True only for a published asset with a resolvable binary/link. */
+  ready: boolean;
+  isLoading: boolean;
+}
+
+/**
+ * Resolves one optional Asset Library reference for the Mission Player.
+ *
+ * Only *published* assets resolve — draft, archived, missing or unresolvable
+ * keys return `ready: false` so the caller keeps its polished placeholder.
+ */
+export function useAcademyMediaAsset(assetKey: string | null | undefined): ResolvedMediaAsset {
+  const { byKey, isLoading } = useAssetsByKey();
+  const candidate = assetKey ? byKey[assetKey] : undefined;
+  const asset = candidate && candidate.status === "published" ? candidate : null;
+  const url = useAssetUrl(asset);
+  return { asset, url, ready: Boolean(asset && url), isLoading: Boolean(assetKey) && isLoading };
+}
+

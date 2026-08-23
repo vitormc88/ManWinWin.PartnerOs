@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -34,6 +34,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { MissionContent } from "@/components/academy/MissionContent";
+import { MissionMedia } from "@/components/academy/MissionMedia";
+import type { TrackLearningEvent } from "@/hooks/useAcademyLearningEvents";
 import {
   STEP_TYPE_LABELS,
   canFinishMission,
@@ -50,6 +52,8 @@ import {
   type PlayerStep,
 } from "@/lib/academy-player";
 
+const noopTrack: TrackLearningEvent = () => {};
+
 interface Props {
   experience: MissionExperienceV2;
   /** Untouched legacy markdown, rendered as the Deep Dive / Full Lesson. */
@@ -63,7 +67,10 @@ interface Props {
   onComplete: () => void;
   /** Optional link back to the module overview. */
   onBackToModule?: () => void;
+  /** Optional, failure-isolated learning telemetry sink. */
+  onEvent?: TrackLearningEvent;
 }
+
 
 export function MissionPlayerV2({
   experience,
@@ -74,7 +81,9 @@ export function MissionPlayerV2({
   isCompleting,
   onComplete,
   onBackToModule,
+  onEvent,
 }: Props) {
+  const track = onEvent ?? noopTrack;
   const saved = useMemo(() => readPlayerState(checklistState), [checklistState]);
   const [state, setState] = useState<MissionPlayerV2State>(saved);
   const [hydrated, setHydrated] = useState(false);
@@ -82,6 +91,7 @@ export function MissionPlayerV2({
   const [journeyOpen, setJourneyOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [deepDiveOpen, setDeepDiveOpen] = useState(false);
+
 
   // Resume from server state; keep syncing if the row arrives (or refreshes) later.
   const savedKey = useMemo(() => JSON.stringify(saved), [saved]);
@@ -142,6 +152,77 @@ export function MissionPlayerV2({
 
   const markStepDone = (id: string) => update({ completed: [id] });
 
+  // ── Learning telemetry (observability only; never affects progress) ──────
+  const startEmitted = useRef(false);
+  const emitStart = useCallback(
+    (resumed: boolean) => {
+      if (startEmitted.current) return;
+      startEmitted.current = true;
+      track(resumed ? "mission_resumed" : "mission_started", {
+        once: true,
+        properties: { resumed, steps_total: steps.length, completion_pct: progress },
+      });
+    },
+    [track, steps.length, progress]
+  );
+
+  const hasSavedState = saved.started || saved.completed.length > 0 || Boolean(saved.currentStepId);
+  useEffect(() => {
+    if (hasSavedState) emitStart(true);
+  }, [hasSavedState, emitStart]);
+
+  // Step views — de-duplicated per session so scrolling back is not noisy.
+  const currentStepId = state.started && !finished ? step?.id : undefined;
+  useEffect(() => {
+    if (!currentStepId) return;
+    const viewed = steps.find((s) => s.id === currentStepId);
+    if (!viewed) return;
+    track("step_viewed", {
+      stepId: viewed.id,
+      once: true,
+      properties: {
+        step_type: viewed.type,
+        step_index: steps.indexOf(viewed) + 1,
+        steps_total: steps.length,
+      },
+    });
+    if (viewed.type === "apply") {
+      track("apply_started", { stepId: viewed.id, once: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStepId]);
+
+  // Step completions — only those newly earned in this session.
+  const serverCompleted = useMemo(() => new Set(saved.completed), [saved.completed]);
+  const completionEmitted = useRef<Set<string>>(new Set());
+  const completedKey = state.completed.join("|");
+  useEffect(() => {
+    for (const id of state.completed) {
+      if (serverCompleted.has(id) || completionEmitted.current.has(id)) continue;
+      completionEmitted.current.add(id);
+      const done = steps.find((s) => s.id === id);
+      track("step_completed", {
+        stepId: id,
+        once: true,
+        properties: { step_type: done?.type, completion_pct: progress },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedKey]);
+
+  const setDeepDive = useCallback(
+    (open: boolean, source?: string) => {
+      setDeepDiveOpen(open);
+      track(open ? "deep_dive_opened" : "deep_dive_closed", {
+        stepId: step?.id ?? null,
+        properties: source ? { source } : undefined,
+      });
+    },
+    [track, step?.id]
+  );
+
+
+
   // ── Intro screen ────────────────────────────────────────────────────────
   if (!state.started && !finished) {
     return (
@@ -170,11 +251,11 @@ export function MissionPlayerV2({
             </ul>
           )}
           <div className="flex flex-wrap justify-center gap-2 pt-2">
-            <Button onClick={() => { update({ started: true, currentStepId: steps[0].id }); setIndex(0); }}>
+            <Button onClick={() => { emitStart(false); update({ started: true, currentStepId: steps[0].id }); setIndex(0); }}>
               {experience.intro?.startLabel ?? "Start mission"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
-            <Button variant="outline" onClick={() => setDeepDiveOpen(true)}>
+            <Button variant="outline" onClick={() => setDeepDive(true, "button")}>
               <BookOpen className="h-4 w-4 mr-2" />
               {experience.deepDiveTitle ?? "Full lesson"}
             </Button>
@@ -182,7 +263,7 @@ export function MissionPlayerV2({
         </div>
         <DeepDiveSheet
           open={deepDiveOpen}
-          onOpenChange={setDeepDiveOpen}
+          onOpenChange={(v) => setDeepDive(v)}
           title={experience.deepDiveTitle ?? "Full Lesson"}
           markdown={markdown}
         />
@@ -209,7 +290,7 @@ export function MissionPlayerV2({
                 Back to module<ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             )}
-            <Button variant="outline" onClick={() => setDeepDiveOpen(true)}>
+            <Button variant="outline" onClick={() => setDeepDive(true, "button")}>
               <BookOpen className="h-4 w-4 mr-2" />Review full lesson
             </Button>
             <Button variant="ghost" onClick={onComplete} disabled={isCompleting}>
@@ -219,7 +300,7 @@ export function MissionPlayerV2({
         </div>
         <DeepDiveSheet
           open={deepDiveOpen}
-          onOpenChange={setDeepDiveOpen}
+          onOpenChange={(v) => setDeepDive(v)}
           title={experience.deepDiveTitle ?? "Full Lesson"}
           markdown={markdown}
         />
@@ -268,8 +349,28 @@ export function MissionPlayerV2({
         <p className="text-xs text-muted-foreground">
           {experience.audioBrief?.duration ?? "—"} · Audio version of this mission.
         </p>
-        <Badge variant="outline" className="text-[11px]">Coming soon</Badge>
+        <MissionMedia
+          kind="audio"
+          assetKey={experience.audioBrief?.assetKey}
+          captionsAssetKey={experience.audioBrief?.captionsAssetKey}
+          transcript={experience.audioBrief?.transcript}
+          label={experience.audioBrief?.title ?? "Mission audio brief"}
+          placeholder={<Badge variant="outline" className="text-[11px]">Coming soon</Badge>}
+          onStarted={({ assetKey, durationBucket }) =>
+            track("audio_started", {
+              once: true,
+              properties: { asset_key: assetKey, media_kind: "audio", duration_bucket: durationBucket },
+            })
+          }
+          onCompleted={({ assetKey, positionBucket }) =>
+            track("audio_completed", {
+              once: true,
+              properties: { asset_key: assetKey, media_kind: "audio", position_bucket: positionBucket },
+            })
+          }
+        />
       </div>
+
 
       <div className="rounded-xl border bg-card p-4 space-y-2">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -279,7 +380,7 @@ export function MissionPlayerV2({
         <p className="text-xs text-muted-foreground">
           The complete written lesson, unchanged, for deeper reading.
         </p>
-        <Button size="sm" variant="outline" className="w-full" onClick={() => { setToolsOpen(false); setDeepDiveOpen(true); }}>
+        <Button size="sm" variant="outline" className="w-full" onClick={() => { setToolsOpen(false); setDeepDive(true, "tools"); }}>
           Open Deep Dive
         </Button>
       </div>
@@ -369,7 +470,9 @@ export function MissionPlayerV2({
             state={state}
             onUpdate={update}
             onStepDone={markStepDone}
+            track={track}
           />
+
 
           {/* Desktop navigation */}
           <div className="hidden lg:flex items-center justify-between gap-3">
@@ -416,7 +519,7 @@ export function MissionPlayerV2({
 
       <DeepDiveSheet
         open={deepDiveOpen}
-        onOpenChange={setDeepDiveOpen}
+        onOpenChange={(v) => setDeepDive(v)}
         title={experience.deepDiveTitle ?? "Full Lesson"}
         markdown={markdown}
       />
@@ -466,33 +569,36 @@ function StepView({
   state,
   onUpdate,
   onStepDone,
+  track,
 }: {
   step: PlayerStep;
   state: MissionPlayerV2State;
   onUpdate: (patch: Partial<MissionPlayerV2State>) => void;
   onStepDone: (id: string) => void;
+  track: TrackLearningEvent;
 }) {
   switch (step.type) {
     case "hook":
-      return <HookStep step={step} onStepDone={onStepDone} />;
+      return <HookStep step={step} onStepDone={onStepDone} track={track} />;
     case "learn":
       return <LearnStep step={step} onStepDone={onStepDone} />;
     case "interactive-framework":
       return <FrameworkStep step={step} onStepDone={onStepDone} />;
     case "challenge":
     case "knowledge-check":
-      return <ChoiceStep step={step} state={state} onUpdate={onUpdate} />;
+      return <ChoiceStep step={step} state={state} onUpdate={onUpdate} track={track} />;
     case "scenario":
-      return <ScenarioStep step={step} state={state} onUpdate={onUpdate} />;
+      return <ScenarioStep step={step} state={state} onUpdate={onUpdate} track={track} />;
     case "ai-moment":
     case "takeaway":
       return <NoteStep step={step} state={state} onUpdate={onUpdate} />;
     case "apply":
-      return <ApplyStep step={step} state={state} onUpdate={onUpdate} />;
+      return <ApplyStep step={step} state={state} onUpdate={onUpdate} track={track} />;
     default:
       return null;
   }
 }
+
 
 function StepHeading({ step }: { step: PlayerStep }) {
   return (
@@ -508,26 +614,59 @@ function SeenOnMount({ id, onStepDone }: { id: string; onStepDone: (id: string) 
   return null;
 }
 
-function HookStep({ step, onStepDone }: { step: PlayerStep; onStepDone: (id: string) => void }) {
+function HookStep({
+  step,
+  onStepDone,
+  track,
+}: {
+  step: PlayerStep;
+  onStepDone: (id: string) => void;
+  track: TrackLearningEvent;
+}) {
   return (
     <Card className="space-y-5">
       <SeenOnMount id={step.id} onStepDone={onStepDone} />
       <StepHeading step={step} />
       {step.scenario && <p className="text-sm sm:text-base text-muted-foreground">{step.scenario}</p>}
       {step.video && (
-        <div
-          className="relative rounded-xl border bg-secondary/60 aspect-video flex flex-col items-center justify-center gap-2"
-          role="img"
-          aria-label={`Video placeholder: ${step.video.label}`}
-        >
-          <div className="h-12 w-12 rounded-full bg-background/90 border flex items-center justify-center shadow-sm">
-            <Play className="h-5 w-5 text-primary" />
-          </div>
-          <p className="text-sm font-medium text-foreground">{step.video.label}</p>
-          <Badge variant="outline" className="text-[11px] bg-background">{step.video.duration}</Badge>
-          <span className="absolute bottom-3 text-[11px] text-muted-foreground">Video coming soon</span>
-        </div>
+        <MissionMedia
+          kind="video"
+          assetKey={step.video.assetKey}
+          posterAssetKey={step.video.posterAssetKey}
+          captionsAssetKey={step.video.captionsAssetKey}
+          transcript={step.video.transcript}
+          label={step.video.label}
+          onStarted={({ assetKey, durationBucket }) =>
+            track("video_started", {
+              stepId: step.id,
+              once: true,
+              properties: { asset_key: assetKey, media_kind: "video", duration_bucket: durationBucket },
+            })
+          }
+          onCompleted={({ assetKey, positionBucket }) =>
+            track("video_completed", {
+              stepId: step.id,
+              once: true,
+              properties: { asset_key: assetKey, media_kind: "video", position_bucket: positionBucket },
+            })
+          }
+          placeholder={
+            <div
+              className="relative rounded-xl border bg-secondary/60 aspect-video flex flex-col items-center justify-center gap-2"
+              role="img"
+              aria-label={`Video placeholder: ${step.video.label}`}
+            >
+              <div className="h-12 w-12 rounded-full bg-background/90 border flex items-center justify-center shadow-sm">
+                <Play className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm font-medium text-foreground">{step.video.label}</p>
+              <Badge variant="outline" className="text-[11px] bg-background">{step.video.duration}</Badge>
+              <span className="absolute bottom-3 text-[11px] text-muted-foreground">Video coming soon</span>
+            </div>
+          }
+        />
       )}
+
       {step.insight && (
         <div className="rounded-xl border bg-secondary/40 p-4 flex gap-3">
           <Lightbulb className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
@@ -653,10 +792,12 @@ function ChoiceStep({
   step,
   state,
   onUpdate,
+  track,
 }: {
   step: PlayerStep;
   state: MissionPlayerV2State;
   onUpdate: (patch: Partial<MissionPlayerV2State>) => void;
+  track: TrackLearningEvent;
 }) {
   const selected = state.choices[step.id];
   const correct = isChoiceCorrect(step, selected);
@@ -678,12 +819,19 @@ function ChoiceStep({
             state={
               !selected ? "neutral" : o.id === selected ? (o.correct ? "correct" : "incorrect") : "neutral"
             }
-            onClick={() =>
-              onUpdate({ choices: { [step.id]: o.id }, completed: [step.id] })
-            }
+            onClick={() => {
+              onUpdate({ choices: { [step.id]: o.id }, completed: [step.id] });
+              track("knowledge_check_answered", {
+                stepId: step.id,
+                once: true,
+                dedupeOn: o.id,
+                properties: { option_id: o.id, correct: o.correct === true, step_type: step.type },
+              });
+            }}
           />
         ))}
       </div>
+
       {selected && feedback && <Feedback correct={correct} text={feedback} />}
     </Card>
   );
@@ -693,10 +841,12 @@ function ScenarioStep({
   step,
   state,
   onUpdate,
+  track,
 }: {
   step: PlayerStep;
   state: MissionPlayerV2State;
   onUpdate: (patch: Partial<MissionPlayerV2State>) => void;
+  track: TrackLearningEvent;
 }) {
   const selected = state.choices[step.id];
   const option = optionById(step, selected);
@@ -712,6 +862,17 @@ function ScenarioStep({
       reasoning: { [step.id]: next },
       completed: correct && next.length > 0 ? [step.id] : [],
     });
+    track("scenario_answered", {
+      stepId: step.id,
+      once: true,
+      dedupeOn: `${selected ?? "-"}:${next.slice().sort().join(",")}`,
+      properties: {
+        option_id: selected,
+        correct,
+        reasoning_option_ids: next,
+        reasoning_correct: isReasoningCorrect(step, next),
+      },
+    });
   };
 
   return (
@@ -726,10 +887,19 @@ function ScenarioStep({
             text={o.text}
             selected={selected === o.id}
             state={!selected ? "neutral" : o.id === selected ? (o.correct ? "correct" : "incorrect") : "neutral"}
-            onClick={() => onUpdate({ choices: { [step.id]: o.id } })}
+            onClick={() => {
+              onUpdate({ choices: { [step.id]: o.id } });
+              track("scenario_answered", {
+                stepId: step.id,
+                once: true,
+                dedupeOn: o.id,
+                properties: { option_id: o.id, correct: o.correct === true },
+              });
+            }}
           />
         ))}
       </div>
+
       {selected && option?.feedback && <Feedback correct={correct} text={option.feedback} />}
 
       {correct && reasoningOptions.length > 0 && (
@@ -802,11 +972,21 @@ function NoteStep({
         )}
         <StepHeading step={step} />
       </div>
+      {step.assetKey && (
+        <MissionMedia
+          kind="image"
+          assetKey={step.assetKey}
+          label={step.assetAlt ?? step.title}
+          caption={step.assetCaption ?? null}
+          placeholder={null}
+        />
+      )}
       {step.quote && (
         <blockquote className="border-l-2 border-primary pl-4 text-base sm:text-lg font-medium text-foreground">
           {step.quote}
         </blockquote>
       )}
+
       {step.prompt && (
         <div className="rounded-xl border bg-secondary/40 p-4 text-sm text-foreground">{step.prompt}</div>
       )}
@@ -858,10 +1038,12 @@ function ApplyStep({
   step,
   state,
   onUpdate,
+  track,
 }: {
   step: PlayerStep;
   state: MissionPlayerV2State;
   onUpdate: (patch: Partial<MissionPlayerV2State>) => void;
+  track: TrackLearningEvent;
 }) {
   const savedApply = state.apply;
   const [account, setAccount] = useState(savedApply.account ?? "");
@@ -903,12 +1085,19 @@ function ApplyStep({
       <div className="flex flex-wrap items-center gap-3">
         <Button
           disabled={missing}
-          onClick={() =>
+          onClick={() => {
             onUpdate({
               apply: { account, values, saved_at: new Date().toISOString() },
               completed: [step.id],
-            })
-          }
+            });
+            track("apply_completed", {
+              stepId: step.id,
+              once: true,
+              properties: {
+                fields_filled: Object.values(values).filter((v) => v.trim()).length,
+              },
+            });
+          }}
         >
           {step.saveLabel ?? "Save draft"}
         </Button>
