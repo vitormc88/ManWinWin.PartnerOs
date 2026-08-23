@@ -150,6 +150,32 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 const isStringArray = (v: unknown): v is string[] =>
   Array.isArray(v) && v.every((x) => typeof x === "string");
 
+/**
+ * Asset keys used by the player are namespaced (e.g. `academy.m5m3.audio-brief`)
+ * so dots are allowed on top of the Asset Library slug characters.
+ */
+export function isValidMediaAssetKey(value: unknown): value is string {
+  return typeof value === "string" && /^[a-z0-9][a-z0-9._-]{1,79}$/.test(value);
+}
+
+const MEDIA_KEY_FIELDS = ["assetKey", "posterAssetKey", "captionsAssetKey"] as const;
+
+/** Validates the optional Asset Library references on any container object. */
+function validateMediaRefs(raw: Record<string, unknown>, where: string, errors: string[]): void {
+  for (const field of MEDIA_KEY_FIELDS) {
+    const value = raw[field];
+    if (value === undefined || value === null) continue;
+    if (!isValidMediaAssetKey(value)) {
+      errors.push(`${where}.${field}: must be a valid asset key (a-z, 0-9, dot, dash, underscore)`);
+    }
+  }
+  if (raw.transcript !== undefined && typeof raw.transcript !== "string") {
+    errors.push(`${where}.transcript: must be a string`);
+  }
+}
+
+
+
 function validateOptions(
   raw: unknown,
   where: string,
