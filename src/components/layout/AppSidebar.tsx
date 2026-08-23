@@ -24,7 +24,8 @@ import {
   Zap,
   Inbox,
   CheckSquare,
-} from "lucide-react";
+  Target,
+
 import { NavLink } from "@/components/NavLink";
 import { BrandMark } from "@/components/BrandMark";
 import { useLocation } from "react-router-dom";
