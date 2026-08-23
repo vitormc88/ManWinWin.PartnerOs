@@ -74,7 +74,7 @@ type Table = AcademyTable;
 type Field = {
   key: string;
   label: string;
-  type: "text" | "textarea" | "markdown" | "number" | "status" | "boolean" | "select" | "file";
+  type: "text" | "textarea" | "markdown" | "number" | "status" | "boolean" | "select" | "file" | "json";
   options?: string[];
 };
 
