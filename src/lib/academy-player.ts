@@ -39,10 +39,30 @@ export interface PlayerOption {
   feedback?: string;
 }
 
-export interface PlayerVideo {
+/**
+ * Optional Asset Library references.
+ *
+ * Media is never inlined as a URL: content stores only an `asset_key` that is
+ * resolved against the existing `academy_assets` table (published rows only).
+ * When the key is missing, draft or unresolvable, the player keeps its current
+ * polished placeholder — content stays valid either way.
+ */
+export interface PlayerMediaRefs {
+  /** `academy_assets.asset_key` of the primary media file. */
+  assetKey?: string;
+  /** Optional poster/thumbnail asset (video only). */
+  posterAssetKey?: string;
+  /** Optional WebVTT captions asset. */
+  captionsAssetKey?: string;
+  /** Authored transcript shown next to the player (accessibility). */
+  transcript?: string;
+}
+
+export interface PlayerVideo extends PlayerMediaRefs {
   duration: string;
   label: string;
 }
+
 
 export interface PlayerFrameworkItem {
   id: string;
