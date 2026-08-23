@@ -258,7 +258,7 @@ export function MissionPlayerV2({
             </ul>
           )}
           <div className="flex flex-wrap justify-center gap-2 pt-2">
-            <Button onClick={() => { emitStart(false); update({ started: true, currentStepId: steps[0].id }); setIndex(0); }}>
+            <Button onClick={() => { emitStart(false, progress); update({ started: true, currentStepId: steps[0].id }); setIndex(0); }}>
               {experience.intro?.startLabel ?? "Start mission"}
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
