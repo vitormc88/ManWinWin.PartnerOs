@@ -22,7 +22,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
@@ -284,7 +291,7 @@ export function MissionPlayerV2({
         </div>
         <Progress value={progress} className="h-2" />
         <p className="text-xs text-muted-foreground">
-          {progress}% of the journey · Apply draft {applySaved ? "saved" : "not saved yet"}.
+          {progress}% completed · Apply draft {applySaved ? "saved" : "not saved yet"}.
         </p>
       </div>
     </div>
