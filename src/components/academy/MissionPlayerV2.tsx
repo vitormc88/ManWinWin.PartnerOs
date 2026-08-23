@@ -417,13 +417,19 @@ function DeepDiveSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
-        <SheetHeader><SheetTitle>{title}</SheetTitle></SheetHeader>
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          <SheetDescription>
+            The complete written lesson for this mission, for deeper reading.
+          </SheetDescription>
+        </SheetHeader>
         <div className="mt-4">
           <MissionContent markdown={markdown} readOnlyChecklist hideLeadingH1 />
         </div>
       </SheetContent>
     </Sheet>
   );
+
 }
 
 // ── Step rendering ────────────────────────────────────────────────────────
