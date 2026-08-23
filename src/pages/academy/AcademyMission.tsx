@@ -28,10 +28,9 @@ import {
   type ChecklistState,
 } from "@/lib/academy";
 import {
-  MISSION_PLAYER_V2_STATE_KEY,
   mergePlayerState,
   parseMissionExperience,
-  readPlayerState,
+  reconcileChecklistState,
   type MissionPlayerV2State,
 } from "@/lib/academy-player";
 import { useAcademyItemAccess } from "@/hooks/useAcademyCertificates";
