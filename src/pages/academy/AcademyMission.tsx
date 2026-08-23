@@ -41,6 +41,7 @@ import { accessRowFor, isItemUnlocked, lockMessage } from "@/lib/academy-access"
 
 export default function AcademyMission() {
   const { slug, missionSlug } = useParams();
+  const navigate = useNavigate();
   const modulesQuery = useAcademyModules();
   const { data: modules = [], isLoading } = modulesQuery;
   const { data: phases = [] } = useAcademyPhases();
@@ -68,6 +69,12 @@ export default function AcademyMission() {
   const mission = index >= 0 ? ordered[index] : undefined;
   const isCertification = mission?.item_kind === "certification";
 
+  /** v2 activates only for a valid `academy-learning-experience-v2` payload. */
+  const experience = useMemo(
+    () => parseMissionExperience(mission?.content_json),
+    [mission?.content_json]
+  );
+
   const savedChecklist = useMemo<ChecklistState>(() => {
     const row = missionProgress.find((p) => p.mission_id === mission?.id);
     return (row?.checklist_state as ChecklistState) ?? {};
@@ -75,6 +82,7 @@ export default function AcademyMission() {
 
   const [checklist, setChecklist] = useState<ChecklistState>({});
   useEffect(() => setChecklist(savedChecklist), [savedChecklist]);
+
 
   // ── Reading position memory (per mission, per browser) ──────────────────
   const missionId = mission?.id;
