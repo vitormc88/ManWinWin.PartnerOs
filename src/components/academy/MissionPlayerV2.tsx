@@ -153,23 +153,30 @@ export function MissionPlayerV2({
   const markStepDone = (id: string) => update({ completed: [id] });
 
   // ── Learning telemetry (observability only; never affects progress) ──────
+  // Resume/start must report the AUTHORITATIVE saved journey completion. The
+  // start effect can fire in the render where `saved` has just arrived but the
+  // state-sync effect has not re-rendered yet, so `progress` (derived from the
+  // local mirror) is still stale/0. We therefore derive the percentage from the
+  // saved state itself for resumes.
   const startEmitted = useRef(false);
   const emitStart = useCallback(
-    (resumed: boolean) => {
+    (resumed: boolean, completionPct: number) => {
       if (startEmitted.current) return;
       startEmitted.current = true;
       track(resumed ? "mission_resumed" : "mission_started", {
         once: true,
-        properties: { resumed, steps_total: steps.length, completion_pct: progress },
+        properties: { resumed, steps_total: steps.length, completion_pct: completionPct },
       });
     },
-    [track, steps.length, progress]
+    [track, steps.length]
   );
 
   const hasSavedState = saved.started || saved.completed.length > 0 || Boolean(saved.currentStepId);
+  const savedProgress = journeyProgress(experience, saved);
   useEffect(() => {
-    if (hasSavedState) emitStart(true);
-  }, [hasSavedState, emitStart]);
+    if (hasSavedState) emitStart(true, savedProgress);
+  }, [hasSavedState, savedProgress, emitStart]);
+
 
   // Step views — de-duplicated per session so scrolling back is not noisy.
   const currentStepId = state.started && !finished ? step?.id : undefined;
