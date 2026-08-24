@@ -145,10 +145,16 @@ export default function TargetAccountDetail() {
     patch({ status: next });
   };
 
+  const readiness = conversionReadiness({
+    status,
+    alreadyConverted: !!account.converted_lead_id,
+    primaryContact,
+    activities,
+  });
+
   const createLead = async () => {
-    const gate = canCreateLead({ status, primaryContact });
-    if (!gate.ok) {
-      toast.error(gate.reason!);
+    if (!readiness.ready) {
+      toast.error(readiness.blockers[0]);
       return;
     }
     try {
