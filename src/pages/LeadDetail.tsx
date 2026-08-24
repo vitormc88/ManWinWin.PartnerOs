@@ -61,6 +61,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, BookOpen, Megaphone, Search as SearchIcon } from "lucide-react";
+import { DiscoveryWorkspace } from "@/components/commercial/DiscoveryWorkspace";
+import { NextStepPanel } from "@/components/commercial/NextStepPanel";
 
 const TIMD_ICONS = { Sparkles, Clock, Wallet, Users } as const;
 
@@ -510,6 +512,7 @@ export default function LeadDetail() {
           <Tabs defaultValue="qualification" className="w-full">
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="qualification">Qualification</TabsTrigger>
+              <TabsTrigger value="discovery">Discovery</TabsTrigger>
               <TabsTrigger value="situation">Situation</TabsTrigger>
               <TabsTrigger value="overview">Lead info</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
@@ -714,6 +717,14 @@ export default function LeadDetail() {
                 </Card>
               )}
             </TabsContent>
+
+            {/* DISCOVERY TAB */}
+            <TabsContent value="discovery" className="mt-4 space-y-4">
+              <NextStepPanel parent={{ leadId: id }} />
+              <DiscoveryWorkspace parent={{ leadId: id }} />
+            </TabsContent>
+
+
 
             {/* SITUATION TAB */}
             <TabsContent value="situation" className="mt-4">

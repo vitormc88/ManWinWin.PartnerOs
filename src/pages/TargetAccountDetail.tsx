@@ -22,7 +22,7 @@ import {
   SIGNAL_TYPES,
   UNKNOWN_TYPES,
   asKeyArray,
-  canCreateLead,
+  
   labelFor,
   missingResearchItems,
   normalizeTargetStatus,
@@ -41,8 +41,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { ArrowLeft, ExternalLink, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Star, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { OutreachWorkspace } from "@/components/prospecting/OutreachWorkspace";
+import { AcademyGuidance } from "@/components/common/AcademyGuidance";
+import { useTargetAccountActivities } from "@/hooks/useTargetAccountActivities";
+import { conversionReadiness } from "@/lib/outreach-activities";
 
 const emptyEvidence = { fact: "", source: "", link: "", evidence_date: "" };
 const emptySignal = { signal_type: "", description: "", signal_date: "", source: "" };
@@ -57,6 +61,7 @@ export default function TargetAccountDetail() {
   const { data: evidence = [] } = useTargetAccountEvidence(id);
   const { data: signals = [] } = useTargetAccountSignals(id);
   const { data: people = [] } = useTargetAccountPeople(id);
+  const { data: activities = [] } = useTargetAccountActivities(id);
 
   const update = useUpdateTargetAccount();
   const addEvidence = useAddEvidence();
@@ -140,10 +145,16 @@ export default function TargetAccountDetail() {
     patch({ status: next });
   };
 
+  const readiness = conversionReadiness({
+    status,
+    alreadyConverted: !!account.converted_lead_id,
+    primaryContact,
+    activities,
+  });
+
   const createLead = async () => {
-    const gate = canCreateLead({ status, primaryContact });
-    if (!gate.ok) {
-      toast.error(gate.reason!);
+    if (!readiness.ready) {
+      toast.error(readiness.blockers[0]);
       return;
     }
     try {
@@ -188,7 +199,33 @@ export default function TargetAccountDetail() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
+          <AcademyGuidance
+            moduleNumber={4}
+            title="Prospecting & research"
+            points={[
+              "A Target Account is a company we chose to research — no relationship is implied yet.",
+              "Score attention, not purchase probability: fit, complexity, signal and access.",
+              "Keep evidence and hypotheses separate, and write down what you still do not know.",
+            ]}
+          />
+
+          {(status === "Ready for Outreach" || activities.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Outreach & Engagement</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OutreachWorkspace
+                  accountId={account.id}
+                  people={people}
+                  readOnly={readOnly}
+                  userId={profile?.id}
+                />
+              </CardContent>
+            </Card>
+          )}
           {/* 1 — Company */}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">1 · Company</CardTitle>
@@ -686,9 +723,29 @@ export default function TargetAccountDetail() {
                   <p className="text-xs text-muted-foreground">
                     Outreach happens here. A Lead is created only once there is real two-way engagement.
                   </p>
-                  <Button className="w-full" onClick={createLead} disabled={convert.isPending}>
+                  <ul className="space-y-1.5">
+                    {readiness.items.map((i) => (
+                      <li key={i.label} className="flex items-start gap-2 text-xs">
+                        {i.done ? (
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                        ) : (
+                          <XCircle className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                        )}
+                        <span className={i.done ? "text-muted-foreground" : ""}>
+                          {i.label}
+                          {!i.done && <span className="block text-muted-foreground">{i.hint}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    className="w-full"
+                    onClick={createLead}
+                    disabled={convert.isPending || !readiness.ready}
+                  >
                     Create Lead from this Account
                   </Button>
+
                   <Button className="w-full" variant="outline" onClick={() => changeStatus("Researching")}>
                     Back to Researching
                   </Button>

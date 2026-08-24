@@ -38,6 +38,9 @@ import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
 import { DealCommunicationTab } from "@/components/deals/DealCommunicationTab";
 import { activityTabLabel } from "@/lib/activity-stream";
 import { RelationshipSummary } from "@/components/deals/RelationshipSummary";
+import { stageLabel } from "@/lib/pipeline-gates";
+import { DiscoveryWorkspace } from "@/components/commercial/DiscoveryWorkspace";
+import { NextStepPanel } from "@/components/commercial/NextStepPanel";
 import { QualificationSnapshot } from "@/components/deals/QualificationSnapshot";
 
 const JOB_ROLE_OPTIONS = [
@@ -273,7 +276,7 @@ export default function DealDetail() {
         </div>
         <div className="flex justify-between mt-2">
           {PIPELINE_STAGES.filter(s => s.key !== "Lost").map(stage => (
-            <span key={stage.key} className={`text-[9px] ${deal.stage === stage.key ? "text-primary font-semibold" : "text-muted-foreground"}`}>{stage.label}</span>
+            <span key={stage.key} className={`text-[9px] ${deal.stage === stage.key ? "text-primary font-semibold" : "text-muted-foreground"}`}>{stageLabel(stage.key, stage.label)}</span>
           ))}
         </div>
       </div>
@@ -297,14 +300,22 @@ export default function DealDetail() {
       <Tabs defaultValue="overview" className="animate-reveal-up" style={{ animationDelay: "120ms" }}>
         <TabsList className="w-full justify-start bg-secondary/50 rounded-lg">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="discovery">Discovery</TabsTrigger>
           <TabsTrigger value="tasks">Tasks ({dealTasks.length})</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
           <TabsTrigger value="communication">{activityTabLabel(activities as any)}</TabsTrigger>
           <TabsTrigger value="proposals">Proposals ({proposals.length})</TabsTrigger>
         </TabsList>
 
+        {/* ───── Discovery ───── */}
+        <TabsContent value="discovery" className="space-y-4 mt-4">
+          <NextStepPanel parent={{ dealId: deal.id }} />
+          <DiscoveryWorkspace parent={{ dealId: deal.id }} />
+        </TabsContent>
+
         {/* ───── Overview ───── */}
         <TabsContent value="overview" className="space-y-4 mt-4">
+
           {editing ? (
             <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
               <div className="flex items-center justify-between">

@@ -1106,6 +1106,105 @@ export type Database = {
           },
         ]
       }
+      agreed_next_steps: {
+        Row: {
+          agreed_at: string | null
+          agreed_with_customer: boolean
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          customer_contact_email: string | null
+          customer_contact_name: string | null
+          deal_id: string | null
+          due_at: string | null
+          id: string
+          internal_owner_user_id: string | null
+          lead_id: string | null
+          notes: string | null
+          source_activity: string | null
+          status: string
+          step_type: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          agreed_at?: string | null
+          agreed_with_customer?: boolean
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_contact_email?: string | null
+          customer_contact_name?: string | null
+          deal_id?: string | null
+          due_at?: string | null
+          id?: string
+          internal_owner_user_id?: string | null
+          lead_id?: string | null
+          notes?: string | null
+          source_activity?: string | null
+          status?: string
+          step_type?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          agreed_at?: string | null
+          agreed_with_customer?: boolean
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_contact_email?: string | null
+          customer_contact_name?: string | null
+          deal_id?: string | null
+          due_at?: string | null
+          id?: string
+          internal_owner_user_id?: string | null
+          lead_id?: string | null
+          notes?: string | null
+          source_activity?: string | null
+          status?: string
+          step_type?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreed_next_steps_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreed_next_steps_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreed_next_steps_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agreed_next_steps_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_ownership_status"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "agreed_next_steps_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "incoming_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           archived_at: string | null
@@ -2537,6 +2636,228 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_analytics_sales_performance"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      discovery_records: {
+        Row: {
+          align_open_questions: string | null
+          align_shared_summary: string | null
+          align_stakeholder_alignment: string | null
+          align_validated_at: string | null
+          align_validation_status: string
+          cost_of_inaction: string | null
+          created_at: string
+          created_by: string | null
+          current_hypotheses: string | null
+          current_known_facts: string | null
+          current_people: string | null
+          current_process: string | null
+          current_tools: string | null
+          current_unknowns: string | null
+          current_workflow: string | null
+          deal_id: string | null
+          future_constraints: string | null
+          future_desired_outcomes: string | null
+          future_priorities: string | null
+          future_success_criteria: string | null
+          future_target_state: string | null
+          id: string
+          impact_customer: string | null
+          impact_evidence_level: string | null
+          impact_financial: string | null
+          impact_operational: string | null
+          impact_people: string | null
+          impact_risk: string | null
+          lead_id: string | null
+          problem_affected: string | null
+          problem_evidence: string | null
+          problem_frequency: string | null
+          problem_scope: string | null
+          problem_statement: string | null
+          root_cause_confidence: string | null
+          updated_at: string
+        }
+        Insert: {
+          align_open_questions?: string | null
+          align_shared_summary?: string | null
+          align_stakeholder_alignment?: string | null
+          align_validated_at?: string | null
+          align_validation_status?: string
+          cost_of_inaction?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_hypotheses?: string | null
+          current_known_facts?: string | null
+          current_people?: string | null
+          current_process?: string | null
+          current_tools?: string | null
+          current_unknowns?: string | null
+          current_workflow?: string | null
+          deal_id?: string | null
+          future_constraints?: string | null
+          future_desired_outcomes?: string | null
+          future_priorities?: string | null
+          future_success_criteria?: string | null
+          future_target_state?: string | null
+          id?: string
+          impact_customer?: string | null
+          impact_evidence_level?: string | null
+          impact_financial?: string | null
+          impact_operational?: string | null
+          impact_people?: string | null
+          impact_risk?: string | null
+          lead_id?: string | null
+          problem_affected?: string | null
+          problem_evidence?: string | null
+          problem_frequency?: string | null
+          problem_scope?: string | null
+          problem_statement?: string | null
+          root_cause_confidence?: string | null
+          updated_at?: string
+        }
+        Update: {
+          align_open_questions?: string | null
+          align_shared_summary?: string | null
+          align_stakeholder_alignment?: string | null
+          align_validated_at?: string | null
+          align_validation_status?: string
+          cost_of_inaction?: string | null
+          created_at?: string
+          created_by?: string | null
+          current_hypotheses?: string | null
+          current_known_facts?: string | null
+          current_people?: string | null
+          current_process?: string | null
+          current_tools?: string | null
+          current_unknowns?: string | null
+          current_workflow?: string | null
+          deal_id?: string | null
+          future_constraints?: string | null
+          future_desired_outcomes?: string | null
+          future_priorities?: string | null
+          future_success_criteria?: string | null
+          future_target_state?: string | null
+          id?: string
+          impact_customer?: string | null
+          impact_evidence_level?: string | null
+          impact_financial?: string | null
+          impact_operational?: string | null
+          impact_people?: string | null
+          impact_risk?: string | null
+          lead_id?: string | null
+          problem_affected?: string | null
+          problem_evidence?: string | null
+          problem_frequency?: string | null
+          problem_scope?: string | null
+          problem_statement?: string | null
+          root_cause_confidence?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_records_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovery_records_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovery_records_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovery_records_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_ownership_status"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "discovery_records_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "incoming_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      discovery_stakeholders: {
+        Row: {
+          attitude: string | null
+          buying_role: string | null
+          concerns: string | null
+          created_at: string
+          created_by: string | null
+          discovery_id: string
+          email: string | null
+          full_name: string
+          id: string
+          influence: string | null
+          job_title: string | null
+          phone: string | null
+          required_action: string | null
+          source_deal_contact_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attitude?: string | null
+          buying_role?: string | null
+          concerns?: string | null
+          created_at?: string
+          created_by?: string | null
+          discovery_id: string
+          email?: string | null
+          full_name: string
+          id?: string
+          influence?: string | null
+          job_title?: string | null
+          phone?: string | null
+          required_action?: string | null
+          source_deal_contact_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attitude?: string | null
+          buying_role?: string | null
+          concerns?: string | null
+          created_at?: string
+          created_by?: string | null
+          discovery_id?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          influence?: string | null
+          job_title?: string | null
+          phone?: string | null
+          required_action?: string | null
+          source_deal_contact_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discovery_stakeholders_discovery_id_fkey"
+            columns: ["discovery_id"]
+            isOneToOne: false
+            referencedRelation: "discovery_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "discovery_stakeholders_source_deal_contact_id_fkey"
+            columns: ["source_deal_contact_id"]
+            isOneToOne: false
+            referencedRelation: "deal_contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5264,6 +5585,81 @@ export type Database = {
         }
         Relationships: []
       }
+      stage_gate_overrides: {
+        Row: {
+          created_at: string
+          deal_id: string | null
+          entity_type: string
+          from_stage: string | null
+          id: string
+          lead_id: string | null
+          missing_evidence: Json
+          performed_by: string | null
+          reason: string
+          to_stage: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id?: string | null
+          entity_type: string
+          from_stage?: string | null
+          id?: string
+          lead_id?: string | null
+          missing_evidence?: Json
+          performed_by?: string | null
+          reason: string
+          to_stage: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string | null
+          entity_type?: string
+          from_stage?: string | null
+          id?: string
+          lead_id?: string | null
+          missing_evidence?: Json
+          performed_by?: string | null
+          reason?: string
+          to_stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stage_gate_overrides_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stage_gate_overrides_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stage_gate_overrides_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stage_gate_overrides_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_ownership_status"
+            referencedColumns: ["deal_id"]
+          },
+          {
+            foreignKeyName: "stage_gate_overrides_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "incoming_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppressed_emails: {
         Row: {
           created_at: string
@@ -6293,6 +6689,7 @@ export type Database = {
       }
       can_manage_client: { Args: { _client_id: string }; Returns: boolean }
       can_manage_deal: { Args: { _deal_id: string }; Returns: boolean }
+      can_manage_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_manage_partner: { Args: { _partner_id: string }; Returns: boolean }
       can_manage_proposal_document: {
         Args: { _proposal_id: string }
@@ -6314,6 +6711,7 @@ export type Database = {
       }
       can_view_client: { Args: { _client_id: string }; Returns: boolean }
       can_view_deal: { Args: { _deal_id: string }; Returns: boolean }
+      can_view_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_view_module: {
         Args: { _module_key: string; _user_id: string }
         Returns: boolean

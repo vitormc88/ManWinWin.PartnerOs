@@ -18,6 +18,11 @@ import { cn } from "@/lib/utils";
 import { logSystemActivity } from "@/lib/activity-log";
 import { formatMoney } from "@/lib/money";
 import { isPartnerScopedView } from "@/lib/partner-scope";
+import { toast } from "sonner";
+import { dealStageGate, requiresDedicatedWorkflow, stageLabel, type GateResult } from "@/lib/pipeline-gates";
+import { loadDealGateContext } from "@/lib/pipeline-gate-context";
+import { StageGateDialog } from "@/components/commercial/StageGateDialog";
+import { useLogStageGateOverride } from "@/hooks/useAgreedNextSteps";
 
 function formatDaysAgo(d: Date | null): string {
   if (!d) return "—";
@@ -44,6 +49,9 @@ export default function Pipeline() {
   const [healthFilter, setHealthFilter] = useState<string>("all");
   const [signalFilter, setSignalFilter] = useState<"none" | "no-followup" | "overdue">("none");
   const [showCreate, setShowCreate] = useState(false);
+  const [pendingMove, setPendingMove] = useState<{ deal: any; stage: DealStage; gate: GateResult } | null>(null);
+  const [gatePending, setGatePending] = useState(false);
+  const logOverride = useLogStageGateOverride();
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
   const { data: healthMap } = useDealsHealth(deals);
@@ -95,7 +103,7 @@ export default function Pipeline() {
   const noFollowUpDeals = open.filter(d => healthMap?.get(d.id)?.warnings.includes("No follow-up")).length;
   const overdueTaskDeals = open.filter(d => healthMap?.get(d.id)?.hasOverdueTask).length;
 
-  const handleDrop = async (stage: DealStage, dealId: string) => {
+  const applyStageMove = async (stage: DealStage, dealId: string) => {
     const deal = deals.find(d => d.id === dealId);
     const newStatus = stage === "Won" ? "Won" : stage === "Lost" ? "Lost" : "Open";
     const prob = getStageProbability(stage);
@@ -112,6 +120,54 @@ export default function Pipeline() {
     queryClient.invalidateQueries({ queryKey: ["deals"] });
     queryClient.invalidateQueries({ queryKey: ["deals-health"] });
   };
+
+  const handleDrop = async (stage: DealStage, dealId: string) => {
+    const deal = deals.find(d => d.id === dealId);
+    if (!deal || deal.stage === stage) return;
+
+    // Won / Lost keep their dedicated workflows — never via drag and drop.
+    if (requiresDedicatedWorkflow(stage)) {
+      toast.error(
+        `Use the "Mark as ${stage}" action on the opportunity — ${stage} has its own workflow.`
+      );
+      return;
+    }
+
+    const ctx = await loadDealGateContext(deal as never);
+    const gate = dealStageGate(stage, ctx);
+    if (gate.status === "ok") {
+      await applyStageMove(stage, dealId);
+      return;
+    }
+    setPendingMove({ deal, stage, gate });
+  };
+
+  const confirmGatedMove = async (reason: string | null) => {
+    if (!pendingMove) return;
+    setGatePending(true);
+    try {
+      await logOverride.mutateAsync({
+        entity_type: "deal",
+        deal_id: pendingMove.deal.id,
+        from_stage: pendingMove.deal.stage,
+        to_stage: pendingMove.stage,
+        missing_evidence: pendingMove.gate.missingKeys,
+        reason: reason || "No reason given",
+      });
+      logSystemActivity(
+        pendingMove.deal.id,
+        "Stage gate override",
+        `Advanced to ${pendingMove.stage} without: ${pendingMove.gate.missing.join("; ")}. Reason: ${reason}`
+      );
+      await applyStageMove(pendingMove.stage, pendingMove.deal.id);
+      setPendingMove(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not record the override");
+    } finally {
+      setGatePending(false);
+    }
+  };
+
 
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px]"><div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -221,7 +277,7 @@ export default function Pipeline() {
               <div className={`rounded-xl ${stage.color} border p-2.5 min-h-[400px]`}>
                 <div className="flex items-center justify-between mb-2.5 sticky top-0 z-10 -mx-2.5 px-2.5 pb-1.5 backdrop-blur-sm">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{stage.label}</h3>
+                    <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{stageLabel(stage.key, stage.label)}</h3>
                     <Badge variant="outline" className="text-[10px] tabular-nums px-1.5 py-0">{stageDeals.length}</Badge>
                   </div>
                   {stageValue > 0 && <span className="text-[10px] text-muted-foreground tabular-nums font-medium">{formatMoney(stageValue, { compact: true })}</span>}
@@ -301,7 +357,7 @@ export default function Pipeline() {
             <div key={stage} className={`rounded-xl ${stageInfo.color} border p-4`}
               onDragOver={e => e.preventDefault()}
               onDrop={e => { const id = e.dataTransfer.getData("dealId"); if (id) handleDrop(stage, id); }}>
-              <h3 className="text-sm font-semibold text-foreground mb-3">{stageInfo.label} ({stageDeals.length})</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">{stageLabel(stageInfo.key, stageInfo.label)} ({stageDeals.length})</h3>
               <div className="space-y-2">
                 {stageDeals.map(deal => (
                   <Link key={deal.id} to={`/deals/${deal.id}`} className="flex items-center justify-between bg-card rounded-lg border p-3 hover:shadow-sm transition-shadow">
@@ -320,6 +376,18 @@ export default function Pipeline() {
       </div>
 
       <CreateLeadDialog open={showCreate} onOpenChange={setShowCreate} />
+
+      {pendingMove && (
+        <StageGateDialog
+          open
+          onOpenChange={(v) => { if (!v) setPendingMove(null); }}
+          fromStage={stageLabel(pendingMove.deal.stage)}
+          toStage={stageLabel(pendingMove.stage)}
+          gate={pendingMove.gate}
+          isPending={gatePending}
+          onConfirm={confirmGatedMove}
+        />
+      )}
     </div>
   );
 }
