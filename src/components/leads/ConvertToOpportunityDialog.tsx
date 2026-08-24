@@ -17,6 +17,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ACTIVE_STAGES, getStageProbability } from "@/data/pipeline-stages";
 import type { IncomingLead } from "@/hooks/useIncomingLeads";
+import { leadToOpportunityGate } from "@/lib/pipeline-gates";
+import { useDiscoveryRecord, useAttachDiscoveryToDeal } from "@/hooks/useDiscovery";
+import { useAgreedNextSteps, useCarryNextStepsToDeal, useLogStageGateOverride } from "@/hooks/useAgreedNextSteps";
+import { AlertTriangle, XCircle } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -66,6 +70,22 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
   const [strategicNotes, setStrategicNotes] = useState<string>("");
   const [showDetails, setShowDetails] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
+
+  const { data: discovery } = useDiscoveryRecord({ leadId: lead.id });
+  const { data: nextSteps = [] } = useAgreedNextSteps({ leadId: lead.id });
+  const attachDiscovery = useAttachDiscoveryToDeal();
+  const carryNextSteps = useCarryNextStepsToDeal();
+  const logOverride = useLogStageGateOverride();
+
+  const gate = leadToOpportunityGate({
+    discovery: (discovery as any) ?? null,
+    nextSteps: nextSteps as any,
+    owner: assignedUserId || null,
+    qualificationDecision: lead.status === "Qualified" ? "Qualified" : null,
+  });
+  const gateBlocked = gate.status === "block";
+  const needsReason = gate.status === "warn" && !overrideReason.trim();
 
   const partnerName = partners.find((p) => p.id === partnerId)?.company_name || lead.linked_partner_name || "—";
   const fits = fitSummary(lead);
@@ -73,6 +93,14 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
   const handlePromote = async () => {
     if (!lead.company_name) {
       toast.error("Company name is required on the lead before promotion");
+      return;
+    }
+    if (gateBlocked) {
+      toast.error(gate.missing[0] || "This lead is not ready to become an opportunity");
+      return;
+    }
+    if (needsReason) {
+      toast.error("Add a reason to continue with missing evidence");
       return;
     }
     setCreating(true);
@@ -113,6 +141,24 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
         .update({ converted_to_deal_id: deal.id, status: "Converted" } as any)
         .eq("id", lead.id);
       if (updateErr) throw updateErr;
+
+      // Keep one canonical discovery record and its agreed next steps.
+      await attachDiscovery.mutateAsync({ leadId: lead.id, dealId: deal.id }).catch(() => null);
+      await carryNextSteps.mutateAsync({ leadId: lead.id, dealId: deal.id }).catch(() => null);
+
+      if (gate.status === "warn") {
+        await logOverride
+          .mutateAsync({
+            entity_type: "lead",
+            lead_id: lead.id,
+            deal_id: deal.id,
+            from_stage: lead.status || null,
+            to_stage: stage,
+            missing_evidence: gate.missingKeys,
+            reason: overrideReason.trim(),
+          })
+          .catch(() => null);
+      }
 
       toast.success("Promoted to pipeline");
       queryClient.invalidateQueries({ queryKey: ["deals"] });
@@ -161,6 +207,45 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
             </div>
           )}
         </div>
+
+        {/* Evidence gate */}
+        {gate.requirements.length > 0 && gate.status !== "ok" && (
+          <div className="rounded-lg border p-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-medium">
+              {gateBlocked ? (
+                <XCircle className="h-3.5 w-3.5 text-destructive" aria-hidden="true" />
+              ) : (
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
+              )}
+              {gateBlocked ? "Not ready to promote" : "Missing commercial evidence"}
+            </div>
+            <ul className="space-y-1">
+              {gate.requirements.map((r) => (
+                <li key={r.label} className="flex items-start gap-2 text-xs">
+                  {r.met ? (
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-success" aria-hidden="true" />
+                  ) : r.blocking ? (
+                    <XCircle className="mt-0.5 h-3.5 w-3.5 text-destructive" aria-hidden="true" />
+                  ) : (
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 text-amber-600" aria-hidden="true" />
+                  )}
+                  <span className={r.met ? "text-muted-foreground" : ""}>{r.label}</span>
+                </li>
+              ))}
+            </ul>
+            {!gateBlocked && (
+              <div>
+                <Label className="text-xs">Reason to continue</Label>
+                <Textarea
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  rows={2}
+                  placeholder="Recorded on the opportunity audit trail…"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Focus inputs only */}
         <div className="space-y-3 mt-1">
@@ -230,7 +315,7 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
 
         <div className="flex justify-end gap-2 pt-2 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handlePromote} disabled={creating}>
+          <Button onClick={handlePromote} disabled={creating || gateBlocked || needsReason}>
             {creating ? "Promoting…" : "Promote to Pipeline"}
           </Button>
         </div>
