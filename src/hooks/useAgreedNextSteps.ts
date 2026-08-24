@@ -38,11 +38,11 @@ export function useSaveNextStep(parent: NextStepParent) {
       }
       const { data: userData } = await supabase.auth.getUser();
       const { error } = await supabase.from("agreed_next_steps").insert({
-        ...(input as never),
+        ...(input as Record<string, unknown>),
         lead_id: parent.leadId ?? null,
         deal_id: parent.dealId ?? null,
         created_by: userData.user?.id ?? null,
-      });
+      } as never);
       if (error) throw error;
       return null;
     },
