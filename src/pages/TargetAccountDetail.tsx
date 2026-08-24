@@ -199,6 +199,16 @@ export default function TargetAccountDetail() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
+          <AcademyGuidance
+            moduleNumber={4}
+            title="Prospecting & research"
+            points={[
+              "A Target Account is a company we chose to research — no relationship is implied yet.",
+              "Score attention, not purchase probability: fit, complexity, signal and access.",
+              "Keep evidence and hypotheses separate, and write down what you still do not know.",
+            ]}
+          />
+
           {(status === "Ready for Outreach" || activities.length > 0) && (
             <Card>
               <CardHeader>
