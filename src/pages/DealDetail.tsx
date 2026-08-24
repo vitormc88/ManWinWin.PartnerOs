@@ -38,6 +38,8 @@ import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
 import { DealCommunicationTab } from "@/components/deals/DealCommunicationTab";
 import { activityTabLabel } from "@/lib/activity-stream";
 import { RelationshipSummary } from "@/components/deals/RelationshipSummary";
+import { DiscoveryWorkspace } from "@/components/commercial/DiscoveryWorkspace";
+import { NextStepPanel } from "@/components/commercial/NextStepPanel";
 import { QualificationSnapshot } from "@/components/deals/QualificationSnapshot";
 
 const JOB_ROLE_OPTIONS = [
