@@ -510,6 +510,7 @@ export default function LeadDetail() {
           <Tabs defaultValue="qualification" className="w-full">
             <TabsList className="flex-wrap h-auto">
               <TabsTrigger value="qualification">Qualification</TabsTrigger>
+              <TabsTrigger value="discovery">Discovery</TabsTrigger>
               <TabsTrigger value="situation">Situation</TabsTrigger>
               <TabsTrigger value="overview">Lead info</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
