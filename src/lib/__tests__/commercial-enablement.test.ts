@@ -40,8 +40,8 @@ describe("outreach engagement", () => {
   });
 
   it("always recommends an action grounded in what was recorded", () => {
-    expect(recommendedNextAction([]).title.length).toBeGreaterThan(0);
-    expect(recommendedNextAction([{ ...at("2026-08-21T10:00:00Z"), outcome: "do_not_contact" }]).title).toMatch(/contact/i);
+    expect(recommendedNextAction([]).action.length).toBeGreaterThan(0);
+    expect(recommendedNextAction([{ ...at("2026-08-21T10:00:00Z"), outcome: "do_not_contact" }]).action).toMatch(/stop outreach/i);
   });
 });
 
