@@ -713,9 +713,29 @@ export default function TargetAccountDetail() {
                   <p className="text-xs text-muted-foreground">
                     Outreach happens here. A Lead is created only once there is real two-way engagement.
                   </p>
-                  <Button className="w-full" onClick={createLead} disabled={convert.isPending}>
+                  <ul className="space-y-1.5">
+                    {readiness.items.map((i) => (
+                      <li key={i.label} className="flex items-start gap-2 text-xs">
+                        {i.done ? (
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                        ) : (
+                          <XCircle className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                        )}
+                        <span className={i.done ? "text-muted-foreground" : ""}>
+                          {i.label}
+                          {!i.done && <span className="block text-muted-foreground">{i.hint}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    className="w-full"
+                    onClick={createLead}
+                    disabled={convert.isPending || !readiness.ready}
+                  >
                     Create Lead from this Account
                   </Button>
+
                   <Button className="w-full" variant="outline" onClick={() => changeStatus("Researching")}>
                     Back to Researching
                   </Button>
