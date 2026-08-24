@@ -38,6 +38,7 @@ import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
 import { DealCommunicationTab } from "@/components/deals/DealCommunicationTab";
 import { activityTabLabel } from "@/lib/activity-stream";
 import { RelationshipSummary } from "@/components/deals/RelationshipSummary";
+import { stageLabel } from "@/lib/pipeline-gates";
 import { DiscoveryWorkspace } from "@/components/commercial/DiscoveryWorkspace";
 import { NextStepPanel } from "@/components/commercial/NextStepPanel";
 import { QualificationSnapshot } from "@/components/deals/QualificationSnapshot";
@@ -275,7 +276,7 @@ export default function DealDetail() {
         </div>
         <div className="flex justify-between mt-2">
           {PIPELINE_STAGES.filter(s => s.key !== "Lost").map(stage => (
-            <span key={stage.key} className={`text-[9px] ${deal.stage === stage.key ? "text-primary font-semibold" : "text-muted-foreground"}`}>{stage.label}</span>
+            <span key={stage.key} className={`text-[9px] ${deal.stage === stage.key ? "text-primary font-semibold" : "text-muted-foreground"}`}>{stageLabel(stage.key, stage.label)}</span>
           ))}
         </div>
       </div>

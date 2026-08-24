@@ -277,7 +277,7 @@ export default function Pipeline() {
               <div className={`rounded-xl ${stage.color} border p-2.5 min-h-[400px]`}>
                 <div className="flex items-center justify-between mb-2.5 sticky top-0 z-10 -mx-2.5 px-2.5 pb-1.5 backdrop-blur-sm">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{stage.label}</h3>
+                    <h3 className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{stageLabel(stage.key, stage.label)}</h3>
                     <Badge variant="outline" className="text-[10px] tabular-nums px-1.5 py-0">{stageDeals.length}</Badge>
                   </div>
                   {stageValue > 0 && <span className="text-[10px] text-muted-foreground tabular-nums font-medium">{formatMoney(stageValue, { compact: true })}</span>}
@@ -357,7 +357,7 @@ export default function Pipeline() {
             <div key={stage} className={`rounded-xl ${stageInfo.color} border p-4`}
               onDragOver={e => e.preventDefault()}
               onDrop={e => { const id = e.dataTransfer.getData("dealId"); if (id) handleDrop(stage, id); }}>
-              <h3 className="text-sm font-semibold text-foreground mb-3">{stageInfo.label} ({stageDeals.length})</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3">{stageLabel(stageInfo.key, stageInfo.label)} ({stageDeals.length})</h3>
               <div className="space-y-2">
                 {stageDeals.map(deal => (
                   <Link key={deal.id} to={`/deals/${deal.id}`} className="flex items-center justify-between bg-card rounded-lg border p-3 hover:shadow-sm transition-shadow">
