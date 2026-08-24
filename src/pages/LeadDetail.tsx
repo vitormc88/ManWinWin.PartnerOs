@@ -61,6 +61,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, BookOpen, Megaphone, Search as SearchIcon } from "lucide-react";
+import { DiscoveryWorkspace } from "@/components/commercial/DiscoveryWorkspace";
+import { NextStepPanel } from "@/components/commercial/NextStepPanel";
 
 const TIMD_ICONS = { Sparkles, Clock, Wallet, Users } as const;
 
