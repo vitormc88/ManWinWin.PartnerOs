@@ -18,6 +18,11 @@ import { cn } from "@/lib/utils";
 import { logSystemActivity } from "@/lib/activity-log";
 import { formatMoney } from "@/lib/money";
 import { isPartnerScopedView } from "@/lib/partner-scope";
+import { toast } from "sonner";
+import { dealStageGate, requiresDedicatedWorkflow, stageLabel, type GateResult } from "@/lib/pipeline-gates";
+import { loadDealGateContext } from "@/lib/pipeline-gate-context";
+import { StageGateDialog } from "@/components/commercial/StageGateDialog";
+import { useLogStageGateOverride } from "@/hooks/useAgreedNextSteps";
 
 function formatDaysAgo(d: Date | null): string {
   if (!d) return "—";
