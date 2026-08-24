@@ -69,11 +69,11 @@ export function useSaveDiscovery(parent: DiscoveryParent) {
       const { data, error } = await supabase
         .from("discovery_records")
         .insert({
-          ...(patch as never),
+          ...(patch as Record<string, unknown>),
           lead_id: parent.leadId ?? null,
           deal_id: parent.dealId ?? null,
           created_by: userData.user?.id ?? null,
-        })
+        } as never)
         .select()
         .single();
       if (error) throw error;
@@ -136,7 +136,7 @@ export function useSaveStakeholder() {
       const { data: userData } = await supabase.auth.getUser();
       const { error } = await supabase
         .from("discovery_stakeholders")
-        .insert({ ...(input as never), created_by: userData.user?.id ?? null });
+        .insert({ ...(input as Record<string, unknown>), created_by: userData.user?.id ?? null } as never);
       if (error) throw error;
       return input.discovery_id;
     },
