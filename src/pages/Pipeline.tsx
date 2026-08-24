@@ -49,6 +49,9 @@ export default function Pipeline() {
   const [healthFilter, setHealthFilter] = useState<string>("all");
   const [signalFilter, setSignalFilter] = useState<"none" | "no-followup" | "overdue">("none");
   const [showCreate, setShowCreate] = useState(false);
+  const [pendingMove, setPendingMove] = useState<{ deal: any; stage: DealStage; gate: GateResult } | null>(null);
+  const [gatePending, setGatePending] = useState(false);
+  const logOverride = useLogStageGateOverride();
   const { data: deals = [], isLoading } = useDeals();
   const { data: partners = [] } = usePartners();
   const { data: healthMap } = useDealsHealth(deals);
@@ -373,6 +376,18 @@ export default function Pipeline() {
       </div>
 
       <CreateLeadDialog open={showCreate} onOpenChange={setShowCreate} />
+
+      {pendingMove && (
+        <StageGateDialog
+          open
+          onOpenChange={(v) => { if (!v) setPendingMove(null); }}
+          fromStage={stageLabel(pendingMove.deal.stage)}
+          toStage={stageLabel(pendingMove.stage)}
+          gate={pendingMove.gate}
+          isPending={gatePending}
+          onConfirm={confirmGatedMove}
+        />
+      )}
     </div>
   );
 }
