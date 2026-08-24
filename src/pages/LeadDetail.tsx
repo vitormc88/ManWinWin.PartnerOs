@@ -716,6 +716,14 @@ export default function LeadDetail() {
               )}
             </TabsContent>
 
+            {/* DISCOVERY TAB */}
+            <TabsContent value="discovery" className="mt-4 space-y-4">
+              <NextStepPanel parent={{ leadId: id }} />
+              <DiscoveryWorkspace parent={{ leadId: id }} />
+            </TabsContent>
+
+
+
             {/* SITUATION TAB */}
             <TabsContent value="situation" className="mt-4">
               <Card>
