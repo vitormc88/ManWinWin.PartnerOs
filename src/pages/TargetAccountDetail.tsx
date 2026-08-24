@@ -41,8 +41,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { ArrowLeft, ExternalLink, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, ExternalLink, Star, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { OutreachWorkspace } from "@/components/prospecting/OutreachWorkspace";
+import { AcademyGuidance } from "@/components/common/AcademyGuidance";
+import { useTargetAccountActivities } from "@/hooks/useTargetAccountActivities";
+import { conversionReadiness } from "@/lib/outreach-activities";
 
 const emptyEvidence = { fact: "", source: "", link: "", evidence_date: "" };
 const emptySignal = { signal_type: "", description: "", signal_date: "", source: "" };
@@ -57,6 +61,7 @@ export default function TargetAccountDetail() {
   const { data: evidence = [] } = useTargetAccountEvidence(id);
   const { data: signals = [] } = useTargetAccountSignals(id);
   const { data: people = [] } = useTargetAccountPeople(id);
+  const { data: activities = [] } = useTargetAccountActivities(id);
 
   const update = useUpdateTargetAccount();
   const addEvidence = useAddEvidence();
@@ -188,7 +193,23 @@ export default function TargetAccountDetail() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
+          {(status === "Ready for Outreach" || activities.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Outreach & Engagement</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <OutreachWorkspace
+                  accountId={account.id}
+                  people={people}
+                  readOnly={readOnly}
+                  userId={profile?.id}
+                />
+              </CardContent>
+            </Card>
+          )}
           {/* 1 — Company */}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">1 · Company</CardTitle>
