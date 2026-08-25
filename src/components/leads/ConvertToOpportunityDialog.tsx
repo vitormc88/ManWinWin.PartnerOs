@@ -18,8 +18,8 @@ import { toast } from "sonner";
 import { ACTIVE_STAGES, getStageProbability } from "@/data/pipeline-stages";
 import type { IncomingLead } from "@/hooks/useIncomingLeads";
 import { leadToOpportunityGate } from "@/lib/pipeline-gates";
-import { useDiscoveryRecord, useAttachDiscoveryToDeal } from "@/hooks/useDiscovery";
-import { useAgreedNextSteps, useCarryNextStepsToDeal, useLogStageGateOverride } from "@/hooks/useAgreedNextSteps";
+import { useDiscoveryRecord } from "@/hooks/useDiscovery";
+import { useAgreedNextSteps } from "@/hooks/useAgreedNextSteps";
 import { AlertTriangle, XCircle } from "lucide-react";
 
 interface Props {
@@ -74,9 +74,6 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
 
   const { data: discovery } = useDiscoveryRecord({ leadId: lead.id });
   const { data: nextSteps = [] } = useAgreedNextSteps({ leadId: lead.id });
-  const attachDiscovery = useAttachDiscoveryToDeal();
-  const carryNextSteps = useCarryNextStepsToDeal();
-  const logOverride = useLogStageGateOverride();
 
   const gate = leadToOpportunityGate({
     discovery: (discovery as any) ?? null,
@@ -107,9 +104,7 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
     try {
       const owner = ownerCandidates.find((u) => u.id === assignedUserId);
 
-      const { data: deal, error } = await supabase
-        .from("deals")
-        .insert({
+      const dealPayload = {
           company_name: lead.company_name,
           contact_person_name: lead.contact_name || null,
           partner_id: partnerId || null,
@@ -130,42 +125,24 @@ export function ConvertToOpportunityDialog({ open, onOpenChange, lead }: Props) 
           asset_range: lead.asset_range || null,
           maintenance_team_size: lead.maintenance_team_size || null,
           register_date: new Date().toISOString().split("T")[0],
-        } as any)
-        .select("id")
-        .single();
+        };
 
+      const { data: dealId, error } = await (supabase as any).rpc("promote_lead_to_deal", {
+        _lead_id: lead.id,
+        _deal: dealPayload,
+        _override: gate.status === "warn"
+          ? { missing_evidence: gate.missingKeys, reason: overrideReason.trim() }
+          : null,
+      });
       if (error) throw error;
-
-      const { error: updateErr } = await supabase
-        .from("incoming_leads")
-        .update({ converted_to_deal_id: deal.id, status: "Converted" } as any)
-        .eq("id", lead.id);
-      if (updateErr) throw updateErr;
-
-      // Keep one canonical discovery record and its agreed next steps.
-      await attachDiscovery.mutateAsync({ leadId: lead.id, dealId: deal.id }).catch(() => null);
-      await carryNextSteps.mutateAsync({ leadId: lead.id, dealId: deal.id }).catch(() => null);
-
-      if (gate.status === "warn") {
-        await logOverride
-          .mutateAsync({
-            entity_type: "lead",
-            lead_id: lead.id,
-            deal_id: deal.id,
-            from_stage: lead.status || null,
-            to_stage: stage,
-            missing_evidence: gate.missingKeys,
-            reason: overrideReason.trim(),
-          })
-          .catch(() => null);
-      }
+      if (!dealId) throw new Error("Promotion completed without an opportunity reference");
 
       toast.success("Promoted to pipeline");
       queryClient.invalidateQueries({ queryKey: ["deals"] });
       queryClient.invalidateQueries({ queryKey: ["incoming_leads"] });
       queryClient.invalidateQueries({ queryKey: ["incoming_lead", lead.id] });
       onOpenChange(false);
-      navigate(`/deals/${deal.id}`);
+      navigate(`/deals/${dealId}`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to promote lead");
     } finally {

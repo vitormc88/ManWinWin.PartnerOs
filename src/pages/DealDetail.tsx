@@ -25,15 +25,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { PIPELINE_STAGES, ACTIVE_STAGES, getStageProbability, resolveDealProbability, type DealStage } from "@/data/pipeline-stages";
+import { PIPELINE_STAGES, resolveDealProbability } from "@/data/pipeline-stages";
 import { cn } from "@/lib/utils";
-import { logSystemActivity } from "@/lib/activity-log";
 import { useAuth } from "@/contexts/AuthContext";
 import { MarkAsWonButton } from "@/components/deals/MarkAsWonButton";
 import { MarkAsLostButton } from "@/components/deals/MarkAsLostButton";
 import { LossBanner } from "@/components/deals/LossBanner";
-import { CreateLicenseDialog } from "@/components/deals/CreateLicenseDialog";
-import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
 import { DealHealthBanner } from "@/components/deals/DealHealthBanner";
 import { DealCommunicationTab } from "@/components/deals/DealCommunicationTab";
 import { activityTabLabel } from "@/lib/activity-stream";
@@ -65,8 +62,6 @@ export default function DealDetail() {
   const { user, profile } = useAuth();
   const currentUserName = profile?.full_name || profile?.email || user?.email || "";
   const [showCreateProposal, setShowCreateProposal] = useState(false);
-  const [licenseModalOpen, setLicenseModalOpen] = useState(false);
-  const [pendingClientId, setPendingClientId] = useState<string | null>(null);
 
   // Editing state
   const [editing, setEditing] = useState(false);
@@ -116,8 +111,6 @@ export default function DealDetail() {
   };
 
   const saveEdit = async () => {
-    const stageChanged = editForm.stage !== deal.stage;
-    const oldStage = deal.stage;
     const updates: any = {
       company_name: editForm.company_name,
       contact_person_name: editForm.contact_person_name || null,
@@ -130,13 +123,11 @@ export default function DealDetail() {
         (editForm.assigned_user_id
           ? (ownerCandidates.find(u => u.id === editForm.assigned_user_id)?.full_name || null)
           : (editForm.assigned_salesperson || null)),
-      stage: editForm.stage,
       expected_value: parseFloat(editForm.expected_value) || 0,
-      probability: stageChanged ? getStageProbability(editForm.stage) : (parseInt(editForm.probability) || 0),
+      probability: parseInt(editForm.probability) || 0,
       expected_close_date: editForm.expected_close_date || null,
       notes: editForm.notes || null,
       description: editForm.description || null,
-      status: editForm.stage === "Won" ? "Won" : editForm.stage === "Lost" ? "Lost" : "Open",
       contact_email: editForm.contact_email || null,
       contact_phone: editForm.contact_phone || null,
       job_role: editForm.job_role || null,
@@ -144,47 +135,9 @@ export default function DealDetail() {
       asset_range: editForm.asset_range || null,
       maintenance_team_size: editForm.maintenance_team_size || null,
     };
-    if (stageChanged) updates.stage_entered_at = new Date().toISOString();
-
     const { error } = await supabase.from("deals").update(updates).eq("id", deal.id);
     if (error) { toast.error(error.message); return; }
     toast.success("Lead updated");
-    if (stageChanged) {
-      const subj =
-        editForm.stage === "Won"
-          ? "Lead marked as Won"
-          : editForm.stage === "Lost"
-          ? "Lead marked as Lost"
-          : "Stage changed";
-      logSystemActivity(
-        deal.id,
-        subj,
-        `Stage changed from ${oldStage} to ${editForm.stage}.`
-      );
-
-      // If stage transitioned to Won, run client/license lifecycle
-      if (editForm.stage === "Won" && oldStage !== "Won") {
-        try {
-          const { client, created } = await findOrCreateClientFromDeal({ ...deal, ...updates } as any);
-          if (!created) {
-            toast.message("Existing client found — linked to current deal.", { description: client.commercial_name });
-          } else {
-            toast.success(`Client ${client.client_code} created`);
-          }
-          const { count } = await supabase
-            .from("licenses")
-            .select("id", { count: "exact", head: true })
-            .eq("client_id", client.id);
-          if ((count ?? 0) === 0) {
-            setPendingClientId(client.id);
-            setLicenseModalOpen(true);
-          }
-          queryClient.invalidateQueries({ queryKey: ["clients"] });
-        } catch (e: any) {
-          toast.error(e?.message || "Failed to create client from deal");
-        }
-      }
-    }
     queryClient.invalidateQueries({ queryKey: ["deal", id] });
     queryClient.invalidateQueries({ queryKey: ["deals"] });
     queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
@@ -426,12 +379,10 @@ export default function DealDetail() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label>Stage</Label>
-                    <Select value={editForm.stage} onValueChange={v => setEditForm((f: any) => ({ ...f, stage: v }))}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {PIPELINE_STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Input value={stageLabel(deal.stage)} disabled />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Change the stage from Pipeline so the required commercial evidence is checked. Won and Lost use their dedicated workflows.
+                    </p>
                   </div>
                   <div><Label>Expected Close</Label><Input type="date" value={editForm.expected_close_date} onChange={e => setEditForm((f: any) => ({ ...f, expected_close_date: e.target.value }))} /></div>
                 </div>
@@ -658,15 +609,6 @@ export default function DealDetail() {
       </Dialog>
 
 
-      {pendingClientId && (
-        <CreateLicenseDialog
-          open={licenseModalOpen}
-          onOpenChange={setLicenseModalOpen}
-          clientId={pendingClientId}
-          dealId={deal.id}
-          onSkip={() => toast.message("License setup skipped — client will show 'Missing license configuration'.")}
-        />
-      )}
     </div>
   );
 }

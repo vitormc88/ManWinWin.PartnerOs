@@ -9,13 +9,14 @@ export async function loadDealGateContext(deal: {
   total_value?: number | string | null;
   expected_value?: number | string | null;
 }): Promise<GateContext> {
-  const { data: discovery } = await supabase
+  const { data: discovery, error: discoveryError } = await supabase
     .from("discovery_records")
     .select("*")
     .eq("deal_id", deal.id)
     .maybeSingle();
+  if (discoveryError) throw new Error(`Could not verify discovery evidence: ${discoveryError.message}`);
 
-  const [{ data: stakeholders }, { data: nextSteps }, { count: proposalCount }] = await Promise.all([
+  const [stakeholderResult, nextStepResult, proposalResult] = await Promise.all([
     discovery
       ? supabase.from("discovery_stakeholders").select("buying_role, influence, attitude").eq("discovery_id", discovery.id)
       : Promise.resolve({ data: [] as { buying_role: string | null; influence: string | null; attitude: string | null }[] }),
@@ -23,14 +24,20 @@ export async function loadDealGateContext(deal: {
     supabase.from("proposals").select("id", { count: "exact", head: true }).eq("deal_id", deal.id),
   ]);
 
+  if ("error" in stakeholderResult && stakeholderResult.error) {
+    throw new Error(`Could not verify stakeholder evidence: ${stakeholderResult.error.message}`);
+  }
+  if (nextStepResult.error) throw new Error(`Could not verify next-step evidence: ${nextStepResult.error.message}`);
+  if (proposalResult.error) throw new Error(`Could not verify proposal evidence: ${proposalResult.error.message}`);
+
   const value = Number(deal.total_value || 0) || Number(deal.expected_value || 0);
 
   return {
     discovery: (discovery as Record<string, unknown> | null) ?? null,
-    stakeholders: stakeholders ?? [],
-    nextSteps: (nextSteps as GateContext["nextSteps"]) ?? [],
+    stakeholders: stakeholderResult.data ?? [],
+    nextSteps: (nextStepResult.data as GateContext["nextSteps"]) ?? [],
     owner: deal.assigned_user_id ?? deal.owner_name ?? null,
     value,
-    proposalCount: proposalCount ?? 0,
+    proposalCount: proposalResult.count ?? 0,
   };
 }

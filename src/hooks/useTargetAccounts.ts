@@ -367,38 +367,19 @@ export function useConvertTargetAccountToLead() {
       evidence: TargetAccountEvidence[];
       signals: TargetAccountSignal[];
     }) => {
-      const { data: lead, error } = await supabase
-        .from("incoming_leads")
-        .insert({
-          company_name: account.company_name,
-          country: account.country,
-          sector: account.industry,
-          contact_name: primaryContact.full_name,
-          email: primaryContact.email,
-          phone: primaryContact.phone,
-          job_role: primaryContact.job_title,
-          lead_source: "Prospecting",
-          linked_partner_id: account.partner_uuid,
-          assigned_user_id: account.owner_user_id,
-          source_target_account_id: account.id,
-          notes: buildLeadNotes({
+      const notes = buildLeadNotes({
             maintenance_hypothesis: account.maintenance_hypothesis,
             key_research_gap: account.key_research_gap,
             evidence,
             signals,
-          }),
-        })
-        .select()
-        .single();
+          });
+      const { data: leadId, error } = await (supabase as any).rpc("convert_target_account_to_lead", {
+        _account_id: account.id,
+        _notes: notes,
+      });
       if (error) throw error;
-
-      const { error: linkError } = await supabase
-        .from("target_accounts")
-        .update({ status: "Converted", converted_lead_id: lead.id })
-        .eq("id", account.id);
-      if (linkError) throw linkError;
-
-      return lead;
+      if (!leadId) throw new Error("Conversion completed without a lead reference");
+      return { id: leadId as string, source_target_account_id: account.id };
     },
     onSuccess: (lead) => {
       invalidateAccount(qc, lead.source_target_account_id || undefined);

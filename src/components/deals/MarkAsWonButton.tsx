@@ -18,6 +18,10 @@ import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
 import { logSystemActivity } from "@/lib/activity-log";
 import { CreateLicenseDialog } from "./CreateLicenseDialog";
 import { getStageProbability } from "@/data/pipeline-stages";
+import { StageGateDialog } from "@/components/commercial/StageGateDialog";
+import { dealStageGate, type GateResult } from "@/lib/pipeline-gates";
+import { loadDealGateContext } from "@/lib/pipeline-gate-context";
+import { useLogStageGateOverride } from "@/hooks/useAgreedNextSteps";
 
 interface Props {
   deal: any;
@@ -29,8 +33,51 @@ export function MarkAsWonButton({ deal }: Props) {
   const [licenseOpen, setLicenseOpen] = useState(false);
   const [clientId, setClientId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [gateOpen, setGateOpen] = useState(false);
+  const [gate, setGate] = useState<GateResult | null>(null);
+  const logOverride = useLogStageGateOverride();
 
   const isWon = deal?.stage === "Won";
+
+  const requestWonFlow = async () => {
+    if (isWon) {
+      setConfirmOpen(true);
+      return;
+    }
+    setWorking(true);
+    try {
+      const context = await loadDealGateContext(deal);
+      const result = dealStageGate("Won", context);
+      setGate(result);
+      if (result.status === "ok") setConfirmOpen(true);
+      else setGateOpen(true);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not verify the evidence required to mark this deal as Won");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const continueWithOverride = async (reason: string | null) => {
+    if (!gate || !reason) return;
+    setWorking(true);
+    try {
+      await logOverride.mutateAsync({
+        entity_type: "deal",
+        deal_id: deal.id,
+        from_stage: deal.stage,
+        to_stage: "Won",
+        missing_evidence: gate.missingKeys,
+        reason,
+      });
+      setGateOpen(false);
+      setConfirmOpen(true);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not record the stage-gate override");
+    } finally {
+      setWorking(false);
+    }
+  };
 
   const runWonFlow = async () => {
     setWorking(true);
@@ -90,7 +137,7 @@ export function MarkAsWonButton({ deal }: Props) {
       <Button
         size="sm"
         variant={isWon ? "outline" : "default"}
-        onClick={() => setConfirmOpen(true)}
+        onClick={requestWonFlow}
         disabled={working}
         className={isWon ? "" : "bg-success text-success-foreground hover:bg-success/90"}
       >
@@ -116,6 +163,18 @@ export function MarkAsWonButton({ deal }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {gate && (
+        <StageGateDialog
+          open={gateOpen}
+          onOpenChange={setGateOpen}
+          fromStage={deal.stage}
+          toStage="Won"
+          gate={gate}
+          onConfirm={continueWithOverride}
+          isPending={working || logOverride.isPending}
+        />
+      )}
 
       {clientId && (
         <CreateLicenseDialog
