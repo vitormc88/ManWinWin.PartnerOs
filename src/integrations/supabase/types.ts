@@ -6578,6 +6578,7 @@ export type Database = {
         | { Args: { _ids: string[] }; Returns: boolean }
         | { Args: { _ids: string[]; _settings: Json }; Returns: boolean }
       academy_cert_default_settings: { Args: never; Returns: Json }
+      academy_cert_effective_settings: { Args: { _raw: Json }; Returns: Json }
       academy_cert_eligibility: { Args: { _module_id: string }; Returns: Json }
       academy_cert_result: { Args: { _attempt_id: string }; Returns: Json }
       academy_cert_select_questions: {

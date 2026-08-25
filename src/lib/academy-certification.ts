@@ -110,6 +110,39 @@ export function hasScenarioGate(s: Partial<CertSettings> | null | undefined): bo
   return typeof certSettings(s).scenario_pass_score === "number";
 }
 
+/**
+ * Mirror of `public.academy_cert_effective_settings` — documents and pins the
+ * server rule for how a module's stored certification settings resolve to an
+ * effective scenario threshold:
+ *  - empty/absent settings inherit the global default (60);
+ *  - an explicit `scenario_pass_score` (number or null) always wins;
+ *  - custom settings that omit it and expose no `scenario_analysis` category
+ *    (allowed_categories or blueprint) resolve to `null`, never the default.
+ */
+export function effectiveScenarioPassScore(
+  raw: Record<string, unknown> | null | undefined,
+  defaultScore: number | null = CERT_SCENARIO_PASS_SCORE
+): number | null {
+  const hasCustom = !!raw && Object.keys(raw).length > 0;
+  if (!hasCustom) return defaultScore;
+  if ("scenario_pass_score" in raw!) {
+    const v = raw!.scenario_pass_score;
+    return typeof v === "number" ? v : null;
+  }
+  const categories = Array.isArray(raw!.allowed_categories)
+    ? (raw!.allowed_categories as unknown[]).map(String)
+    : null;
+  const blueprint = Array.isArray(raw!.blueprint) ? (raw!.blueprint as Array<Record<string, unknown>>) : [];
+  const inBlueprint = blueprint.some((g) =>
+    Array.isArray(g?.categories) && (g.categories as unknown[]).map(String).includes("scenario_analysis")
+  );
+  // No explicit allowed_categories means the global list is inherited, which
+  // includes scenario_analysis.
+  const inCategories = categories === null ? true : categories.includes("scenario_analysis");
+  return inCategories || inBlueprint ? defaultScore : null;
+}
+
+
 /** True when the module is scored purely on the number of correct answers. */
 export function isRawScoring(s: Partial<CertSettings> | null | undefined): boolean {
   return certSettings(s).scoring_mode === "raw_percentage";
