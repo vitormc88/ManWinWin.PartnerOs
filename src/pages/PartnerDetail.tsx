@@ -46,6 +46,9 @@ import { buildNextBestActions } from "@/lib/partner-next-actions";
 import { buildPartnerNarrative } from "@/lib/partner-health-narrative";
 import { PartnerBriefCard } from "@/components/partners/PartnerBriefCard";
 import { buildPartnerBrief } from "@/lib/partner-brief";
+import { PartnerDiscountLimitsCard } from "@/components/partners/PartnerDiscountLimitsCard";
+import { useAuth } from "@/contexts/AuthContext";
+
 
 
 const fmt = (d?: string | null) => formatDateOnly(d);
@@ -545,6 +548,16 @@ export default function PartnerDetail() {
               </>
             );
           })()}
+
+          {id && (
+            <PartnerDiscountLimitsCard
+              partnerId={id}
+              partnershipLevel={partner.partnership_level}
+              canEdit={isAdmin}
+            />
+          )}
+
+
 
           {/* 3. Partner Profile + Relationship Management */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
