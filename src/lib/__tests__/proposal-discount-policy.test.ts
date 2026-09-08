@@ -7,6 +7,8 @@ import {
   validateProfessionalItems,
   validateBusinessDiscounts,
   CONSERVATIVE_LIMITS,
+  normalizeDiscountOverride,
+  getDefaultDiscountLimits,
 } from "@/lib/proposal-discount-policy";
 
 describe("proposal discount policy — limits", () => {
@@ -154,5 +156,112 @@ describe("proposal discount policy — Business channel validation", () => {
 
   it("accepts compliant values", () => {
     expect(validateBusinessDiscounts({ softwarePct: 10, webUsersPct: 5, apiPct: 0, servicesPct: 10 }, partner).ok).toBe(true);
+  });
+});
+
+describe("proposal discount policy — per-partner configurable overrides", () => {
+  it("uses defaults when no override is configured", () => {
+    expect(
+      getDiscountLimits({ isHQ: false, partnershipLevel: "Reseller", overrides: null }),
+    ).toEqual({ software: 10, services: 10 });
+    expect(
+      getDiscountLimits({
+        isHQ: false,
+        partnershipLevel: "Implementer",
+        overrides: { software: null, services: null },
+      }),
+    ).toEqual({ software: 10, services: 100 });
+  });
+
+  it("applies configured overrides (20 software / 25 services)", () => {
+    expect(
+      getDiscountLimits({
+        isHQ: false,
+        partnershipLevel: "Reseller",
+        overrides: { software: 20, services: 25 },
+      }),
+    ).toEqual({ software: 20, services: 25 });
+  });
+
+  it("inherits per-channel when only one side is configured", () => {
+    expect(
+      getDiscountLimits({
+        isHQ: false,
+        partnershipLevel: "Implementer",
+        overrides: { software: 20, services: null },
+      }),
+    ).toEqual({ software: 20, services: 100 });
+  });
+
+  it("treats explicit 0 as zero, not fallback", () => {
+    expect(
+      getDiscountLimits({
+        isHQ: false,
+        partnershipLevel: "Reseller",
+        overrides: { software: 0, services: 0 },
+      }),
+    ).toEqual({ software: 0, services: 0 });
+  });
+
+  it("ignores out-of-range or non-finite overrides", () => {
+    for (const bad of [-1, 101, NaN, Infinity, "abc" as unknown as number]) {
+      expect(normalizeDiscountOverride(bad)).toBeNull();
+    }
+    expect(normalizeDiscountOverride(100)).toBe(100);
+    expect(normalizeDiscountOverride(0)).toBe(0);
+    expect(
+      getDiscountLimits({
+        isHQ: false,
+        partnershipLevel: "Reseller",
+        overrides: { software: 150, services: -5 },
+      }),
+    ).toEqual({ software: 10, services: 10 });
+  });
+
+  it("never lets a partner override affect HQ users", () => {
+    expect(
+      getDiscountLimits({ isHQ: true, partnershipLevel: "Reseller", overrides: { software: 5, services: 0 } }),
+    ).toEqual({ software: 100, services: 100 });
+  });
+
+  it("validates Professional lines against the override, incl. fixed EUR", () => {
+    const limits = getDiscountLimits({
+      isHQ: false,
+      partnershipLevel: "Reseller",
+      overrides: { software: 20, services: 25 },
+    });
+    expect(
+      validateProfessionalItems(
+        [
+          { item_name: "Plan", category: "software", discount_type: "percent", discount_value: 20, gross_total: 1000 },
+          { item_name: "Impl", category: "service", discount_type: "fixed", discount_value: 250, gross_total: 1000 },
+        ],
+        limits,
+      ).ok,
+    ).toBe(true);
+    const tooMuch = validateProfessionalItems(
+      [{ item_name: "Impl", category: "service", discount_type: "fixed", discount_value: 300, gross_total: 1000 }],
+      limits,
+    );
+    expect(tooMuch.ok).toBe(false);
+    expect(tooMuch.message).toMatch(/30\.00%/);
+  });
+
+  it("validates Business channels against the override", () => {
+    const limits = getDiscountLimits({
+      isHQ: false,
+      partnershipLevel: "Technologic",
+      overrides: { software: 20, services: 25 },
+    });
+    expect(validateBusinessDiscounts({ softwarePct: 20, webUsersPct: 20, apiPct: 20, servicesPct: 25 }, limits).ok).toBe(true);
+    expect(validateBusinessDiscounts({ apiPct: 21 }, limits).ok).toBe(false);
+    expect(validateBusinessDiscounts({ servicesPct: 26 }, limits).ok).toBe(false);
+  });
+
+  it("keeps default resolution available separately", () => {
+    expect(getDefaultDiscountLimits({ isHQ: false, partnershipLevel: "Implementer" })).toEqual({
+      software: 10,
+      services: 100,
+    });
   });
 });
