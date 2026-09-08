@@ -13,7 +13,7 @@
 --              enforce_proposal_item_discount_limits  (BEFORE INSERT OR UPDATE)
 -- Both guards call the resolver, so overriding the resolver is enough: the
 -- guards and triggers are intentionally left untouched by this migration.
--- (private.proposal_discount_limits() does NOT exist in production and is not
+-- (the older review-only helper name does NOT exist in production and is not
 -- referenced here.)
 --
 -- Semantics (must match src/lib/proposal-discount-policy.ts):
