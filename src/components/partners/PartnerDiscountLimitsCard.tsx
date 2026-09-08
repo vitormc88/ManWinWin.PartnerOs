@@ -28,12 +28,15 @@ function isValidInput(raw: string): boolean {
 }
 
 export function PartnerDiscountLimitsCard({ partnerId, partnershipLevel, canEdit }: Props) {
-  const { data: row } = usePartnerDiscountLimits(partnerId);
+  const { data, isLoading, isError, error, refetch, isFetching } = usePartnerDiscountLimits(partnerId);
   const save = useSavePartnerDiscountLimits();
   const [editing, setEditing] = useState(false);
   const [software, setSoftware] = useState("");
   const [services, setServices] = useState("");
 
+  const row = data?.row ?? null;
+  const missingSchema = data?.missingSchema === true;
+  const resolved = !isLoading && !isError;
   const overrides = toDiscountOverrides(row);
   const defaults = getDefaultDiscountLimits({ isHQ: false, partnershipLevel });
   const effective = getDiscountLimits({ isHQ: false, partnershipLevel, overrides });
@@ -48,6 +51,7 @@ export function PartnerDiscountLimitsCard({ partnerId, partnershipLevel, canEdit
   const invalid = !isValidInput(software) || !isValidInput(services);
 
   const onSave = async () => {
+    if (!resolved || missingSchema) return;
     if (invalid) {
       toast.error("Discount limits must be numbers between 0 and 100, or left empty for the default.");
       return;
@@ -65,18 +69,38 @@ export function PartnerDiscountLimitsCard({ partnerId, partnershipLevel, canEdit
     }
   };
 
+  const canStartEditing = canEdit && resolved && !missingSchema;
+
   return (
     <div className="bg-card rounded-xl border shadow-sm p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold text-foreground text-[14px]">Discount limits</h3>
-        {canEdit && !editing && (
+        {canStartEditing && !editing && (
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setEditing(true)}>
             <Pencil className="h-3 w-3 mr-1" /> Edit
           </Button>
         )}
       </div>
 
-      {!editing ? (
+      {isLoading ? (
+        <p className="text-[12px] text-muted-foreground" role="status">
+          Loading discount limits…
+        </p>
+      ) : isError ? (
+        <div className="space-y-2">
+          <p className="text-[12px] text-destructive">
+            Could not load the discount limits{(error as any)?.message ? `: ${(error as any).message}` : "."}
+          </p>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => refetch()} disabled={isFetching}>
+            Try again
+          </Button>
+        </div>
+      ) : missingSchema ? (
+        <p className="text-[12px] text-muted-foreground">
+          Configurable discount limits are not available in this environment yet. The standard limits still apply.
+        </p>
+      ) : !editing ? (
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Max software discount</p>
@@ -123,7 +147,12 @@ export function PartnerDiscountLimitsCard({ partnerId, partnershipLevel, canEdit
             <p className="text-xs text-destructive">Enter a value between 0 and 100, or leave empty for the default.</p>
           )}
           <div className="flex gap-2">
-            <Button size="sm" className="h-7 text-xs" onClick={onSave} disabled={save.isPending || invalid}>
+            <Button
+              size="sm"
+              className="h-7 text-xs"
+              onClick={onSave}
+              disabled={save.isPending || invalid || !resolved || missingSchema}
+            >
               <Save className="h-3 w-3 mr-1" /> Save
             </Button>
             <Button
