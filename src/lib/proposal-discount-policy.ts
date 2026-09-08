@@ -24,11 +24,24 @@ const EPSILON = 0.000001;
 
 export type DiscountKind = "software" | "services";
 
+export interface DiscountOverrides {
+  /** Max software discount % for this partner, or null to use the default. */
+  software?: number | null;
+  /** Max services discount % for this partner, or null to use the default. */
+  services?: number | null;
+}
+
 export interface DiscountActor {
   /** True only for confirmed HQ users. */
   isHQ: boolean;
   /** partners.partnership_level for the actor's partner (may be missing). */
   partnershipLevel?: string | null;
+  /**
+   * Per-partner configured limits (HQ-managed). Only applied to partner users:
+   * HQ always stays at 100/100. `null`/absent means "use default";
+   * an explicit 0 means zero, never a fallback.
+   */
+  overrides?: DiscountOverrides | null;
 }
 
 export interface DiscountLimits {
@@ -47,7 +60,23 @@ export function isImplementerLevel(level: string | null | undefined): boolean {
   return /implement/i.test(String(level).trim());
 }
 
-export function getDiscountLimits(actor: DiscountActor | null | undefined): DiscountLimits {
+/**
+ * Normalize a configured override: only finite numbers within [0, 100] are
+ * accepted. Anything else (null, undefined, NaN, out of range) means
+ * "use default".
+ */
+export function normalizeDiscountOverride(value: unknown): number | null {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return null;
+  if (n < 0 || n > 100) return null;
+  return n;
+}
+
+/** Default limits, ignoring any per-partner override. */
+export function getDefaultDiscountLimits(
+  actor: Pick<DiscountActor, "isHQ" | "partnershipLevel"> | null | undefined,
+): DiscountLimits {
   if (!actor) return { ...CONSERVATIVE_LIMITS };
   if (actor.isHQ) return { software: HQ_MAX_DISCOUNT_PCT, services: HQ_MAX_DISCOUNT_PCT };
   return {
@@ -57,6 +86,19 @@ export function getDiscountLimits(actor: DiscountActor | null | undefined): Disc
       : PARTNER_MAX_SERVICES_DISCOUNT_PCT,
   };
 }
+
+export function getDiscountLimits(actor: DiscountActor | null | undefined): DiscountLimits {
+  const defaults = getDefaultDiscountLimits(actor);
+  // HQ users are never constrained by a partner override.
+  if (!actor || actor.isHQ) return defaults;
+  const software = normalizeDiscountOverride(actor.overrides?.software);
+  const services = normalizeDiscountOverride(actor.overrides?.services);
+  return {
+    software: software === null ? defaults.software : software,
+    services: services === null ? defaults.services : services,
+  };
+}
+
 
 /** Clamp a percentage input into [0, max]. */
 export function clampDiscountPct(value: unknown, max: number): number {
