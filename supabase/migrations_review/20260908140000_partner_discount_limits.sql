@@ -1,4 +1,6 @@
 -- Configurable proposal discount limits PER PARTNER (production-ready, additive).
+-- REVIEW-ONLY: this file is not executed by the Lovable TEST project. It must be
+-- reviewed and applied explicitly against the production project.
 --
 -- Adds a small dedicated settings table so that HQ Admin is the only role that
 -- can write these limits, without widening or changing existing partner
@@ -15,6 +17,61 @@
 --
 -- Rollout is value-preserving: no rows are created, so every partner keeps
 -- exactly its current effective limits until HQ configures an override.
+
+BEGIN;
+
+-- ---------------------------------------------------------------------------
+-- Preflight. Fail loudly instead of half-applying: the settings table is only
+-- meaningful if the existing server-side discount guard (functions + triggers)
+-- is actually installed here. Helper signatures are the repository ones:
+--   public.is_hq_user(_user_id uuid)
+--   public.get_user_partner_id(_user_id uuid)
+--   public.has_role(_user_id uuid, _role app_role)
+--   public.set_updated_at()   -- the project's updated_at trigger helper
+-- ---------------------------------------------------------------------------
+DO $preflight$
+BEGIN
+  IF to_regprocedure('public.is_hq_user(uuid)') IS NULL THEN
+    RAISE EXCEPTION 'Preflight failed: public.is_hq_user(uuid) is missing';
+  END IF;
+  IF to_regprocedure('public.get_user_partner_id(uuid)') IS NULL THEN
+    RAISE EXCEPTION 'Preflight failed: public.get_user_partner_id(uuid) is missing';
+  END IF;
+  IF to_regprocedure('public.has_role(uuid, app_role)') IS NULL THEN
+    RAISE EXCEPTION 'Preflight failed: public.has_role(uuid, app_role) is missing';
+  END IF;
+  IF to_regprocedure('public.set_updated_at()') IS NULL THEN
+    RAISE EXCEPTION 'Preflight failed: public.set_updated_at() is missing';
+  END IF;
+  IF to_regprocedure('private.proposal_discount_limits()') IS NULL THEN
+    RAISE EXCEPTION 'Preflight failed: private.proposal_discount_limits() is missing — the discount guard is not installed here';
+  END IF;
+  IF to_regprocedure('private.enforce_proposal_item_discounts()') IS NULL
+     OR to_regprocedure('private.enforce_proposal_business_discounts()') IS NULL THEN
+    RAISE EXCEPTION 'Preflight failed: proposal discount enforcement functions are missing';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE NOT t.tgisinternal
+      AND n.nspname = 'public' AND c.relname = 'proposal_items'
+      AND t.tgname = 'trg_enforce_proposal_item_discounts'
+  ) THEN
+    RAISE EXCEPTION 'Preflight failed: trigger trg_enforce_proposal_item_discounts is missing on public.proposal_items — overrides would not be enforced';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger t
+    JOIN pg_class c ON c.oid = t.tgrelid
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE NOT t.tgisinternal
+      AND n.nspname = 'public' AND c.relname = 'proposals'
+      AND t.tgname = 'trg_enforce_proposal_business_discounts'
+  ) THEN
+    RAISE EXCEPTION 'Preflight failed: trigger trg_enforce_proposal_business_discounts is missing on public.proposals — overrides would not be enforced';
+  END IF;
+END
+$preflight$;
 
 CREATE TABLE IF NOT EXISTS public.partner_discount_limits (
   partner_id uuid PRIMARY KEY REFERENCES public.partners(id) ON DELETE CASCADE,
@@ -33,6 +90,12 @@ CREATE TABLE IF NOT EXISTS public.partner_discount_limits (
 COMMENT ON TABLE public.partner_discount_limits IS
   'HQ-Admin-managed per-partner maximum proposal discount percentages. NULL = use default.';
 
+-- Default privileges in this project have previously granted excessive access:
+-- strip everything first, then grant the strict minimum.
+REVOKE ALL ON public.partner_discount_limits FROM PUBLIC;
+REVOKE ALL ON public.partner_discount_limits FROM anon;
+REVOKE ALL ON public.partner_discount_limits FROM authenticated;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.partner_discount_limits TO authenticated;
 GRANT ALL ON public.partner_discount_limits TO service_role;
 
@@ -46,25 +109,30 @@ ON public.partner_discount_limits
 FOR SELECT
 TO authenticated
 USING (
-  public.is_hq_user()
-  OR partner_id = public.get_user_partner_id()
+  public.is_hq_user(auth.uid())
+  OR partner_id = public.get_user_partner_id(auth.uid())
 );
 
--- Write: confirmed HQ Admin only (insert / update / delete).
+-- Write: confirmed HQ Admin only, mirroring AuthContext's isAdmin
+-- (hq_admin role AND a confirmed HQ profile) — never the role alone.
 DROP POLICY IF EXISTS "discount limits writable by hq admin"
   ON public.partner_discount_limits;
 CREATE POLICY "discount limits writable by hq admin"
 ON public.partner_discount_limits
 FOR ALL
 TO authenticated
-USING (public.has_role(auth.uid(), 'hq_admin'))
-WITH CHECK (public.has_role(auth.uid(), 'hq_admin'));
+USING (
+  public.has_role(auth.uid(), 'hq_admin') AND public.is_hq_user(auth.uid())
+)
+WITH CHECK (
+  public.has_role(auth.uid(), 'hq_admin') AND public.is_hq_user(auth.uid())
+);
 
 DROP TRIGGER IF EXISTS trg_partner_discount_limits_updated_at
   ON public.partner_discount_limits;
 CREATE TRIGGER trg_partner_discount_limits_updated_at
 BEFORE UPDATE ON public.partner_discount_limits
-FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- Resolve overrides inside the existing server-side discount guard.
@@ -128,4 +196,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION private.proposal_discount_limits() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION private.proposal_discount_limits() FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.proposal_discount_limits() FROM anon;
+REVOKE ALL ON FUNCTION private.proposal_discount_limits() FROM authenticated;
+
+COMMIT;

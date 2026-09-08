@@ -242,13 +242,27 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
 
   const { user, profile, isHQ } = useAuth();
-  const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
+  const actorPartnerId = profile?.partner_id || undefined;
+  const {
+    data: actorPartner,
+    isLoading: actorPartnerLoading,
+    isError: actorPartnerError,
+  } = usePartner(actorPartnerId);
   // Per-partner configured limits (HQ-managed). Resolves to "use default"
   // when unset or when the settings table is not deployed in this environment.
-  const { data: actorPartnerLimits } = usePartnerDiscountLimits(
-    isHQ ? undefined : profile?.partner_id || undefined,
-  );
-  // Conservative limits while partner data is still missing/loading.
+  const {
+    data: actorPartnerLimits,
+    isLoading: actorLimitsLoading,
+    isError: actorLimitsError,
+  } = usePartnerDiscountLimits(isHQ ? undefined : actorPartnerId);
+
+  // For partner users the limits are only known once BOTH the partnership
+  // level and the configured overrides have resolved. An explicit 0 override
+  // means the old "10/10 conservative" assumption is no longer conservative,
+  // so we never clamp or save while these reads are pending.
+  const limitsPending = !isHQ && !!actorPartnerId && (actorPartnerLoading || actorLimitsLoading);
+  const limitsFailed = !isHQ && !!actorPartnerId && (actorPartnerError || actorLimitsError);
+
   const discountLimits = useMemo(
     () =>
       isHQ
@@ -260,6 +274,19 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
           }),
     [isHQ, actorPartner?.partnership_level, actorPartnerLimits],
   );
+
+  // Clamp only against limits we actually know. While pending we leave values
+  // untouched (saving is blocked anyway) so a slow read can never silently
+  // reduce a discount that was already entered or loaded from a saved draft.
+  const clampLimits = useMemo(
+    () =>
+      limitsPending || limitsFailed
+        ? { software: Number.POSITIVE_INFINITY, services: Number.POSITIVE_INFINITY }
+        : discountLimits,
+    [limitsPending, limitsFailed, discountLimits],
+  );
+  const discountInputsDisabled = limitsPending || !!limitsFailed;
+
 
   const qc = useQueryClient();
   const {
@@ -371,7 +398,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
    * Renewal plan change — pure computation from the real contract baseline and
    * the active pricing catalogue. Nothing here mutates any record.
    */
-  const clampedImplDiscount = clampDiscountPct(implDiscountPct, discountLimits.services);
+  const clampedImplDiscount = clampDiscountPct(implDiscountPct, clampLimits.services);
   const planChange = useMemo(
     () =>
       computePlanChange({
@@ -950,7 +977,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   };
 
   /** Any persistence path is blocked while saving or in read-only mode. */
-  const writeBlocked = saving || readOnly;
+  const writeBlocked = saving || readOnly || limitsPending || !!limitsFailed;
 
   const next = () => setStep((s) => Math.min(s + 1, STEPS.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
@@ -1572,7 +1599,25 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
         </div>
 
         <div className="mt-4 space-y-4">
+          {limitsPending && (
+            <div
+              role="status"
+              className="rounded-md border bg-muted/40 px-3 py-2 text-[12px] text-muted-foreground"
+            >
+              Checking your discount limits… discounts and saving are unavailable for a moment.
+            </div>
+          )}
+          {limitsFailed && (
+            <div
+              role="alert"
+              className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-[12px] text-destructive"
+            >
+              Your discount limits could not be loaded, so discounts and saving are blocked. Please close and reopen this
+              window, or try again in a moment.
+            </div>
+          )}
           {/* STEP 0: Basic */}
+
           {step === 0 && (
             <div className="space-y-4">
               {/* Row 1: Product family + Language */}
@@ -1781,7 +1826,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <Label className="text-xs">Professional plan discount % (max {discountLimits.software}%)</Label>
-                    <Input type="number" min={0} max={discountLimits.software} value={planDiscountPct} onChange={(e) => setPlanDiscountPct(clampDiscountPct(e.target.value, discountLimits.software))} />
+                    <Input type="number" min={0} max={discountLimits.software} value={planDiscountPct} disabled={discountInputsDisabled} onChange={(e) => setPlanDiscountPct(clampDiscountPct(e.target.value, clampLimits.software))} />
                     <div className="flex items-center justify-between mt-2">
                       <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
                       <Switch checked={planDiscountRenews} onCheckedChange={setPlanDiscountRenews} disabled={planDiscountPct <= 0} />
@@ -1794,8 +1839,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                       min={0}
                       max={discountLimits.software}
                       value={includeRequests ? requestsDiscountPct : 0}
-                      onChange={(e) => setRequestsDiscountPct(clampDiscountPct(e.target.value, discountLimits.software))}
-                      disabled={!includeRequests}
+                      onChange={(e) => setRequestsDiscountPct(clampDiscountPct(e.target.value, clampLimits.software))}
+                      disabled={!includeRequests || discountInputsDisabled}
                     />
                     <div className="flex items-center justify-between mt-2">
                       <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
@@ -1807,7 +1852,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                   </div>
                   <div>
                     <Label className="text-xs">Web/Mobile users discount % (max {discountLimits.software}%)</Label>
-                    <Input type="number" min={0} max={discountLimits.software} value={webUsersDiscountPct} onChange={(e) => setWebUsersDiscountPct(clampDiscountPct(e.target.value, discountLimits.software))} />
+                    <Input type="number" min={0} max={discountLimits.software} value={webUsersDiscountPct} disabled={discountInputsDisabled} onChange={(e) => setWebUsersDiscountPct(clampDiscountPct(e.target.value, clampLimits.software))} />
                     <div className="flex items-center justify-between mt-2">
                       <Label className="text-[11px] text-muted-foreground">Apply to renewals</Label>
                       <Switch checked={webUsersDiscountRenews} onCheckedChange={setWebUsersDiscountRenews} disabled={webUsersDiscountPct <= 0} />
@@ -1852,8 +1897,8 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
                 </div>
                 <div>
                   <Label>Services discount % (max {discountLimits.services}%)</Label>
-                  <Input type="number" min={0} max={discountLimits.services} value={servicesDiscountPct}
-                    onChange={(e) => setServicesDiscountPct(clampDiscountPct(e.target.value, discountLimits.services))} />
+                  <Input type="number" min={0} max={discountLimits.services} value={servicesDiscountPct} disabled={discountInputsDisabled}
+                    onChange={(e) => setServicesDiscountPct(clampDiscountPct(e.target.value, clampLimits.services))} />
                 </div>
               </div>
               {implType === "Onsite" && (

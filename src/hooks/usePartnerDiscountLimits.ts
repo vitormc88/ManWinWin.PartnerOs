@@ -25,7 +25,22 @@ export function isMissingSchemaError(error: { code?: string; message?: string } 
   return /does not exist|schema cache/i.test(error.message || "");
 }
 
-export function toDiscountOverrides(row: PartnerDiscountLimitsRow | null | undefined): DiscountOverrides {
+/**
+ * Result of a limits read. `missingSchema` distinguishes "this environment has
+ * no settings table yet" from "this partner simply has no configured row".
+ */
+export interface PartnerDiscountLimitsResult {
+  row: PartnerDiscountLimitsRow | null;
+  missingSchema: boolean;
+}
+
+export function toDiscountOverrides(
+  source: PartnerDiscountLimitsRow | PartnerDiscountLimitsResult | null | undefined,
+): DiscountOverrides {
+  const row =
+    source && "row" in (source as PartnerDiscountLimitsResult)
+      ? (source as PartnerDiscountLimitsResult).row
+      : (source as PartnerDiscountLimitsRow | null | undefined);
   return {
     software: normalizeDiscountOverride(row?.max_software_discount_pct),
     services: normalizeDiscountOverride(row?.max_services_discount_pct),
@@ -36,21 +51,22 @@ export function usePartnerDiscountLimits(partnerId: string | undefined) {
   return useQuery({
     queryKey: ["partner_discount_limits", partnerId],
     enabled: !!partnerId,
-    queryFn: async (): Promise<PartnerDiscountLimitsRow | null> => {
-      if (!partnerId) return null;
+    queryFn: async (): Promise<PartnerDiscountLimitsResult> => {
+      if (!partnerId) return { row: null, missingSchema: false };
       const { data, error } = await (supabase as any)
         .from(PARTNER_DISCOUNT_LIMITS_TABLE)
         .select("partner_id, max_software_discount_pct, max_services_discount_pct")
         .eq("partner_id", partnerId)
         .maybeSingle();
       if (error) {
-        if (isMissingSchemaError(error)) return null;
+        if (isMissingSchemaError(error)) return { row: null, missingSchema: true };
         throw error;
       }
-      return (data as PartnerDiscountLimitsRow) ?? null;
+      return { row: (data as PartnerDiscountLimitsRow) ?? null, missingSchema: false };
     },
   });
 }
+
 
 /** HQ Admin only (also enforced server-side by RLS). */
 export function useSavePartnerDiscountLimits() {
