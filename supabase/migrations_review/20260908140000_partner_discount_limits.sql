@@ -152,8 +152,8 @@ WITH CHECK (
   public.has_role(auth.uid(), 'hq_admin') AND public.is_hq_user(auth.uid())
 );
 
--- updated_at maintenance. Neither public.update_updated_at_column() nor
--- public.update_updated_at() exists in production, so this migration owns a
+-- updated_at maintenance. Neither of the conventional public updated_at
+-- trigger helpers exists in production, so this migration owns a
 -- minimal private helper instead of inventing a public one.
 CREATE OR REPLACE FUNCTION private.partner_discount_limits_touch()
 RETURNS trigger
