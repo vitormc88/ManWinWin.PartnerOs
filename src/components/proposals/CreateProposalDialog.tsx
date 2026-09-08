@@ -241,14 +241,24 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
   const { user, profile, isHQ } = useAuth();
   const { data: actorPartner } = usePartner(profile?.partner_id || undefined);
+  // Per-partner configured limits (HQ-managed). Resolves to "use default"
+  // when unset or when the settings table is not deployed in this environment.
+  const { data: actorPartnerLimits } = usePartnerDiscountLimits(
+    isHQ ? undefined : profile?.partner_id || undefined,
+  );
   // Conservative limits while partner data is still missing/loading.
   const discountLimits = useMemo(
     () =>
       isHQ
         ? getDiscountLimits({ isHQ: true })
-        : getDiscountLimits({ isHQ: false, partnershipLevel: actorPartner?.partnership_level ?? null }),
-    [isHQ, actorPartner?.partnership_level],
+        : getDiscountLimits({
+            isHQ: false,
+            partnershipLevel: actorPartner?.partnership_level ?? null,
+            overrides: toDiscountOverrides(actorPartnerLimits),
+          }),
+    [isHQ, actorPartner?.partnership_level, actorPartnerLimits],
   );
+
   const qc = useQueryClient();
   const {
     data: rules = [],

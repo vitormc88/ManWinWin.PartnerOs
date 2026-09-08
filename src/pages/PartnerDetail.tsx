@@ -58,6 +58,8 @@ export default function PartnerDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isAdmin } = useAuth();
+
   const { data: partner, isLoading } = usePartner(id);
   const { data: clients = [] } = useClients({ partner_uuid: id });
   const { data: deals = [] } = useDeals({ partner_id: id });
