@@ -21,13 +21,15 @@ describe("partner discount limits migration — helper contracts", () => {
     expect(sql).not.toMatch(/get_user_partner_id\(\s*\)/);
   });
 
-  it("references trigger/ACL helpers that actually exist in the repository", () => {
-    expect(repoDefinesFunction(/FUNCTION public\.set_updated_at\s*\(\s*\)/)).toBe(true);
+  it("references only helpers confirmed to exist in production", () => {
     expect(repoDefinesFunction(/FUNCTION public\.is_hq_user\s*\(\s*_user_id uuid\s*\)/)).toBe(true);
     expect(repoDefinesFunction(/FUNCTION public\.get_user_partner_id\s*\(\s*_user_id uuid\s*\)/)).toBe(true);
-    expect(sql).toContain("EXECUTE FUNCTION public.set_updated_at()");
-    // update_updated_at_column() has no definition in this repository.
+    // Neither updated_at helper exists in production, so neither may be called.
     expect(sql).not.toContain("update_updated_at_column");
+    expect(sql).not.toMatch(/public\.update_updated_at\s*\(/);
+    expect(sql).not.toContain("public.set_updated_at()");
+    // The migration owns a minimal private touch helper instead.
+    expect(sql).toContain("EXECUTE FUNCTION private.partner_discount_limits_touch()");
   });
 
   it("requires confirmed HQ Admin (role AND HQ profile) for writes", () => {
@@ -49,21 +51,42 @@ describe("partner discount limits migration — helper contracts", () => {
     expect(sql).not.toMatch(/GRANT[^\n]*TO anon/);
   });
 
-  it("is transactional and preflights the existing discount guard", () => {
+  it("updates the real production resolver, preserving its signature", () => {
+    expect(sql).toContain(
+      "CREATE OR REPLACE FUNCTION private.current_proposal_discount_limits()",
+    );
+    expect(sql).toContain("RETURNS TABLE(software_limit numeric, services_limit numeric)");
+    expect(sql).toContain("SET search_path = pg_catalog, public");
+    expect(sql).toContain("SECURITY DEFINER");
+    // Production default semantics: exact 'implementer' match, not a pattern.
+    expect(sql).toContain("lower(coalesce(_level, '')) = 'implementer'");
+    // The unused review-only helper must not be touched or referenced.
+    expect(sql).not.toMatch(/private\.proposal_discount_limits\s*\(/);
+  });
+
+  it("leaves the actual guards and triggers unchanged", () => {
+    expect(sql).not.toMatch(/CREATE OR REPLACE FUNCTION private\.enforce_proposal/);
+    expect(sql).not.toMatch(/CREATE TRIGGER enforce_proposal/);
+    expect(sql).not.toMatch(/DROP TRIGGER[^\n]*enforce_proposal/);
+  });
+
+  it("is transactional and preflights the actual production objects", () => {
     expect(sql.indexOf("\nBEGIN;")).toBeGreaterThan(-1);
     expect(sql.indexOf("\nBEGIN;")).toBeLessThan(sql.indexOf("CREATE TABLE"));
     expect(sql.trimEnd().endsWith("COMMIT;")).toBe(true);
     for (const needle of [
-      "private.proposal_discount_limits()",
-      "private.enforce_proposal_item_discounts()",
-      "private.enforce_proposal_business_discounts()",
-      "trg_enforce_proposal_item_discounts",
-      "trg_enforce_proposal_business_discounts",
+      "private.current_proposal_discount_limits()",
+      "private.enforce_proposal_discount_limits()",
+      "private.enforce_proposal_item_discount_limits()",
+      "'enforce_proposal_item_discount_limits'",
+      "'enforce_proposal_discount_limits'",
+      "'software_limit', 'services_limit'",
     ]) {
       expect(sql).toContain(needle);
     }
     expect(sql).toMatch(/RAISE EXCEPTION 'Preflight failed/);
   });
+
 
   it("assigns no override values to any real partner", () => {
     expect(sql).not.toMatch(/INSERT\s+INTO\s+public\.partner_discount_limits/i);

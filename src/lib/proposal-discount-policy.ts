@@ -55,9 +55,13 @@ export const CONSERVATIVE_LIMITS: DiscountLimits = {
   services: PARTNER_MAX_SERVICES_DISCOUNT_PCT,
 };
 
+/**
+ * Exactly mirrors the production resolver, which tests
+ * `lower(coalesce(partnership_level,'')) = 'implementer'`.
+ */
 export function isImplementerLevel(level: string | null | undefined): boolean {
   if (!level) return false;
-  return /implement/i.test(String(level).trim());
+  return String(level).trim().toLowerCase() === "implementer";
 }
 
 /**
