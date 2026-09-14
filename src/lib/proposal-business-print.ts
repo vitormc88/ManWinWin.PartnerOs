@@ -257,6 +257,7 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
 </head>
 <body>
 <button class="noprint" onclick="window.print()">🖨️ Print / Save as PDF</button>
+<div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 
 <div class="cover">
   <img src="${logoUrl}" alt="ManWinWin" />
@@ -325,7 +326,6 @@ ${servicesHtml}
 
 ${cfg.api ? `<h2>${esc(s.apiTitle)}</h2><ul>${s.apiList.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 
-<div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 <script>setTimeout(() => window.print(), 600);</script>
 </body></html>`;
 

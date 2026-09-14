@@ -222,6 +222,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 </head>
 <body>
   <button class="noprint" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 
   <div class="cover">
   <div class="header">
@@ -293,8 +294,6 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     <p>${esc(s.vatNote)}</p>
     <p>${esc(s.validityNote(proposal.validity_days))}</p>
   </div>
-
-  <div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 
   <script>setTimeout(() => window.print(), 600);</script>
 </body>
