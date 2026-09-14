@@ -216,7 +216,7 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
 <head><meta charset="utf-8" />
   <title>${esc(proposalDocumentTitle(proposal, s.investmentProposal))}</title>
 <style>
-  @page { size: A4; margin: 17mm 16mm 26mm; }
+  @page { size: A4; margin: 17mm 16mm 18mm; }
   * { box-sizing: border-box; }
   body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 9.75pt; line-height: 1.32; }
   .cover { min-height: 225mm; max-height: 250mm; overflow: hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px; page-break-after: always; break-after:page; }
@@ -250,14 +250,13 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
   table.summary td.included { font-style: italic; color:#666; }
   .muted { color: #666; }
   .small { font-size: 9.5pt; }
-  .footer { position:fixed; left:0; right:0; bottom:-17mm; height:10mm; padding-top:4px; border-top:1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#666; font-size:8.5pt; }
+  .footer { margin-top: 22px; padding-top: 6px; border-top: 1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#555; font-size:8.5pt; break-inside:avoid; page-break-inside:avoid; }
   @media print { .noprint { display: none !important; } }
   .noprint { position: fixed; top: 12px; right: 12px; background:#c00; color:#fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 0; }
 </style>
 </head>
 <body>
 <button class="noprint" onclick="window.print()">🖨️ Print / Save as PDF</button>
-<div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 
 <div class="cover">
   <img src="${logoUrl}" alt="ManWinWin" />
@@ -326,6 +325,7 @@ ${servicesHtml}
 
 ${cfg.api ? `<h2>${esc(s.apiTitle)}</h2><ul>${s.apiList.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 
+<div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 <script>setTimeout(() => window.print(), 600);</script>
 </body></html>`;
 

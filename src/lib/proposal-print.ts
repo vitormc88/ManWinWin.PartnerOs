@@ -159,7 +159,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 <meta charset="utf-8" />
   <title>${esc(proposalDocumentTitle(proposal, s.investmentProposal))}</title>
 <style>
-  @page { size: A4; margin: 17mm 16mm 26mm; }
+  @page { size: A4; margin: 17mm 16mm 18mm; }
   * { box-sizing: border-box; }
   body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 10pt; line-height: 1.35; }
   .cover { min-height: 225mm; max-height: 250mm; overflow: hidden; display:flex; flex-direction:column; justify-content:center; page-break-after:always; break-after:page; }
@@ -214,7 +214,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   .terms p { margin: 6px 0; }
   .terms ul { margin:6px 0 10px 18px; }
   .footnote { color:#666; font-size:9.5pt; }
-  .footer { position:fixed; left:0; right:0; bottom:-17mm; height:10mm; padding-top:4px; border-top:1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#666; font-size:8.5pt; }
+  .footer { margin-top: 22px; padding-top: 6px; border-top: 1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#555; font-size:8.5pt; break-inside:avoid; page-break-inside:avoid; }
   .y1-note { color: #888; font-size: 9pt; font-style: italic; margin: 6px 0 0; }
   @media print { .noprint { display: none !important; } }
   .noprint { position: fixed; top: 12px; right: 12px; background: #c00; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 0; }
@@ -222,7 +222,6 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 </head>
 <body>
   <button class="noprint" onclick="window.print()">🖨️ Print / Save as PDF</button>
-  <div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 
   <div class="cover">
   <div class="header">
@@ -295,6 +294,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     <p>${esc(s.validityNote(proposal.validity_days))}</p>
   </div>
 
+  <div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
   <script>setTimeout(() => window.print(), 600);</script>
 </body>
 </html>`;
