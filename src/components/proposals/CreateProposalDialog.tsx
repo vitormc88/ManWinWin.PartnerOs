@@ -298,6 +298,10 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
   const [wizardDone, setWizardDone] = useState(false);
+  // A new proposal may be exported to more than one format before this dialog
+  // closes. Keep the first saved id so DOCX/PDF/Excel exports all belong to the
+  // same proposal version instead of inserting a sibling on every click.
+  const generatedProposalIdRef = useRef<string | null>(null);
 
   // Step 1
   const [language, setLanguage] = useState<ProposalLanguage>("EN");
@@ -443,6 +447,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
   useEffect(() => {
     if (!open) return;
+    generatedProposalIdRef.current = editingProposal?.id || null;
     setClientName(defaultClientName);
     setCountry(defaultCountry || "");
     if (editingProposal) { setWizardDone(true); return; }
@@ -1294,10 +1299,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   ) => {
     // A brand-new proposal must exist before it can own a document; creating
     // it as Draft is not a lifecycle transition.
-    const base = editingProposal?.id
-      ? ({ id: editingProposal.id } as Proposal)
+    const existingId = editingProposal?.id || generatedProposalIdRef.current;
+    const base = existingId
+      ? ({ id: existingId } as Proposal)
       : await persistProposal("Draft");
     if (!base) return;
+    generatedProposalIdRef.current = base.id;
 
     try {
       const { data: prop, error: propErr } = await supabase
@@ -1412,10 +1419,12 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
     );
 
   const handleGenerateBusinessPdf = async () => {
-    const base = editingProposal?.id
-      ? ({ id: editingProposal.id } as Proposal)
+    const existingId = editingProposal?.id || generatedProposalIdRef.current;
+    const base = existingId
+      ? ({ id: existingId } as Proposal)
       : await persistProposal("Draft");
     if (!base) return;
+    generatedProposalIdRef.current = base.id;
     try {
       const { data: prop, error } = await supabase
         .from("proposals")
