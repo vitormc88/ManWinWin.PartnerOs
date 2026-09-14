@@ -32,8 +32,8 @@ export interface SummaryRow {
   asIncluded?: { keepit?: boolean; useit?: boolean };
 }
 
-const sumNet = (items: BusinessLineItem[]): number =>
-  items.reduce((s, l) => s + l.netAmount, 0);
+const sumGross = (items: BusinessLineItem[]): number =>
+  items.reduce((s, l) => s + l.amount, 0);
 
 const sumDisc = (items: BusinessLineItem[]): number =>
   items.reduce((s, l) => s + l.discountAmount, 0);
@@ -43,13 +43,15 @@ const recurringNet = (items: BusinessLineItem[]): number =>
     .filter((l) => l.recurring)
     .reduce((s, l) => s + (l.discountAppliesToRenewal ? l.netAmount : l.amount), 0);
 
-/** Year 1 software net excluding additional Web/Mobile users (handled separately). */
+/** Year 1 gross software excluding additional Web/Mobile users (handled separately).
+ * Discount rows are rendered separately, so showing net here would make the
+ * document appear to subtract the same discount twice. */
 const softwareCoreY1 = (t: BusinessOptionTotals): number =>
-  sumNet(t.software.filter((l) => l.category !== "web_user"));
+  sumGross(t.software.filter((l) => l.category !== "web_user"));
 
 const webUsersY1 = (t: BusinessOptionTotals): number => {
   const w = t.software.find((l) => l.category === "web_user");
-  return w ? w.netAmount : 0;
+  return w ? w.amount : 0;
 };
 
 const webUsersY2Plus = (t: BusinessOptionTotals): number => {
@@ -62,7 +64,7 @@ const webUsersY2Plus = (t: BusinessOptionTotals): number => {
 const softwareCoreY2Plus = (t: BusinessOptionTotals): number =>
   recurringNet(t.software.filter((l) => l.category !== "web_user"));
 
-const apiY1 = (t: BusinessOptionTotals): number => t.api?.netAmount || 0;
+const apiY1 = (t: BusinessOptionTotals): number => t.api?.amount || 0;
 const apiY2Plus = (t: BusinessOptionTotals): number => {
   if (!t.api) return 0;
   return t.api.discountAppliesToRenewal ? t.api.netAmount : t.api.amount;
@@ -185,8 +187,8 @@ export function buildInvestmentSummaryRows({
   });
 
   // Implementation services + discount
-  const svcY1K = keepit ? sumNet(keepit.services) : null;
-  const svcY1U = useit ? sumNet(useit.services) : null;
+  const svcY1K = keepit ? sumGross(keepit.services) : null;
+  const svcY1U = useit ? sumGross(useit.services) : null;
   const hasServices = (svcY1K || 0) > 0 || (svcY1U || 0) > 0;
   if (hasServices) {
     rows.push({

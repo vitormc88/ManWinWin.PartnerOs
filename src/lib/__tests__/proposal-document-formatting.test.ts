@@ -75,4 +75,10 @@ describe("proposal print pagination guards", () => {
     expect(html).toContain("print-color-adjust: exact");
     expect((html.match(/page-break-after:always/g) || []).length).toBe(1);
   });
+
+  it("keeps the Year 2 heading, table and total in one printable block", () => {
+    const html = buildProposalPrintHtml(proposal, items);
+    expect(html).toContain('class="renewal-section"');
+    expect(html).toContain(".renewal-section { break-inside: avoid; page-break-inside: avoid; }");
+  });
 });
