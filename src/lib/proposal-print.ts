@@ -214,7 +214,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   .terms p { margin: 6px 0; }
   .terms ul { margin:6px 0 10px 18px; }
   .footnote { color:#666; font-size:9.5pt; }
-  .footer { position:fixed; left:16mm; right:16mm; bottom:1mm; padding-top:4px; border-top:1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#666; font-size:8.5pt; }
+  .footer { position:fixed; left:16mm; right:16mm; bottom:-10mm; padding-top:4px; border-top:1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#666; font-size:8.5pt; }
   .y1-note { color: #888; font-size: 9pt; font-style: italic; margin: 6px 0 0; }
   @media print { .noprint { display: none !important; } }
   .noprint { position: fixed; top: 12px; right: 12px; background: #c00; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 0; }

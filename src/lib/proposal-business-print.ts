@@ -250,7 +250,7 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
   table.summary td.included { font-style: italic; color:#666; }
   .muted { color: #666; }
   .small { font-size: 9.5pt; }
-  .footer { position:fixed; left:16mm; right:16mm; bottom:1mm; padding-top:4px; border-top:1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#666; font-size:8.5pt; }
+  .footer { position:fixed; left:16mm; right:16mm; bottom:-10mm; padding-top:4px; border-top:1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#666; font-size:8.5pt; }
   @media print { .noprint { display: none !important; } }
   .noprint { position: fixed; top: 12px; right: 12px; background:#c00; color:#fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 0; }
 </style>
