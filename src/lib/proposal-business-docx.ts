@@ -337,6 +337,9 @@ function servicesSection(
     if (cd > 0) out.push(bullet(`${s.clientDays}: ${cd} × ${fmt(lang, rates.client)} = ${fmt(lang, cd * rates.client)}`));
     if (bd > 0)
       out.push(bullet(`${s.backofficeDays}: ${bd} × ${fmt(lang, rates.backoffice)} = ${fmt(lang, bd * rates.backoffice)}`));
+    primary.services
+      .filter((line) => line.code === "custom")
+      .forEach((line) => out.push(bullet(`${line.label}: ${fmt(lang, line.amount)}`)));
     if (hasDisc) {
       out.push(bullet(`${s.servicesGrossTotal}: ${fmt(lang, grossSvc)}`));
       out.push(p(`${s.servicesDiscount}: -${fmt(lang, discSvc)}`, { color: RED, indent: { left: 360 }, spacing: { after: 60 } }));

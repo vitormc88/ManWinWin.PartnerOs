@@ -206,6 +206,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   .year-bar { display: flex; align-items: center; gap: 10px; margin: 18px 0 10px; }
   .year-bar .bar { flex: 1; height: 1px; background: #ddd; }
   .year-bar .label { font-weight: 700; font-size: 12pt; color: #c00; letter-spacing: 0.5px; text-transform: uppercase; }
+  .renewal-section { break-inside: avoid; page-break-inside: avoid; }
   .includes { margin: 12px 0 18px; break-inside:auto; }
   .includes ul { margin: 8px 0 0 18px; padding: 0; }
   .includes li { margin: 3px 0; }
@@ -273,7 +274,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 
   <div class="year-total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
 
-  ${recurring.length > 0 ? `
+  ${recurring.length > 0 ? `<section class="renewal-section">
     <div class="year-bar"><span class="label">${esc(s.year2Onwards)}</span><span class="bar"></span></div>
     <div class="renewal-block">
       <table>
@@ -283,7 +284,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     </div>
     <div class="year-total"><span>${esc(s.totalPerYear)}</span><span>${formatEuro(totals.totalRecurring, lang)} ${esc(s.perYear)}</span></div>
     ${totals.recurringDiscountAmount === 0 && totals.discountAmount > 0 ? `<p class="y1-note">${esc(s.discountsYear1OnlyNote)}</p>` : ""}
-  ` : ""}
+  </section>` : ""}
 
   <div class="terms">
     <h2>${esc(s.billingHeader)}</h2>

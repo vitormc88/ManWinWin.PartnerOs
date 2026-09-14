@@ -189,6 +189,11 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
         parts.push(`<li>${esc(s.clientDays)}: ${cd} × ${esc(fmt(rates.client))} = <strong>${esc(fmt(cd * rates.client))}</strong></li>`);
       if (bd > 0)
         parts.push(`<li>${esc(s.backofficeDays)}: ${bd} × ${esc(fmt(rates.backoffice))} = <strong>${esc(fmt(bd * rates.backoffice))}</strong></li>`);
+      primary.services
+        .filter((line) => line.code === "custom")
+        .forEach((line) => {
+          parts.push(`<li>${esc(line.label)}: <strong>${esc(fmt(line.amount))}</strong></li>`);
+        });
       if (hasDisc) {
         parts.push(`<li>${esc(s.servicesGrossTotal)}: ${esc(fmt(grossSvc))}</li>`);
         parts.push(`<li class="disc">${esc(s.servicesDiscount)}: -${esc(fmt(discSvc))}</li>`);

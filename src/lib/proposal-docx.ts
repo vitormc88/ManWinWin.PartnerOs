@@ -137,7 +137,7 @@ function cell(
     shading: opts.bg
       ? { fill: opts.bg, type: ShadingType.CLEAR, color: "auto" }
       : undefined,
-    margins: { top: 80, bottom: 80, left: 120, right: 120 },
+    margins: { top: 55, bottom: 55, left: 120, right: 120 },
     borders: {
       top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
       bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
@@ -483,7 +483,7 @@ export async function generateProposalDocx(
           width: { size: COL_ITEM + COL_NUM_3 * 2, type: WidthType.DXA },
           columnSpan: 3,
           shading: { fill: GREY_BG, type: ShadingType.CLEAR, color: "auto" },
-          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          margins: { top: 55, bottom: 55, left: 120, right: 120 },
           borders: {
             top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
             bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
@@ -545,7 +545,7 @@ export async function generateProposalDocx(
         new TableCell({
           width: { size: SIMPLE_COL_ITEM, type: WidthType.DXA },
           shading: { fill: GREY_BG, type: ShadingType.CLEAR, color: "auto" },
-          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          margins: { top: 55, bottom: 55, left: 120, right: 120 },
           borders: {
             top: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
             bottom: { style: BorderStyle.SINGLE, size: 4, color: GREY_BORDER },
