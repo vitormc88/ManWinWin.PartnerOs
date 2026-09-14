@@ -35,6 +35,9 @@ export interface SummaryRow {
 const sumGross = (items: BusinessLineItem[]): number =>
   items.reduce((s, l) => s + l.amount, 0);
 
+const sumNet = (items: BusinessLineItem[]): number =>
+  items.reduce((s, l) => s + l.netAmount, 0);
+
 const sumDisc = (items: BusinessLineItem[]): number =>
   items.reduce((s, l) => s + l.discountAmount, 0);
 

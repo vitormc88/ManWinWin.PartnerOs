@@ -513,7 +513,7 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
           new ImageRun({
             type: "png",
             data: logoBytes,
-            transformation: { width: 90, height: 28 },
+            transformation: { width: 128, height: 39 },
             altText: { title: "ManWinWin", description: "ManWinWin Software", name: "logo" },
           }),
         ],
@@ -670,6 +670,9 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   body.push(sectionHeading(s.servicesTitle));
   servicesSection(primary, cfg, s, lang).forEach((par) => body.push(par));
 
+  if (cfg.deployment === "saas") {
+    body.push(new Paragraph({ pageBreakBefore: true, spacing: { after: 0 }, children: [] }));
+  }
   body.push(sectionHeading(s.investmentSummaryTitle));
   body.push(investmentSummaryTable(rows, s, showKeepit, showUseit, lang));
 

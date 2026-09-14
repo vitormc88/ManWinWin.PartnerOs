@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildProposalPrintHtml } from "@/lib/proposal-print";
+import { generateProposalDocx } from "@/lib/proposal-docx";
+import JSZip from "jszip";
 import { proposalDocumentTitle, proposalFileName, proposalTermLines } from "@/lib/proposal-document-control";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 
@@ -64,7 +66,29 @@ describe("proposal document control", () => {
     expect(html).toContain("support@manwinwin.com");
     expect(html).toContain("www.manwinwin.com");
     expect(html).toContain("McGills Chemical Corporation · v2");
+    expect(html).toContain('<p class="terms-label">ManWinWin standard terms and conditions:</p>');
     expect(html).toContain("<li>50% on award</li><li>50% after installation</li>");
+  });
+
+  it("uses the unified branded cover and keeps the logo in the inner header", () => {
+    const html = buildProposalPrintHtml(proposal, items);
+    expect(html).toContain('class="cover-logo"');
+    expect(html).toContain('class="logo"');
+    expect(html).toContain("ManWinWin <span class=\"red\">Professional (SaaS)</span>");
+  });
+
+  it("keeps the Word renewal block in a non-splitting container", async () => {
+    const blob = await generateProposalDocx(proposal, items);
+    const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(blob);
+    });
+    const zip = await JSZip.loadAsync(buffer);
+    const xml = await zip.file("word/document.xml")!.async("string");
+    expect(xml).toContain("<w:cantSplit/>");
+    expect(xml).not.toContain("<w:pageBreakBefore/>");
   });
 });
 describe("proposal print pagination guards", () => {

@@ -129,5 +129,32 @@ describe("Business proposal document transparency", () => {
     expect(html).toContain("Per Diem: <strong>330 €</strong>");
     expect(html).toContain("Total onsite services: 9,790 €");
     expect(html).toContain("TOTAL OF THE YEAR (Year 1)");
+    expect(html).toContain('class="keep-together services-section"');
+    expect(html).toContain('class="header-logo"');
+    expect(html).toContain('class="summary-section"');
+  });
+
+  it("renders a SaaS hosting total without failing", () => {
+    const saasConfig: BusinessConfig = {
+      ...config,
+      additionalWebUsers: 0,
+      deployment: "saas",
+      implementation: {
+        type: "Custom",
+        liveSessions: 0,
+        onsiteRegion: "Portugal",
+        onsiteClientDays: 0,
+        onsiteBackofficeDays: 0,
+        customServices: [],
+      },
+      discounts: { ...config.discounts, softwarePct: 0, webUsersPct: 0 },
+    };
+    const saasRules = [
+      ...rules,
+      rule("BUS_SAAS_HOSTING_BASE", 2_400, { unit_type: "yearly" }),
+    ];
+    const html = buildBusinessProposalPrintHtml({ proposal, cfg: saasConfig, rules: saasRules });
+    expect(html).toContain("SaaS Hosting Services");
+    expect(html).toContain("2,400 €");
   });
 });

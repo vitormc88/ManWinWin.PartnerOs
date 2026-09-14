@@ -28,6 +28,13 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   const servicesDiscountSummary = getSectionDiscountSummary(items, "services", softwarePct, servicesPct);
   const includes = getCommercialIncludes(proposal.plan, proposal.language, proposal.include_requests_module, proposal.web_users);
   const termLines = proposalTermLines(proposal.payment_terms);
+  const normalizeTermHeading = (value: string) => value.trim().replace(/:$/, "").toLocaleLowerCase();
+  const hasExplicitTermsHeading = termLines.length > 0
+    && normalizeTermHeading(termLines[0]) === normalizeTermHeading(s.standardTerms);
+  const enteredPaymentTermLines = hasExplicitTermsHeading ? termLines.slice(1) : termLines;
+  const paymentTermLines = enteredPaymentTermLines.length > 0
+    ? enteredPaymentTermLines
+    : [s.paymentLine1, s.paymentLine2];
 
   const software = items.filter((i) => i.category === "software" || i.category === "addon");
   const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
@@ -162,18 +169,20 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   @page { size: A4; margin: 17mm 16mm 18mm; }
   * { box-sizing: border-box; }
   body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 10pt; line-height: 1.35; }
-  .cover { min-height: 225mm; max-height: 250mm; overflow: hidden; display:flex; flex-direction:column; justify-content:center; page-break-after:always; break-after:page; }
+  .cover { min-height: 225mm; max-height: 250mm; overflow: hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px; page-break-after:always; break-after:page; }
+  .cover-logo { width:300px; max-width:72%; height:auto; margin-bottom:18px; }
+  .cover h1 { font-size:36pt; margin:8px 0 4px; color:#c00; font-weight:700; letter-spacing:.5px; }
+  .cover .product { font-size:18pt; font-weight:700; margin-bottom:24px; color:#2C3E50; }
+  .cover .product .red { color:#c00; }
+  .cover .client { font-size:18pt; font-weight:700; margin-top:20px; color:#2C3E50; text-transform:uppercase; }
+  .cover .cover-meta { color:#555; font-size:11pt; margin-top:6px; }
+  .cover .cover-restricted { color:#c00; font-weight:700; font-size:9.5pt; letter-spacing:1.5px; text-transform:uppercase; margin-top:28px; }
   .header { display:grid; grid-template-columns: 150px minmax(0,1fr) auto; align-items:start; gap:14px; padding: 0 0 10px; border-bottom: 2px solid #c00; margin-bottom: 16px; }
   .header-copy { min-width:0; text-align:right; font-size:9pt; line-height:1.3; overflow-wrap:anywhere; }
   .header-copy strong, .header-copy span { display:block; }
-  .logo { max-width: 150px; height: auto; display:block; }
-  .hero { margin-bottom: 16px; }
-  .cover h1 { font-size: 24pt; margin: 0 0 6px; color: #1a1a1a; }
-  .cover .sub { color: #666; font-size: 12pt; }
-  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin: 10px 0 24px; font-size: 10.5pt; }
-  .meta .k { color: #666; }
+  .logo { width: 128px; height: auto; display:block; }
   .restricted { color: #c00; font-weight: 600; font-size: 9pt; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
-  h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 20px 0 9px; break-after:avoid-page; page-break-after:avoid; }
+  h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 14px 0 7px; break-after:avoid-page; page-break-after:avoid; }
   h2 + *, .subsection + * { break-before:avoid-page; page-break-before:avoid; }
   table.lines { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 10pt; }
   table.lines th, table.lines td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
@@ -193,7 +202,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   table.lines tbody tr.subtotal-row.discount-row td { color: #c00; }
   table.lines tbody tr.subtotal-row.strong td { font-weight: 700; border-top: 1px solid #ccc; }
   .muted { color: #888; font-size: 9pt; font-weight: 400; }
-  .year-total { display:flex; justify-content:space-between; align-items:baseline; padding: 10px 14px; background: #c00; color: #fff; border-radius: 4px; font-size: 13pt; font-weight: 700; margin: 6px 0 18px; break-inside:avoid; page-break-inside:avoid; break-before:avoid-page; page-break-before:avoid; }
+  .year-total { display:flex; justify-content:space-between; align-items:baseline; padding: 10px 14px; background: #c00; color: #fff; border-radius: 4px; font-size: 13pt; font-weight: 700; margin: 6px 0 12px; break-inside:avoid; page-break-inside:avoid; break-before:avoid-page; page-break-before:avoid; }
   .renewal-block { border: 1px solid #e2e2e2; border-radius: 4px; padding: 10px 14px; background: #fafafa; margin-bottom: 6px; }
   .renewal-block table { width: 100%; border-collapse: collapse; }
   .renewal-block thead { display:table-header-group; }
@@ -203,7 +212,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   .renewal-block td { padding: 4px 0; font-size: 10.5pt; }
   .renewal-block td.num { text-align: right; }
   .renewal-tag { color: #c00; font-style: italic; font-size: 9pt; font-weight: 600; }
-  .year-bar { display: flex; align-items: center; gap: 10px; margin: 18px 0 10px; }
+  .year-bar { display: flex; align-items: center; gap: 10px; margin: 14px 0 8px; }
   .year-bar .bar { flex: 1; height: 1px; background: #ddd; }
   .year-bar .label { font-weight: 700; font-size: 12pt; color: #c00; letter-spacing: 0.5px; text-transform: uppercase; }
   .renewal-section { break-inside: avoid; page-break-inside: avoid; }
@@ -211,8 +220,9 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   .includes ul { margin: 8px 0 0 18px; padding: 0; }
   .includes li { margin: 3px 0; }
   .subsection { font-size: 11pt; font-weight: 700; margin: 16px 0 6px; color: #333; break-after:avoid-page; page-break-after:avoid; }
-  .terms { margin-top: 18px; font-size: 10pt; }
+  .terms { margin-top: 12px; font-size: 10pt; }
   .terms p { margin: 6px 0; }
+  .terms-label { font-weight:700; color:#2C3E50; margin:6px 0; }
   .terms ul { margin:6px 0 10px 18px; }
   .footnote { color:#666; font-size:9.5pt; }
   .footer { margin-top: 22px; padding-top: 6px; border-top: 1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#555; font-size:8.5pt; break-inside:avoid; page-break-inside:avoid; }
@@ -225,24 +235,20 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   <button class="noprint" onclick="window.print()">🖨️ Print / Save as PDF</button>
 
   <div class="cover">
+    <img class="cover-logo" src="${logoUrl}" alt="ManWinWin logo" />
+    <h1>${esc(s.investmentProposal)}</h1>
+    <div class="product">ManWinWin <span class="red">Professional (SaaS)</span></div>
+    <div class="client">${esc(proposal.client_name)}</div>
+    <div class="cover-meta">${formatDate(proposal.proposal_date, lang)}</div>
+    <div class="cover-meta">${esc(proposal.project_name || "Maintenance Software Implementation")} · ${esc(proposal.country || "—")}</div>
+    <div class="cover-meta">${esc(s.validity)}: ${proposal.validity_days} ${esc(s.daysWord)} · ${esc(s.versionLabel)}: v${proposal.version}</div>
+    <div class="cover-restricted">${esc(s.restricted)}</div>
+  </div>
+
   <div class="header">
     <img class="logo" src="${logoUrl}" alt="ManWinWin logo" />
     <div class="header-copy"><strong>${esc(proposal.client_name)}</strong><span>${esc(proposal.project_name || "Maintenance Software Implementation")}</span></div>
     <div class="restricted">${esc(s.restricted)}</div>
-  </div>
-  <div class="hero">
-    <h1>${esc(s.investmentProposal)}</h1>
-    <div class="sub">${esc(s.professional)} — Plan ${proposal.plan} (SaaS)</div>
-  </div>
-
-  <div class="meta">
-    <div><span class="k">Client:</span> <strong>${esc(proposal.client_name)}</strong></div>
-    <div><span class="k">Date:</span> ${formatDate(proposal.proposal_date, lang)}</div>
-    <div><span class="k">Project:</span> ${esc(proposal.project_name || "—")}</div>
-    <div><span class="k">Validity:</span> ${proposal.validity_days} days</div>
-    <div><span class="k">Country:</span> ${esc(proposal.country || "—")}</div>
-    <div><span class="k">Version:</span> v${proposal.version}</div>
-  </div>
   </div>
 
   <div class="includes">
@@ -288,7 +294,8 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 
   <div class="terms">
     <h2>${esc(s.billingHeader)}</h2>
-    ${termLines.length ? `<ul>${termLines.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
+    <p class="terms-label">${esc(hasExplicitTermsHeading ? termLines[0] : s.standardTerms)}</p>
+    ${paymentTermLines.length ? `<ul>${paymentTermLines.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
     ${proposal.notes ? `<h2>${esc(s.notes)}</h2><p>${esc(proposal.notes)}</p>` : ""}
     <h2>${esc(s.otherInfo)}</h2>
     <p>${esc(s.vatNote)}</p>

@@ -22,7 +22,7 @@ import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRen
 import { getCommercialIncludes, getCommercialItemLabel } from "@/lib/proposal-commercial";
 import { t, formatEuro, frequencyLabel as i18nFrequencyLabel } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
-import { proposalDocumentTitle, proposalFileName, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "@/lib/proposal-document-control";
+import { proposalDocumentTitle, proposalFileName, proposalTermLines, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "@/lib/proposal-document-control";
 
 const RED = "E01F2C";
 const DARK = "2C3E50";
@@ -162,6 +162,36 @@ function cell(
   });
 }
 
+/** Keep a short commercial block together without forcing a new page. */
+function keepTogetherBlock(children: (Paragraph | Table)[], width = 9360): Table {
+  const noBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+  return new Table({
+    width: { size: width, type: WidthType.DXA },
+    columnWidths: [width],
+    borders: {
+      top: noBorder,
+      bottom: noBorder,
+      left: noBorder,
+      right: noBorder,
+      insideHorizontal: noBorder,
+      insideVertical: noBorder,
+    },
+    rows: [
+      new TableRow({
+        cantSplit: true,
+        children: [
+          new TableCell({
+            width: { size: width, type: WidthType.DXA },
+            margins: { top: 0, bottom: 0, left: 0, right: 0 },
+            borders: { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder },
+            children: [...children, p("", { spacing: { after: 0 } })],
+          }),
+        ],
+      }),
+    ],
+  });
+}
+
 /** Tries to load the logo as a Uint8Array. Returns null on failure
  *  (so generation never breaks if the asset is missing). */
 async function loadLogo(): Promise<Uint8Array | null> {
@@ -193,6 +223,10 @@ export async function generateProposalDocx(
   const logoBytes = await loadLogo();
   const softwareDiscountSummary = getSectionDiscountSummary(items, "software", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
   const servicesDiscountSummary = getSectionDiscountSummary(items, "services", Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
+  const enteredTermLines = proposalTermLines(proposal.payment_terms);
+  const paymentTermLines = enteredTermLines
+    .filter((line, index) => !(index === 0 && line.trim().replace(/:$/, "").toLocaleLowerCase() === s.standardTerms.trim().replace(/:$/, "").toLocaleLowerCase()));
+  if (paymentTermLines.length === 0) paymentTermLines.push(s.paymentLine1, s.paymentLine2);
 
   const dateStr = new Date(proposal.proposal_date)
     .toLocaleDateString("en-GB")
@@ -210,7 +244,7 @@ export async function generateProposalDocx(
           new ImageRun({
             type: "png",
             data: logoBytes,
-            transformation: { width: 90, height: 28 },
+            transformation: { width: 128, height: 39 },
             altText: { title: "ManWinWin", description: "ManWinWin Software", name: "logo" },
           }),
         ],
@@ -710,14 +744,32 @@ export async function generateProposalDocx(
     columnWidths: [Y2_COL_LABEL, Y2_COL_VALUE],
     rows: y2Rows,
   });
+  const renewalNotes: Paragraph[] = [
+    p(s.assumingSameYear1, {
+      italic: true,
+      size: 18,
+      color: MUTED,
+      spacing: { before: 120, after: 80 },
+    }),
+  ];
+  if (totals.recurringDiscountAmount === 0 && totals.discountAmount > 0) {
+    renewalNotes.push(
+      p(s.discountsYear1OnlyNote, {
+        italic: true,
+        size: 18,
+        color: MUTED,
+        spacing: { after: 120 },
+      }),
+    );
+  }
+  const renewalBlock = keepTogetherBlock([renewalTable, ...renewalNotes]);
 
   /* ------------------------------ billing ------------------------------ */
 
   const billingBlock = [
     sectionHeading(s.billingHeader),
     p(s.standardTerms, { bold: true, spacing: { after: 120 } }),
-    smallBullet(s.paymentLine1),
-    smallBullet(s.paymentLine2),
+    ...paymentTermLines.map(smallBullet),
     p(s.footnote1, { size: 18, italic: true, color: MUTED, spacing: { before: 180 } }),
     p(s.footnote2, { size: 18, italic: true, color: MUTED }),
   ];
@@ -781,18 +833,7 @@ export async function generateProposalDocx(
           ...sectionTables.flatMap((tbl) => [tbl, p("", { spacing: { after: 80 } })]),
           totalBar,
           ...(recurringItems.length > 0
-            ? [
-                renewalTable,
-                p(s.assumingSameYear1, {
-                  italic: true,
-                  size: 18,
-                  color: MUTED,
-                  spacing: { before: 120, after: 80 },
-                }),
-              ]
-            : []),
-          ...(totals.recurringDiscountAmount === 0 && totals.discountAmount > 0
-            ? [p(s.discountsYear1OnlyNote, { italic: true, size: 18, color: MUTED, spacing: { after: 240 } })]
+            ? [renewalBlock]
             : []),
           ...billingBlock,
           ...otherBlock,

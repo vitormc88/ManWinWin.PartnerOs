@@ -225,7 +225,7 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
   * { box-sizing: border-box; }
   body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 9.75pt; line-height: 1.32; }
   .cover { min-height: 225mm; max-height: 250mm; overflow: hidden; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px; page-break-after: always; break-after:page; }
-  .cover img { max-width: 320px; height: auto; margin-bottom: 18px; }
+  .cover img { width: 300px; max-width: 72%; height: auto; margin-bottom: 18px; }
   .cover h1 { font-size: 36pt; margin: 8px 0 4px; color:#c00; font-weight: 700; letter-spacing: .5px; }
   .cover .sub { font-size: 18pt; font-weight: 700; margin-bottom: 24px; }
   .cover .sub .red { color:#c00; }
@@ -233,7 +233,8 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
   .cover .client { font-size: 18pt; font-weight: 700; margin-top: 20px; color:#2C3E50; text-transform: uppercase; }
   .cover .meta { color: #555; font-size: 11pt; margin-top: 6px; }
   .cover .restricted { color:#c00; font-weight: 700; font-size: 9.5pt; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 28px; }
-  .header { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:14px; padding-bottom:7px; border-bottom: 2px solid #c00; margin-bottom: 14px; font-size: 9pt; color:#555; }
+  .header { display:grid; grid-template-columns:128px minmax(0,1fr) auto; align-items:start; gap:14px; padding-bottom:7px; border-bottom: 2px solid #c00; margin-bottom: 14px; font-size: 9pt; color:#555; }
+  .header-logo { width:128px; height:auto; display:block; }
   .header .identity { min-width:0; overflow-wrap:anywhere; line-height:1.35; }
   .header .restricted { color:#c00; font-weight: 700; }
   h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 16px 0 7px; break-after:avoid-page; page-break-after:avoid; }
@@ -255,6 +256,8 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
   table.summary td.included { font-style: italic; color:#666; }
   .muted { color: #666; }
   .small { font-size: 9.5pt; }
+  .keep-together { break-inside:avoid; page-break-inside:avoid; }
+  .summary-section { break-inside:avoid; page-break-inside:avoid; }
   .footer { margin-top: 22px; padding-top: 6px; border-top: 1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#555; font-size:8.5pt; break-inside:avoid; page-break-inside:avoid; }
   @media print { .noprint { display: none !important; } }
   .noprint { position: fixed; top: 12px; right: 12px; background:#c00; color:#fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 0; }
@@ -275,6 +278,7 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
 </div>
 
 <div class="header">
+  <img class="header-logo" src="${logoUrl}" alt="ManWinWin" />
   <div class="identity">${esc(s.client)}: <strong>${esc(proposal.client_name)}</strong><br>${esc(s.project)}: ${esc(proposal.project_name || "—")} · ${esc(s.date)}: ${esc(fmtDate(proposal.proposal_date, lang))} · v${proposal.version}</div>
   <div class="restricted">${esc(s.restricted)}</div>
 </div>
@@ -294,20 +298,24 @@ ${optional.length ? `<p class="muted small" style="font-style:italic;margin-top:
 <h2>${esc(s.optionsTitle)}</h2>
 ${optionsHtml}
 
-<h2>${esc(s.servicesTitle)}</h2>
-${servicesHtml}
+<section class="keep-together services-section">
+  <h2>${esc(s.servicesTitle)}</h2>
+  ${servicesHtml}
+</section>
 
-<h2>${esc(s.investmentSummaryTitle)}</h2>
-<table class="summary">
-  <thead>
-    <tr>
-      <th>${esc(s.itemColumn)}</th>
-       ${showK ? `<th class="num">${esc(`${s.optionAColumn}${showU ? "" : ` · ${s.selectedOption}`}`)}</th>` : ""}
-       ${showU ? `<th class="num">${esc(`${s.optionBColumn}${showK ? "" : ` · ${s.selectedOption}`}`)}</th>` : ""}
-    </tr>
-  </thead>
-  <tbody>${tableRows}</tbody>
-</table>
+<section class="summary-section">
+  <h2>${esc(s.investmentSummaryTitle)}</h2>
+  <table class="summary">
+    <thead>
+      <tr>
+        <th>${esc(s.itemColumn)}</th>
+         ${showK ? `<th class="num">${esc(`${s.optionAColumn}${showU ? "" : ` · ${s.selectedOption}`}`)}</th>` : ""}
+         ${showU ? `<th class="num">${esc(`${s.optionBColumn}${showK ? "" : ` · ${s.selectedOption}`}`)}</th>` : ""}
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+</section>
 
 <h2>${esc(s.billingHeader)}</h2>
 <p><strong>${esc(s.standardTerms)}</strong></p>
