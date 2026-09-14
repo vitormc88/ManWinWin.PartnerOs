@@ -67,3 +67,12 @@ describe("proposal document control", () => {
     expect(html).toContain("<li>50% on award</li><li>50% after installation</li>");
   });
 });
+describe("proposal print pagination guards", () => {
+  it("keeps the footer in flow and reserves a print-safe bottom margin", () => {
+    const html = buildProposalPrintHtml(proposal, items);
+    expect(html).toContain("margin: 17mm 16mm 18mm");
+    expect(html).not.toMatch(/\.footer \{[^}]*position:\s*fixed/);
+    expect(html).toContain("print-color-adjust: exact");
+    expect((html.match(/page-break-after:always/g) || []).length).toBe(1);
+  });
+});
