@@ -20,6 +20,7 @@ import {
   Header,
   Footer,
   ImageRun,
+  PageNumber,
 } from "docx";
 import { saveAs } from "file-saver";
 import logoUrl from "@/assets/manwinwin-logo.png";
@@ -34,6 +35,7 @@ import { assertBusinessOptionsComputable } from "./proposal-business-readiness";
 import { buildInvestmentSummaryRows, type SummaryRow } from "./proposal-business-summary";
 import { tBusiness, type BusinessStrings } from "./proposal-business-i18n";
 import { formatEuro } from "./proposal-i18n";
+import { proposalDocumentTitle, proposalFileName, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
 
 const RED = "E01F2C";
 const DARK = "2C3E50";
@@ -53,12 +55,16 @@ function p(
     align?: any;
     spacing?: any;
     indent?: any;
+    keepNext?: boolean;
+    keepLines?: boolean;
   } = {},
 ): Paragraph {
   return new Paragraph({
     alignment: opts.align,
     spacing: opts.spacing,
     indent: opts.indent,
+    keepNext: opts.keepNext,
+    keepLines: opts.keepLines,
     children: [
       new TextRun({
         text,
@@ -76,6 +82,7 @@ function bullet(text: string): Paragraph {
   return new Paragraph({
     spacing: { after: 60 },
     indent: { left: 360, hanging: 200 },
+    keepLines: true,
     children: [
       new TextRun({ text: "•  ", bold: true, color: RED, size: 22, font: "Calibri" }),
       new TextRun({ text, color: DARK, size: 22, font: "Calibri" }),
@@ -87,6 +94,7 @@ function redBarHeading(text: string): Paragraph {
   return new Paragraph({
     shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
     spacing: { before: 320, after: 160 },
+    keepNext: true,
     children: [
       new TextRun({
         text: "  " + text,
@@ -102,6 +110,7 @@ function redBarHeading(text: string): Paragraph {
 function sectionHeading(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 240, after: 120 },
+    keepNext: true,
     border: {
       bottom: { style: BorderStyle.SINGLE, size: 12, color: RED, space: 4 },
     },
@@ -112,6 +121,7 @@ function sectionHeading(text: string): Paragraph {
 function subHeading(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 160, after: 80 },
+    keepNext: true,
     children: [new TextRun({ text, bold: true, color: DARK, size: 24, font: "Calibri" })],
   });
 }
@@ -373,11 +383,11 @@ function investmentSummaryTable(
   const headerCells: TableCell[] = [cell(s.itemColumn, { bold: true, bg: RED, color: "FFFFFF", width: itemCol })];
   if (showKeepit)
     headerCells.push(
-      cell(s.optionAColumn, { bold: true, bg: RED, color: "FFFFFF", width: valCol, align: AlignmentType.RIGHT }),
+      cell(`${s.optionAColumn}${showUseit ? "" : ` · ${s.selectedOption}`}`, { bold: true, bg: RED, color: "FFFFFF", width: valCol, align: AlignmentType.RIGHT }),
     );
   if (showUseit)
     headerCells.push(
-      cell(s.optionBColumn, { bold: true, bg: RED, color: "FFFFFF", width: valCol, align: AlignmentType.RIGHT }),
+      cell(`${s.optionBColumn}${showKeepit ? "" : ` · ${s.selectedOption}`}`, { bold: true, bg: RED, color: "FFFFFF", width: valCol, align: AlignmentType.RIGHT }),
     );
 
   const renderValue = (
@@ -407,7 +417,7 @@ function investmentSummaryTable(
     });
   };
 
-  const trs: TableRow[] = [new TableRow({ tableHeader: true, children: headerCells })];
+  const trs: TableRow[] = [new TableRow({ tableHeader: true, cantSplit: true, children: headerCells })];
   rows.forEach((r) => {
     if (r.isHeader) {
       const headCells: TableCell[] = [
@@ -415,7 +425,7 @@ function investmentSummaryTable(
       ];
       if (showKeepit) headCells.push(cell("", { bg: DARK, width: valCol }));
       if (showUseit) headCells.push(cell("", { bg: DARK, width: valCol }));
-      trs.push(new TableRow({ children: headCells }));
+      trs.push(new TableRow({ cantSplit: true, children: headCells }));
       return;
     }
     const labelCell = cell(r.label, {
@@ -430,7 +440,7 @@ function investmentSummaryTable(
     if (showKeepit)
       cells.push(renderValue(r.keepitY1, r.asIncluded?.keepit, r.isDiscount, r.isTotal));
     if (showUseit) cells.push(renderValue(r.useitY1, r.asIncluded?.useit, r.isDiscount, r.isTotal));
-    trs.push(new TableRow({ children: cells }));
+    trs.push(new TableRow({ cantSplit: true, children: cells }));
   });
 
   return new Table({
@@ -512,13 +522,17 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
       alignment: AlignmentType.RIGHT,
       children: [
         new TextRun({
-          text: `${proposal.client_name} | ${proposal.project_name || s.businessSubtitle}`,
+          text: proposal.client_name,
           bold: true,
           color: DARK,
           size: 18,
           font: "Calibri",
         }),
       ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [new TextRun({ text: proposal.project_name || s.businessSubtitle, color: DARK, size: 17, font: "Calibri" })],
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
@@ -540,11 +554,14 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
       },
       children: [
         new TextRun({
-          text: s.footerLine,
+          text: `ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE} · ${proposal.client_name} · v${proposal.version} · Page `,
           color: SUBTLE,
           size: 16,
           font: "Calibri",
         }),
+        new TextRun({ children: [PageNumber.CURRENT], color: SUBTLE, size: 16, font: "Calibri" }),
+        new TextRun({ text: " of ", color: SUBTLE, size: 16, font: "Calibri" }),
+        new TextRun({ children: [PageNumber.TOTAL_PAGES], color: SUBTLE, size: 16, font: "Calibri" }),
       ],
     }),
   ];
@@ -553,14 +570,14 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
 
   // ---- Cover (mirrors Professional layout) ----
   body.push(
-    new Paragraph({ spacing: { before: 1400 }, children: [new TextRun({ text: "" })] }),
+    new Paragraph({ spacing: { before: 420 }, children: [new TextRun({ text: "" })] }),
   );
 
   if (logoBytes) {
     body.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 800 },
+        spacing: { after: 360 },
         children: [
           new ImageRun({
             type: "png",
@@ -588,7 +605,7 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   body.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 400, after: 200 },
+      spacing: { before: 180, after: 160 },
       children: [
         new TextRun({
           text: s.investmentProposal,
@@ -601,7 +618,7 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 600 },
+      spacing: { after: 360 },
       children: [
         new TextRun({ text: "ManWinWin ", bold: true, color: DARK, size: 32, font: "Calibri" }),
         new TextRun({ text: "Business", bold: true, color: RED, size: 32, font: "Calibri" }),
@@ -609,7 +626,7 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 1200 },
+      spacing: { before: 420, after: 120 },
       children: [
         new TextRun({
           text: proposal.client_name.toUpperCase(),
@@ -624,6 +641,8 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
       alignment: AlignmentType.CENTER,
       children: [new TextRun({ text: dateStr, color: SUBTLE, size: 22, font: "Calibri" })],
     }),
+    p(proposal.project_name || s.businessSubtitle, { align: AlignmentType.CENTER, size: 21, color: SUBTLE, spacing: { before: 100 } }),
+    p(`${proposal.country || "—"} · ${s.validity}: ${proposal.validity_days} ${s.daysWord} · v${proposal.version}`, { align: AlignmentType.CENTER, size: 20, spacing: { before: 100 } }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 400 },
@@ -680,6 +699,10 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   }
 
   const doc = new Document({
+    creator: "PartnerOS",
+    title: proposalDocumentTitle(proposal, s.investmentProposal),
+    subject: `${s.investmentProposal} · ${proposal.client_name} · v${proposal.version}`,
+    description: `${s.investmentProposal} for ${proposal.client_name}, version ${proposal.version}`,
     styles: {
       default: { document: { run: { font: "Calibri", size: 22 } } },
     },
@@ -706,13 +729,9 @@ export interface BusinessDocxResult {
   fileName: string;
 }
 
-const safeFile = (s: string) =>
-  (s || "Proposal").replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 60);
-
 export async function downloadBusinessProposalDocx(opts: BusinessDocxOptions): Promise<BusinessDocxResult> {
   const blob = await generateBusinessProposalDocx(opts);
-  const date = (opts.proposal.proposal_date || new Date().toISOString().slice(0, 10)).slice(0, 10);
-  const fileName = `Business_Proposal_${safeFile(opts.proposal.client_name)}_${date}_v${opts.proposal.version}.docx`;
+  const fileName = proposalFileName(opts.proposal, "Business_Proposal");
   saveAs(blob, fileName);
   return { blob, fileName };
 }

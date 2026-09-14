@@ -23,6 +23,7 @@ import {
   ShadingType,
   Footer,
   ImageRun,
+  PageNumber,
 } from "docx";
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
@@ -34,6 +35,7 @@ import {
   type RenewalBaseline,
 } from "@/lib/renewal-baseline";
 import logoUrl from "@/assets/manwinwin-logo.png";
+import { proposalDocumentTitle, proposalFileName, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "@/lib/proposal-document-control";
 
 const RED = "E01F2C";
 const DARK = "2C3E50";
@@ -41,10 +43,12 @@ const GREY_BG = "F5F5F5";
 const GREY_BORDER = "D0D0D0";
 const CONTENT_WIDTH = 9360;
 
-function p(text: string, opts: { bold?: boolean; size?: number; color?: string; italic?: boolean; align?: any; spacing?: any } = {}) {
+function p(text: string, opts: { bold?: boolean; size?: number; color?: string; italic?: boolean; align?: any; spacing?: any; keepNext?: boolean; keepLines?: boolean } = {}) {
   return new Paragraph({
     alignment: opts.align,
     spacing: opts.spacing,
+    keepNext: opts.keepNext,
+    keepLines: opts.keepLines,
     children: [
       new TextRun({
         text,
@@ -62,6 +66,7 @@ function redBarHeading(text: string) {
   return new Paragraph({
     shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
     spacing: { before: 320, after: 160 },
+    keepNext: true,
     children: [new TextRun({ text: "  " + text, bold: true, color: "FFFFFF", size: 28, font: "Calibri" })],
   });
 }
@@ -212,7 +217,7 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
   children.push(
     table(
       baselineRows.map(([k, v]) =>
-        new TableRow({ children: [cell(k, { bold: true, bg: GREY_BG, width: 3360 }), cell(v, { width: 6000 })] }),
+        new TableRow({ cantSplit: true, children: [cell(k, { bold: true, bg: GREY_BG, width: 3360 }), cell(v, { width: 6000 })] }),
       ),
       [3360, 6000],
     ),
@@ -235,6 +240,8 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
   children.push(redBarHeading("Proposed Renewal"));
   const lineRows = [
     new TableRow({
+      tableHeader: true,
+      cantSplit: true,
       children: [
         cell("Item", { bold: true, bg: GREY_BG, width: 5160 }),
         cell("Qty", { bold: true, bg: GREY_BG, width: 800, align: AlignmentType.CENTER }),
@@ -245,6 +252,7 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
     ...items.map(
       (it) =>
         new TableRow({
+          cantSplit: true,
           children: [
             cell(it.item_name + (it.is_recurring ? " (recurring)" : " (one-time)"), { width: 5160 }),
             cell(String(it.qty ?? 1), { width: 800, align: AlignmentType.CENTER }),
@@ -264,6 +272,8 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
       table(
         [
           new TableRow({
+            tableHeader: true,
+            cantSplit: true,
             children: [
               cell("Access", { bold: true, bg: GREY_BG, width: 3360 }),
               cell("Total licensed", { bold: true, bg: GREY_BG, width: 2000, align: AlignmentType.CENTER }),
@@ -273,6 +283,7 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
           }),
           ...accessLines.map((it: any) =>
             new TableRow({
+              cantSplit: true,
               children: [
                 cell(it.item_name, { width: 3360 }),
                 cell(String(it.total_licensed_qty ?? NOT_RECORDED), { width: 2000, align: AlignmentType.CENTER }),
@@ -339,6 +350,7 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
     table(
       finRows.map(([k, v], idx) =>
         new TableRow({
+          cantSplit: true,
           children: [
             cell(k, { bold: idx >= 4, bg: GREY_BG, width: 5160 }),
             cell(v, { bold: idx >= 4, width: 4200, align: AlignmentType.RIGHT }),
@@ -373,6 +385,9 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
   }
 
   const doc = new Document({
+    creator: "PartnerOS",
+    title: proposalDocumentTitle(proposal, "Renewal Proposal"),
+    subject: `Renewal Proposal · ${clientName} · v${(proposal as any).version ?? 1}`,
     styles: { default: { document: { run: { font: "Calibri", size: 22 } } } },
     sections: [
       {
@@ -385,10 +400,15 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
         footers: {
           default: new Footer({
             children: [
-              p(`ManWinWin Software — Renewal Proposal — ${clientName}`, {
-                size: 16,
-                color: "9CA3AF",
-                align: AlignmentType.CENTER,
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                border: { top: { style: BorderStyle.SINGLE, size: 6, color: RED, space: 4 } },
+                children: [
+                  new TextRun({ text: `ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE} · ${clientName} · v${(proposal as any).version ?? 1} · Page `, color: "9CA3AF", size: 16, font: "Calibri" }),
+                  new TextRun({ children: [PageNumber.CURRENT], color: "9CA3AF", size: 16, font: "Calibri" }),
+                  new TextRun({ text: " of ", color: "9CA3AF", size: 16, font: "Calibri" }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], color: "9CA3AF", size: 16, font: "Calibri" }),
+                ],
               }),
             ],
           }),
@@ -412,8 +432,7 @@ export interface RenewalDocxResult {
 
 export async function downloadRenewalProposalDocx(opts: RenewalDocxOptions): Promise<RenewalDocxResult> {
   const blob = await generateRenewalProposalDocx(opts);
-  const safeClient = ((opts.proposal as any).client_name || "Client").replace(/[^\w\-]+/g, "_");
-  const fileName = `Renewal_Proposal_${safeClient}_v${(opts.proposal as any).version ?? 1}.docx`;
+  const fileName = proposalFileName(opts.proposal, "Renewal_Proposal");
   saveAs(blob, fileName);
   return { blob, fileName };
 }

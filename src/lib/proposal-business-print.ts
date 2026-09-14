@@ -15,6 +15,7 @@ import { buildInvestmentSummaryRows } from "./proposal-business-summary";
 import { tBusiness } from "./proposal-business-i18n";
 import { formatEuro } from "./proposal-i18n";
 import { assertBusinessOptionsComputable } from "./proposal-business-readiness";
+import { proposalDocumentTitle, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
 
 const esc = (v: any) =>
   String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -44,6 +45,15 @@ export interface BusinessPrintOptions {
 }
 
 export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOptions) {
+  const html = buildBusinessProposalPrintHtml({ proposal, cfg, rules });
+  const win = window.open("", "_blank", "width=900,height=1200");
+  if (!win) return;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: BusinessPrintOptions): string {
   const lang = proposal.language as any;
   const s = tBusiness(lang);
   const models = resolveModels(proposal);
@@ -204,30 +214,34 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
   const html = `<!doctype html>
 <html lang="${esc(lang).toLowerCase()}">
 <head><meta charset="utf-8" />
-<title>${esc(s.investmentProposal)} — ${esc(proposal.client_name)} v${proposal.version}</title>
+  <title>${esc(proposalDocumentTitle(proposal, s.investmentProposal))}</title>
 <style>
-  @page { size: A4; margin: 18mm 16mm; }
+  @page { size: A4; margin: 17mm 16mm 34mm; }
   * { box-sizing: border-box; }
-  body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.45; }
-  .cover { min-height: 240mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:10px; page-break-after: always; }
+  body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 10.5pt; line-height: 1.4; }
+  .cover { min-height: 245mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px; page-break-after: always; break-after:page; }
   .cover img { max-width: 320px; height: auto; margin-bottom: 18px; }
   .cover h1 { font-size: 36pt; margin: 8px 0 4px; color:#c00; font-weight: 700; letter-spacing: .5px; }
   .cover .sub { font-size: 18pt; font-weight: 700; margin-bottom: 24px; }
   .cover .sub .red { color:#c00; }
   .cover .sub .dark { color:#2C3E50; }
-  .cover .client { font-size: 18pt; font-weight: 700; margin-top: 32px; color:#2C3E50; letter-spacing: .5px; text-transform: uppercase; }
+  .cover .client { font-size: 18pt; font-weight: 700; margin-top: 20px; color:#2C3E50; text-transform: uppercase; }
   .cover .meta { color: #555; font-size: 11pt; margin-top: 6px; }
   .cover .restricted { color:#c00; font-weight: 700; font-size: 9.5pt; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 28px; }
-  .header { display:flex; justify-content:space-between; gap:12px; padding-bottom:6px; border-bottom: 2px solid #c00; margin-bottom: 14px; font-size: 9pt; color:#555; }
+  .header { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:14px; padding-bottom:7px; border-bottom: 2px solid #c00; margin-bottom: 14px; font-size: 9pt; color:#555; }
+  .header .identity { min-width:0; overflow-wrap:anywhere; line-height:1.35; }
   .header .restricted { color:#c00; font-weight: 700; }
-  h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 22px 0 10px; }
-  h3 { font-size: 11.5pt; color: #1a1a1a; margin: 16px 0 6px; }
+  h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 20px 0 9px; break-after:avoid-page; page-break-after:avoid; }
+  h3 { font-size: 11.5pt; color: #1a1a1a; margin: 15px 0 6px; break-after:avoid-page; page-break-after:avoid; }
+  h2 + *, h3 + * { break-before:avoid-page; page-break-before:avoid; }
   ul { margin: 6px 0 6px 18px; padding: 0; }
   li { margin: 3px 0; }
-  table.summary { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 10pt; }
+  table.summary { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 9.5pt; }
   table.summary th, table.summary td { padding: 6px 8px; border-bottom: 1px solid #eee; vertical-align: top; }
   table.summary thead th { background:#c00; color:#fff; text-align:left; font-weight: 700; }
   table.summary thead th.num { text-align:right; }
+  table.summary thead { display:table-header-group; }
+  table.summary tr, table.summary td, table.summary th { break-inside:avoid; page-break-inside:avoid; }
   table.summary td.num, table.summary th.num { text-align:right; white-space: nowrap; }
   table.summary tr.header-row td { background:#2C3E50; color:#fff; padding: 8px; font-size: 10.5pt; letter-spacing: .5px; }
   table.summary tr.total-row td { background:#c00; color:#fff; font-weight: 700; border-top: 1px solid #c00; }
@@ -236,7 +250,7 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
   table.summary td.included { font-style: italic; color:#666; }
   .muted { color: #666; }
   .small { font-size: 9.5pt; }
-  .footer { margin-top: 24px; text-align: center; color:#888; font-size: 9pt; }
+  .footer { position:fixed; left:16mm; right:16mm; bottom:1mm; padding-top:4px; border-top:1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#666; font-size:8.5pt; }
   @media print { .noprint { display: none !important; } }
   .noprint { position: fixed; top: 12px; right: 12px; background:#c00; color:#fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 0; }
 </style>
@@ -250,11 +264,13 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
   <div class="sub"><span class="dark">ManWinWin</span> <span class="red">Business</span></div>
   <div class="client">${esc(proposal.client_name)}</div>
   <div class="meta">${esc(fmtDate(proposal.proposal_date, lang))}</div>
+  <div class="meta">${esc(proposal.project_name || s.businessSubtitle)} · ${esc(proposal.country || "—")}</div>
+  <div class="meta">${esc(s.validity)}: ${proposal.validity_days} ${esc(s.daysWord)} · v${proposal.version}</div>
   <div class="restricted">${esc(s.restricted)}</div>
 </div>
 
 <div class="header">
-  <div>${esc(s.client)}: <strong>${esc(proposal.client_name)}</strong> · ${esc(s.project)}: ${esc(proposal.project_name || "—")} · ${esc(s.date)}: ${esc(fmtDate(proposal.proposal_date, lang))}</div>
+  <div class="identity">${esc(s.client)}: <strong>${esc(proposal.client_name)}</strong><br>${esc(s.project)}: ${esc(proposal.project_name || "—")} · ${esc(s.date)}: ${esc(fmtDate(proposal.proposal_date, lang))} · v${proposal.version}</div>
   <div class="restricted">${esc(s.restricted)}</div>
 </div>
 
@@ -281,8 +297,8 @@ ${servicesHtml}
   <thead>
     <tr>
       <th>${esc(s.itemColumn)}</th>
-      ${showK ? `<th class="num">${esc(s.optionAColumn)}</th>` : ""}
-      ${showU ? `<th class="num">${esc(s.optionBColumn)}</th>` : ""}
+       ${showK ? `<th class="num">${esc(`${s.optionAColumn}${showU ? "" : ` · ${s.selectedOption}`}`)}</th>` : ""}
+       ${showU ? `<th class="num">${esc(`${s.optionBColumn}${showK ? "" : ` · ${s.selectedOption}`}`)}</th>` : ""}
     </tr>
   </thead>
   <tbody>${tableRows}</tbody>
@@ -309,13 +325,9 @@ ${servicesHtml}
 
 ${cfg.api ? `<h2>${esc(s.apiTitle)}</h2><ul>${s.apiList.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 
-<div class="footer">${esc(s.footerLine)} · ${esc(proposal.client_name)} · v${proposal.version}</div>
+<div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 <script>setTimeout(() => window.print(), 600);</script>
 </body></html>`;
 
-  const win = window.open("", "_blank", "width=900,height=1200");
-  if (!win) return;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  return html;
 }
