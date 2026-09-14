@@ -161,7 +161,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 <style>
   @page { size: A4; margin: 17mm 16mm 38mm; }
   * { box-sizing: border-box; }
-  body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 10.5pt; line-height: 1.4; }
+  body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 10pt; line-height: 1.35; }
   .cover { min-height: 245mm; display:flex; flex-direction:column; justify-content:center; page-break-after:always; break-after:page; }
   .header { display:grid; grid-template-columns: 150px minmax(0,1fr) auto; align-items:start; gap:14px; padding: 0 0 10px; border-bottom: 2px solid #c00; margin-bottom: 16px; }
   .header-copy { min-width:0; text-align:right; font-size:9pt; line-height:1.3; overflow-wrap:anywhere; }
@@ -210,7 +210,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   .includes ul { margin: 8px 0 0 18px; padding: 0; }
   .includes li { margin: 3px 0; }
   .subsection { font-size: 11pt; font-weight: 700; margin: 16px 0 6px; color: #333; break-after:avoid-page; page-break-after:avoid; }
-  .terms { margin-top: 22px; font-size: 10.5pt; }
+  .terms { margin-top: 18px; font-size: 10pt; }
   .terms p { margin: 6px 0; }
   .terms ul { margin:6px 0 10px 18px; }
   .footnote { color:#666; font-size:9.5pt; }

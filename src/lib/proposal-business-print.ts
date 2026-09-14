@@ -218,7 +218,7 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
 <style>
   @page { size: A4; margin: 17mm 16mm 38mm; }
   * { box-sizing: border-box; }
-  body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 10.5pt; line-height: 1.4; }
+  body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 9.75pt; line-height: 1.32; }
   .cover { min-height: 245mm; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:8px; page-break-after: always; break-after:page; }
   .cover img { max-width: 320px; height: auto; margin-bottom: 18px; }
   .cover h1 { font-size: 36pt; margin: 8px 0 4px; color:#c00; font-weight: 700; letter-spacing: .5px; }
@@ -231,8 +231,8 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
   .header { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:14px; padding-bottom:7px; border-bottom: 2px solid #c00; margin-bottom: 14px; font-size: 9pt; color:#555; }
   .header .identity { min-width:0; overflow-wrap:anywhere; line-height:1.35; }
   .header .restricted { color:#c00; font-weight: 700; }
-  h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 20px 0 9px; break-after:avoid-page; page-break-after:avoid; }
-  h3 { font-size: 11.5pt; color: #1a1a1a; margin: 15px 0 6px; break-after:avoid-page; page-break-after:avoid; }
+  h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 16px 0 7px; break-after:avoid-page; page-break-after:avoid; }
+  h3 { font-size: 11.5pt; color: #1a1a1a; margin: 12px 0 5px; break-after:avoid-page; page-break-after:avoid; }
   h2 + *, h3 + * { break-before:avoid-page; page-break-before:avoid; }
   ul { margin: 6px 0 6px 18px; padding: 0; }
   li { margin: 3px 0; }
