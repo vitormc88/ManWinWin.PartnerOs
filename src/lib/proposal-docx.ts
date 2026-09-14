@@ -14,6 +14,7 @@ import {
   Header,
   Footer,
   ImageRun,
+  PageNumber,
 } from "docx";
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
@@ -21,6 +22,7 @@ import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRen
 import { getCommercialIncludes, getCommercialItemLabel } from "@/lib/proposal-commercial";
 import { t, formatEuro, frequencyLabel as i18nFrequencyLabel } from "@/lib/proposal-i18n";
 import logoUrl from "@/assets/manwinwin-logo.png";
+import { proposalDocumentTitle, proposalFileName, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "@/lib/proposal-document-control";
 
 const RED = "E01F2C";
 const DARK = "2C3E50";
@@ -42,12 +44,16 @@ function p(
     align?: any;
     spacing?: any;
     indent?: any;
+    keepNext?: boolean;
+    keepLines?: boolean;
   } = {},
 ) {
   return new Paragraph({
     alignment: opts.align,
     spacing: opts.spacing,
     indent: opts.indent,
+    keepNext: opts.keepNext,
+    keepLines: opts.keepLines,
     children: [
       new TextRun({
         text,
@@ -65,6 +71,7 @@ function bullet(text: string, color = DARK) {
   return new Paragraph({
     spacing: { after: 60 },
     indent: { left: 360, hanging: 200 },
+    keepLines: true,
     children: [
       new TextRun({ text: "•  ", bold: true, color: RED, size: 22, font: "Calibri" }),
       new TextRun({ text, color, size: 22, font: "Calibri" }),
@@ -76,6 +83,7 @@ function smallBullet(text: string) {
   return new Paragraph({
     spacing: { after: 60 },
     indent: { left: 540, hanging: 200 },
+    keepLines: true,
     children: [
       new TextRun({ text: "○  ", color: DARK, size: 20, font: "Calibri" }),
       new TextRun({ text, color: DARK, size: 20, font: "Calibri" }),
@@ -88,6 +96,7 @@ function redBarHeading(text: string) {
   return new Paragraph({
     shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
     spacing: { before: 320, after: 160 },
+    keepNext: true,
     children: [
       new TextRun({
         text: "  " + text,
@@ -103,6 +112,7 @@ function redBarHeading(text: string) {
 function sectionHeading(text: string) {
   return new Paragraph({
     spacing: { before: 240, after: 120 },
+    keepNext: true,
     border: {
       bottom: { style: BorderStyle.SINGLE, size: 12, color: RED, space: 4 },
     },
@@ -211,8 +221,12 @@ export async function generateProposalDocx(
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       children: [
-        new TextRun({ text: `${proposal.client_name} | ${proposal.project_name || "Maintenance Software Implementation"}`, bold: true, color: DARK, size: 18, font: "Calibri" }),
+        new TextRun({ text: proposal.client_name, bold: true, color: DARK, size: 18, font: "Calibri" }),
       ],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      children: [new TextRun({ text: proposal.project_name || "Maintenance Software Implementation", color: DARK, size: 17, font: "Calibri" })],
     }),
     new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: dateStr, color: MUTED, size: 18, font: "Calibri" })] }),
     new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: s.restricted, bold: true, color: DARK, size: 18, font: "Calibri" })] }),
@@ -229,11 +243,14 @@ export async function generateProposalDocx(
         },
         children: [
           new TextRun({
-            text: "ManWinWin Software · support@manwinwin.com · www.manwinwin.com",
+            text: `ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE} · ${proposal.client_name} · v${proposal.version} · Page `,
             color: MUTED,
             size: 16,
             font: "Calibri",
           }),
+          new TextRun({ children: [PageNumber.CURRENT], color: MUTED, size: 16, font: "Calibri" }),
+          new TextRun({ text: " of ", color: MUTED, size: 16, font: "Calibri" }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], color: MUTED, size: 16, font: "Calibri" }),
         ],
       }),
     ],
@@ -242,13 +259,13 @@ export async function generateProposalDocx(
   /* ------------------------------- cover -------------------------------- */
 
   const cover: Paragraph[] = [];
-  cover.push(new Paragraph({ children: [new TextRun({ text: "" })], spacing: { before: 1400 } }));
+  cover.push(new Paragraph({ children: [new TextRun({ text: "" })], spacing: { before: 420 } }));
 
   if (logoBytes) {
     cover.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { after: 800 },
+        spacing: { after: 360 },
         children: [
           new ImageRun({
             type: "png",
@@ -278,7 +295,7 @@ export async function generateProposalDocx(
   cover.push(
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 400, after: 200 },
+      spacing: { before: 180, after: 160 },
       children: [
         new TextRun({
           text: s.investmentProposal,
@@ -291,7 +308,7 @@ export async function generateProposalDocx(
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { after: 600 },
+      spacing: { after: 360 },
       children: [
         new TextRun({ text: "ManWinWin ", bold: true, color: DARK, size: 32, font: "Calibri" }),
         new TextRun({
@@ -305,7 +322,7 @@ export async function generateProposalDocx(
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      spacing: { before: 1200 },
+      spacing: { before: 420, after: 120 },
       children: [
         new TextRun({
           text: proposal.client_name.toUpperCase(),
@@ -322,6 +339,9 @@ export async function generateProposalDocx(
         new TextRun({ text: dateStr, color: MUTED, size: 22, font: "Calibri" }),
       ],
     }),
+    p(proposal.project_name || "Maintenance Software Implementation", { align: AlignmentType.CENTER, size: 21, color: MUTED, spacing: { before: 100 } }),
+    p(`${proposal.country || "—"} · ${s.validity}: ${proposal.validity_days} ${s.daysWord} · ${s.versionLabel}: v${proposal.version}`, { align: AlignmentType.CENTER, size: 20, color: DARK, spacing: { before: 100 } }),
+    p(s.restricted, { align: AlignmentType.CENTER, bold: true, size: 18, color: RED, spacing: { before: 220 } }),
   );
 
   /* --------------------------- inner page title ------------------------- */
@@ -445,6 +465,7 @@ export async function generateProposalDocx(
           : ""}-${formatEuro(eff.amount || 0, lang)}`
       : "—";
     return new TableRow({
+      cantSplit: true,
       children: [
         cell(itemFullLabel(rawItem), { width: COL_ITEM }),
         cell(formatEuro(Number(it.gross_total) || 0, lang), { align: AlignmentType.RIGHT, width: COL_NUM_3 }),
@@ -456,6 +477,7 @@ export async function generateProposalDocx(
 
   const wideSubtotalRow = (label: string, value: string, opts: { strong?: boolean; discount?: boolean } = {}) =>
     new TableRow({
+      cantSplit: true,
       children: [
         new TableCell({
           width: { size: COL_ITEM + COL_NUM_3 * 2, type: WidthType.DXA },
@@ -507,6 +529,7 @@ export async function generateProposalDocx(
   const simpleLineRow = (rawItem: ProposalItem) => {
     const it = enrichProposalItem(rawItem, Number(proposal.software_discount_pct || 0), Number(proposal.services_discount_pct || 0));
     return new TableRow({
+      cantSplit: true,
       children: [
         cell(itemFullLabel(rawItem), { width: SIMPLE_COL_ITEM }),
         cell(formatEuro(Number(it.gross_total) || 0, lang), { align: AlignmentType.RIGHT, width: SIMPLE_COL_TOTAL, bold: true }),
@@ -517,6 +540,7 @@ export async function generateProposalDocx(
 
   const simpleSubtotalRow = (label: string, value: string) =>
     new TableRow({
+      cantSplit: true,
       children: [
         new TableCell({
           width: { size: SIMPLE_COL_ITEM, type: WidthType.DXA },
@@ -604,15 +628,16 @@ export async function generateProposalDocx(
   if (servicesTable) sectionTables.push(servicesTable);
 
   // Year 1 total bar — its own single-row table to ensure full width
-  const totalBarWidth = SIMPLE_TABLE_WIDTH;
+  const totalBarWidth = 9360;
   const totalBar = new Table({
     width: { size: totalBarWidth, type: WidthType.DXA },
-    columnWidths: [totalBarWidth - SIMPLE_COL_TOTAL, SIMPLE_COL_TOTAL],
+    columnWidths: [6960, 2400],
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
-            width: { size: totalBarWidth - SIMPLE_COL_TOTAL, type: WidthType.DXA },
+            width: { size: 6960, type: WidthType.DXA },
             shading: { fill: RED, type: ShadingType.CLEAR, color: "auto" },
             margins: { top: 100, bottom: 100, left: 120, right: 120 },
             borders: {
@@ -628,7 +653,7 @@ export async function generateProposalDocx(
               }),
             ],
           }),
-          cell(formatEuro(totals.totalYear1, lang), { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: SIMPLE_COL_TOTAL, size: 24 }),
+          cell(formatEuro(totals.totalYear1, lang), { bold: true, bg: RED, color: "FFFFFF", align: AlignmentType.RIGHT, width: 2400, size: 24 }),
         ],
       }),
     ],
@@ -643,6 +668,7 @@ export async function generateProposalDocx(
   const y2Rows: TableRow[] = [];
   y2Rows.push(
     new TableRow({
+      cantSplit: true,
       tableHeader: true,
       children: [
         cell(s.year2Onwards, { bold: true, bg: DARK, color: "FFFFFF", width: Y2_COL_LABEL }),
@@ -660,6 +686,7 @@ export async function generateProposalDocx(
       : getCommercialItemLabel(it, proposal);
     y2Rows.push(
       new TableRow({
+        cantSplit: true,
         children: [
           cell(label, { width: Y2_COL_LABEL, italic: discounted, color: discounted ? RED : undefined }),
           cell(`${formatEuro(renewal, lang)} ${s.perYear}`, { align: AlignmentType.RIGHT, width: Y2_COL_VALUE, bold: true }),
@@ -670,6 +697,7 @@ export async function generateProposalDocx(
 
   y2Rows.push(
     new TableRow({
+      cantSplit: true,
       children: [
         cell(s.totalPerYear, { bold: true, bg: GREY_BG, width: Y2_COL_LABEL }),
         cell(`${formatEuro(totals.totalRecurring, lang)} ${s.perYear}`, { bold: true, bg: GREY_BG, align: AlignmentType.RIGHT, width: Y2_COL_VALUE }),
@@ -717,7 +745,9 @@ export async function generateProposalDocx(
 
   const doc = new Document({
     creator: "PartnerOS",
-    title: `${s.investmentProposal} - ${proposal.client_name}`,
+    title: proposalDocumentTitle(proposal, s.investmentProposal),
+    subject: `${s.investmentProposal} · ${proposal.client_name} · v${proposal.version}`,
+    description: `${s.investmentProposal} for ${proposal.client_name}, version ${proposal.version}`,
     styles: {
       default: { document: { run: { font: "Calibri", size: 22 } } },
     },
@@ -782,7 +812,7 @@ export async function downloadProposalDocx(
   items: ProposalItem[],
 ) {
   const blob = await generateProposalDocx(proposal, items);
-  const fileName = `Proposal_${proposal.client_name.replace(/\s+/g, "_")}_v${proposal.version}.docx`;
+  const fileName = proposalFileName(proposal);
   saveAs(blob, fileName);
   return { blob, fileName };
 }

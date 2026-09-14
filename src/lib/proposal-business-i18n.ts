@@ -82,6 +82,7 @@ export interface BusinessStrings {
   itemColumn: string;
   optionAColumn: string;
   optionBColumn: string;
+  selectedOption: string;
   year1: string;
   year2Onwards: string;
   totalOfYear1: string;
@@ -205,6 +206,7 @@ const EN: BusinessStrings = {
   itemColumn: "Item",
   optionAColumn: 'Option A — Permanent "KeepIT" License',
   optionBColumn: 'Option B — Annual "UseIT" License',
+  selectedOption: "Selected option",
   year1: "YEAR 1",
   year2Onwards: "YEAR 2 AND FOLLOWING (per year)",
   totalOfYear1: "TOTAL OF THE YEAR (Year 1)",
@@ -349,6 +351,7 @@ const PT: BusinessStrings = {
   itemColumn: "Item",
   optionAColumn: 'Opção A — Licença Permanente "KeepIT"',
   optionBColumn: 'Opção B — Licença Anual "UseIT"',
+  selectedOption: "Opção selecionada",
   year1: "ANO 1",
   year2Onwards: "ANO 2 E SEGUINTES (por ano)",
   totalOfYear1: "TOTAL DO ANO (Ano 1)",
@@ -491,6 +494,7 @@ const ES: BusinessStrings = {
   itemColumn: "Ítem",
   optionAColumn: 'Opción A — Licencia Permanente "KeepIT"',
   optionBColumn: 'Opción B — Licencia Anual "UseIT"',
+  selectedOption: "Opción seleccionada",
   year1: "AÑO 1",
   year2Onwards: "AÑO 2 Y SIGUIENTES (por año)",
   totalOfYear1: "TOTAL DEL AÑO (Año 1)",

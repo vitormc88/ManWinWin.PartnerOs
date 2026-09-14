@@ -3,12 +3,22 @@ import { formatEuro, frequencyLabel as i18nFrequencyLabel, t } from "./proposal-
 import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRenewalValue, getSectionDiscountSummary } from "./proposal-engine";
 import { getCommercialIncludes, getCommercialItemLabel } from "./proposal-commercial";
 import logoUrl from "@/assets/manwinwin-logo.png";
+import { proposalDocumentTitle, proposalTermLines, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
 
 /**
  * Open a print-friendly window with the proposal rendered as HTML.
  * Users use the browser's "Save as PDF" to export.
  */
 export function printProposal(proposal: Proposal, items: ProposalItem[]) {
+  const html = buildProposalPrintHtml(proposal, items);
+  const win = window.open("", "_blank", "width=900,height=1200");
+  if (!win) return;
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]): string {
   const lang = proposal.language as any;
   const s = t(lang);
   const softwarePct = Number(proposal.software_discount_pct || 0);
@@ -17,8 +27,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   const softwareDiscountSummary = getSectionDiscountSummary(items, "software", softwarePct, servicesPct);
   const servicesDiscountSummary = getSectionDiscountSummary(items, "services", softwarePct, servicesPct);
   const includes = getCommercialIncludes(proposal.plan, proposal.language, proposal.include_requests_module, proposal.web_users);
-  const win = window.open("", "_blank", "width=900,height=1200");
-  if (!win) return;
+  const termLines = proposalTermLines(proposal.payment_terms);
 
   const software = items.filter((i) => i.category === "software" || i.category === "addon");
   const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
@@ -148,25 +157,29 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 <html lang="${lang.toLowerCase()}">
 <head>
 <meta charset="utf-8" />
-<title>Proposal ${esc(proposal.client_name)} v${proposal.version}</title>
+  <title>${esc(proposalDocumentTitle(proposal, s.investmentProposal))}</title>
 <style>
-  @page { size: A4; margin: 18mm 16mm; }
+  @page { size: A4; margin: 17mm 16mm 38mm; }
   * { box-sizing: border-box; }
-  body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 11pt; line-height: 1.45; }
-  .header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding: 0 0 14px; border-bottom: 2px solid #c00; margin-bottom: 18px; }
-  .logo { max-width: 220px; height: auto; display:block; }
-  .hero { margin-bottom: 18px; }
+  body { font-family: Calibri, Arial, sans-serif; color: #1a1a1a; margin: 0; padding: 0; font-size: 10pt; line-height: 1.35; }
+  .cover { min-height: 245mm; display:flex; flex-direction:column; justify-content:center; page-break-after:always; break-after:page; }
+  .header { display:grid; grid-template-columns: 150px minmax(0,1fr) auto; align-items:start; gap:14px; padding: 0 0 10px; border-bottom: 2px solid #c00; margin-bottom: 16px; }
+  .header-copy { min-width:0; text-align:right; font-size:9pt; line-height:1.3; overflow-wrap:anywhere; }
+  .header-copy strong, .header-copy span { display:block; }
+  .logo { max-width: 150px; height: auto; display:block; }
+  .hero { margin-bottom: 16px; }
   .cover h1 { font-size: 24pt; margin: 0 0 6px; color: #1a1a1a; }
   .cover .sub { color: #666; font-size: 12pt; }
   .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; margin: 10px 0 24px; font-size: 10.5pt; }
   .meta .k { color: #666; }
   .restricted { color: #c00; font-weight: 600; font-size: 9pt; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px; }
-  h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 22px 0 10px; }
+  h2 { font-size: 13pt; color: #c00; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin: 20px 0 9px; break-after:avoid-page; page-break-after:avoid; }
+  h2 + *, .subsection + * { break-before:avoid-page; page-break-before:avoid; }
   table.lines { width: 100%; border-collapse: collapse; margin-bottom: 8px; font-size: 10pt; }
   table.lines th, table.lines td { padding: 6px 8px; border-bottom: 1px solid #eee; text-align: left; vertical-align: top; }
   table.lines th { background: #f6f6f6; font-weight: 600; font-size: 9.5pt; color: #333; }
-  /* Prevent the browser from auto-repeating the table header row before subtotal-only rows on a new page. */
-  table.lines thead { display: table-row-group; }
+  table.lines thead { display: table-header-group; }
+  table.lines tr, table.lines td, table.lines th { break-inside: avoid; page-break-inside: avoid; }
   td.num, th.num { text-align: right; white-space: nowrap; }
   td.freq { color: #555; font-size: 9.5pt; white-space: nowrap; }
   td.discount { color: #c00; font-size: 9.5pt; }
@@ -174,27 +187,34 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
   td.strong { font-weight: 600; }
   /* Keep subtotal rows visually attached to the table they summarize. */
   table.lines tbody tr.subtotal-row { page-break-inside: avoid; break-inside: avoid; page-break-before: avoid; break-before: avoid; }
+  table.lines tbody tr.subtotal-row + tr.subtotal-row { break-before:avoid-page; page-break-before:avoid; }
   table.lines tbody tr.subtotal-row td { background: #fafafa; font-size: 10pt; padding: 6px 8px; border-top: 1px solid #e5e5e5; border-bottom: none; color: #333; }
   table.lines tbody tr.subtotal-row td:first-child { text-align: right; }
   table.lines tbody tr.subtotal-row.discount-row td { color: #c00; }
   table.lines tbody tr.subtotal-row.strong td { font-weight: 700; border-top: 1px solid #ccc; }
   .muted { color: #888; font-size: 9pt; font-weight: 400; }
-  .year-total { display:flex; justify-content:space-between; align-items:baseline; padding: 10px 14px; background: #c00; color: #fff; border-radius: 4px; font-size: 13pt; font-weight: 700; margin: 6px 0 18px; }
+  .year-total { display:flex; justify-content:space-between; align-items:baseline; padding: 10px 14px; background: #c00; color: #fff; border-radius: 4px; font-size: 13pt; font-weight: 700; margin: 6px 0 18px; break-inside:avoid; page-break-inside:avoid; break-before:avoid-page; page-break-before:avoid; }
   .renewal-block { border: 1px solid #e2e2e2; border-radius: 4px; padding: 10px 14px; background: #fafafa; margin-bottom: 6px; }
   .renewal-block table { width: 100%; border-collapse: collapse; }
+  .renewal-block thead { display:table-header-group; }
+  .renewal-block th { padding:5px 0; text-align:left; border-bottom:1px solid #ddd; color:#333; }
+  .renewal-block th.num { text-align:right; }
+  .renewal-block tr { break-inside:avoid; page-break-inside:avoid; }
   .renewal-block td { padding: 4px 0; font-size: 10.5pt; }
   .renewal-block td.num { text-align: right; }
   .renewal-tag { color: #c00; font-style: italic; font-size: 9pt; font-weight: 600; }
   .year-bar { display: flex; align-items: center; gap: 10px; margin: 18px 0 10px; }
   .year-bar .bar { flex: 1; height: 1px; background: #ddd; }
   .year-bar .label { font-weight: 700; font-size: 12pt; color: #c00; letter-spacing: 0.5px; text-transform: uppercase; }
-  .includes { margin: 12px 0 18px; }
+  .includes { margin: 12px 0 18px; break-inside:auto; }
   .includes ul { margin: 8px 0 0 18px; padding: 0; }
   .includes li { margin: 3px 0; }
-  .subsection { font-size: 11pt; font-weight: 700; margin: 16px 0 6px; color: #333; }
-  .terms { margin-top: 24px; font-size: 10pt; }
+  .subsection { font-size: 11pt; font-weight: 700; margin: 16px 0 6px; color: #333; break-after:avoid-page; page-break-after:avoid; }
+  .terms { margin-top: 18px; font-size: 10pt; }
   .terms p { margin: 6px 0; }
-  .footer { margin-top: 40px; text-align: center; color: #999; font-size: 9pt; }
+  .terms ul { margin:6px 0 10px 18px; }
+  .footnote { color:#666; font-size:9.5pt; }
+  .footer { position:fixed; left:16mm; right:16mm; bottom:5mm; padding-top:4px; border-top:1px solid #ddd; display:flex; justify-content:space-between; gap:12px; color:#666; font-size:8.5pt; }
   .y1-note { color: #888; font-size: 9pt; font-style: italic; margin: 6px 0 0; }
   @media print { .noprint { display: none !important; } }
   .noprint { position: fixed; top: 12px; right: 12px; background: #c00; color: #fff; padding: 8px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 0; }
@@ -202,12 +222,15 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 </head>
 <body>
   <button class="noprint" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
 
+  <div class="cover">
   <div class="header">
     <img class="logo" src="${logoUrl}" alt="ManWinWin logo" />
+    <div class="header-copy"><strong>${esc(proposal.client_name)}</strong><span>${esc(proposal.project_name || "Maintenance Software Implementation")}</span></div>
     <div class="restricted">${esc(s.restricted)}</div>
   </div>
-  <div class="cover hero">
+  <div class="hero">
     <h1>${esc(s.investmentProposal)}</h1>
     <div class="sub">${esc(s.professional)} — Plan ${proposal.plan} (SaaS)</div>
   </div>
@@ -219,6 +242,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     <div><span class="k">Validity:</span> ${proposal.validity_days} days</div>
     <div><span class="k">Country:</span> ${esc(proposal.country || "—")}</div>
     <div><span class="k">Version:</span> v${proposal.version}</div>
+  </div>
   </div>
 
   <div class="includes">
@@ -254,6 +278,7 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
     <div class="year-bar"><span class="label">${esc(s.year2Onwards)}</span><span class="bar"></span></div>
     <div class="renewal-block">
       <table>
+        <thead><tr><th>${esc(s.colItem)}</th><th class="num">${esc(s.colTotal)}</th></tr></thead>
         <tbody>${recurring.map(renewalRow).join("")}</tbody>
       </table>
     </div>
@@ -263,22 +288,18 @@ export function printProposal(proposal: Proposal, items: ProposalItem[]) {
 
   <div class="terms">
     <h2>${esc(s.billingHeader)}</h2>
-    <p>${esc(proposal.payment_terms || "")}</p>
+    ${termLines.length ? `<ul>${termLines.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
     ${proposal.notes ? `<h2>${esc(s.notes)}</h2><p>${esc(proposal.notes)}</p>` : ""}
     <h2>${esc(s.otherInfo)}</h2>
     <p>${esc(s.vatNote)}</p>
     <p>${esc(s.validityNote(proposal.validity_days))}</p>
   </div>
 
-  <div class="footer">ManWinWin Software · ${esc(proposal.client_name)} · v${proposal.version}</div>
-
   <script>setTimeout(() => window.print(), 600);</script>
 </body>
 </html>`;
 
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  return html;
 }
 
 function esc(v: any): string {
