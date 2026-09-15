@@ -2171,13 +2171,18 @@ export type Database = {
           created_at: string
           deal_id: string
           description: string | null
+          external_note_id: string | null
           id: string
           linked_proposal_id: string | null
           linked_task_id: string | null
           participants: string[] | null
           performed_by: string | null
           performed_by_user_id: string | null
+          source_created_at: string | null
+          source_system: string | null
+          source_updated_at: string | null
           subject: string | null
+          sync_read_only: boolean
           tags: string[] | null
         }
         Insert: {
@@ -2186,13 +2191,18 @@ export type Database = {
           created_at?: string
           deal_id: string
           description?: string | null
+          external_note_id?: string | null
           id?: string
           linked_proposal_id?: string | null
           linked_task_id?: string | null
           participants?: string[] | null
           performed_by?: string | null
           performed_by_user_id?: string | null
+          source_created_at?: string | null
+          source_system?: string | null
+          source_updated_at?: string | null
           subject?: string | null
+          sync_read_only?: boolean
           tags?: string[] | null
         }
         Update: {
@@ -2201,13 +2211,18 @@ export type Database = {
           created_at?: string
           deal_id?: string
           description?: string | null
+          external_note_id?: string | null
           id?: string
           linked_proposal_id?: string | null
           linked_task_id?: string | null
           participants?: string[] | null
           performed_by?: string | null
           performed_by_user_id?: string | null
+          source_created_at?: string | null
+          source_system?: string | null
+          source_updated_at?: string | null
           subject?: string | null
+          sync_read_only?: boolean
           tags?: string[] | null
         }
         Relationships: [
@@ -2268,33 +2283,45 @@ export type Database = {
           created_at: string
           deal_id: string
           email: string | null
+          external_contact_id: string | null
           id: string
           is_decision_maker: boolean | null
           notes: string | null
           phone: string | null
           role: string | null
+          source_system: string | null
+          source_updated_at: string | null
+          sync_read_only: boolean
         }
         Insert: {
           contact_name: string
           created_at?: string
           deal_id: string
           email?: string | null
+          external_contact_id?: string | null
           id?: string
           is_decision_maker?: boolean | null
           notes?: string | null
           phone?: string | null
           role?: string | null
+          source_system?: string | null
+          source_updated_at?: string | null
+          sync_read_only?: boolean
         }
         Update: {
           contact_name?: string
           created_at?: string
           deal_id?: string
           email?: string | null
+          external_contact_id?: string | null
           id?: string
           is_decision_maker?: boolean | null
           notes?: string | null
           phone?: string | null
           role?: string | null
+          source_system?: string | null
+          source_updated_at?: string | null
+          sync_read_only?: boolean
         }
         Relationships: [
           {
@@ -2519,6 +2546,9 @@ export type Database = {
           description: string | null
           expected_close_date: string | null
           expected_value: number | null
+          external_opportunity_id: string | null
+          external_stage_id: string | null
+          external_stage_name: string | null
           id: string
           industry: string | null
           job_role: string | null
@@ -2533,10 +2563,15 @@ export type Database = {
           probability: number | null
           register_date: string | null
           sector: string | null
+          source_owner_id: string | null
+          source_synced_at: string | null
+          source_system: string | null
+          source_updated_at: string | null
           stage: string
           stage_entered_at: string | null
           status: string
           status_changed_at: string | null
+          sync_read_only: boolean
           total_value: number | null
           updated_at: string
           won_at: string | null
@@ -2556,6 +2591,9 @@ export type Database = {
           description?: string | null
           expected_close_date?: string | null
           expected_value?: number | null
+          external_opportunity_id?: string | null
+          external_stage_id?: string | null
+          external_stage_name?: string | null
           id?: string
           industry?: string | null
           job_role?: string | null
@@ -2570,10 +2608,15 @@ export type Database = {
           probability?: number | null
           register_date?: string | null
           sector?: string | null
+          source_owner_id?: string | null
+          source_synced_at?: string | null
+          source_system?: string | null
+          source_updated_at?: string | null
           stage?: string
           stage_entered_at?: string | null
           status?: string
           status_changed_at?: string | null
+          sync_read_only?: boolean
           total_value?: number | null
           updated_at?: string
           won_at?: string | null
@@ -2593,6 +2636,9 @@ export type Database = {
           description?: string | null
           expected_close_date?: string | null
           expected_value?: number | null
+          external_opportunity_id?: string | null
+          external_stage_id?: string | null
+          external_stage_name?: string | null
           id?: string
           industry?: string | null
           job_role?: string | null
@@ -2607,10 +2653,15 @@ export type Database = {
           probability?: number | null
           register_date?: string | null
           sector?: string | null
+          source_owner_id?: string | null
+          source_synced_at?: string | null
+          source_system?: string | null
+          source_updated_at?: string | null
           stage?: string
           stage_entered_at?: string | null
           status?: string
           status_changed_at?: string | null
+          sync_read_only?: boolean
           total_value?: number | null
           updated_at?: string
           won_at?: string | null
@@ -6864,6 +6915,14 @@ export type Database = {
       }
       normalize_country: { Args: { _input: string }; Returns: string }
       pipeline_stage_probability: { Args: { _stage: string }; Returns: number }
+      preview_sharpspring_opportunity_sync: {
+        Args: {
+          payload: Json
+          target_partner_id?: string
+          target_user_id?: string
+        }
+        Returns: Json
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
