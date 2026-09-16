@@ -13,7 +13,8 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SERVICE_ROLE_KEY");
+    if (!serviceRoleKey) return Response.json({ error: "Server misconfiguration" }, { status: 500, headers: corsHeaders });
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader) return Response.json({ error: "Missing authorization header" }, { status: 401, headers: corsHeaders });
@@ -33,7 +34,8 @@ Deno.serve(async (req) => {
       .eq("user_id", callerId)
       .eq("role", "hq_admin");
 
-    if (roleError || !roleRows?.length) return Response.json({ error: "Only HQ administrators can create users" }, { status: 403, headers: corsHeaders });
+    if (roleError) return Response.json({ error: `Role check failed: ${roleError.message}` }, { status: 500, headers: corsHeaders });
+    if (!roleRows?.length) return Response.json({ error: "Only HQ administrators can create users" }, { status: 403, headers: corsHeaders });
 
     const body = await req.json();
 
