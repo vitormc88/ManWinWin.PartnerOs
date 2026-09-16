@@ -34,7 +34,8 @@ Deno.serve(async (req) => {
       .eq("user_id", callerId)
       .eq("role", "hq_admin");
 
-    if (roleError || !roleRows?.length) return Response.json({ error: "Only HQ administrators can create users" }, { status: 403, headers: corsHeaders });
+    if (roleError) return Response.json({ error: `Role check failed: ${roleError.message}` }, { status: 500, headers: corsHeaders });
+    if (!roleRows?.length) return Response.json({ error: "Only HQ administrators can create users" }, { status: 403, headers: corsHeaders });
 
     const body = await req.json();
 
