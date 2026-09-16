@@ -13,7 +13,8 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? Deno.env.get("SERVICE_ROLE_KEY");
+    if (!serviceRoleKey) return Response.json({ error: "Server misconfiguration" }, { status: 500, headers: corsHeaders });
     const authHeader = req.headers.get("Authorization");
 
     if (!authHeader) return Response.json({ error: "Missing authorization header" }, { status: 401, headers: corsHeaders });
