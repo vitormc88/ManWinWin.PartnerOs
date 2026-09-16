@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
+  const webhookSecret = Deno.env.get("SHARPSSPRING_OPPORTUNITY_SECRET");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!webhookSecret || !supabaseUrl || !serviceKey) {
