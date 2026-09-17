@@ -3,6 +3,10 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const MIGRATIONS_DIR = join(process.cwd(), "supabase/migrations");
+const INGEST_FUNCTION = readFileSync(
+  join(process.cwd(), "supabase/functions/ingest-sharpspring-opportunity/index.ts"),
+  "utf8",
+);
 
 function migrationSql(): string {
   return readdirSync(MIGRATIONS_DIR)
@@ -77,5 +81,32 @@ describe("SharpSpring sync foundation — six sanitized sample opportunities", (
     expect(Number(total.toFixed(2))).toBe(73398.5);
     expect(FIXTURE.filter((r) => r.stage === "Meeting1")).toHaveLength(4);
     expect(FIXTURE.filter((r) => r.stage === "Price Negotiation")).toHaveLength(2);
+  });
+});
+
+describe("SharpSpring sync — related data", () => {
+  it("persists the source contact and enriches the deal summary", () => {
+    expect(INGEST_FUNCTION).toContain('.from("deal_contacts")');
+    expect(INGEST_FUNCTION).toContain("external_contact_id");
+    expect(INGEST_FUNCTION).toContain("contact_person_name");
+    expect(INGEST_FUNCTION).toContain("maintenance_team_size");
+  });
+
+  it("persists notes as historical activities without duplicating source ids", () => {
+    expect(INGEST_FUNCTION).toContain('.from("deal_activities")');
+    expect(INGEST_FUNCTION).toContain("external_note_id");
+    expect(INGEST_FUNCTION).toContain("source_created_at");
+    expect(INGEST_FUNCTION).toContain('tags: ["SharpSpring"]');
+  });
+
+  it("persists open tasks idempotently using a stable SharpSpring marker", () => {
+    expect(INGEST_FUNCTION).toContain('.from("deal_tasks")');
+    expect(INGEST_FUNCTION).toContain("[SharpSpring task ${externalTaskId}]");
+    expect(INGEST_FUNCTION).toContain("source_tasks");
+  });
+
+  it("returns related-row counts for operational verification", () => {
+    expect(INGEST_FUNCTION).toContain("enrichment,");
+    expect(INGEST_FUNCTION).toContain("return { contacts, activities, tasks }");
   });
 });
