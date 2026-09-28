@@ -6925,6 +6925,10 @@ export type Database = {
         Args: { l: Database["public"]["Tables"]["licenses"]["Row"] }
         Returns: string
       }
+      license_expiry_recipient: {
+        Args: { _client_id: string }
+        Returns: Record<string, unknown>
+      }
       link_renewal_proposal: {
         Args: {
           _action: string
