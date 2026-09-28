@@ -454,6 +454,14 @@ Deno.serve(async (req) => {
     return json({ dry_run: false, partner_id: partnerId, owner_id: ownerId, results }, onlyCreates ? 201 : 200);
   } catch (err) {
     console.error("ingest-sharpspring-opportunity error:", err instanceof Error ? err.message : "unknown error");
+    // Failure notification only (Notification System v1); best effort, never alters the response.
+    try {
+      const e = err as { code?: string; name?: string } | null;
+      await createClient(supabaseUrl, serviceKey).rpc("report_integration_failure", {
+        _source: "ingest-sharpspring-opportunity",
+        _error_class: String(e?.code || e?.name || "unknown"),
+      });
+    } catch (_) { /* best effort */ }
     return json({ error: "Internal error" }, 500);
   }
 });

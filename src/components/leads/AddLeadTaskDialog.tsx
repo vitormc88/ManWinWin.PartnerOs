@@ -11,7 +11,6 @@ import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   open: boolean;
@@ -61,18 +60,8 @@ export function AddLeadTaskDialog({ open, onOpenChange, leadId, leadCompanyName,
         created_by: user?.id,
       },
       {
-        onSuccess: async (data) => {
-          // Create in-app notification for assigned user
-          if (assignedUserId && assignedUserId !== user?.id) {
-            await supabase.from("notifications").insert({
-              title: "New Task Assigned",
-              message: `You have been assigned a new task: "${title}" for lead ${leadCompanyName}`,
-              type: "task",
-              category: "task_assigned",
-              target_user_id: assignedUserId,
-              action_url: `/incoming-leads/${leadId}`,
-            });
-          }
+        onSuccess: () => {
+          // Assignment notifications are created server-side (task_notify trigger).
           toast.success("Task created");
           reset();
           onOpenChange(false);
