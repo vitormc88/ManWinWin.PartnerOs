@@ -6921,6 +6921,10 @@ export type Database = {
         Args: { _partner_id: string; _user_id: string }
         Returns: boolean
       }
+      license_expiry_kind: {
+        Args: { l: Database["public"]["Tables"]["licenses"]["Row"] }
+        Returns: string
+      }
       link_renewal_proposal: {
         Args: {
           _action: string
@@ -6941,6 +6945,7 @@ export type Database = {
         Returns: number
       }
       normalize_country: { Args: { _input: string }; Returns: string }
+      notifications_daily_run: { Args: { _dry_run?: boolean }; Returns: Json }
       notify: {
         Args: {
           _category?: string
@@ -6973,6 +6978,8 @@ export type Database = {
         }
         Returns: number
       }
+      notify_license_expiry: { Args: { _dry_run?: boolean }; Returns: Json }
+      notify_overdue_tasks: { Args: { _dry_run?: boolean }; Returns: Json }
       pipeline_stage_probability: { Args: { _stage: string }; Returns: number }
       preview_sharpspring_opportunity_sync: {
         Args: {
