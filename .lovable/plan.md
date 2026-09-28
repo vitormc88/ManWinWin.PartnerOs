@@ -63,6 +63,12 @@ There are 4 small, additive, idempotent migrations, one per phase. Nothing is dr
   - `deal_tasks.assigned_user_id`, link `/deals/<deal_id>`
   - `manual_tasks.owner_user_id`, link `related_route`, falling back to `/tasks`
   - Skips completed/done tasks.
+  - **Explicit change detection** (both the trigger `WHEN` clause and a guard in the function body):
+    - INSERT: fires only when the new assignee is not null.
+    - UPDATE: the trigger is declared `WHEN (OLD.<assignee> IS DISTINCT FROM NEW.<assignee>)`, and the function re-checks it and returns early otherwise.
+    - A save that leaves the assignee unchanged, or edits only other fields, gives 0 notifications and 0 emails.
+    - Unassigning (new assignee null) gives only the INFO notification to the previous owner.
+  - The same rule is applied to `notify_lead_assignment` for `incoming_leads.assigned_user_id`, whose existing `IS NOT DISTINCT FROM` early return is kept.
 - `trg_announcement_notify`: AFTER INSERT OR UPDATE on `announcements`. It fires only when the announcement becomes published (`status='published'`, `is_active` true, `archived_at` null) and was not published before.
 - `notifications_daily_run()`, `notify_overdue_tasks()`, `notify_license_expiry()` (§6).
 
@@ -76,14 +82,33 @@ There are 4 small, additive, idempotent migrations, one per phase. Nothing is dr
 
 ## 5. Email queue and template changes
 
-- Keep the single dispatcher, `process-email-queue`, and add the platform-standard app-email setup (`transactional_emails` queue plus `send-transactional-email`, `handle-email-unsubscribe`, `handle-email-suppression`). Auth emails keep priority, so a burst of business emails can't delay password resets.
-- There is one template, `partneros-notification`: ManWinWin red button, white background, Calibri/Arial. Its fields are title, one-line explanation, entity name, button label ("Open in PartnerOS") and deep link. No marketing content.
-- **Dispatch:** `notify()` uses pg_net to call `send-transactional-email` with the service role key from Vault. Each call sends one recipient, one template, and an idempotency key equal to the notification `dedupe_key`.
-  - Retries are handled by the queue.
-  - The send function drops suppressed addresses.
-  - The platform adds an unsubscribe footer to every app email and it can't be removed. An unsubscribe blocks business emails to that address but never sign-in emails.
-- Add a small unsubscribe page at the path the scaffold assigns.
-- The sender stays `notify.partneros.manwinwin.com`.
+**Queue support (checked against the current code):** `supabase/functions/process-email-queue/index.ts` already handles `transactional_emails`, so it needs **no modification**:
+- line 139: `for (const queue of ['auth_emails', 'transactional_emails'])` reads auth emails first, then app emails.
+- lines 132–133: separate TTLs per queue (`transactional_email_ttl_minutes`).
+- lines 241 and 283: the same delete / dead-letter handling per queue.
+- line 264: passes `unsubscribe_token` through when present.
+
+What does **not** exist yet is the `transactional_emails` pgmq queue itself and its wake trigger. These are created by the standard email setup step (not by hand-written SQL), which the auth emails already use, so it's safe to run again.
+
+**Required operational emails vs unsubscribe: a platform limitation and the proposed alternative**
+- The standard app-email sender enforces a footer on every app email. It also checks the per-address suppression list before sending, and one unsubscribe suppresses **all** app emails to that address. It can't be exempted per template.
+- If v1 used it as-is, a user clicking "unsubscribe" would silently stop receiving required Action emails. That breaks your requirement.
+- Sign-in and password emails use a separate path with no footer and no suppression, so they're never affected either way.
+
+Proposed approach for v1 (**decision K1**):
+- **Option A (recommended): keep the standard sender, but make suppression visible and never silent.**
+  - The in-app notification is always created. It's the system of record, and required Action events can never be lost.
+  - Before sending, `notify()` checks the suppression list. If the recipient is suppressed, it sets `email_status='suppressed'` and creates one deduplicated HQ-admin notice ("<user> is not receiving operational emails").
+  - The footer wording frames it as stopping PartnerOS email notifications. There's no preference center.
+  - No part of our code offers a marketing-style opt-out.
+- **Option B: a dedicated operational sender for PartnerOS**, bypassing the unsubscribe mechanism. Not supported by the current platform email path without a third-party provider (for example a separate subdomain with Resend). That adds a new secret, a provider and DNS work, which is out of proportion for v1.
+- **Option C: in-app only for v1**, with email deferred. Simplest, but it drops the approved Action emails.
+
+Unchanged from before:
+- One template, `partneros-notification`: title, one-line explanation, entity name, "Open in PartnerOS" button, deep link, no marketing content.
+- Dispatch: `notify()` makes a pg_net call to `send-transactional-email`, one recipient per call, idempotency key = notification `dedupe_key`.
+- Sender: `notify.partneros.manwinwin.com`.
+- A small unsubscribe page is required by the platform, with the operational wording from Option A.
 
 ## 6. Scheduler
 
@@ -149,6 +174,30 @@ Partner users receive emails only as the actual assignee or owner; they never ge
 
 Where the dates live: `licenses.license_end_date` (licence and SaaS term, with SaaS identified by `deployment_type` / `license_model`) and `licenses.sat_end_date` (S&TA, when `sat_active`). Licenses that are drafts (`is_draft`), replaced (`replaced_by_license_id` set) or on inactive clients are excluded.
 
+**Validation against the current data model (TEST inspection).**
+- `license_model` values are inconsistent: KEEP-IT / KeepIT, USE-IT / UseIT, PROFESSIONAL, Business, SaaS.
+- `periodicity` is almost always `Annual`; one row is `Perpetual`.
+- Nearly every row has `license_end_date`, including KeepIT and On-Premise.
+- **So a date being present does not prove the licence expires.** Expiry notifications must be driven by the commercial type, never by whether a date is filled in.
+
+| Commercial case | Relevant expiry field | Should notify? | Why / status |
+|---|---|---|---|
+| SaaS (any family, `deployment_type='SaaS'`) | `license_end_date` | Yes | The subscription term ends; the service stops. |
+| Business UseIT, On-Premise (rental) | `license_end_date` | Yes, **pending confirmation (K2)** | UseIT is understood to be a term-based right to use. Please confirm. |
+| Professional UseIT | — | Not found in data | No rows exist; treat like Business UseIT if confirmed (K2). |
+| Business KeepIT, On-Premise | `license_end_date` ignored; `sat_end_date` only | Licence: No. S&TA: Yes if `sat_active` | KeepIT is a perpetual licence; the licence date must not trigger alerts. |
+| Business KeepIT, SaaS (11 rows) | `license_end_date` | **Ambiguous (K3)** | The SaaS hosting term would expire, but KeepIT implies perpetual ownership. Which one wins? |
+| Professional (1/2/3), SaaS | `license_end_date` | Yes | SaaS term. |
+| Professional, no deployment set / `Perpetual` periodicity | none | No | Perpetual; only S&TA if active. |
+| Legacy "ManWinWin Business/Professional" with SQL Server/PostgreSQL | `sat_end_date` only | Licence: **ambiguous (K4)**; S&TA: Yes if active | The older model doesn't distinguish KeepIT from UseIT reliably. |
+| Active S&TA (`sat_active=true` and `sat_end_date` present) | `sat_end_date` | Yes | Support contract ends. |
+| Active S&TA but `sat_end_date` null | — | No; reported in the run summary as a data gap | No date to act on. |
+| Expired / inactive S&TA (`sat_active=false`) | — | No | Nothing active to renew. |
+| Replaced licence (`replaced_by_license_id` set) or draft | — | No | Superseded or not operational. |
+| Active renewal already covering the expiry | — | No | "Covered" rule below; counted as `covered_by_renewal`. |
+
+**Classification:** one SQL helper, `license_expiry_kind(license)`, returns `term`, `perpetual` or `unknown`. It uses normalized `license_model`/`product`/`edition` plus `deployment_type` and `periodicity`. `unknown` never notifies and is listed in the run summary. Expiry notifications stay **disabled** until K2–K4 are confirmed and the helper is checked against all TEST rows.
+
 An expiry is **covered** (no expiry notification is created) when an open renewal exists for the same client where:
 - `closed_at is null`, and its status is not one of Won, Lost, Renewed, Completed or Cancelled; **and**
 - one of these holds:
@@ -163,6 +212,10 @@ When not covered, the license owner is resolved as: the owner of any open renewa
 
 - [ ] Lead assign: 1 row for the new owner. Reassign: 1 ACTION row for the new owner and 1 INFO row for the previous owner. Self-assign: 0 rows.
 - [ ] A task created or reassigned from any screen (lead, deal, `/tasks`, manual) gives exactly 1 notification; self-assignment gives 0; the dialogs no longer insert anything.
+- [ ] **Unchanged assignee:** updating title, status, due date or priority, or re-saving the same assignee, on a lead and on each of the 3 task tables gives **0 notifications and 0 emails** (notification count and `email_send_log` count checked before and after).
+- [ ] Unassigning (assignee set to null) gives only the INFO notification for the previous owner and no email.
+- [ ] Suppressed recipient: the in-app row is created, `email_status='suppressed'`, and one HQ notice (Option A).
+- [ ] `license_expiry_kind` is checked against every TEST licence row. KeepIT On-Premise, perpetual and replaced licences never produce licence-expiry rows.
 - [ ] Rerunning `notifications_daily_run()` twice gives the same count (idempotent).
 - [ ] An overdue task gives 1 in-app row and 1 email, and nothing new the next day. Changing the due date re-arms it.
 - [ ] Expiry scenarios, all with synthetic rows that are deleted afterwards:
