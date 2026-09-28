@@ -6739,6 +6739,12 @@ export type Database = {
       }
       access_level_rank: { Args: { _lvl: string }; Returns: number }
       active_hq_admin_count: { Args: never; Returns: number }
+      announcement_recipients: {
+        Args: { _announcement_id: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
       apply_role_template_to_user: {
         Args: { _overwrite_overrides?: boolean; _user_id: string }
         Returns: undefined
@@ -7056,6 +7062,10 @@ export type Database = {
       renewal_revenue_backfill: {
         Args: { _dry_run?: boolean; _renewal_id?: string }
         Returns: Json
+      }
+      report_integration_failure: {
+        Args: { _error_class: string; _source: string }
+        Returns: number
       }
       reset_user_to_role_template: {
         Args: { _user_id: string }
