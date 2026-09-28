@@ -6,6 +6,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Failure notification only (Notification System v1). Never throws, never changes the response.
+async function reportFailure(source: string, err: unknown) {
+  try {
+    const url = Deno.env.get("SUPABASE_URL");
+    const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !key) return;
+    const e = err as { code?: string; name?: string } | null;
+    const errorClass = String(e?.code || e?.name || "unknown");
+    await createClient(url, key).rpc("report_integration_failure", { _source: source, _error_class: errorClass });
+  } catch (_) { /* best effort */ }
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -98,6 +111,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("Ingest error:", err);
+    await reportFailure("ingest-lead", err);
     return new Response(
       JSON.stringify({ error: "Internal error", detail: String(err) }),
       {

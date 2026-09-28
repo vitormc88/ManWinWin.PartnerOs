@@ -90,18 +90,8 @@ export function AddDealTaskDialog({ open, onOpenChange, dealId, dealCompanyName,
         assigned_user_name: assignedName,
       },
       {
-        onSuccess: async () => {
-          // Only notify when assigning to someone other than the current user
-          if (assignedUserId && assignedUserId !== user?.id) {
-            await supabase.from("notifications").insert({
-              title: "New Task Assigned",
-              message: `You have been assigned a new task: "${title}" for deal ${dealCompanyName}`,
-              type: "task",
-              category: "task_assigned",
-              target_user_id: assignedUserId,
-              action_url: `/deals/${dealId}`,
-            });
-          }
+        onSuccess: () => {
+          // Assignment notifications are created server-side (task_notify trigger).
           toast.success("Task created");
           reset();
           onOpenChange(false);
