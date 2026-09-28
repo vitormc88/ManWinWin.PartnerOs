@@ -3927,10 +3927,17 @@ export type Database = {
           client_id: string | null
           created_at: string
           dedupe_key: string | null
+          email_message_id: string | null
+          email_status: string | null
+          entity_id: string | null
+          entity_type: string | null
+          event_type: string | null
           id: string
           is_read: boolean
           message: string
           partner_id: string | null
+          priority: string | null
+          read_at: string | null
           renewal_id: string | null
           target_role: string | null
           target_user_id: string | null
@@ -3943,10 +3950,17 @@ export type Database = {
           client_id?: string | null
           created_at?: string
           dedupe_key?: string | null
+          email_message_id?: string | null
+          email_status?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
           id?: string
           is_read?: boolean
           message: string
           partner_id?: string | null
+          priority?: string | null
+          read_at?: string | null
           renewal_id?: string | null
           target_role?: string | null
           target_user_id?: string | null
@@ -3959,10 +3973,17 @@ export type Database = {
           client_id?: string | null
           created_at?: string
           dedupe_key?: string | null
+          email_message_id?: string | null
+          email_status?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          event_type?: string | null
           id?: string
           is_read?: boolean
           message?: string
           partner_id?: string | null
+          priority?: string | null
+          read_at?: string | null
           renewal_id?: string | null
           target_role?: string | null
           target_user_id?: string | null
@@ -6914,6 +6935,38 @@ export type Database = {
         Returns: number
       }
       normalize_country: { Args: { _input: string }; Returns: string }
+      notify: {
+        Args: {
+          _category?: string
+          _client_id?: string
+          _dedupe_key: string
+          _email?: boolean
+          _entity_id: string
+          _entity_type: string
+          _event: string
+          _link: string
+          _message: string
+          _partner_id?: string
+          _priority: string
+          _recipient: string
+          _renewal_id?: string
+          _title: string
+          _type?: string
+        }
+        Returns: boolean
+      }
+      notify_hq_admins: {
+        Args: {
+          _dedupe_base: string
+          _email?: boolean
+          _event: string
+          _link: string
+          _message: string
+          _priority?: string
+          _title: string
+        }
+        Returns: number
+      }
       pipeline_stage_probability: { Args: { _stage: string }; Returns: number }
       preview_sharpspring_opportunity_sync: {
         Args: {
