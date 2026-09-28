@@ -11,7 +11,6 @@ import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   open: boolean;
