@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { addDays, format, formatDistanceToNow, isToday, isPast, nextMonday, parseISO, startOfDay } from "date-fns";
 import {
   Phone, Mail, Calendar as CalendarIcon, FileText, RefreshCcw, Users as UsersIcon,
@@ -1160,6 +1160,31 @@ export default function Tasks() {
       setFocusedId(visibleFlat[0]?.id ?? null);
     }
   }, [visibleFlat, focusedId]);
+
+  // Deep link: /tasks?task=manual:<id> focuses that exact task.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepTaskId = searchParams.get("task");
+  useEffect(() => {
+    if (!deepTaskId || isLoading) return;
+    const clearParam = () => {
+      const next = new URLSearchParams(searchParams);
+      next.delete("task");
+      setSearchParams(next, { replace: true });
+    };
+    const group = groups.find(([, items]) => items.some((t) => t.id === deepTaskId));
+    if (!group) {
+      toast.info("That task could not be found or is no longer available.");
+      clearParam();
+      return;
+    }
+    if (collapsed.has(group[0])) { toggle(group[0]); return; }
+    setFocusedId(deepTaskId);
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-task-id="${CSS.escape(deepTaskId)}"]`)
+        ?.scrollIntoView({ block: "center" });
+    });
+    clearParam();
+  }, [deepTaskId, isLoading, groups, collapsed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Global keyboard shortcuts (j/k navigation, c=new, /=search, ?=help, esc=clear)
   useEffect(() => {
