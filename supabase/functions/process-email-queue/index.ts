@@ -1,5 +1,9 @@
 import { sendLovableEmail } from 'npm:@lovable.dev/email-js'
-import { createClient } from 'npm:@supabase/supabase-js@2'
+import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
+
+// Loosely typed client: pgmq queue tables and custom RPCs are not in the
+// generated Database types, so strict generics would reject valid calls.
+type Db = SupabaseClient<any, any, any>
 
 const MAX_RETRIES = 5
 const DEFAULT_BATCH_SIZE = 10
@@ -54,7 +58,7 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
 
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
-  supabase: ReturnType<typeof createClient>,
+  supabase: Db,
   queue: string,
   msg: { msg_id: number; message: Record<string, unknown> },
   reason: string
