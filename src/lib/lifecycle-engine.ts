@@ -16,6 +16,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { requireDealProposalId } from "@/lib/proposal-source";
 import { buildPartnerCreatePayload } from "@/lib/partner-identity";
 import { applyPartnerScope, canonicalPartnerScope } from "@/lib/partner-query";
 import { buildRenewalInsertPayload } from "@/lib/renewal-payload";
@@ -259,6 +260,7 @@ export async function buildConversionPlan(
     .single();
   if (pErr) throw pErr;
   if (!proposal) throw new Error("Proposal not found");
+  const dealId = requireDealProposalId(proposal);
 
   const { data: items } = await supabase
     .from("proposal_items")
@@ -266,12 +268,14 @@ export async function buildConversionPlan(
     .eq("proposal_id", proposalId)
     .order("sort_order");
 
-  // Resolve partner from the deal/lead this proposal belongs to.
-  const { data: deal } = await supabase
+  // Resolve partner from the deal this proposal belongs to.
+  const { data: deal, error: dealError } = await supabase
     .from("deals")
     .select("partner_id, country, company_name, client_id")
-    .eq("id", proposal.lead_id)
+    .eq("id", dealId)
     .maybeSingle();
+  if (dealError) throw dealError;
+  if (!deal) throw new Error("The opportunity linked to this proposal no longer exists.");
   const partnerId = (deal?.partner_id as string) || null;
 
   // Client matching.
@@ -336,13 +340,16 @@ export async function convertProposalToCustomer(
     pricingRules,
   });
   const proposal = plan.proposal;
+  const dealId = requireDealProposalId(proposal);
 
-  // Resolve the partner id from the deal (proposals don't have it directly).
-  const { data: deal } = await supabase
+  // Resolve the partner id from the source deal.
+  const { data: deal, error: dealError } = await supabase
     .from("deals")
     .select("partner_id, country, client_id")
-    .eq("id", proposal.lead_id)
+    .eq("id", dealId)
     .maybeSingle();
+  if (dealError) throw dealError;
+  if (!deal) throw new Error("The opportunity linked to this proposal no longer exists.");
   const partnerId = (deal?.partner_id as string) || null;
 
   // ---- Step 1: Client ----
@@ -363,7 +370,7 @@ export async function convertProposalToCustomer(
       // Canonical partner relation only; legacy text column never written.
       ...buildPartnerCreatePayload(partnerId),
       source_proposal_id: proposalId,
-      source_deal_id: proposal.lead_id,
+      source_deal_id: dealId,
       status: "Active",
     };
     const { data, error } = await supabase.from("clients").insert(insert).select().single();
@@ -374,7 +381,7 @@ export async function convertProposalToCustomer(
 
   // Link the deal to the client (idempotent).
   if (!deal?.client_id || deal.client_id !== client.id) {
-    await supabase.from("deals").update({ client_id: client.id }).eq("id", proposal.lead_id);
+    await supabase.from("deals").update({ client_id: client.id }).eq("id", dealId);
   }
 
   await recordLifecycleEvent({
@@ -427,13 +434,13 @@ export async function convertProposalToCustomer(
       modules: licenseDefaults.modules,
       plan: licenseDefaults.plan,
     },
-    { dealId: proposal.lead_id, createRenewal: false, skipContractAutoCreate: true }, // engine creates contract+renewal below
+    { dealId, createRenewal: false, skipContractAutoCreate: true }, // engine creates contract+renewal below
   );
 
   // Stamp the license with proposal + deal lineage.
   await supabase
     .from("licenses")
-    .update({ proposal_id: proposalId, deal_id: proposal.lead_id })
+    .update({ proposal_id: proposalId, deal_id: dealId })
     .eq("id", license.id);
 
   await recordLifecycleEvent({
@@ -551,7 +558,7 @@ export async function convertProposalToCustomer(
 
   // ---- Audit trail on the deal ----
   await logSystemActivity(
-    proposal.lead_id,
+    dealId,
     "Converted to customer",
     `Proposal v${proposal.version} converted → client ${client.client_code}, license ${licenseDefaults.license_type}, contract auto-generated.`,
   );

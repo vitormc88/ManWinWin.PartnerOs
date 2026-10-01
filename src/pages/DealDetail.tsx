@@ -19,7 +19,7 @@ import { ArrowLeft, Building2, MapPin, User, Calendar, DollarSign, Phone, Mail, 
 import { DealTaskList } from "@/components/deals/DealTaskList";
 import { ProposalsTab } from "@/components/proposals/ProposalsTab";
 import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
-import { useLeadProposals } from "@/hooks/useProposals";
+import { useDealProposals } from "@/hooks/useProposals";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -57,7 +57,7 @@ export default function DealDetail() {
   const { data: dealTasks = [] } = useDealTasksEnhanced(id);
   const { data: activities = [] } = useDealActivities(id);
   const { data: partners = [] } = usePartners();
-  const { data: proposals = [] } = useLeadProposals(id);
+  const { data: proposals = [] } = useDealProposals(id);
   const queryClient = useQueryClient();
   const { user, profile } = useAuth();
   const currentUserName = profile?.full_name || profile?.email || user?.email || "";
@@ -567,7 +567,7 @@ export default function DealDetail() {
         {/* ───── Proposals ───── */}
         <TabsContent value="proposals" className="mt-4">
           <ProposalsTab
-            leadId={deal.id}
+            dealId={deal.id}
             defaultClientName={deal.company_name}
             defaultCountry={deal.country}
           />
@@ -578,7 +578,7 @@ export default function DealDetail() {
       <CreateProposalDialog
         open={showCreateProposal}
         onOpenChange={setShowCreateProposal}
-        leadId={deal.id}
+        dealId={deal.id}
         defaultClientName={deal.company_name}
         defaultCountry={deal.country}
       />

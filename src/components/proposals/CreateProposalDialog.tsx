@@ -25,6 +25,7 @@ import {
   isValidProposalSource,
   buildProposalSourcePayload,
   proposalStoragePrefix,
+  readProposalSource,
   type ProposalSource,
 } from "@/lib/proposal-source";
 import { buildRenewalLinkArgs, renewalProposalRefreshKeys } from "@/lib/renewal-proposal-link";
@@ -182,8 +183,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Deal-sourced proposals (Pipeline). Ignored when `proposalSource` is provided. */
-  leadId?: string;
-  /** Typed source identity. Defaults to the deal identified by `leadId`. */
+  dealId?: string;
+  /** Typed source identity. Defaults to the deal identified by `dealId`. */
   proposalSource?: ProposalSource | null;
   defaultClientName: string;
   defaultCountry?: string | null;
@@ -195,15 +196,14 @@ interface Props {
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null, readOnly = false }: Props) {
+export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null, readOnly = false }: Props) {
   const source = useMemo<ProposalSource>(
-    () => proposalSource ?? dealProposalSource(leadId),
-    [proposalSource, leadId],
+    () => proposalSource ?? dealProposalSource(dealId),
+    [proposalSource, dealId],
   );
   const isRenewalProposal = isRenewalSource(source);
   /** Existing customer, outside a renewal cycle (mid-cycle commercial action). */
   const isClientProposal = isClientSource(source);
-  const storagePrefix = proposalStoragePrefix(source);
 
   // Renewals P0 — the real commercial baseline behind this renewal.
   const { baseline: renewalBaseline, isLoading: baselineLoading } = useRenewalBaseline(
@@ -991,11 +991,11 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
   const computeNextVersion = async (): Promise<number> => {
     let q = supabase.from("proposals").select("version");
     if (isRenewalProposal) {
-      q = q.eq("renewal_id", source.renewal_id as string);
+      q = q.eq("renewal_id", source.renewal_id as string).eq("source_type", "renewal");
     } else if (isClientProposal) {
       q = q.eq("client_id", source.client_id as string).eq("source_type", "client");
     } else {
-      q = q.eq("lead_id", source.deal_id as string);
+      q = q.eq("deal_id", source.deal_id as string).eq("source_type", "deal");
     }
     const { data: siblings } = await q.order("version", { ascending: false }).limit(1);
     return (siblings?.[0]?.version || 0) + 1;
@@ -1328,12 +1328,7 @@ export function CreateProposalDialog({ open, onOpenChange, leadId, proposalSourc
 
       const { blob, fileName } = await build(prop as unknown as Proposal, docItems);
 
-      const anchorId =
-        (prop as any).client_id ||
-        (prop as any).deal_id ||
-        (prop as any).lead_id ||
-        (prop as any).renewal_id ||
-        storagePrefix;
+      const anchorId = proposalStoragePrefix(readProposalSource(prop) ?? source);
 
       const stored = await storeProposalDocument({
         proposalId: prop.id,

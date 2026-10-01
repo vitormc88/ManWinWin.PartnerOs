@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Proposal, ProposalItem, PricingRule } from "@/types/proposal";
+import { requireDealProposalId } from "@/lib/proposal-source";
 
-async function syncDealExpectedValue(leadId: string) {
+async function syncDealExpectedValue(dealId: string) {
   const { data: latest } = await supabase
     .from("proposals")
     .select("id,total_year_1,created_at")
-    .eq("lead_id", leadId)
+    .eq("source_type", "deal")
+    .eq("deal_id", dealId)
     .neq("status", "Lost")
     .order("created_at", { ascending: false })
     .limit(1)
@@ -15,7 +17,7 @@ async function syncDealExpectedValue(leadId: string) {
   await supabase
     .from("deals")
     .update({ expected_value: latest?.total_year_1 ?? null })
-    .eq("id", leadId);
+    .eq("id", dealId);
 }
 
 /** Pricing catalog (HQ-managed) */
@@ -51,21 +53,22 @@ export function useAllPricingRules() {
   });
 }
 
-/** Proposals belonging to a lead */
-export function useLeadProposals(leadId: string | undefined) {
+/** Proposals belonging to a pipeline opportunity. */
+export function useDealProposals(dealId: string | undefined) {
   return useQuery({
-    queryKey: ["proposals", "lead", leadId],
+    queryKey: ["proposals", "deal", dealId],
     queryFn: async () => {
-      if (!leadId) return [];
+      if (!dealId) return [];
       const { data, error } = await supabase
         .from("proposals")
         .select("*")
-        .eq("lead_id", leadId)
+        .eq("source_type", "deal")
+        .eq("deal_id", dealId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as Proposal[];
     },
-    enabled: !!leadId,
+    enabled: !!dealId,
   });
 }
 
@@ -107,10 +110,10 @@ export function useProposalItems(proposalId: string | undefined) {
 export function useDeleteProposal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, leadId }: { id: string; leadId: string }) => {
+    mutationFn: async ({ id, dealId }: { id: string; dealId: string }) => {
       const { error } = await supabase.from("proposals").delete().eq("id", id);
       if (error) throw error;
-      await syncDealExpectedValue(leadId);
+      await syncDealExpectedValue(dealId);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["proposals"] });
@@ -139,13 +142,17 @@ export function useDuplicateProposal() {
         .order("sort_order");
       if (e2) throw e2;
 
-      // 2. Compute next version
-      const { data: siblings } = await supabase
+      // 2. This action is exposed on the deal tab only; renewal proposals
+      // have a unique renewal anchor and cannot be duplicated as versions.
+      const dealId = requireDealProposalId(src);
+      const { data: siblings, error: versionError } = await supabase
         .from("proposals")
         .select("version")
-        .eq("lead_id", src.lead_id)
+        .eq("source_type", "deal")
+        .eq("deal_id", dealId)
         .order("version", { ascending: false })
         .limit(1);
+      if (versionError) throw versionError;
       const nextVersion = (siblings?.[0]?.version || src.version || 1) + 1;
 
       // 3. Insert new proposal (Draft, new version, parent reference)
@@ -175,7 +182,7 @@ export function useDuplicateProposal() {
         if (e4) throw e4;
       }
 
-      await syncDealExpectedValue(src.lead_id);
+      await syncDealExpectedValue(dealId);
 
       return created;
     },

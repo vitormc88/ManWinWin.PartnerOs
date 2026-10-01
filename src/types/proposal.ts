@@ -112,7 +112,13 @@ export interface ProposalItem {
 
 export interface Proposal {
   id: string;
-  lead_id: string;
+  /** Legacy deal reference. New reads use deal_id. */
+  lead_id: string | null;
+  source_type: "deal" | "renewal" | "client";
+  deal_id: string | null;
+  renewal_id: string | null;
+  client_id: string | null;
+  partner_uuid: string | null;
   parent_proposal_id: string | null;
   version: number;
   language: ProposalLanguage;

@@ -6,6 +6,7 @@ import {
   isValidProposalSource,
   proposalStoragePrefix,
   readProposalSource,
+  requireDealProposalId,
 } from "../proposal-source";
 
 const DEAL = "11111111-1111-4111-8111-111111111111";
@@ -47,5 +48,17 @@ describe("proposal source identity", () => {
       source_type: "renewal",
       renewal_id: RENEWAL,
     });
+  });
+
+  it("uses deal_id as the conversion anchor even if the legacy field differs", () => {
+    expect(requireDealProposalId({ source_type: "deal", deal_id: DEAL, lead_id: CLIENT })).toBe(DEAL);
+    expect(readProposalSource({ source_type: "deal", deal_id: DEAL, lead_id: CLIENT })?.deal_id).toBe(DEAL);
+  });
+
+  it("refuses to convert a client or renewal proposal as a pipeline deal", () => {
+    expect(() => requireDealProposalId({ source_type: "renewal", renewal_id: RENEWAL, client_id: CLIENT })).toThrow(/opportunity/);
+    expect(() => requireDealProposalId({ source_type: "client", client_id: CLIENT })).toThrow(/opportunity/);
+    expect(() => requireDealProposalId({ source_type: "deal", deal_id: null, lead_id: null })).toThrow(/opportunity/);
+    expect(() => requireDealProposalId({ source_type: "deal", deal_id: null, lead_id: DEAL })).toThrow(/opportunity/);
   });
 });

@@ -9,9 +9,9 @@
  *                 (mid-cycle upgrade, extra users, extra modules, services),
  *                 anchored on a REAL `clients.id`.
  *
- * A client UUID must NEVER be written into `proposals.lead_id`: that column is
- * a deal reference and is what the deal-scoped RLS policy authorizes against.
- * Client-sourced proposals are authorized against `clients.id` instead.
+ * `deal_id`, `renewal_id` and `client_id` are the canonical source anchors.
+ * `lead_id` remains populated for deal proposals only while older records and
+ * consumers still use it; RLS authorizes against `deal_id`.
  */
 
 import { isUuid } from "./partner-identity";
@@ -125,7 +125,7 @@ export function buildProposalSourcePayload(source: ProposalSource): {
     lead_id: isDeal ? clean(source.deal_id) : null,
     deal_id: isDeal ? clean(source.deal_id) : null,
     renewal_id: source.source_type === "renewal" ? clean(source.renewal_id) : null,
-    client_id: isDeal ? clean(source.client_id) : clean(source.client_id),
+    client_id: clean(source.client_id),
     partner_uuid: clean(source.partner_uuid),
     contract_id: clean(source.contract_id),
     license_id: clean(source.license_id),
@@ -160,4 +160,12 @@ export function readProposalSource(row: Record<string, any> | null | undefined):
     });
   }
   return dealProposalSource(row.deal_id ?? row.lead_id);
+}
+
+/** Conversion is only defined for proposals originating from a real deal. */
+export function requireDealProposalId(row: Record<string, unknown>): string {
+  if (row.source_type !== "deal" || !isUuid(row.deal_id)) {
+    throw new Error("Only a proposal linked to an opportunity can be converted to a customer.");
+  }
+  return String(row.deal_id).trim();
 }

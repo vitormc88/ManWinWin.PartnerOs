@@ -126,7 +126,7 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
       setStep(4);
       qc.invalidateQueries({ queryKey: ["proposals"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
-      qc.invalidateQueries({ queryKey: ["deal", plan.proposal.lead_id] });
+      qc.invalidateQueries({ queryKey: ["deal", plan.proposal.deal_id] });
       qc.invalidateQueries({ queryKey: ["lifecycle-events"] });
       qc.invalidateQueries({ queryKey: ["renewals"] });
       toast.success("Customer created from proposal");
