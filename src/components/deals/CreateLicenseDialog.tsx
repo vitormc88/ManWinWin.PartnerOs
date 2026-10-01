@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Sparkles, AlertTriangle } from "lucide-react";
-import { useLeadProposals, usePricingRules } from "@/hooks/useProposals";
+import { useDealProposals, usePricingRules } from "@/hooks/useProposals";
 import {
   createLicenseAndRenewal,
   computeRenewalDate,
@@ -39,7 +39,7 @@ export function CreateLicenseDialog({ open, onOpenChange, clientId, dealId, onSk
   const qc = useQueryClient();
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: proposals = [] } = useLeadProposals(dealId);
+  const { data: proposals = [] } = useDealProposals(dealId);
   const { data: pricingRules = [] } = usePricingRules();
 
   const candidateProposals = useMemo(

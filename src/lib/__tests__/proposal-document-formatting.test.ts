@@ -8,6 +8,11 @@ import type { Proposal, ProposalItem } from "@/types/proposal";
 const proposal = {
   id: "p1",
   lead_id: "l1",
+  source_type: "deal",
+  deal_id: "l1",
+  renewal_id: null,
+  client_id: null,
+  partner_uuid: null,
   parent_proposal_id: null,
   version: 2,
   language: "EN",

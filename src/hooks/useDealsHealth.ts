@@ -37,8 +37,9 @@ export function useDealsHealth(deals: Deal[]) {
           .in("deal_id", dealIds),
         supabase
           .from("proposals")
-          .select("lead_id, created_at, status")
-          .in("lead_id", dealIds)
+          .select("deal_id, created_at, status")
+          .eq("source_type", "deal")
+          .in("deal_id", dealIds)
           .order("created_at", { ascending: false }),
       ]);
 
@@ -71,8 +72,9 @@ export function useDealsHealth(deals: Deal[]) {
       const latestProposal = new Map<string, string>();
       const proposalSent = new Set<string>();
       (proposalsRes.data || []).forEach((p: any) => {
-        if (!latestProposal.has(p.lead_id)) latestProposal.set(p.lead_id, p.created_at);
-        if (isProposalSent(p)) proposalSent.add(p.lead_id);
+        if (!p.deal_id) return;
+        if (!latestProposal.has(p.deal_id)) latestProposal.set(p.deal_id, p.created_at);
+        if (isProposalSent(p)) proposalSent.add(p.deal_id);
       });
       (activitiesRes.data || []).forEach((a: any) => {
         if (a.activity_type === "proposal_sent") proposalSent.add(a.deal_id);

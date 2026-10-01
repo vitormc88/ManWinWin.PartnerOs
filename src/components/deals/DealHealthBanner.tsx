@@ -26,7 +26,7 @@ export function DealHealthBanner({ deal, onAssignOwner }: { deal: Deal; onAssign
       const [a, t, p] = await Promise.all([
         supabase.from("deal_activities").select("created_at, activity_type").eq("deal_id", deal.id).order("created_at", { ascending: false }).limit(1),
         supabase.from("deal_tasks").select("due_date, status, is_completed").eq("deal_id", deal.id),
-        supabase.from("proposals").select("created_at, status").eq("lead_id", deal.id).order("created_at", { ascending: false }).limit(1),
+        supabase.from("proposals").select("created_at, status").eq("source_type", "deal").eq("deal_id", deal.id).order("created_at", { ascending: false }).limit(1),
       ]);
       let nextFollowUp: string | null = null;
       let overdue = false;

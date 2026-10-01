@@ -1,5 +1,5 @@
 import { useDealActivities } from "@/hooks/useCommissions";
-import { useLeadProposals } from "@/hooks/useProposals";
+import { useDealProposals } from "@/hooks/useProposals";
 import { Badge } from "@/components/ui/badge";
 import { isMeaningfulCustomerInteraction, isSystemActivity, TAG_STYLE } from "@/lib/activity-log";
 import { MessageSquare, Tag as TagIcon, FileText, Activity } from "lucide-react";
@@ -20,7 +20,7 @@ function relTime(d: Date): string {
 
 export function RelationshipSummary({ dealId }: Props) {
   const { data: activities = [] } = useDealActivities(dealId);
-  const { data: proposals = [] } = useLeadProposals(dealId);
+  const { data: proposals = [] } = useDealProposals(dealId);
 
   const lastCustomer = activities.find((a: any) => isMeaningfulCustomerInteraction(a.activity_type));
   const lastMeaningful = activities.find((a: any) => !isSystemActivity(a.activity_type));

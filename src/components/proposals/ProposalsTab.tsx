@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil, FileSpreadsheet } from "lucide-react";
-import { useLeadProposals, useDeleteProposal, useDuplicateProposal, usePricingRules } from "@/hooks/useProposals";
+import { useDealProposals, useDeleteProposal, useDuplicateProposal, usePricingRules } from "@/hooks/useProposals";
 import { downloadProposalDocx } from "@/lib/proposal-docx";
 import { storeProposalDocument } from "@/lib/proposal-document-storage";
 
@@ -23,9 +23,10 @@ import {
   type BusinessConfig,
 } from "@/lib/proposal-business-engine";
 import type { Proposal, ProposalItem } from "@/types/proposal";
+import { dealProposalSource, proposalStoragePrefix, readProposalSource } from "@/lib/proposal-source";
 
 interface Props {
-  leadId: string;
+  dealId: string;
   defaultClientName: string;
   defaultCountry?: string | null;
 }
@@ -38,8 +39,8 @@ const statusVariant = (s: string): any => {
   return "outline";
 };
 
-export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Props) {
-  const { data: proposals = [], isLoading } = useLeadProposals(leadId);
+export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Props) {
+  const { data: proposals = [], isLoading } = useDealProposals(dealId);
   const { data: rules = [] } = usePricingRules();
   const del = useDeleteProposal();
   const dup = useDuplicateProposal();
@@ -140,12 +141,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
     try {
       const { blob, fileName } = await downloadBusinessProposalDocx({ proposal: res.prop as Proposal, cfg, rules });
       // Generation is non-mutating: store the document reference only.
-      const anchorId =
-        (res.prop as any).client_id ||
-        (res.prop as any).deal_id ||
-        (res.prop as any).lead_id ||
-        (res.prop as any).renewal_id ||
-        "unassigned";
+      const anchorId = proposalStoragePrefix(readProposalSource(res.prop) ?? dealProposalSource(dealId));
       const stored = await storeProposalDocument({
         proposalId: res.prop.id,
         anchorId,
@@ -350,7 +346,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
                       size="icon"
                       variant="ghost"
                       onClick={() => {
-                        if (confirm("Delete this proposal?")) del.mutate({ id: p.id, leadId });
+                        if (confirm("Delete this proposal?")) del.mutate({ id: p.id, dealId });
                       }}
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
                       title="Delete"
@@ -369,7 +365,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
       <CreateProposalDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        leadId={leadId}
+        dealId={dealId}
         defaultClientName={defaultClientName}
         defaultCountry={defaultCountry}
       />
@@ -379,7 +375,7 @@ export function ProposalsTab({ leadId, defaultClientName, defaultCountry }: Prop
         onOpenChange={(open) => {
           if (!open) setEditingProposal(null);
         }}
-        leadId={leadId}
+        dealId={dealId}
         defaultClientName={defaultClientName}
         defaultCountry={defaultCountry}
         editingProposal={editingProposal}

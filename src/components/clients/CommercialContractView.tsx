@@ -113,7 +113,7 @@ export function CommercialContractView({ contract, clientId }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("proposals")
-        .select("id, version, status, total_year_1, total_recurring, proposal_date, generated_at, lead_id")
+        .select("id, version, status, total_year_1, total_recurring, proposal_date, generated_at, source_type, deal_id, client_id")
         .eq("id", contract.source_proposal_id)
         .maybeSingle();
       if (error) throw error;
@@ -223,7 +223,12 @@ export function CommercialContractView({ contract, clientId }: Props) {
           {/* ═══ 2. PROPOSAL LINEAGE ═══ */}
           {proposal && (
             <button
-              onClick={() => window.open(`/leads/${proposal.lead_id}?tab=proposals`, "_blank")}
+              onClick={() => window.open(
+                proposal.source_type === "deal" && proposal.deal_id
+                  ? `/deals/${proposal.deal_id}`
+                  : `/clients/${proposal.client_id || clientId}`,
+                "_blank",
+              )}
               className="w-full flex items-center justify-between gap-3 rounded-md border border-border/60 bg-muted/20 px-3.5 py-2 hover:bg-muted/40 transition"
             >
               <div className="flex items-center gap-2 text-xs">
