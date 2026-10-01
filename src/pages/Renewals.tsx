@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,18 @@ export default function Renewals() {
   }), [enriched]);
 
   const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
+
+  // Deep link: /renewals?renewal=<id> opens that renewal's detail.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepRenewalId = searchParams.get("renewal");
+  useEffect(() => {
+    if (!deepRenewalId || isLoading || clientsLoading || partnersLoading) return;
+    if (enriched.some(r => r.id === deepRenewalId)) setSelectedId(deepRenewalId);
+    else toast.info("That renewal could not be found or is no longer available.");
+    const next = new URLSearchParams(searchParams);
+    next.delete("renewal");
+    setSearchParams(next, { replace: true });
+  }, [deepRenewalId, isLoading, clientsLoading, partnersLoading, enriched]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const detail = selectedId ? enriched.find(r => r.id === selectedId) : null;
   const isRealRenewal = !!detail && isOperationalRenewal(detail.id);
