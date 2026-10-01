@@ -53,6 +53,7 @@ import PricingSettings from "@/pages/PricingSettings";
 import Settings, { SettingsComingSoon } from "@/pages/Settings";
 import RolesPermissions from "@/pages/RolesPermissions";
 import NotFound from "@/pages/NotFound";
+import Unsubscribe from "@/pages/Unsubscribe";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             {/* Public certificate verification — minimized payload only */}
             <Route path="/verify/:reference" element={<CertificateVerify />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
 
             <Route element={<AuthScopeBoundary><ProtectedRoute><AppLayout /></ProtectedRoute></AuthScopeBoundary>}>
 
