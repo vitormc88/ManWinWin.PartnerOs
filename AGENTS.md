@@ -1,0 +1,1 @@
+- Notification emails are dispatched only from the database notify() via pg_net to the shared app-email sender, gated by the private.notification_settings kill switch and its per-environment functions_base_url (null = never sends). Why: one central path with instant rollback and strict TEST/PROD separation.
