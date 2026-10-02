@@ -291,7 +291,7 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {p.status === "Won" && (
+                    {["Ready", "Sent", "Accepted", "Won"].includes(p.status) && (
                       <Button
                         size="sm"
                         variant="default"
@@ -299,7 +299,7 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
                         title="Convert this proposal into a customer (client + license + contract + renewal)"
                         className="bg-success text-success-foreground hover:bg-success/90"
                       >
-                        <Sparkles className="h-3.5 w-3.5 mr-1" />Convert
+                        <Sparkles className="h-3.5 w-3.5 mr-1" />{p.status === "Won" ? "Convert" : "Award & Convert"}
                       </Button>
                     )}
                     {!isBusiness && (
