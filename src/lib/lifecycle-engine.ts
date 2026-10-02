@@ -17,15 +17,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { requireDealProposalId } from "@/lib/proposal-source";
-import { buildPartnerCreatePayload } from "@/lib/partner-identity";
 import { applyPartnerScope, canonicalPartnerScope } from "@/lib/partner-query";
-import { buildRenewalInsertPayload } from "@/lib/renewal-payload";
 import { canonicalizeLineTypeForWrite } from "@/lib/contract-line-payload";
 import type { ContractLineType } from "@/lib/contract-lines";
 import { logSystemActivity } from "@/lib/activity-log";
 import {
   proposalToLicenseDefaults,
-  createLicenseAndRenewal,
   type ProposalDefaults,
   type BusinessProposalMode,
 } from "@/lib/lifecycle";
@@ -295,7 +292,21 @@ export async function buildConversionPlan(
   }
 
   const licenseDefaults = proposalToLicenseDefaults(proposal, opts.awardedMode ?? undefined, opts.pricingRules);
-  const contractLines = buildContractLinesFromProposal(proposal, items || []);
+  let contractLines = buildContractLinesFromProposal(proposal, items || []);
+  // A compare proposal contains both commercial alternatives. Its generic item
+  // list is not an awarded-option breakdown, so use the selected option value.
+  if (proposal.proposal_mode === "compare_keepit_useit" && opts.awardedMode &&
+      Math.abs(contractLines.reduce((sum, line) => sum + line.amount, 0) -
+        licenseDefaults.initial_contract_value) > 0.01) {
+    contractLines = [{
+      line_type: "license",
+      description: `Business ${opts.awardedMode} — awarded Year 1`,
+      amount: licenseDefaults.initial_contract_value,
+      currency: "EUR",
+      billing_frequency: "Annual",
+      source: "proposal",
+    }];
+  }
   const contractTotal = contractLines.reduce((sum, l) => sum + (l.amount || 0), 0);
 
   return {
@@ -318,19 +329,12 @@ export async function buildConversionPlan(
     awardedMode: opts.awardedMode ?? null,
   };
 }
-
 // ---------------------------------------------------------------------------
 // Execute conversion
 // ---------------------------------------------------------------------------
 
-function buildClientCode(country: string | null, name: string): string {
-  const c = (country || "XX").slice(0, 2).toUpperCase();
-  const slug = name.replace(/[^A-Za-z0-9]/g, "").slice(0, 3).toUpperCase() || "CLI";
-  const suffix = Math.floor(Math.random() * 9000 + 1000);
-  return `${c}-${slug}-${suffix}`;
-}
-
-export async function convertProposalToCustomer(
+/** The only write path used by the deal and proposal conversion dialogs. */
+export async function awardProposalAtomically(
   proposalId: string,
   opts: ConvertOptions = {},
   pricingRules?: PricingRule[],
@@ -339,242 +343,48 @@ export async function convertProposalToCustomer(
     awardedMode: opts.awardedMode ?? null,
     pricingRules,
   });
-  const proposal = plan.proposal;
-  const dealId = requireDealProposalId(proposal);
-
-  // Resolve the partner id from the source deal.
-  const { data: deal, error: dealError } = await supabase
-    .from("deals")
-    .select("partner_id, country, client_id")
-    .eq("id", dealId)
-    .maybeSingle();
-  if (dealError) throw dealError;
-  if (!deal) throw new Error("The opportunity linked to this proposal no longer exists.");
-  const partnerId = (deal?.partner_id as string) || null;
-
-  // ---- Step 1: Client ----
-  let client: any;
-  let clientWasCreated = false;
-  if (opts.existingClientId) {
-    const { data } = await supabase.from("clients").select("*").eq("id", opts.existingClientId).single();
-    client = data;
-  } else if (plan.client.mode === "existing") {
-    client = plan.client.record;
-  } else {
-    const draft = plan.client.draft;
-    const insert: any = {
-      client_code: buildClientCode(draft.country, draft.commercial_name),
-      commercial_name: draft.commercial_name,
-      short_name: draft.commercial_name.slice(0, 32),
-      country: draft.country,
-      // Canonical partner relation only; legacy text column never written.
-      ...buildPartnerCreatePayload(partnerId),
-      source_proposal_id: proposalId,
-      source_deal_id: dealId,
-      status: "Active",
-    };
-    const { data, error } = await supabase.from("clients").insert(insert).select().single();
-    if (error) throw error;
-    client = data;
-    clientWasCreated = true;
+  const dealId = requireDealProposalId(plan.proposal);
+  if (plan.licenseDefaults.requires_award_choice) {
+    throw new Error("Choose the awarded KeepIT or UseIT option before conversion.");
   }
-
-  // Link the deal to the client (idempotent).
-  if (!deal?.client_id || deal.client_id !== client.id) {
-    await supabase.from("deals").update({ client_id: client.id }).eq("id", dealId);
+  const clientId = opts.existingClientId === undefined
+    ? (plan.client.mode === "existing" ? plan.client.record.id : null)
+    : opts.existingClientId;
+  const lines = opts.contractLines?.length ? opts.contractLines : plan.contractLines;
+  const rpc = await supabase.rpc("award_deal_proposal" as any, {
+    _deal_id: dealId,
+    _proposal_id: proposalId,
+    _existing_client_id: clientId,
+    _license: plan.licenseDefaults,
+    _contract_lines: lines,
+    _start_date: opts.contractStartDate || new Date().toISOString().slice(0, 10),
+    _notice_days: opts.noticePeriodDays ?? 90,
+  } as any);
+  if (rpc.error) throw rpc.error;
+  const ids = rpc.data as any;
+  if (!ids?.client_id || !ids?.license_id || !ids?.contract_id) {
+    throw new Error("The award completed without the expected customer records.");
   }
-
-  await recordLifecycleEvent({
-    clientId: client.id,
-    eventType: "proposal_won",
-    title: `Proposal v${proposal.version} won`,
-    description: `Conversion started for ${proposal.client_name}.`,
-    proposalId,
-    proposalNumber: `v${proposal.version}`,
-  });
-
-  await recordLifecycleEvent({
-    clientId: client.id,
-    eventType: clientWasCreated ? "client_created" : "client_linked",
-    title: clientWasCreated ? `Client ${client.client_code} created` : `Linked to existing client ${client.client_code}`,
-    proposalId,
-    proposalNumber: `v${proposal.version}`,
-  });
-
-  // ---- Step 2: License ----
-  // Re-use the existing licence engine for consistency with the rest of the app.
-  const contractStartDate = opts.contractStartDate || new Date().toISOString().slice(0, 10);
-  const licenseDefaults = plan.licenseDefaults;
-  if (licenseDefaults.requires_award_choice) {
-    throw new Error(
-      "This proposal compares KeepIT and UseIT. Please choose the awarded option before converting.",
-    );
+  const [clientRes, licenseRes, contractRes, linesRes, renewalRes] = await Promise.all([
+    supabase.from("clients").select("*").eq("id", ids.client_id).single(),
+    supabase.from("licenses").select("*").eq("id", ids.license_id).single(),
+    supabase.from("contracts").select("*").eq("id", ids.contract_id).single(),
+    supabase.from("contract_lines").select("*").eq("contract_id", ids.contract_id),
+    ids.renewal_id
+      ? supabase.from("renewals").select("*").eq("id", ids.renewal_id).single()
+      : Promise.resolve({ data: null, error: null }),
+  ]);
+  for (const result of [clientRes, licenseRes, contractRes, linesRes, renewalRes]) {
+    if (result.error) throw result.error;
   }
-
-  const { license, renewal } = await createLicenseAndRenewal(
-    {
-      client_id: client.id,
-      license_type: licenseDefaults.license_type,
-      license_model: licenseDefaults.license_model,
-      product_family: licenseDefaults.product_family,
-      proposal_mode: licenseDefaults.proposal_mode,
-      hosting: licenseDefaults.hosting,
-      contract_start_date: contractStartDate,
-      billing_frequency: licenseDefaults.billing_frequency,
-      initial_contract_value: licenseDefaults.initial_contract_value,
-      recurring_contract_value: licenseDefaults.recurring_contract_value,
-      num_users: licenseDefaults.num_users,
-      notes: licenseDefaults.notes,
-      source_proposal_id: proposalId,
-      included_backoffice: licenseDefaults.included_backoffice,
-      additional_backoffice: licenseDefaults.additional_backoffice,
-      included_web: licenseDefaults.included_web,
-      additional_web: licenseDefaults.additional_web,
-      api_enabled: licenseDefaults.api_enabled,
-      modules: licenseDefaults.modules,
-      plan: licenseDefaults.plan,
-    },
-    { dealId, createRenewal: false, skipContractAutoCreate: true }, // engine creates contract+renewal below
-  );
-
-  // Stamp the license with proposal + deal lineage.
-  await supabase
-    .from("licenses")
-    .update({ proposal_id: proposalId, deal_id: dealId })
-    .eq("id", license.id);
-
-  await recordLifecycleEvent({
-    clientId: client.id,
-    eventType: "license_created",
-    title: `License created (${licenseDefaults.license_type})`,
-    description: `Inherited from Proposal v${proposal.version}.`,
-    proposalId,
-    licenseId: license.id,
-    metadata: {
-      modules: licenseDefaults.modules,
-      users: licenseDefaults.num_users,
-    },
-  });
-
-  // ---- Step 3: Contract + Contract Lines ----
-  const noticeDays = opts.noticePeriodDays ?? 90;
-  const lines = opts.contractLines && opts.contractLines.length > 0 ? opts.contractLines : plan.contractLines;
-
-  // Contract end date follows the license end date (which the engine derived from billing freq).
-  const contractEndDate = license.license_end_date;
-
-  const { data: contract, error: cErr } = await (supabase as any)
-    .from("contracts")
-    .insert({
-      client_id: client.id,
-      source_proposal_id: proposalId,
-      is_imported: false,
-      contract_start_date: contractStartDate,
-      contract_end_date: contractEndDate,
-      notice_period_days: noticeDays,
-      currency: "EUR",
-      // legacy money columns intentionally left null — `calculated_total` is authoritative.
-      observations: `Auto-generated from Proposal v${proposal.version} (${proposal.client_name}).`,
-    })
-    .select()
-    .single();
-  if (cErr) throw cErr;
-
-  // Insert contract lines, then link the license to the contract.
-  if (lines.length > 0) {
-    const rows = lines.map((l) => ({
-      contract_id: contract.id,
-      client_id: client.id,
-      line_type: l.line_type,
-      description: l.description,
-      amount: l.amount,
-      currency: l.currency || "EUR",
-      billing_frequency: l.billing_frequency || null,
-      related_license_id: license.id,
-      related_module_id: l.related_module_id || null,
-      related_plugin_id: l.related_plugin_id || null,
-      source: l.source,
-      source_item_id: l.source_item_id || null,
-      notes: l.notes || null,
-      start_date: contractStartDate,
-      end_date: contractEndDate,
-    }));
-    const { data: insertedLines, error: lErr } = await (supabase as any)
-      .from("contract_lines")
-      .insert(rows)
-      .select();
-    if (lErr) throw lErr;
-
-    await supabase.from("licenses").update({ contract_id: contract.id }).eq("id", license.id);
-
-    await recordLifecycleEvent({
-      clientId: client.id,
-      eventType: "contract_created",
-      title: `Contract created with ${insertedLines.length} line${insertedLines.length === 1 ? "" : "s"}`,
-      description: `Auto-generated from Proposal v${proposal.version}.`,
-      proposalId,
-      contractId: contract.id,
-      licenseId: license.id,
-      metadata: { line_count: insertedLines.length },
-    });
-  }
-
-  // ---- Step 4: Renewal tied to the contract ----
-  let contractRenewal: any = null;
-  if (contractEndDate) {
-    const recurring = Number(licenseDefaults.recurring_contract_value || 0);
-    const { data: ren, error: rErr } = await (supabase as any)
-      .from("renewals")
-      .insert(buildRenewalInsertPayload({
-        client_id: client.id,
-        contract_id: contract.id,
-        license_id: license.id,
-        target_type: "contract",
-        target_id: contract.id,
-        renewal_type: "Contract Renewal",
-        renewal_date: contractEndDate,
-        notice_period_days: noticeDays,
-        alert_window_days: noticeDays,
-        estimated_value: recurring,
-        billing_frequency: licenseDefaults.billing_frequency,
-        status: "Upcoming",
-        source_proposal_id: proposalId,
-      }, { partner_uuid: partnerId }))
-      .select()
-      .single();
-    if (rErr) throw rErr;
-    contractRenewal = ren;
-
-    await recordLifecycleEvent({
-      clientId: client.id,
-      eventType: "renewal_scheduled",
-      title: `Renewal scheduled for ${contractEndDate}`,
-      description: `Reminder set ${noticeDays} days before renewal date.`,
-      proposalId,
-      contractId: contract.id,
-      renewalId: ren.id,
-    });
-  }
-
-  // ---- Audit trail on the deal ----
-  await logSystemActivity(
-    dealId,
-    "Converted to customer",
-    `Proposal v${proposal.version} converted → client ${client.client_code}, license ${licenseDefaults.license_type}, contract auto-generated.`,
-  );
-
-  // Fetch the inserted contract lines for the result payload.
-  const { data: lineRows } = await (supabase as any)
-    .from("contract_lines")
-    .select("*")
-    .eq("contract_id", contract.id);
-
+  void logSystemActivity(dealId, "Proposal awarded",
+    `Proposal v${plan.proposal.version} operationalized atomically.`).catch(() => {});
   return {
-    client,
-    clientWasCreated,
-    license,
-    contract,
-    contractLines: lineRows || [],
-    renewal: contractRenewal || renewal,
+    client: clientRes.data,
+    clientWasCreated: !clientId && !ids.already_awarded,
+    license: licenseRes.data,
+    contract: contractRes.data,
+    contractLines: linesRes.data || [],
+    renewal: renewalRes.data,
   };
 }

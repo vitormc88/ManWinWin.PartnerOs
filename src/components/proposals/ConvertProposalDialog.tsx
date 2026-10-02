@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   buildConversionPlan,
-  convertProposalToCustomer,
+  awardProposalAtomically,
   type ConversionPlan,
   type ContractLineDraft,
   type ConversionResult,
@@ -111,7 +111,7 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
     if (!proposalId || !plan) return;
     setSubmitting(true);
     try {
-      const res = await convertProposalToCustomer(
+      const res = await awardProposalAtomically(
         proposalId,
         {
           existingClientId: createNew ? null : selectedClientId,
@@ -125,6 +125,10 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
       setResult(res);
       setStep(4);
       qc.invalidateQueries({ queryKey: ["proposals"] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
+      qc.invalidateQueries({ queryKey: ["licenses"] });
+      qc.invalidateQueries({ queryKey: ["contracts"] });
+      qc.invalidateQueries({ queryKey: ["contract-lines"] });
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["deal", plan.proposal.deal_id] });
       qc.invalidateQueries({ queryKey: ["lifecycle-events"] });

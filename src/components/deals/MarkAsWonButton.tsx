@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,12 +12,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
-import { findOrCreateClientFromDeal } from "@/lib/lifecycle";
-import { logSystemActivity } from "@/lib/activity-log";
-import { CreateLicenseDialog } from "./CreateLicenseDialog";
-import { getStageProbability } from "@/data/pipeline-stages";
+import { useDealProposals } from "@/hooks/useProposals";
+import { ConvertProposalDialog } from "@/components/proposals/ConvertProposalDialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StageGateDialog } from "@/components/commercial/StageGateDialog";
 import { dealStageGate, type GateResult } from "@/lib/pipeline-gates";
 import { loadDealGateContext } from "@/lib/pipeline-gate-context";
@@ -28,18 +25,26 @@ interface Props {
 }
 
 export function MarkAsWonButton({ deal }: Props) {
-  const qc = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [licenseOpen, setLicenseOpen] = useState(false);
-  const [clientId, setClientId] = useState<string | null>(null);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const [gate, setGate] = useState<GateResult | null>(null);
   const logOverride = useLogStageGateOverride();
+  const { data: proposals = [] } = useDealProposals(deal?.id);
+  const eligible = useMemo(() => proposals.filter((p) =>
+    ["Ready", "Sent", "Accepted", "Won"].includes(p.status)), [proposals]);
 
   const isWon = deal?.stage === "Won";
 
   const requestWonFlow = async () => {
+    if (eligible.length === 0) {
+      toast.error("Create a proposal and mark it Ready before awarding this opportunity.");
+      return;
+    }
+    setSelectedProposalId((current) => current && eligible.some((p) => p.id === current)
+      ? current : eligible[0].id);
     if (isWon) {
       setConfirmOpen(true);
       return;
@@ -79,57 +84,10 @@ export function MarkAsWonButton({ deal }: Props) {
     }
   };
 
-  const runWonFlow = async () => {
-    setWorking(true);
-    try {
-      const wasAlreadyWon = isWon;
-
-      // 1. Update stage if not already Won (idempotent)
-      if (!wasAlreadyWon) {
-        const { error } = await supabase
-          .from("deals")
-          .update({
-            stage: "Won",
-            status: "Won",
-            probability: getStageProbability("Won"),
-            stage_entered_at: new Date().toISOString(),
-          })
-          .eq("id", deal.id);
-        if (error) throw error;
-        await logSystemActivity(deal.id, "Lead marked as Won", `Stage changed from ${deal.stage} to Won.`);
-      }
-
-      // 2. Find or create client
-      const { client, created } = await findOrCreateClientFromDeal(deal);
-      setClientId(client.id);
-
-      if (!created) {
-        toast.message("Existing client found — linked to current deal.", { description: client.commercial_name });
-      } else {
-        toast.success(`Client ${client.client_code} created`);
-      }
-
-      qc.invalidateQueries({ queryKey: ["deals"] });
-      qc.invalidateQueries({ queryKey: ["deal", deal.id] });
-      qc.invalidateQueries({ queryKey: ["clients"] });
-      qc.invalidateQueries({ queryKey: ["deal_activities", deal.id] });
-
-      // 3. Open license modal (only if no license exists yet for this client)
-      const { count } = await supabase
-        .from("licenses")
-        .select("id", { count: "exact", head: true })
-        .eq("client_id", client.id);
-      if ((count ?? 0) === 0) {
-        setLicenseOpen(true);
-      } else {
-        toast.message("Client already has a license — skipping license setup.");
-      }
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to mark as Won");
-    } finally {
-      setWorking(false);
-      setConfirmOpen(false);
-    }
+  const runWonFlow = () => {
+    if (!selectedProposalId) return;
+    setConfirmOpen(false);
+    setConvertOpen(true);
   };
 
   return (
@@ -142,23 +100,32 @@ export function MarkAsWonButton({ deal }: Props) {
         className={isWon ? "" : "bg-success text-success-foreground hover:bg-success/90"}
       >
         <Trophy className="h-3.5 w-3.5 mr-1.5" />
-        {isWon ? "Set Up License" : "Mark as Won"}
+        {isWon ? "Complete Award" : "Mark as Won"}
       </Button>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{isWon ? "Set up license for this won deal?" : "Mark this deal as Won?"}</AlertDialogTitle>
+            <AlertDialogTitle>Choose the awarded proposal</AlertDialogTitle>
             <AlertDialogDescription>
-              {isWon
-                ? "We'll open the license setup flow for the linked client."
-                : "This will move the deal to Won, create (or link) a client record, and let you set up the initial license and renewal."}
+              The deal becomes Won only after the selected proposal, client, license,
+              contract and renewal are saved together.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <Select value={selectedProposalId || ""} onValueChange={setSelectedProposalId}>
+            <SelectTrigger><SelectValue placeholder="Select proposal" /></SelectTrigger>
+            <SelectContent>
+              {eligible.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  v{p.version} · {p.status} · {Number(p.total_year_1 || 0).toLocaleString("en-GB")}€ Year 1
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={working}>Cancel</AlertDialogCancel>
-            <AlertDialogAction disabled={working} onClick={(e) => { e.preventDefault(); runWonFlow(); }}>
-              {isWon ? "Continue" : "Yes, mark as Won"}
+            <AlertDialogAction disabled={working || !selectedProposalId} onClick={(e) => { e.preventDefault(); runWonFlow(); }}>
+              Review conversion
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -176,17 +143,8 @@ export function MarkAsWonButton({ deal }: Props) {
         />
       )}
 
-      {clientId && (
-        <CreateLicenseDialog
-          open={licenseOpen}
-          onOpenChange={setLicenseOpen}
-          clientId={clientId}
-          dealId={deal.id}
-          onSkip={() => {
-            toast.message("License setup skipped — client will show 'Missing license configuration'.");
-          }}
-        />
-      )}
+      <ConvertProposalDialog open={convertOpen} onOpenChange={setConvertOpen}
+        proposalId={selectedProposalId} />
     </>
   );
 }
