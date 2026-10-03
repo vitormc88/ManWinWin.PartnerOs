@@ -1271,6 +1271,7 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
             qc.invalidateQueries({ queryKey: queryKey as any })
           )
         );
+        if ((saved as any)?.id) savedInSessionRef.current.add((saved as any).id);
         return saved as unknown as Proposal;
       }
 
@@ -1297,7 +1298,8 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
         qc.invalidateQueries({ queryKey: ["proposals"] });
         qc.invalidateQueries({ queryKey: ["proposals", "client", source.client_id] });
         qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] });
-        return prop as unknown as Proposal;
+        if (prop?.id) savedInSessionRef.current.add(prop.id);
+      return prop as unknown as Proposal;
       }
 
       const expectedValue = money.totalYear1;
@@ -1313,6 +1315,7 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
       qc.invalidateQueries({ queryKey: ["deal", source.deal_id] });
       qc.invalidateQueries({ queryKey: ["deals"] });
       qc.invalidateQueries({ queryKey: ["deal_activities", source.deal_id] });
+      if (prop?.id) savedInSessionRef.current.add(prop.id);
       return prop as unknown as Proposal;
 
     } catch (e: any) {
