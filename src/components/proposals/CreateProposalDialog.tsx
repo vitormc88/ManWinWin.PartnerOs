@@ -1291,13 +1291,17 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
       const { data: prop, error } = propResponse;
       if (error) throw error;
 
-      if (editingProposal?.id) {
+      // Non-Draft proposals have unchanged commercial terms here. Preserve
+      // their stored lines: separate DELETE/INSERT requests would temporarily
+      // remove the validated configuration and trip the commit-time guard.
+      const replaceItems = !editingProposal?.id || status === "Draft";
+      if (editingProposal?.id && replaceItems) {
         const { error: deleteItemsError } = await supabase.from("proposal_items").delete().eq("proposal_id", editingProposal.id);
         if (deleteItemsError) throw deleteItemsError;
       }
 
       const itemRows = buildItemRows(prop.id);
-      if (itemRows.length > 0) {
+      if (replaceItems && itemRows.length > 0) {
         const { error: itErr } = await supabase.from("proposal_items").insert(itemRows);
         if (itErr) throw itErr;
       }
