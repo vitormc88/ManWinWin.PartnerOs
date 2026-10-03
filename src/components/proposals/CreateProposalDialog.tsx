@@ -507,8 +507,14 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
 
   useEffect(() => {
     if (!open || !editingProposal) return;
-    if (hydratedForRef.current === editingProposal.id) return;
-    hydratedForRef.current = editingProposal.id;
+    // Hydrate once for the proposal, and once more when its saved lines arrive.
+    const hydrationKey = `${editingProposal.id}:${persistedItems?.length ? "items" : "none"}`;
+    if (hydratedForRef.current === hydrationKey) return;
+    const linesJustArrived = hydratedForRef.current === `${editingProposal.id}:none`;
+    hydratedForRef.current = hydrationKey;
+    if (linesJustArrived && persistedItems?.length) {
+      // Only the lines were missing — load them without resetting the step.
+    } else if (savedInSessionRef.current.has(editingProposal.id)) return;
     if (savedInSessionRef.current.has(editingProposal.id)) return;
     setStep(0);
     setLanguage(editingProposal.language);
