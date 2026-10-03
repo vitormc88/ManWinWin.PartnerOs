@@ -1038,23 +1038,10 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
       return null;
     }
     // Revalidation rule: never silently downgrade a validated/sent/accepted
-    // proposal. Unchanged terms keep the status; changed terms need consent.
+    // proposal. The decision compares the COMPLETE commercial configuration
+    // (fields + line items) once the payload is built, below.
     const existingRow = editingProposal?.id ? (editingProposal as any) : null;
-    const nextTerms = { total_year_1: money.totalYear1, total_recurring: money.totalRecurring };
-    let decision = decideProposalSave(
-      existingRow ? { status: existingRow.status, total_year_1: existingRow.total_year_1, total_recurring: existingRow.total_recurring } : null,
-      nextTerms,
-    );
-    if (decision.kind === "blocked") {
-      toast.error(decision.reason);
-      return null;
-    }
-    if (decision.kind === "confirm_revalidation") {
-      const ok = await askRevalidation(decision.from);
-      if (!ok) return null;
-      decision = { kind: "save", status: "Draft" };
-    }
-    const status = decision.status;
+    let status: string = existingRow?.status && existingRow.status !== "Draft" ? existingRow.status : "Draft";
     if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
     if (!isValidProposalSource(source)) {
@@ -1194,6 +1181,24 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
         clientName,
       };
       const payload = normalizeProposalPayload(insertData, normalizationCtx);
+
+      const nextItemRows = buildItemRows(null);
+      let decision = decideProposalSave(
+        existingRow ? { status: existingRow.status, proposal: existingRow, items: (persistedItems || []) as any[] } : null,
+        { proposal: payload, items: nextItemRows },
+      );
+      if (decision.kind === "blocked") {
+        toast.error(decision.reason);
+        return null;
+      }
+      if (decision.kind === "confirm_revalidation") {
+        const ok = await askRevalidation(decision.from);
+        if (!ok) return null;
+        decision = { kind: "save", status: "Draft" };
+      }
+      status = decision.status;
+      payload.status = status;
+
 
       if (status === "Ready") {
         if (planChange.applicable && planChange.blockers.length > 0) {
