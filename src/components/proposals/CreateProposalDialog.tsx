@@ -11,7 +11,8 @@ import { Trash2, Plus, ChevronLeft, ChevronRight, FileText, Download, AlertTrian
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { DIFFERENCE_CATEGORIES, workflowErrorMessages } from "@/lib/proposal-workflow";
+import { DIFFERENCE_CATEGORIES, workflowErrorMessages, decideProposalSave } from "@/lib/proposal-workflow";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { usePricingRules, useProposalItems } from "@/hooks/useProposals";
 import {
   hydrateRenewalProposal,
@@ -446,8 +447,21 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
   const planChangeAppliedRef = useRef<string | null>(null);
 
 
+  // A refetched copy of the same proposal (e.g. after Save/Validate) must not
+  // re-initialise the open wizard: that would jump back to step 1 and hide
+  // the validation messages and the user's entries.
+  const initialisedForRef = useRef<string | null>(null);
+  const savedInSessionRef = useRef<Set<string>>(new Set());
+  const hydratedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!open) { initialisedForRef.current = null; hydratedForRef.current = null; savedInSessionRef.current = new Set(); }
+  }, [open]);
   useEffect(() => {
     if (!open) return;
+    const key = editingProposal?.id || "new";
+    if (initialisedForRef.current === key) return;
+    if (editingProposal?.id && savedInSessionRef.current.has(editingProposal.id)) { initialisedForRef.current = key; return; }
+    initialisedForRef.current = key;
     generatedProposalIdRef.current = editingProposal?.id || null;
     setClientName(defaultClientName);
     setCountry(defaultCountry || "");
@@ -493,6 +507,14 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
 
   useEffect(() => {
     if (!open || !editingProposal) return;
+    // Hydrate once for the proposal, and once more when its saved lines arrive.
+    const hydrationKey = `${editingProposal.id}:${persistedItems?.length ? "items" : "none"}`;
+    if (hydratedForRef.current === hydrationKey) return;
+    const linesJustArrived = hydratedForRef.current === `${editingProposal.id}:none`;
+    hydratedForRef.current = hydrationKey;
+    if (linesJustArrived && persistedItems?.length) {
+      // Only the lines were missing — load them without resetting the step.
+    } else if (savedInSessionRef.current.has(editingProposal.id)) return;
     setStep(0);
     setLanguage(editingProposal.language);
     setPlan((editingProposal.plan ?? 1) as ProposalPlan);
@@ -1002,11 +1024,37 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     return (siblings?.[0]?.version || 0) + 1;
   };
 
-  const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
+  const [revalPrompt, setRevalPrompt] = useState<null | { from: string; resolve: (ok: boolean) => void }>(null);
+  const askRevalidation = (from: string) =>
+    new Promise<boolean>((resolve) => setRevalPrompt({ from, resolve }));
+  const answerRevalidation = (ok: boolean) => {
+    revalPrompt?.resolve(ok);
+    setRevalPrompt(null);
+  };
+
+  const persistProposal = async (_requested: "Draft" = "Draft"): Promise<Proposal | null> => {
     if (readOnly) {
       toast.error("This proposal is closed and can only be viewed.");
       return null;
     }
+    // Revalidation rule: never silently downgrade a validated/sent/accepted
+    // proposal. Unchanged terms keep the status; changed terms need consent.
+    const existingRow = editingProposal?.id ? (editingProposal as any) : null;
+    const nextTerms = { total_year_1: money.totalYear1, total_recurring: money.totalRecurring };
+    let decision = decideProposalSave(
+      existingRow ? { status: existingRow.status, total_year_1: existingRow.total_year_1, total_recurring: existingRow.total_recurring } : null,
+      nextTerms,
+    );
+    if (decision.kind === "blocked") {
+      toast.error(decision.reason);
+      return null;
+    }
+    if (decision.kind === "confirm_revalidation") {
+      const ok = await askRevalidation(decision.from);
+      if (!ok) return null;
+      decision = { kind: "save", status: "Draft" };
+    }
+    const status = decision.status;
     if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
     if (!isValidProposalSource(source)) {
@@ -1228,6 +1276,7 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
             qc.invalidateQueries({ queryKey: queryKey as any })
           )
         );
+        if ((saved as any)?.id) savedInSessionRef.current.add((saved as any).id);
         return saved as unknown as Proposal;
       }
 
@@ -1254,7 +1303,8 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
         qc.invalidateQueries({ queryKey: ["proposals"] });
         qc.invalidateQueries({ queryKey: ["proposals", "client", source.client_id] });
         qc.invalidateQueries({ queryKey: ["client_commercial_intelligence", source.client_id] });
-        return prop as unknown as Proposal;
+        if (prop?.id) savedInSessionRef.current.add(prop.id);
+      return prop as unknown as Proposal;
       }
 
       const expectedValue = money.totalYear1;
@@ -1270,6 +1320,7 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
       qc.invalidateQueries({ queryKey: ["deal", source.deal_id] });
       qc.invalidateQueries({ queryKey: ["deals"] });
       qc.invalidateQueries({ queryKey: ["deal_activities", source.deal_id] });
+      if (prop?.id) savedInSessionRef.current.add(prop.id);
       return prop as unknown as Proposal;
 
     } catch (e: any) {
@@ -1288,6 +1339,12 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     setValidationErrors([]);
     const prop = await persistProposal("Draft");
     if (!prop?.id) return;
+    if (prop.status && prop.status !== "Draft") {
+      // Unchanged commercial terms: the existing validation still stands.
+      toast.success(`Saved — proposal remains ${prop.status === "Ready" ? "Validated" : prop.status}`);
+      onOpenChange(false);
+      return;
+    }
     const { error } = await (supabase.rpc as any)("validate_proposal", {
       _proposal_id: prop.id,
       _difference_category: diffCategory || null,
@@ -1308,7 +1365,8 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
   const handleSaveDraft = async () => {
     const prop = await persistProposal("Draft");
     if (prop) {
-      toast.success(editingProposal ? "Proposal updated" : "Draft saved");
+      const kept = prop.status && prop.status !== "Draft";
+      toast.success(kept ? `Saved — status kept (${prop.status === "Ready" && isRenewalProposal ? "Validated" : prop.status})` : editingProposal ? "Proposal updated (Draft)" : "Draft saved");
       onOpenChange(false);
     }
   };
@@ -2381,6 +2439,20 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
         </>
         )}
       </DialogContent>
+      <AlertDialog open={!!revalPrompt} onOpenChange={(o) => { if (!o) answerRevalidation(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Commercial terms changed</AlertDialogTitle>
+            <AlertDialogDescription>
+              This proposal is currently {revalPrompt?.from === "Ready" ? "Validated" : revalPrompt?.from}. Saving the new values returns it to Draft, and it must be validated again before it can be sent or accepted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => answerRevalidation(false)}>Keep editing</AlertDialogCancel>
+            <AlertDialogAction onClick={() => answerRevalidation(true)}>Return to Draft and save</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -85,3 +85,44 @@ export function blockingIssues(r: CloseReadiness | null | undefined): CloseReadi
   if (!r) return [];
   return r.enforced ? r.issues : [];
 }
+
+/**
+ * Save rule for an existing proposal (Phase 2 revalidation rule):
+ * - Draft (or new): stays Draft.
+ * - Ready/Sent with unchanged commercial terms: keeps its status and evidence.
+ * - Ready/Sent with changed commercial terms: returns to Draft only after the
+ *   user explicitly confirms; it must then be validated again.
+ * - Accepted/Won/Lost/closed: commercial terms are frozen — create a new version.
+ */
+export type SaveDecision =
+  | { kind: "save"; status: string }
+  | { kind: "confirm_revalidation"; from: string }
+  | { kind: "blocked"; reason: string };
+
+const cents = (n: unknown) => Math.round(Number(n || 0) * 100);
+
+export function commercialTermsChanged(
+  before: { total_year_1?: number | null; total_recurring?: number | null; plan?: string | null } | null | undefined,
+  after: { total_year_1?: number | null; total_recurring?: number | null; plan?: string | null },
+): boolean {
+  if (!before) return true;
+  return cents(before.total_year_1) !== cents(after.total_year_1)
+    || cents(before.total_recurring) !== cents(after.total_recurring)
+    || (before.plan ?? null) !== (after.plan ?? null);
+}
+
+export function decideProposalSave(
+  existing: { status?: string | null; total_year_1?: number | null; total_recurring?: number | null; plan?: string | null } | null | undefined,
+  next: { total_year_1?: number | null; total_recurring?: number | null; plan?: string | null },
+  opts: { confirmedRevalidation?: boolean } = {},
+): SaveDecision {
+  const s = existing?.status || "Draft";
+  if (!existing || s === "Draft") return { kind: "save", status: "Draft" };
+  const changed = commercialTermsChanged(existing, next);
+  if (s === "Ready" || s === "Sent") {
+    if (!changed) return { kind: "save", status: s };
+    return opts.confirmedRevalidation ? { kind: "save", status: "Draft" } : { kind: "confirm_revalidation", from: s };
+  }
+  if (!changed) return { kind: "save", status: s };
+  return { kind: "blocked", reason: `This proposal is ${s}; its commercial terms can no longer be changed. Create a new version instead.` };
+}

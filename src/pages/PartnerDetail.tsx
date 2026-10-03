@@ -98,6 +98,8 @@ export default function PartnerDetail() {
   const [showCreateLead, setShowCreateLead] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
   void addNote;
+  // Declared before the early returns below (rules of hooks).
+  const [closeTarget, setCloseTarget] = useState<{ renewal: any; outcome: "renewed" | "lost"; clientName: string } | null>(null);
   const [showAddCert, setShowAddCert] = useState(false);
   const [certForm, setCertForm] = useState({ user_name: "", certification_name: "", certification_type: "Sales", certification_level: 1, issue_date: "", expiry_date: "", file_url: "" });
   const [showAddRenewal, setShowAddRenewal] = useState(false);
@@ -331,7 +333,6 @@ export default function PartnerDetail() {
   };
 
   // Renewed / Lost always go through the official close (same dialog as the Renewals module).
-  const [closeTarget, setCloseTarget] = useState<{ renewal: any; outcome: "renewed" | "lost"; clientName: string } | null>(null);
   const openOfficialClose = (renewal: any, outcome: "renewed" | "lost") => {
     const components: any[] = Array.isArray(renewal._components) && renewal._components.length ? renewal._components : [renewal];
     const real = components.find((c) => !(typeof c.id === "string" && c.id.startsWith("derived-")) && !c.closed_at);
