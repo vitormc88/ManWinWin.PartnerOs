@@ -515,7 +515,6 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     if (linesJustArrived && persistedItems?.length) {
       // Only the lines were missing — load them without resetting the step.
     } else if (savedInSessionRef.current.has(editingProposal.id)) return;
-    if (savedInSessionRef.current.has(editingProposal.id)) return;
     setStep(0);
     setLanguage(editingProposal.language);
     setPlan((editingProposal.plan ?? 1) as ProposalPlan);
