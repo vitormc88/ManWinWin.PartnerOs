@@ -101,19 +101,73 @@ export type SaveDecision =
 
 const cents = (n: unknown) => Math.round(Number(n || 0) * 100);
 
-export function commercialTermsChanged(
-  before: { total_year_1?: number | null; total_recurring?: number | null; plan?: string | null } | null | undefined,
-  after: { total_year_1?: number | null; total_recurring?: number | null; plan?: string | null },
-): boolean {
+/** Proposal fields that define the commercial terms (mirrors the server fingerprint). */
+export const COMMERCIAL_PROPOSAL_FIELDS = [
+  "plan", "hosting", "product_family", "license_model", "proposal_mode", "deployment", "business_config",
+  "include_requests_module", "web_users", "service_days", "service_hours", "implementation_type",
+  "discount_pct", "discount_scope", "software_discount_pct", "services_discount_pct",
+  "software_subtotal", "services_subtotal", "discount_amount", "total_year_1", "total_recurring",
+  "payment_terms", "renewal_change_mode", "source_plan", "target_plan", "target_product_family", "entitlements",
+  "implementation_source", "implementation_transition_rule_code", "implementation_hours",
+  "implementation_hourly_rate", "implementation_gross", "implementation_discount_amount", "implementation_net",
+] as const;
+
+const NUMERIC_PROPOSAL_FIELDS = new Set([
+  "service_days", "service_hours", "discount_pct", "software_discount_pct", "services_discount_pct",
+  "software_subtotal", "services_subtotal", "discount_amount", "total_year_1", "total_recurring",
+  "implementation_hours", "implementation_hourly_rate", "implementation_gross",
+  "implementation_discount_amount", "implementation_net",
+]);
+
+/** Line-item fields that define the commercial terms (ids, order and descriptions excluded). */
+const ITEM_FIELDS = [
+  "category", "item_code", "item_name", "qty", "unit_price", "frequency", "total", "is_override", "is_recurring",
+  "discount_type", "discount_value", "gross_total", "discount_amount", "net_total", "apply_discount_to_renewal",
+  "source_plan", "target_plan", "line_type", "change_kind", "gross_delta", "access_type", "total_licensed_qty",
+  "included_qty", "billable_qty", "implementation_source", "implementation_hours", "implementation_hourly_rate",
+] as const;
+const NUMERIC_ITEM_FIELDS = new Set([
+  "qty", "unit_price", "total", "discount_value", "gross_total", "discount_amount", "net_total", "gross_delta",
+  "implementation_hours", "implementation_hourly_rate",
+]);
+
+/** Stable JSON: object keys sorted so key order never counts as a change. */
+function stable(v: unknown): string {
+  if (v === undefined) return "null";
+  if (v === null || typeof v !== "object") return JSON.stringify(v);
+  if (Array.isArray(v)) return `[${v.map(stable).join(",")}]`;
+  const o = v as Record<string, unknown>;
+  return `{${Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${stable(o[k])}`).join(",")}}`;
+}
+
+export type CommercialConfig = { proposal: Record<string, unknown>; items: Array<Record<string, unknown>> };
+
+/** Canonical text of the complete commercial configuration (fields + line items, order-independent). */
+export function commercialFingerprint(cfg: CommercialConfig): string {
+  const p: Record<string, unknown> = {};
+  for (const f of COMMERCIAL_PROPOSAL_FIELDS) {
+    const v = cfg.proposal?.[f];
+    p[f] = NUMERIC_PROPOSAL_FIELDS.has(f) ? cents(v) : v ?? null;
+  }
+  const items = (cfg.items || []).map((it) => {
+    const o: Record<string, unknown> = {};
+    for (const f of ITEM_FIELDS) {
+      const v = it?.[f];
+      o[f] = NUMERIC_ITEM_FIELDS.has(f) ? (f === "qty" ? Math.round(Number(v || 0) * 10000) : cents(v)) : v ?? null;
+    }
+    return stable(o);
+  }).sort();
+  return stable({ p, items });
+}
+
+export function commercialTermsChanged(before: CommercialConfig | null | undefined, after: CommercialConfig): boolean {
   if (!before) return true;
-  return cents(before.total_year_1) !== cents(after.total_year_1)
-    || cents(before.total_recurring) !== cents(after.total_recurring)
-    || (before.plan ?? null) !== (after.plan ?? null);
+  return commercialFingerprint(before) !== commercialFingerprint(after);
 }
 
 export function decideProposalSave(
-  existing: { status?: string | null; total_year_1?: number | null; total_recurring?: number | null; plan?: string | null } | null | undefined,
-  next: { total_year_1?: number | null; total_recurring?: number | null; plan?: string | null },
+  existing: (CommercialConfig & { status?: string | null }) | null | undefined,
+  next: CommercialConfig,
   opts: { confirmedRevalidation?: boolean } = {},
 ): SaveDecision {
   const s = existing?.status || "Draft";
