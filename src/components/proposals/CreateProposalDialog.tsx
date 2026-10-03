@@ -452,8 +452,9 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
   // the validation messages and the user's entries.
   const initialisedForRef = useRef<string | null>(null);
   const savedInSessionRef = useRef<Set<string>>(new Set());
+  const hydratedForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!open) { initialisedForRef.current = null; savedInSessionRef.current = new Set(); }
+    if (!open) { initialisedForRef.current = null; hydratedForRef.current = null; savedInSessionRef.current = new Set(); }
   }, [open]);
   useEffect(() => {
     if (!open) return;
@@ -506,6 +507,9 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
 
   useEffect(() => {
     if (!open || !editingProposal) return;
+    if (hydratedForRef.current === editingProposal.id) return;
+    hydratedForRef.current = editingProposal.id;
+    if (savedInSessionRef.current.has(editingProposal.id)) return;
     setStep(0);
     setLanguage(editingProposal.language);
     setPlan((editingProposal.plan ?? 1) as ProposalPlan);
