@@ -11,7 +11,8 @@ import { Trash2, Plus, ChevronLeft, ChevronRight, FileText, Download, AlertTrian
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { DIFFERENCE_CATEGORIES, workflowErrorMessages } from "@/lib/proposal-workflow";
+import { DIFFERENCE_CATEGORIES, workflowErrorMessages, decideProposalSave } from "@/lib/proposal-workflow";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { usePricingRules, useProposalItems } from "@/hooks/useProposals";
 import {
   hydrateRenewalProposal,
@@ -1002,11 +1003,37 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     return (siblings?.[0]?.version || 0) + 1;
   };
 
-  const persistProposal = async (status: "Draft" | "Ready" = "Draft"): Promise<Proposal | null> => {
+  const [revalPrompt, setRevalPrompt] = useState<null | { from: string; resolve: (ok: boolean) => void }>(null);
+  const askRevalidation = (from: string) =>
+    new Promise<boolean>((resolve) => setRevalPrompt({ from, resolve }));
+  const answerRevalidation = (ok: boolean) => {
+    revalPrompt?.resolve(ok);
+    setRevalPrompt(null);
+  };
+
+  const persistProposal = async (_requested: "Draft" = "Draft"): Promise<Proposal | null> => {
     if (readOnly) {
       toast.error("This proposal is closed and can only be viewed.");
       return null;
     }
+    // Revalidation rule: never silently downgrade a validated/sent/accepted
+    // proposal. Unchanged terms keep the status; changed terms need consent.
+    const existingRow = editingProposal?.id ? (editingProposal as any) : null;
+    const nextTerms = { total_year_1: money.totalYear1, total_recurring: money.totalRecurring };
+    let decision = decideProposalSave(
+      existingRow ? { status: existingRow.status, total_year_1: existingRow.total_year_1, total_recurring: existingRow.total_recurring } : null,
+      nextTerms,
+    );
+    if (decision.kind === "blocked") {
+      toast.error(decision.reason);
+      return null;
+    }
+    if (decision.kind === "confirm_revalidation") {
+      const ok = await askRevalidation(decision.from);
+      if (!ok) return null;
+      decision = { kind: "save", status: "Draft" };
+    }
+    const status = decision.status;
     if (!assertBusinessPricingReady()) return null;
     if (!assertDiscountsAllowed()) return null;
     if (!isValidProposalSource(source)) {
@@ -1288,6 +1315,12 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     setValidationErrors([]);
     const prop = await persistProposal("Draft");
     if (!prop?.id) return;
+    if (prop.status && prop.status !== "Draft") {
+      // Unchanged commercial terms: the existing validation still stands.
+      toast.success(`Saved — proposal remains ${prop.status === "Ready" ? "Validated" : prop.status}`);
+      onOpenChange(false);
+      return;
+    }
     const { error } = await (supabase.rpc as any)("validate_proposal", {
       _proposal_id: prop.id,
       _difference_category: diffCategory || null,
@@ -1308,7 +1341,8 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
   const handleSaveDraft = async () => {
     const prop = await persistProposal("Draft");
     if (prop) {
-      toast.success(editingProposal ? "Proposal updated" : "Draft saved");
+      const kept = prop.status && prop.status !== "Draft";
+      toast.success(kept ? `Saved — status kept (${prop.status === "Ready" && isRenewalProposal ? "Validated" : prop.status})` : editingProposal ? "Proposal updated (Draft)" : "Draft saved");
       onOpenChange(false);
     }
   };
@@ -2381,6 +2415,20 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
         </>
         )}
       </DialogContent>
+      <AlertDialog open={!!revalPrompt} onOpenChange={(o) => { if (!o) answerRevalidation(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Commercial terms changed</AlertDialogTitle>
+            <AlertDialogDescription>
+              This proposal is currently {revalPrompt?.from === "Ready" ? "Validated" : revalPrompt?.from}. Saving the new values returns it to Draft, and it must be validated again before it can be sent or accepted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => answerRevalidation(false)}>Keep editing</AlertDialogCancel>
+            <AlertDialogAction onClick={() => answerRevalidation(true)}>Return to Draft and save</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
