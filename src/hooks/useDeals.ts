@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import { selectActiveCycle, isDerivedComponent } from "@/lib/renewal-active-cycle";
+import { selectActiveCycle, isDerivedComponent, suppressDerivedForClosedCycles, isPerpetualKeepIt } from "@/lib/renewal-active-cycle";
 
 export type Deal = Tables<"deals">;
 
@@ -104,12 +104,13 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
       // Derive from licenses
       const { data: licenses } = await supabase
         .from("licenses")
-        .select("id, client_id, license_end_date, sat_end_date, sat_active");
+        .select("id, client_id, license_end_date, sat_end_date, sat_active, product, edition");
 
       for (const l of licenses || []) {
         // Skip licenses already covered by an explicit operationalized renewal
         if (coveredLicenseIds.has(l.id)) continue;
-        if (l.license_end_date) {
+        // KeepIT is perpetual: only active S&AT/hosting creates an obligation.
+        if (l.license_end_date && !isPerpetualKeepIt(l as any)) {
           const key = `${l.client_id}::License`;
           if (!coveredKeys.has(key)) {
             const days = Math.ceil((new Date(l.license_end_date).getTime() - Date.now()) / 86400000);
@@ -180,7 +181,9 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
       }
 
       const consolidated: any[] = [];
-      for (const [clientId, components] of byClient.entries()) {
+      for (const [clientId, rawComponents] of byClient.entries()) {
+        // A closed cycle owns its period: derived rows for it never come back as pending.
+        const components = suppressDerivedForClosedCycles(rawComponents);
         // Active pipeline = the open operational cycle. Closed history and stale
         // derived rows must never shadow the cycle created by a closure.
         const selection = selectActiveCycle(components);

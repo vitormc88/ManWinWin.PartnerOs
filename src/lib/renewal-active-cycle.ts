@@ -89,3 +89,45 @@ export function selectActiveRenewalRecord<T extends RenewalComponentLike>(
   if (!selection || selection.isClosed) return null;
   return selection.primary;
 }
+
+/**
+ * Phase 2f — a closed cycle (Renewed or Lost) owns its period. A derived row
+ * (from contract / licence / S&AT dates) whose date falls within this window of
+ * a closed cycle's renewal date is the SAME period and must not reappear as
+ * pending. A derived date clearly after it is a genuine later period.
+ */
+export const CLOSED_CYCLE_WINDOW_DAYS = 45;
+
+const dayMs = 86400000;
+function toTime(d: string | null | undefined): number | null {
+  if (!d) return null;
+  const t = new Date(String(d).slice(0, 10) + "T00:00:00Z").getTime();
+  return isNaN(t) ? null : t;
+}
+
+export function isDateCoveredByClosedCycle(
+  date: string | null | undefined,
+  components: RenewalComponentLike[] | null | undefined,
+  windowDays = CLOSED_CYCLE_WINDOW_DAYS
+): boolean {
+  const t = toTime(date);
+  if (t === null) return false;
+  return (components || []).some((c) => {
+    if (isDerivedComponent(c) || !isClosedComponent(c)) return false;
+    const ct = toTime(c.renewal_date);
+    // Anything on or before the closed period (plus the window) is that period or older.
+    return ct !== null && t <= ct + windowDays * dayMs;
+  });
+}
+
+/** Drops derived rows that belong to an already-closed cycle's period. */
+export function suppressDerivedForClosedCycles<T extends RenewalComponentLike>(components: T[]): T[] {
+  return components.filter((c) => !isDerivedComponent(c) || !isDateCoveredByClosedCycle(c.renewal_date, components));
+}
+
+/** KeepIT is perpetual: a licence end date alone never creates a renewal obligation. */
+export function isPerpetualKeepIt(l: { product?: string | null; edition?: string | null; license_type?: string | null } | null | undefined): boolean {
+  if (!l) return false;
+  const txt = `${l.product || ""} ${l.edition || ""} ${l.license_type || ""}`.toLowerCase();
+  return txt.includes("keepit") && !txt.includes("saas");
+}

@@ -16,6 +16,7 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CreateProposalDialog } from "./CreateProposalDialog";
 import { ConvertProposalDialog } from "./ConvertProposalDialog";
+import { ProposalWorkflowActions } from "./ProposalWorkflowActions";
 import { Sparkles } from "lucide-react";
 import {
   computeBusinessOptions,
@@ -63,15 +64,10 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
     return { prop, items };
   };
 
-  /** Bump status to Ready when a document is generated from a Draft. */
+  /** Kept as a no-op: document generation no longer promotes status. */
   const promoteToReadyIfDraft = async (prop: any) => {
-    if (prop?.status === "Draft") {
-      await supabase
-        .from("proposals")
-        .update({ status: "Ready", generated_at: new Date().toISOString() })
-        .eq("id", prop.id);
-      qc.invalidateQueries({ queryKey: ["proposals"] });
-    }
+    // Phase 2: downloads never change status. Use "Mark Ready" (validate_proposal).
+    void prop;
   };
 
   const reDownload = async (id: string) => {
@@ -291,6 +287,7 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
                     </div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ProposalWorkflowActions proposal={p} />
                     {["Ready", "Sent", "Accepted", "Won"].includes(p.status) && (
                       <Button
                         size="sm"
