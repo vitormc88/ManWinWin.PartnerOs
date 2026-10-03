@@ -3,14 +3,16 @@
 ## Exact deployment order (PROD, executed by Codex against qownzparzsaeoyccgwuj only)
 
 0. Pre-checks (read-only, abort if any fails):
-   - Phase 1a and Phase 1b are applied in PROD. The PROD migration versions reported for them are
-     `20261002233245` and `20261003113639` (two versions; the source note does not state which
-     is 1a and which 1b; by date `20261002233245` is expected to be 1a). Check both:
-     `select version from supabase_migrations.schema_migrations where version in ('20261002233245','20261003113639');` → 2 rows.
-   - Phase 1a functional check (independent of the version mapping): the client-count triggers
-     on `public.clients` are statement-level with transition tables and the function contains no
-     unbounded UPDATE:
-     `select tgname, pg_get_triggerdef(oid) from pg_trigger where tgrelid='public.clients'::regclass and not tgisinternal and pg_get_triggerdef(oid) ilike '%REFERENCING%';` → INSERT/UPDATE/DELETE triggers present.
+   - Phase 1a and Phase 1b are applied in PROD. Confirmed PROD migration records (all three must
+     be present):
+     - Phase 1a: `20261002222357` — phase1a_scope_partner_client_counts_20261002
+     - Phase 1b: `20261002233245` — phase1b_hq_direct_revenue
+     - Phase 1b privileges: `20261003113639` — phase1b_trigger_rpc_privileges
+     Check:
+     `select version from supabase_migrations.schema_migrations where version in ('20261002222357','20261002233245','20261003113639');` → 3 rows.
+   - Do not infer the Phase 1a implementation from dates, and do not require TEST's trigger
+     implementation to replace PROD's. PROD's Phase 1a is accepted as-is once its migration
+     record is present; no functional trigger check is required.
    - Phase 1b: `public.close_renewal` is the 1b version (it becomes `close_renewal_core`), and
      `clients.is_hq_direct` exists.
    - None of the files below is already recorded in schema_migrations.
