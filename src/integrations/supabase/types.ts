@@ -5167,6 +5167,7 @@ export type Database = {
           business_config: Json | null
           client_id: string | null
           client_name: string
+          commercial_fingerprint: string | null
           contract_id: string | null
           country: string | null
           created_at: string
@@ -5248,6 +5249,7 @@ export type Database = {
           business_config?: Json | null
           client_id?: string | null
           client_name: string
+          commercial_fingerprint?: string | null
           contract_id?: string | null
           country?: string | null
           created_at?: string
@@ -5329,6 +5331,7 @@ export type Database = {
           business_config?: Json | null
           client_id?: string | null
           client_name?: string
+          commercial_fingerprint?: string | null
           contract_id?: string | null
           country?: string | null
           created_at?: string
