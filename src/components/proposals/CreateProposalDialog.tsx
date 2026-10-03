@@ -447,8 +447,20 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
   const planChangeAppliedRef = useRef<string | null>(null);
 
 
+  // A refetched copy of the same proposal (e.g. after Save/Validate) must not
+  // re-initialise the open wizard: that would jump back to step 1 and hide
+  // the validation messages and the user's entries.
+  const initialisedForRef = useRef<string | null>(null);
+  const savedInSessionRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!open) { initialisedForRef.current = null; savedInSessionRef.current = new Set(); }
+  }, [open]);
   useEffect(() => {
     if (!open) return;
+    const key = editingProposal?.id || "new";
+    if (initialisedForRef.current === key) return;
+    if (editingProposal?.id && savedInSessionRef.current.has(editingProposal.id)) { initialisedForRef.current = key; return; }
+    initialisedForRef.current = key;
     generatedProposalIdRef.current = editingProposal?.id || null;
     setClientName(defaultClientName);
     setCountry(defaultCountry || "");
