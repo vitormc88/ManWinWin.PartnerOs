@@ -7,10 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, ChevronLeft, ChevronRight, FileText, Download, AlertTriangle, Loader2 } from "lucide-react";
+import { Trash2, Plus, ChevronLeft, ChevronRight, FileText, Download, AlertTriangle, Loader2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { DIFFERENCE_CATEGORIES, workflowErrorMessages } from "@/lib/proposal-workflow";
 import { usePricingRules, useProposalItems } from "@/hooks/useProposals";
 import {
   hydrateRenewalProposal,
@@ -1279,6 +1280,31 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     }
   };
 
+  const [diffCategory, setDiffCategory] = useState<string>("");
+  const [diffNote, setDiffNote] = useState<string>("");
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  /** Save Draft, then validate in the database (renewal "Validate / Mark Ready"). */
+  const handleSaveAndValidate = async () => {
+    setValidationErrors([]);
+    const prop = await persistProposal("Draft");
+    if (!prop?.id) return;
+    const { error } = await (supabase.rpc as any)("validate_proposal", {
+      _proposal_id: prop.id,
+      _difference_category: diffCategory || null,
+      _difference_note: diffNote || null,
+    });
+    qc.invalidateQueries({ queryKey: ["proposals"] });
+    qc.invalidateQueries({ queryKey: ["proposal"] });
+    if (error) {
+      const msgs = workflowErrorMessages(error);
+      setValidationErrors(msgs);
+      toast.error("Saved as Draft — validation failed", { description: msgs.join(" · ") });
+      return;
+    }
+    toast.success("Proposal saved and validated");
+    onOpenChange(false);
+  };
+
   const handleSaveDraft = async () => {
     const prop = await persistProposal("Draft");
     if (prop) {
@@ -2244,9 +2270,25 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
                       <p key={w} className="text-xs text-muted-foreground mt-1">{w}</p>
                     ))}
                   </div>
+                  <div className="mx-auto max-w-md text-left space-y-2">
+                    <p className="text-xs text-muted-foreground">If the recurring value differs from the current contract, explain why (required to validate).</p>
+                    <select className="w-full h-9 rounded-md border bg-background px-2 text-sm" value={diffCategory} onChange={(e) => setDiffCategory(e.target.value)} aria-label="Difference category">
+                      <option value="">No difference / not applicable</option>
+                      {DIFFERENCE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                    {diffCategory && (
+                      <textarea className="w-full rounded-md border bg-background px-2 py-1 text-sm" rows={2} placeholder={diffCategory === "other" ? "Note (required)" : "Note (optional)"} value={diffNote} onChange={(e) => setDiffNote(e.target.value)} />
+                    )}
+                    {validationErrors.length > 0 && (
+                      <div role="alert" className="text-sm text-destructive space-y-1">{validationErrors.map((m) => <p key={m}>{m}</p>)}</div>
+                    )}
+                  </div>
                   <div className="flex justify-center gap-2 flex-wrap">
-                    <Button variant="outline" onClick={handleSaveDraft} disabled={writeBlocked}>Save as Draft</Button>
-                    <Button onClick={handleGenerateRenewalDocx} disabled={saving || !renewalReadiness.ok}>
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={writeBlocked}>Save Draft</Button>
+                    <Button onClick={handleSaveAndValidate} disabled={writeBlocked || saving || !renewalReadiness.ok}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />Validate / Mark Ready
+                    </Button>
+                    <Button variant="outline" onClick={handleGenerateRenewalDocx} disabled={saving || !renewalReadiness.ok}>
                       <Download className="h-4 w-4 mr-2" />Generate Renewal DOCX
 
                     </Button>

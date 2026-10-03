@@ -48,6 +48,8 @@ import { PartnerBriefCard } from "@/components/partners/PartnerBriefCard";
 import { buildPartnerBrief } from "@/lib/partner-brief";
 import { PartnerDiscountLimitsCard } from "@/components/partners/PartnerDiscountLimitsCard";
 import { useAuth } from "@/contexts/AuthContext";
+import { CloseRenewalDialog } from "@/components/renewals/CloseRenewalDialog";
+import { XCircle } from "lucide-react";
 
 
 
@@ -328,25 +330,16 @@ export default function PartnerDetail() {
     return outcome.id;
   };
 
-  const updateRenewalStatus = async (renewal: any, status: string) => {
-    try {
-      // Consolidated commercial renewal — apply status to every underlying component
-      // (License / Contract / S&AT), materializing derived rows as needed.
-      const components: any[] = Array.isArray(renewal._components) && renewal._components.length
-        ? renewal._components
-        : [renewal];
-      for (const c of components) {
-        let targetId: string | null = c.id;
-        if (typeof targetId === "string" && targetId.startsWith("derived-")) {
-          targetId = await materializeDerivedRenewal(c);
-        }
-        if (!targetId) continue;
-        const { error } = await supabase.from("renewals").update({ status }).eq("id", targetId);
-        if (error) throw error;
-      }
-      toast.success(status === "Completed" ? "Renewal marked completed" : "Renewal updated");
-      queryClient.invalidateQueries({ queryKey: ["renewals"] });
-    } catch (e: any) { toast.error(e?.message || "Failed to update renewal"); }
+  // Renewed / Lost always go through the official close (same dialog as the Renewals module).
+  const [closeTarget, setCloseTarget] = useState<{ renewal: any; outcome: "renewed" | "lost"; clientName: string } | null>(null);
+  const openOfficialClose = (renewal: any, outcome: "renewed" | "lost") => {
+    const components: any[] = Array.isArray(renewal._components) && renewal._components.length ? renewal._components : [renewal];
+    const real = components.find((c) => !(typeof c.id === "string" && c.id.startsWith("derived-")) && !c.closed_at);
+    if (!real) {
+      toast.info("This renewal comes from contract dates only. Open it in Renewals to make it operational before closing.");
+      return;
+    }
+    setCloseTarget({ renewal: real, outcome, clientName: renewal._client?.commercial_name || "" });
   };
 
   const openEditRenewal = (r: any) => {
@@ -920,8 +913,8 @@ export default function PartnerDetail() {
                               <TableCell className="py-2.5">
                                 <div className="flex items-center justify-end gap-1">
                                   {!isCompleted && isUrgent && (
-                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => updateRenewalStatus(r, "Completed")}>
-                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark Completed
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => openOfficialClose(r, "renewed")}>
+                                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Close renewal
                                     </Button>
                                   )}
                                   <DropdownMenu>
@@ -930,9 +923,14 @@ export default function PartnerDetail() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-44">
                                       {!isCompleted && (
-                                        <DropdownMenuItem onClick={() => updateRenewalStatus(r, "Completed")}>
-                                          <CheckCircle2 className="h-4 w-4 mr-2" /> Mark Completed
-                                        </DropdownMenuItem>
+                                        <>
+                                          <DropdownMenuItem onClick={() => openOfficialClose(r, "renewed")}>
+                                            <CheckCircle2 className="h-4 w-4 mr-2" /> Close as Renewed
+                                          </DropdownMenuItem>
+                                          <DropdownMenuItem onClick={() => openOfficialClose(r, "lost")}>
+                                            <XCircle className="h-4 w-4 mr-2" /> Close as Lost
+                                          </DropdownMenuItem>
+                                        </>
                                       )}
                                       {!isDerived && (
                                         <DropdownMenuItem onClick={() => openEditRenewal(r)}>
@@ -1296,8 +1294,6 @@ export default function PartnerDetail() {
                   <SelectItem value="Due Soon">Due Soon</SelectItem>
                   <SelectItem value="Overdue">Overdue</SelectItem>
                   <SelectItem value="In Progress">In Progress</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                  <SelectItem value="Lost">Lost</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1320,6 +1316,15 @@ export default function PartnerDetail() {
         lockedPartnerId={partner.id}
         lockedPartnerName={partner.company_name}
       />
+      {closeTarget && (
+        <CloseRenewalDialog
+          open={!!closeTarget}
+          onOpenChange={(o) => { if (!o) { setCloseTarget(null); queryClient.invalidateQueries({ queryKey: ["renewals"] }); } }}
+          renewal={closeTarget.renewal}
+          clientName={closeTarget.clientName}
+          initialOutcome={closeTarget.outcome}
+        />
+      )}
     </div>
   );
 }

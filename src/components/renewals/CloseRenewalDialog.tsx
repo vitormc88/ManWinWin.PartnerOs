@@ -11,6 +11,8 @@ import { formatDateOnly } from "@/lib/date-format";
 import { useToast } from "@/hooks/use-toast";
 import { evaluateRenewalClosure, type RenewalOutcome } from "@/lib/renewal-closing";
 import { useCloseRenewal, useRenewalClosureContext, closeRenewalErrorMessage } from "@/hooks/useRenewalClosing";
+import { useRenewalCloseReadiness } from "@/hooks/useProposalWorkflow";
+import { blockingIssues } from "@/lib/proposal-workflow";
 
 const LOSS_REASONS = [
   "Price / budget",
@@ -27,11 +29,13 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   renewal: any;
   clientName?: string | null;
+  initialOutcome?: RenewalOutcome;
 }
 
-export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName }: Props) {
+export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName, initialOutcome }: Props) {
   const { toast } = useToast();
-  const [outcome, setOutcome] = useState<RenewalOutcome>("renewed");
+  const [outcome, setOutcome] = useState<RenewalOutcome>(initialOutcome ?? "renewed");
+  const { data: readiness } = useRenewalCloseReadiness(renewal?.id, outcome, open);
   const [effectiveDate, setEffectiveDate] = useState<string>(
     renewal?.renewal_date ? String(renewal.renewal_date).slice(0, 10) : ""
   );
@@ -213,6 +217,17 @@ export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName }: 
               ))}
             </div>
           )}
+
+          {(readiness?.issues?.length ?? 0) > 0 && (
+            <div className={`rounded-lg border p-3 space-y-1 ${readiness!.enforced ? "border-destructive/30 bg-destructive/5" : "border-warning/30 bg-warning/10"}`}>
+              {readiness!.issues.map((i) => (
+                <p key={i.code} className={`flex items-start gap-2 text-xs ${readiness!.enforced ? "text-destructive" : "text-warning-foreground"}`}>
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {i.message}
+                </p>
+              ))}
+              {!readiness!.enforced && <p className="text-[11px] text-muted-foreground">These checks will block closing once enforcement is switched on.</p>}
+            </div>
+          )}
         </div>
 
         <DialogFooter>
@@ -221,7 +236,7 @@ export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName }: 
           </Button>
           <Button
             onClick={submit}
-            disabled={!preview.ok || isLoading || closeRenewal.isPending}
+            disabled={!preview.ok || isLoading || closeRenewal.isPending || blockingIssues(readiness).length > 0}
             variant={outcome === "lost" ? "destructive" : "default"}
           >
             {closeRenewal.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

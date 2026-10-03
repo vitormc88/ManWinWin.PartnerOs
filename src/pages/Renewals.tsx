@@ -24,6 +24,8 @@ import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { useAssignableUsers, useAllProfilesMap } from "@/hooks/useAssignableUsers";
 import { useReassignRenewalOwner } from "@/hooks/useRenewalOwner";
 import { getOwnerDisplay } from "@/lib/owner-display";
+import { ProposalWorkflowActions } from "@/components/proposals/ProposalWorkflowActions";
+import { proposalStatusLabel } from "@/lib/proposal-workflow";
 
 const statusColors: Record<string, string> = {
   "Upcoming": "bg-info/10 text-info border-info/20",
@@ -305,7 +307,7 @@ export default function Renewals() {
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-sm text-muted-foreground">
                         {renewalProposal
-                          ? `Version ${renewalProposal.version} · ${renewalProposal.status}`
+                          ? `Version ${renewalProposal.version} · ${proposalStatusLabel(renewalProposal.status, true)}`
                           : "No proposal created yet."}
                       </p>
                       <Button size="sm" variant={detailClosed ? "outline" : "default"} onClick={() => setShowProposal(true)} className="gap-2">
@@ -313,6 +315,9 @@ export default function Renewals() {
                         {renewalProposal ? "Open Renewal Proposal" : "Create Renewal Proposal"}
                       </Button>
                     </div>
+                  )}
+                  {isRealRenewal && renewalProposal && !detailClosed && (
+                    <div className="flex flex-wrap justify-end gap-2"><ProposalWorkflowActions proposal={renewalProposal} /></div>
                   )}
                 </div>
 

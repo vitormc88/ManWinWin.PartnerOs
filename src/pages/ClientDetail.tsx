@@ -30,7 +30,7 @@ import { ClientLifecycleTimeline } from "@/components/clients/ClientLifecycleTim
 import { ClientOverviewPanel } from "@/components/clients/ClientOverviewPanel";
 import { ClientSummaryBar } from "@/components/clients/ClientSummaryBar";
 import { resolveRenewal, assessRenewalRisk } from "@/lib/renewal-resolution";
-import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
+import { selectActiveRenewalRecord, isDateCoveredByClosedCycle, isPerpetualKeepIt } from "@/lib/renewal-active-cycle";
 
 import { RENEWAL_IDENTITY_SELECT } from "@/lib/renewal-identity";
 import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
@@ -219,10 +219,12 @@ export default function ClientDetail() {
     () =>
       resolveRenewal({
         renewals: activeRenewalRecord ? [activeRenewalRecord as any] : [],
-        contract: primaryContract,
-        license: primaryLicense,
+        // Fallback dates for an already-closed period (or a perpetual KeepIT) never become pending.
+        contract: primaryContract && !isDateCoveredByClosedCycle((primaryContract as any).contract_end_date, clientRenewals as any[]) ? primaryContract : null,
+        license: primaryLicense && !(isPerpetualKeepIt(primaryLicense as any) && !(primaryLicense as any).sat_active)
+          && !isDateCoveredByClosedCycle((primaryLicense as any).license_end_date, clientRenewals as any[]) ? primaryLicense : null,
       }),
-    [activeRenewalRecord, primaryContract, primaryLicense]
+    [activeRenewalRecord, primaryContract, primaryLicense, clientRenewals]
   );
 
   const renewalEndDate = resolvedRenewal.date;

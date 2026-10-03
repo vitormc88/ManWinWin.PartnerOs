@@ -1628,6 +1628,7 @@ export type Database = {
           has_custom_routine: boolean
           id: string
           installation_location: string | null
+          is_hq_direct: boolean
           is_inactive: boolean
           is_premium: boolean
           license_type: string | null
@@ -1669,6 +1670,7 @@ export type Database = {
           has_custom_routine?: boolean
           id?: string
           installation_location?: string | null
+          is_hq_direct?: boolean
           is_inactive?: boolean
           is_premium?: boolean
           license_type?: string | null
@@ -1710,6 +1712,7 @@ export type Database = {
           has_custom_routine?: boolean
           id?: string
           installation_location?: string | null
+          is_hq_direct?: boolean
           is_inactive?: boolean
           is_premium?: boolean
           license_type?: string | null
@@ -5074,6 +5077,47 @@ export type Database = {
           },
         ]
       }
+      proposal_status_events: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          from_status: string | null
+          id: string
+          proposal_id: string
+          to_status: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          from_status?: string | null
+          id?: string
+          proposal_id: string
+          to_status: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          from_status?: string | null
+          id?: string
+          proposal_id?: string
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_status_events_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_templates: {
         Row: {
           active: boolean
@@ -5112,6 +5156,13 @@ export type Database = {
       }
       proposals: {
         Row: {
+          acceptance_date: string | null
+          acceptance_evidence_type: string | null
+          acceptance_file_path: string | null
+          acceptance_notes: string | null
+          acceptance_reference: string | null
+          accepted_at: string | null
+          accepted_by: string | null
           backoffice_work_hours: number | null
           business_config: Json | null
           client_id: string | null
@@ -5122,6 +5173,8 @@ export type Database = {
           created_by: string | null
           deal_id: string | null
           deployment: string | null
+          difference_category: string | null
+          difference_note: string | null
           discount_amount: number | null
           discount_pct: number | null
           discount_scope: string
@@ -5160,6 +5213,9 @@ export type Database = {
           proposal_mode: string | null
           renewal_change_mode: string
           renewal_id: string | null
+          sent_at: string | null
+          sent_by: string | null
+          sent_method: string | null
           service_days: number | null
           service_hours: number | null
           services_discount_pct: number
@@ -5174,11 +5230,20 @@ export type Database = {
           total_recurring: number | null
           total_year_1: number | null
           updated_at: string
+          validated_at: string | null
+          validated_by: string | null
           validity_days: number
           version: number
           web_users: number
         }
         Insert: {
+          acceptance_date?: string | null
+          acceptance_evidence_type?: string | null
+          acceptance_file_path?: string | null
+          acceptance_notes?: string | null
+          acceptance_reference?: string | null
+          accepted_at?: string | null
+          accepted_by?: string | null
           backoffice_work_hours?: number | null
           business_config?: Json | null
           client_id?: string | null
@@ -5189,6 +5254,8 @@ export type Database = {
           created_by?: string | null
           deal_id?: string | null
           deployment?: string | null
+          difference_category?: string | null
+          difference_note?: string | null
           discount_amount?: number | null
           discount_pct?: number | null
           discount_scope?: string
@@ -5227,6 +5294,9 @@ export type Database = {
           proposal_mode?: string | null
           renewal_change_mode?: string
           renewal_id?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          sent_method?: string | null
           service_days?: number | null
           service_hours?: number | null
           services_discount_pct?: number
@@ -5241,11 +5311,20 @@ export type Database = {
           total_recurring?: number | null
           total_year_1?: number | null
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
           validity_days?: number
           version?: number
           web_users?: number
         }
         Update: {
+          acceptance_date?: string | null
+          acceptance_evidence_type?: string | null
+          acceptance_file_path?: string | null
+          acceptance_notes?: string | null
+          acceptance_reference?: string | null
+          accepted_at?: string | null
+          accepted_by?: string | null
           backoffice_work_hours?: number | null
           business_config?: Json | null
           client_id?: string | null
@@ -5256,6 +5335,8 @@ export type Database = {
           created_by?: string | null
           deal_id?: string | null
           deployment?: string | null
+          difference_category?: string | null
+          difference_note?: string | null
           discount_amount?: number | null
           discount_pct?: number | null
           discount_scope?: string
@@ -5294,6 +5375,9 @@ export type Database = {
           proposal_mode?: string | null
           renewal_change_mode?: string
           renewal_id?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          sent_method?: string | null
           service_days?: number | null
           service_hours?: number | null
           services_discount_pct?: number
@@ -5308,6 +5392,8 @@ export type Database = {
           total_recurring?: number | null
           total_year_1?: number | null
           updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
           validity_days?: number
           version?: number
           web_users?: number
@@ -6611,6 +6697,27 @@ export type Database = {
             referencedRelation: "clients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
         ]
       }
     }
@@ -6749,6 +6856,18 @@ export type Database = {
         Args: { _overwrite_overrides?: boolean; _user_id: string }
         Returns: undefined
       }
+      award_deal_proposal: {
+        Args: {
+          _contract_lines: Json
+          _deal_id: string
+          _existing_client_id: string
+          _license: Json
+          _notice_days?: number
+          _proposal_id: string
+          _start_date?: string
+        }
+        Returns: Json
+      }
       can_access_academy: { Args: never; Returns: boolean }
       can_access_client_proposal: {
         Args: { _client_id: string; _partner_uuid: string }
@@ -6815,6 +6934,18 @@ export type Database = {
         Returns: boolean
       }
       close_renewal: {
+        Args: {
+          _closing_notes?: string
+          _effective_date?: string
+          _loss_reason?: string
+          _next_renewal_date?: string
+          _outcome: string
+          _proposal_id?: string
+          _renewal_id: string
+        }
+        Returns: Json
+      }
+      close_renewal_core: {
         Args: {
           _closing_notes?: string
           _effective_date?: string
@@ -6908,6 +7039,10 @@ export type Database = {
       }
       get_user_partner_id: { Args: { _user_id: string }; Returns: string }
       has_academy_analytics_perm: { Args: { _perm: string }; Returns: boolean }
+      has_module_access: {
+        Args: { _module_key: string; _required_level: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6938,6 +7073,15 @@ export type Database = {
           _renewal_id: string
         }
         Returns: string
+      }
+      mark_proposal_sent: {
+        Args: {
+          _method?: string
+          _note?: string
+          _proposal_id: string
+          _sent_date?: string
+        }
+        Returns: Json
       }
       move_to_dlq: {
         Args: {
@@ -6993,6 +7137,10 @@ export type Database = {
         }
         Returns: Json
       }
+      proposal_contract_recurring: {
+        Args: { _proposal_id: string }
+        Returns: number
+      }
       read_email_batch: {
         Args: { batch_size: number; queue_name: string; vt: number }
         Returns: {
@@ -7009,6 +7157,21 @@ export type Database = {
         Args: { _contract_id: string }
         Returns: number
       }
+      record_proposal_acceptance: {
+        Args: {
+          _acceptance_date: string
+          _evidence_type: string
+          _file_path?: string
+          _notes?: string
+          _proposal_id: string
+          _reference?: string
+        }
+        Returns: Json
+      }
+      refresh_partner_revenue_totals: {
+        Args: { p_partner_id: string }
+        Returns: undefined
+      }
       renewal_automation_run:
         | { Args: { _batch_size?: number; _lead_days?: number }; Returns: Json }
         | {
@@ -7022,6 +7185,10 @@ export type Database = {
       renewal_canonical_partner: {
         Args: { _renewal_id: string }
         Returns: string
+      }
+      renewal_close_readiness: {
+        Args: { _outcome?: string; _proposal_id?: string; _renewal_id: string }
+        Returns: Json
       }
       renewal_line_class: {
         Args: {
@@ -7101,6 +7268,14 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
         }
         Returns: number
+      }
+      validate_proposal: {
+        Args: {
+          _difference_category?: string
+          _difference_note?: string
+          _proposal_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {
