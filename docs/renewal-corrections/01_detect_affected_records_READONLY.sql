@@ -38,9 +38,25 @@ SELECT r.client_id, r.id, r.status, r.outcome, r.closed_at, r.renewal_date
 FROM renewals r
 WHERE r.status = 'Won' OR (r.closed_at IS NOT NULL AND r.status NOT IN ('Completed','Cancelled','Lost'));
 
--- Revenue: renewals with more than one recurring revenue row (imported historical rows
--- are listed for review, never treated as duplicates automatically).
+-- R1. Renewals with more than one closure recurring row.
 SELECT source_reference, count(*) FROM client_revenue_history
 WHERE source_reference LIKE 'renewal:%:recurring' GROUP BY 1 HAVING count(*) > 1;
+
+-- R2. Historical (imported / LIC / manual) revenue next to closure revenue, per client.
+--     Listed for review only; never treated as duplicates automatically.
+--     same_period_overlap = a non-closure row dated within the closed cycle's year.
+SELECT h.client_id, h.source, h.source_reference, h.revenue_type, h.amount, h.revenue_date,
+       h.renewal_id, h.contract_id,
+       (h.source = 'renewal_closure') AS is_closure_row,
+       EXISTS (
+         SELECT 1 FROM client_revenue_history z
+         JOIN renewals r ON r.id = z.renewal_id
+         WHERE z.client_id = h.client_id AND z.source = 'renewal_closure' AND h.source <> 'renewal_closure'
+           AND h.revenue_date >= coalesce(r.renewal_effective_date, r.renewal_date)
+           AND h.revenue_date <  coalesce(r.renewal_effective_date, r.renewal_date) + interval '1 year'
+       ) AS same_period_overlap
+FROM client_revenue_history h
+WHERE h.client_id IN (SELECT client_id FROM client_revenue_history WHERE source = 'renewal_closure')
+ORDER BY h.client_id, h.revenue_date, h.source;
 
 ROLLBACK;
