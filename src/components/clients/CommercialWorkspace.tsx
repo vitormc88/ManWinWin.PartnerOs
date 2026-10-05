@@ -67,12 +67,13 @@ interface Props {
   plugins?: any[];
   readOnly?: boolean;
   /** Canonical commercial intelligence payload (never recomputed here). */
+  intelligenceState?: "loading" | "error" | "ready";
   intelligence?: { recurring_arr?: number | null; year1_value?: number | null; active_contract_count?: number | null } | null;
   /** Canonical renewal resolution shared with the Overview tab. */
   resolvedRenewal?: ResolvedRenewal | null;
 }
 
-export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [], readOnly = false, intelligence = null, resolvedRenewal = null }: Props) {
+export function CommercialWorkspace({ client, primaryLicense, primaryContract, modules, notes, plugins = [], readOnly = false, intelligence = null, intelligenceState = "ready", resolvedRenewal = null }: Props) {
   const { canEdit: canEditModule } = useModuleAccess();
   const canCreateTask = canEditModule("tasks");
   const createNote = useCreateNote();
@@ -268,7 +269,12 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       currency: lic.currency || (primaryContract as any)?.currency || null,
       satActive: Boolean(lic.sat_active) || null,
       apiAccess: Boolean(lic.api_access) || null,
-      arr: Number(lic.recurring_contract_value ?? 0) || null,
+      // Current ARR comes from the canonical intelligence (structured contract
+      // lines); the licence's stored value is only a fallback.
+      arr:
+        (intelligenceState === "ready" && intelligence?.recurring_arr != null
+          ? Number(intelligence.recurring_arr) || null
+          : null) ?? (Number(lic.recurring_contract_value ?? 0) || null),
       year1: Number(lic.initial_contract_value ?? 0) || null,
     };
 
@@ -407,8 +413,9 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         resolvedRenewal: effectiveRenewal,
         contractStatus: (primaryContract as any)?.status || null,
         activeContractCount: primaryContract ? 1 : 0,
-      }),
-    [intelligence, effectiveRenewal, primaryContract],
+        intelligenceState,
+      }, formatMoney),
+    [intelligence, intelligenceState, effectiveRenewal, primaryContract],
   );
 
   // Real opportunities only: persisted proposals that are still commercially open.
@@ -502,9 +509,9 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           <Metric label="Contract status" value={summary.contractLabel} />
           <Metric
             label="Recurring revenue (ARR)"
-            value={summary.arrZeroWithYear1 ? "No recurring revenue recorded" : `${formatMoney(summary.arr)} / year`}
+            value={summary.arrLabel}
           />
-          <Metric label="Year 1 value" value={formatMoney(summary.year1)} />
+          <Metric label="Year 1 value" value={summary.year1Label} />
           <Metric
             label="Next renewal"
             value={summary.renewalLabel}

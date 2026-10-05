@@ -31,9 +31,22 @@ export interface CommercialSummaryInput {
   resolvedRenewal?: ResolvedRenewal | null;
   contractStatus?: string | null;
   activeContractCount?: number | null;
+  /**
+   * State of the intelligence query. "loading"/"error" must never be shown as
+   * a genuine €0 ARR or "No contract on record". Defaults to "ready".
+   */
+  intelligenceState?: IntelligenceState;
 }
 
+export type IntelligenceState = "loading" | "error" | "ready";
+
 export interface CommercialSummary {
+  /** "ready" only when the money values below are real. */
+  state: IntelligenceState;
+  /** Display text for ARR (handles loading / unavailable / genuine zero). */
+  arrLabel: string;
+  /** Display text for Year 1. */
+  year1Label: string;
   contractLabel: string;
   arr: number;
   year1: number;
@@ -45,21 +58,32 @@ export interface CommercialSummary {
   urgency: RenewalUrgency;
 }
 
-export function buildCommercialSummary(input: CommercialSummaryInput): CommercialSummary {
+export function buildCommercialSummary(
+  input: CommercialSummaryInput,
+  formatMoney: (n: number) => string = (n) => `€${n.toLocaleString("en-US")}`,
+): CommercialSummary {
+  const state: IntelligenceState = input.intelligenceState ?? "ready";
   const arr = Number(input.intelligence?.recurring_arr ?? 0) || 0;
   const year1 = Number(input.intelligence?.year1_value ?? 0) || 0;
   const renewalDate = input.resolvedRenewal?.date ?? null;
   const daysTo = input.resolvedRenewal?.daysTo ?? null;
   const count = Number(input.activeContractCount ?? 0) || 0;
+  const pending = state === "loading" ? "Loading…" : state === "error" ? "Unavailable — retry later" : null;
   const contractLabel =
     (input.contractStatus && input.contractStatus.trim()) ||
-    (count > 0 ? `${count} active` : "No contract on record");
+    (count > 0 ? `${count} active` : pending ?? "No contract on record");
+  const arrLabel =
+    pending ?? (arr === 0 && year1 > 0 ? "No recurring revenue recorded" : `${formatMoney(arr)} / year`);
+  const year1Label = pending ?? formatMoney(year1);
 
   return {
+    state,
+    arrLabel,
+    year1Label,
     contractLabel,
     arr,
     year1,
-    arrZeroWithYear1: arr === 0 && year1 > 0,
+    arrZeroWithYear1: state === "ready" && arr === 0 && year1 > 0,
     renewalDate,
     renewalLabel: renewalDate ? formatDateOnly(renewalDate) : "Not scheduled",
     daysTo,

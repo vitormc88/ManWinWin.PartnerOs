@@ -37,7 +37,7 @@ import { createRenewalWorkflowRow } from "@/lib/renewal-workflow";
 import { ContactsCard } from "@/components/clients/ContactsCard";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { CommercialWorkspace } from "@/components/clients/CommercialWorkspace";
-import { useClientCommercialIntelligence } from "@/hooks/useClientCommercialIntelligence";
+import { useClientCommercialIntelligence, intelligenceStateOf } from "@/hooks/useClientCommercialIntelligence";
 import {
   type LicenseFamily,
   VARIANT_OPTIONS,
@@ -190,7 +190,9 @@ export default function ClientDetail() {
   // Derived data
   const primaryLicense = validLicenses[0] || null;
   const primaryContract = contracts[0] || null;
-  const { data: intelligence } = useClientCommercialIntelligence(id);
+  const intelligenceQuery = useClientCommercialIntelligence(id);
+  const intelligence = intelligenceQuery.data;
+  const intelligenceState = intelligenceStateOf(intelligenceQuery);
 
   // Operational renewal cycles for this client. The ACTIVE cycle (never a closed
   // one) drives the "next renewal" date across the client screens.
@@ -1023,6 +1025,8 @@ export default function ClientDetail() {
               clientId={client.id}
               client={client}
               intelligence={intelligence as any}
+            intelligenceState={intelligenceState}
+              intelligenceState={intelligenceState}
               resolvedRenewal={resolvedRenewal}
               contractStatus={(primaryContract as any)?.status || null}
               hasLicense={hasValidLicense}
@@ -1045,6 +1049,7 @@ export default function ClientDetail() {
             notes={notes}
             readOnly={!canWrite}
             intelligence={intelligence as any}
+            intelligenceState={intelligenceState}
             resolvedRenewal={resolvedRenewal}
           />
         </TabsContent>
