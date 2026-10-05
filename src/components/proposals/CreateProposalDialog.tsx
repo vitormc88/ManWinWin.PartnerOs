@@ -93,6 +93,8 @@ import { LICENSE_ORDER } from "@/lib/license-evolution";
 import { useRenewalBaseline } from "@/hooks/useRenewalBaseline";
 import { RenewalBaselinePanel } from "./RenewalBaselinePanel";
 import { buildBaselineProposalItems, baselineLicenseModel } from "@/lib/renewal-baseline";
+import { RenewalPriceAdjustmentPanel } from "./RenewalPriceAdjustmentPanel";
+import { unambiguousPaymentTerms } from "@/lib/renewal-price-adjustment";
 import { downloadRenewalProposalDocx } from "@/lib/proposal-renewal-docx";
 import {
   computePlanChange,
@@ -606,13 +608,42 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
   // Never overwrite saved terms, and never give a renewal the new-implementation
   // standard terms: renewals keep their agreed terms, or require explicit review.
   useEffect(() => {
-    if (editingProposal) return;
-    if (isRenewalProposal) {
-      setPaymentTerms("");
-      return;
-    }
+    if (editingProposal || isRenewalProposal) return;
     setPaymentTerms(standardPaymentTerms(language));
   }, [language, editingProposal, isRenewalProposal]);
+
+  // New renewal proposal: reuse the previously agreed terms only when the
+  // source is unambiguous (previous closed cycle's proposal + contract's source
+  // proposal agree). Otherwise leave empty → "review required". Language
+  // changes never touch this.
+  const renewalIdForTerms = isRenewalProposal ? ((source as any).renewal_id as string | undefined) : undefined;
+  useEffect(() => {
+    if (editingProposal || !renewalIdForTerms || !open) return;
+    let cancelled = false;
+    setPaymentTerms("");
+    (async () => {
+      const { data: r } = await supabase
+        .from("renewals")
+        .select("previous_renewal_id, contract_id, source_proposal_id")
+        .eq("id", renewalIdForTerms)
+        .maybeSingle();
+      const proposalIds = new Set<string>();
+      if (r?.source_proposal_id) proposalIds.add(r.source_proposal_id);
+      if (r?.previous_renewal_id) {
+        const { data: prev } = await supabase.from("renewals").select("closed_proposal_id").eq("id", r.previous_renewal_id).maybeSingle();
+        if (prev?.closed_proposal_id) proposalIds.add(prev.closed_proposal_id);
+      }
+      if (r?.contract_id) {
+        const { data: c } = await supabase.from("contracts").select("source_proposal_id").eq("id", r.contract_id).maybeSingle();
+        if ((c as any)?.source_proposal_id) proposalIds.add((c as any).source_proposal_id);
+      }
+      if (!proposalIds.size) return;
+      const { data: ps } = await supabase.from("proposals").select("payment_terms").in("id", [...proposalIds]);
+      const terms = unambiguousPaymentTerms((ps || []).map((p: any) => p.payment_terms));
+      if (!cancelled && terms) setPaymentTerms((cur) => (cur.trim() ? cur : terms));
+    })();
+    return () => { cancelled = true; };
+  }, [renewalIdForTerms, editingProposal, open]);
 
   // Reset Requests discount when the Requests Module is turned off
   useEffect(() => {
@@ -2169,6 +2200,13 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
                   manualJustification={manualImplJustification}
                   onManualJustificationChange={setManualImplJustification}
                   canAuthorizeManualImplementation={isHQ}
+                />
+              )}
+              {usesContractBaselineItems && renewalBaseline && !readOnly && (
+                <RenewalPriceAdjustmentPanel
+                  baselineItems={buildBaselineProposalItems(renewalBaseline)}
+                  items={items}
+                  onApply={(patches) => patches.forEach((p) => updateItem(p.index, { unit_price: p.unit_price }))}
                 />
               )}
               <div className="border rounded-lg overflow-hidden">
