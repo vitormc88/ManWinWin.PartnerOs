@@ -1025,7 +1025,6 @@ export default function ClientDetail() {
               clientId={client.id}
               client={client}
               intelligence={intelligence as any}
-            intelligenceState={intelligenceState}
               intelligenceState={intelligenceState}
               resolvedRenewal={resolvedRenewal}
               contractStatus={(primaryContract as any)?.status || null}
