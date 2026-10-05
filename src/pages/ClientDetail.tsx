@@ -1307,10 +1307,11 @@ export default function ClientDetail() {
                     </div>
                     <div className="space-y-0">
                       <FieldRow label="Contract Value" value={`€${displayContractValue.toLocaleString()}`} />
-                      <FieldRow label="Invoiced Value" value={`€${Number(co.invoiced_value || 0).toLocaleString()}`} />
-                      <FieldRow label="Hosting Value" value={co.hosting_value ? `€${Number(co.hosting_value).toLocaleString()}` : "—"} />
-                      <FieldRow label="SAT Value" value={co.sat_value ? `€${Number(co.sat_value).toLocaleString()}` : "—"} />
-                      <FieldRow label="Total Value" value={<span className="font-semibold">€{displayTotal.toLocaleString()}</span>} />
+                      {/* Imported header values are historical (original import), never the current S&AT/Web/total. */}
+                      <FieldRow label={co.is_imported ? "Invoiced (imported, historical)" : "Invoiced Value"} value={`€${Number(co.invoiced_value || 0).toLocaleString()}`} />
+                      <FieldRow label={co.is_imported ? "Hosting (imported, historical)" : "Hosting Value"} value={co.hosting_value ? `€${Number(co.hosting_value).toLocaleString()}` : "—"} />
+                      <FieldRow label={co.is_imported ? "S&AT (imported, historical)" : "SAT Value"} value={co.sat_value ? `€${Number(co.sat_value).toLocaleString()}` : "—"} />
+                      <FieldRow label={co.is_imported ? "Total (imported, historical)" : "Total Value"} value={<span className="font-semibold">€{displayTotal.toLocaleString()}</span>} />
                     </div>
                   </div>
                 )}
