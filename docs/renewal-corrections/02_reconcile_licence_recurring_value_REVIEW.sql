@@ -22,9 +22,10 @@ WHERE r.outcome = 'renewed' AND r.closed_at IS NOT NULL AND r.next_renewal_id IS
 SELECT * FROM _rc_targets;   -- review: expected rows only
 
 -- Audit trail before change (rollback source).
-INSERT INTO audit_logs (entity_type, entity_id, action, details)
-SELECT 'license', license_id::text, 'reconcile_recurring_value',
-       jsonb_build_object('old', old_value, 'new', new_value, 'script', '02_reconcile_licence_recurring_value')
+INSERT INTO audit_logs (entity_type, entity_id, action_type, old_value, new_value, notes)
+SELECT 'license', license_id, 'reconcile_recurring_value',
+       jsonb_build_object('recurring_contract_value', old_value), jsonb_build_object('recurring_contract_value', new_value),
+       '02_reconcile_licence_recurring_value'
 FROM _rc_targets;
 
 UPDATE licenses l SET recurring_contract_value = t.new_value, updated_at = now()
@@ -37,5 +38,5 @@ FROM _rc_targets t WHERE l.id = t.license_id;
 ROLLBACK;
 
 -- Rollback after commit:
--- UPDATE licenses l SET recurring_contract_value = (a.details->>'old')::numeric
--- FROM audit_logs a WHERE a.action = 'reconcile_recurring_value' AND a.entity_id = l.id::text;
+-- UPDATE licenses l SET recurring_contract_value = (a.old_value->>'recurring_contract_value')::numeric
+-- FROM audit_logs a WHERE a.action_type = 'reconcile_recurring_value' AND a.entity_id = l.id;
