@@ -94,6 +94,7 @@ import { useRenewalBaseline } from "@/hooks/useRenewalBaseline";
 import { RenewalBaselinePanel } from "./RenewalBaselinePanel";
 import { buildBaselineProposalItems, baselineLicenseModel } from "@/lib/renewal-baseline";
 import { RenewalPriceAdjustmentPanel } from "./RenewalPriceAdjustmentPanel";
+import { hydratedPaymentTerms } from "@/lib/renewal-price-adjustment";
 import { unambiguousPaymentTerms } from "@/lib/renewal-price-adjustment";
 import { downloadRenewalProposalDocx } from "@/lib/proposal-renewal-docx";
 import {
@@ -560,7 +561,7 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     setOnsiteDays(Number(editingProposal.service_days || 0));
     setSoftwareDiscountPct(Number(editingProposal.software_discount_pct || 0));
     setServicesDiscountPct(Number(editingProposal.services_discount_pct || 0));
-    setPaymentTerms(editingProposal.payment_terms || standardPaymentTerms(editingProposal.language));
+    setPaymentTerms(hydratedPaymentTerms(editingProposal.payment_terms, isRenewalProposal, editingProposal.language));
     setNotes(editingProposal.notes || "");
     const savedItems = persistedItems;
     if (savedItems?.length) {
