@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { formatEuro } from "@/lib/proposal-i18n";
+const formatEuro = (n: number) => new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 import {
   baselinePriceMap,
   adjustmentRows,
@@ -78,7 +78,7 @@ export function RenewalPriceAdjustmentPanel({ baselineItems, items, onApply }: P
               </td>
               <td className="text-right tabular-nums">{formatEuro(r.baseline)}</td>
               <td className="text-right tabular-nums">
-                {selected.has(r.key) ? `${formatEuro(r.baseline)} × ${round2(1 + pct / 100)} = ${formatEuro(r.exact)}` : "unchanged"}
+                {selected.has(r.key) ? `${formatEuro(r.baseline)} × ${(1 + pct / 100).toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} = ${formatEuro(r.exact)}` : "unchanged"}
               </td>
               <td className="text-right tabular-nums font-medium">
                 {formatEuro(r.current)}
