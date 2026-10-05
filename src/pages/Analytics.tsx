@@ -435,20 +435,6 @@ function PipelineCockpit({
   const mostDealsStage = stageData.slice().sort((a: any, b: any) => b.deal_count - a.deal_count)[0];
   const oldestStage = avgAgeByStage.slice().sort((a, b) => b.avgDays - a.avgDays)[0];
 
-  // Conversion summary — survival ratio between consecutive stages (snapshot approximation)
-  const conversions = useMemo(() => {
-    const out: Array<{ from: string; to: string; pct: number }> = [];
-    for (let i = 0; i < stageData.length - 1; i++) {
-      const cur = stageData[i];
-      const nxt = stageData[i + 1];
-      if (!cur.deal_count) continue;
-      const passedNext = stageData.slice(i + 1).reduce((s: number, x: any) => s + x.deal_count, 0) + wonCount;
-      const passedCur = cur.deal_count + passedNext;
-      const pct = passedCur > 0 ? Math.round((passedNext / passedCur) * 100) : 0;
-      out.push({ from: cur.stage, to: nxt.stage, pct });
-    }
-    return out;
-  }, [stageData, wonCount]);
 
   // Forecast
   const avgProb = openDeals.length > 0
@@ -582,6 +568,7 @@ function PipelineCockpit({
             <div>
               <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Closes this quarter</p>
               <p className="font-bold text-foreground mt-0.5 tabular-nums">{closesThisQuarter}</p>
+              {missingCloseDates > 0 && <p className="text-[11px] text-muted-foreground">{missingCloseDates} without close date (unknown)</p>}
             </div>
           </div>
         </ExecCard>
