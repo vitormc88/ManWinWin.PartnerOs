@@ -38,8 +38,6 @@ export function lineKey(l: AdjustableLine): string {
 const asItem = (l: AdjustableLine): ProposalItem =>
   ({
     category: "software",
-    frequency: "yearly",
-    qty: 1,
     ...l,
     qty: l.qty == null ? 1 : Number(l.qty),
     unit_price: Number(l.unit_price) || 0,
