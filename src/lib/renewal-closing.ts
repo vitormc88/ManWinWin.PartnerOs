@@ -106,6 +106,13 @@ export interface ClosurePreview {
   oneTimeValue: number;
   deltaValue: number;
   deltaPct: number | null;
+  /**
+   * False when there is no eligible proposal to compare against: the "after"
+   * value and the change are then UNKNOWN, never zero or a −100% loss.
+   */
+  impactAvailable: boolean;
+  /** Set when the missing-proposal state is the reason the impact is unavailable. */
+  missingProposal: boolean;
 }
 
 const money = (v: unknown) => {
@@ -132,12 +139,17 @@ export function evaluateRenewalClosure(input: ClosurePreviewInput): ClosurePrevi
       : null;
 
   const previousRecurring = money(input.previousRecurringValue);
-  const renewedRecurring = outcome === "renewed" ? money(proposal?.total_recurring) : 0;
+  const missingProposal = outcome === "renewed" && !proposal?.id;
+  const impactAvailable =
+    outcome === "lost" ||
+    (!!proposal?.id &&
+      (CLOSE_ELIGIBLE_PROPOSAL_STATUSES as readonly string[]).includes((proposal.status || "").trim()));
+  const renewedRecurring = outcome === "renewed" && impactAvailable ? money(proposal?.total_recurring) : 0;
   const year1 = money(proposal?.total_year_1);
-  const oneTimeValue = outcome === "renewed" ? Math.max(year1 - renewedRecurring, 0) : 0;
-  const deltaValue = outcome === "renewed" ? renewedRecurring - previousRecurring : 0;
+  const oneTimeValue = outcome === "renewed" && impactAvailable ? Math.max(year1 - renewedRecurring, 0) : 0;
+  const deltaValue = outcome === "renewed" && impactAvailable ? renewedRecurring - previousRecurring : 0;
   const deltaPct =
-    outcome === "renewed" && previousRecurring > 0 ? (deltaValue / previousRecurring) * 100 : null;
+    outcome === "renewed" && impactAvailable && previousRecurring > 0 ? (deltaValue / previousRecurring) * 100 : null;
 
   if (!renewal?.id || !isOperationalRenewal(renewal.id)) {
     blockers.push("This renewal is derived from contract/license dates. Operationalize it first.");
@@ -163,6 +175,8 @@ export function evaluateRenewalClosure(input: ClosurePreviewInput): ClosurePrevi
       oneTimeValue: 0,
       deltaValue: 0,
       deltaPct: null,
+      impactAvailable: true,
+      missingProposal: false,
     };
   }
 
@@ -206,6 +220,8 @@ export function evaluateRenewalClosure(input: ClosurePreviewInput): ClosurePrevi
     oneTimeValue,
     deltaValue,
     deltaPct,
+    impactAvailable,
+    missingProposal,
   };
 }
 
@@ -229,6 +245,7 @@ export function renewalClosureRefreshKeys(renewalId: string, clientId?: string |
   if (clientId) {
     keys.push(["client", clientId]);
     keys.push(["client_commercial_intelligence", clientId]);
+    keys.push(["client-commercial-intelligence", clientId]);
     keys.push(["lifecycle_events", clientId]);
     keys.push(["client-aggregates"]);
   }
