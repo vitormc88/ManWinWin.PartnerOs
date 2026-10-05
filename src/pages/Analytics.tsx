@@ -6,7 +6,8 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles, Trophy, Rocket, Target as TargetIcon, Users, Heart, GraduationCap, ArrowUp, ArrowDown, ArrowUpDown, CalendarClock, ShieldAlert, Building2, ListChecks } from "lucide-react";
-import { PIPELINE_STAGES } from "@/data/pipeline-stages";
+import { PIPELINE_STAGES, resolveDealProbability, isActivePipelineStage } from "@/data/pipeline-stages";
+import { authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue, renewalStatusDisplay, resolveRenewalOwner, rankByValue, isPartnerActive, quarterEndInclusive, startOfToday } from "@/lib/analytics-corrections";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   usePipelineStageBreakdown,
@@ -288,7 +289,7 @@ export default function Analytics() {
                     </li>
                   ))}
                 </ul>
-              ) : <EmptyState message="All clear" hint="No commercial alerts at this time." />}
+              ) : (pipelineStage.isError || renewals.isError || partners.isError || outcomes.isError) ? <EmptyState message="Alerts unavailable" hint="Some data sources failed to load." /> : (pipelineStage.isLoading || renewals.isLoading || partners.isLoading) ? <EmptyState message="Loading…" hint="" /> : <EmptyState message="All clear" hint="No commercial alerts at this time." />}
             </ExecCard>
 
             {/* Card 4 — Executive Highlights */}
@@ -410,7 +411,7 @@ function PipelineCockpit({
   const dealsQ = useDeals();
   const partnersQ = usePartners();
   const allDeals = dealsQ.data || [];
-  const openDeals = allDeals.filter((d: any) => d.status === "Open");
+  const openDeals = allDeals.filter((d: any) => d.status === "Open" && isActivePipelineStage(d.stage));
   const partnerMap = new Map((partnersQ.data || []).map((p: any) => [p.id, p.company_name]));
 
   // Stage age (days in stage) per stage
@@ -434,36 +435,20 @@ function PipelineCockpit({
   const mostDealsStage = stageData.slice().sort((a: any, b: any) => b.deal_count - a.deal_count)[0];
   const oldestStage = avgAgeByStage.slice().sort((a, b) => b.avgDays - a.avgDays)[0];
 
-  // Conversion summary — survival ratio between consecutive stages (snapshot approximation)
-  const conversions = useMemo(() => {
-    const out: Array<{ from: string; to: string; pct: number }> = [];
-    for (let i = 0; i < stageData.length - 1; i++) {
-      const cur = stageData[i];
-      const nxt = stageData[i + 1];
-      if (!cur.deal_count) continue;
-      const passedNext = stageData.slice(i + 1).reduce((s: number, x: any) => s + x.deal_count, 0) + wonCount;
-      const passedCur = cur.deal_count + passedNext;
-      const pct = passedCur > 0 ? Math.round((passedNext / passedCur) * 100) : 0;
-      out.push({ from: cur.stage, to: nxt.stage, pct });
-    }
-    return out;
-  }, [stageData, wonCount]);
 
   // Forecast
   const avgProb = openDeals.length > 0
-    ? Math.round(openDeals.reduce((s: number, d: any) => s + (Number(d.probability) || 0), 0) / openDeals.length)
+    ? Math.round(openDeals.reduce((s: number, d: any) => s + resolveDealProbability(d), 0) / openDeals.length)
     : 0;
-  const highConfidence = openDeals.filter((d: any) => (Number(d.probability) || 0) >= 70);
+  const highConfidence = openDeals.filter((d: any) => resolveDealProbability(d) >= 70);
   const expectedRevenue = totalWeightedPipeline;
-  const quarterEnd = (() => {
-    const d = new Date();
-    const q = Math.floor(d.getMonth() / 3);
-    return new Date(d.getFullYear(), q * 3 + 3, 0);
-  })();
+  const quarterEnd = quarterEndInclusive();
+  const todayStart = startOfToday();
+  const missingCloseDates = openDeals.filter((d: any) => !d.expected_close_date).length;
   const closesThisQuarter = openDeals.filter((d: any) => {
     if (!d.expected_close_date) return false;
     const c = new Date(d.expected_close_date);
-    return c <= quarterEnd && c >= new Date();
+    return c <= quarterEnd && c >= todayStart;
   }).length;
 
   // Insights
@@ -478,16 +463,13 @@ function PipelineCockpit({
   if (oldestStage && oldestStage.avgDays >= 21) {
     insights.push(`${oldestStage.stage} deals have aged on average ${oldestStage.avgDays} days.`);
   }
-  const big = openDeals.filter((d: any) => Number(d.total_value || d.expected_value || 0) >= 25000);
+  const big = openDeals.filter((d: any) => authDealValue(d) >= 25000);
   if (big.length > 0) insights.push(`${big.length} opportunit${big.length === 1 ? "y exceeds" : "ies exceed"} €25k.`);
   if (highConfidence.length > 0) insights.push(`${highConfidence.length} high-confidence deal${highConfidence.length !== 1 ? "s" : ""} expected to convert.`);
   const topInsights = insights.slice(0, 5);
 
   // Largest opportunities
-  const largest = openDeals
-    .map((d: any) => ({ ...d, _value: Number(d.total_value ?? d.expected_value ?? 0) }))
-    .sort((a: any, b: any) => b._value - a._value)
-    .slice(0, 5);
+  const largest = largestOpenDeals(openDeals, 5);
 
   const avgDealSize = totalOpenDeals > 0 ? totalPipelineValue / totalOpenDeals : 0;
 
@@ -565,26 +547,6 @@ function PipelineCockpit({
           ) : <EmptyState hint="Add open opportunities to detect bottlenecks." />}
         </ExecCard>
 
-        {/* Conversion */}
-        {conversions.length > 0 && (
-          <ExecCard title="Stage Conversion" icon={GitBranch} onClick={() => navigate("/pipeline")}>
-            <ul className="space-y-2">
-              {conversions.slice(0, 5).map((c, i) => (
-                <li key={i} className="flex items-center gap-3 text-sm">
-                  <span className="flex-1 text-foreground truncate">
-                    <span className="text-muted-foreground">{c.from}</span>
-                    <span className="text-muted-foreground mx-1">→</span>
-                    <span>{c.to}</span>
-                  </span>
-                  <div className="w-24 h-1.5 rounded-full bg-secondary overflow-hidden">
-                    <div className={`h-full ${c.pct >= 60 ? "bg-emerald-500" : c.pct >= 30 ? "bg-amber-500" : "bg-destructive"}`} style={{ width: `${Math.min(100, c.pct)}%` }} />
-                  </div>
-                  <span className="text-xs font-semibold tabular-nums text-foreground w-10 text-right">{c.pct}%</span>
-                </li>
-              ))}
-            </ul>
-          </ExecCard>
-        )}
 
         {/* Forecast */}
         <ExecCard title="Forecast" icon={Gauge} onClick={() => navigate("/pipeline")}>
@@ -606,6 +568,7 @@ function PipelineCockpit({
             <div>
               <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Closes this quarter</p>
               <p className="font-bold text-foreground mt-0.5 tabular-nums">{closesThisQuarter}</p>
+              {missingCloseDates > 0 && <p className="text-[11px] text-muted-foreground">{missingCloseDates} without close date (unknown)</p>}
             </div>
           </div>
         </ExecCard>
@@ -728,9 +691,8 @@ function SalesCockpit({
 
   const totalRevenue = sales.reduce((s, r) => s + r.won_revenue, 0);
   const totalPipeline = sales.reduce((s, r) => s + r.pipeline_value, 0);
-  const avgConversion = sales.length > 0
-    ? Math.round(sales.reduce((s, r) => s + r.conversion, 0) / sales.filter(r => r.won_count + r.lost_count > 0).length || 0) || 0
-    : 0;
+  const aggRate = aggregateWinRate(sales);
+  const avgConversion = aggRate ?? 0;
 
   const openPicker = (key: string, _name: string) => {
     // future: salesperson profile. For now: go to pipeline (filter not URL-driven yet).
@@ -835,7 +797,7 @@ function SalesCockpit({
         <KPI label="Total Salespeople" value={String(sales.length)} sub="active users with deals" />
         <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(totalRevenue)} sub="New business won (deals)" trend="up" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="across all owners" />
-        <KPI label="Average Win Rate" value={`${avgConversion}%`} sub="team conversion" trend={avgConversion >= 50 ? "up" : "neutral"} />
+        <KPI label="Average Win Rate" value={aggRate === null ? "—" : `${avgConversion}%`} sub={aggRate === null ? "No closed deals yet" : "total won / (won + lost)"} trend={avgConversion >= 50 ? "up" : "neutral"} />
       </div>
 
       {/* Top Performers */}
@@ -1041,7 +1003,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     const pid = r.partner_id;
     if (!pid) return;
     renewalsByPartner.set(pid, (renewalsByPartner.get(pid) || 0) + 1);
-    if (r.status === "Expired" || r.status === "Overdue") {
+    if (isRenewalOverdue(r)) {
       overdueByPartner.set(pid, (overdueByPartner.get(pid) || 0) + 1);
     }
   });
@@ -1071,7 +1033,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   });
 
   // KPIs
-  const activeCount = rows.length;
+  const activeCount = rows.filter((r) => isPartnerActive(fullById.get(r.partner_id))).length;
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
 
   const totalPipeline = rows.reduce((s, r) => s + r.pipeline, 0);
@@ -1160,7 +1122,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     <>
       {/* KPI Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPI label="Active Partners" value={String(activeCount)} sub={`${activeCount} Active Partner${activeCount !== 1 ? "s" : ""}`} />
+        <KPI label="Active Partners" value={String(activeCount)} sub={`${activeCount} active of ${rows.length} total`} />
         <KPI label="Billed Revenue" value={fmtEuroK(totalRevenue)} sub="Invoiced to date" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="Across all partners" />
         <KPI label="Average Partner Health" value={`${avgHealth}/100`} sub="Network average" trend={avgHealth >= 70 ? "up" : avgHealth >= 50 ? "neutral" : "down"} />
@@ -1342,7 +1304,9 @@ type RenewalQuickFilter = "this_month" | "next_30" | "overdue" | "high_value" | 
 
 function renewalStatusTone(status: string) {
   const s = (status || "").toLowerCase();
-  if (s === "overdue" || s === "expired" || s === "lost") return { row: "bg-red-50/60 hover:bg-red-50", dot: "bg-red-500", text: "text-red-700", label: "Overdue" };
+  const disp = renewalStatusDisplay(status);
+  if (s === "lost") return { row: "bg-muted/40 hover:bg-muted/60", dot: "bg-muted-foreground", text: "text-muted-foreground", label: disp.label };
+  if (s === "overdue" || s === "expired") return { row: "bg-red-50/60 hover:bg-red-50", dot: "bg-red-500", text: "text-red-700", label: disp.label };
   if (s === "due soon") return { row: "bg-amber-50/50 hover:bg-amber-50", dot: "bg-amber-500", text: "text-amber-700", label: "Due Soon" };
   if (s === "completed" || s === "won") return { row: "bg-emerald-50/40 hover:bg-emerald-50", dot: "bg-emerald-500", text: "text-emerald-700", label: status || "Completed" };
   return { row: "bg-sky-50/40 hover:bg-sky-50", dot: "bg-sky-500", text: "text-sky-700", label: status || "Upcoming" };
@@ -1381,15 +1345,8 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
   const monthStart = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 1).getTime();
   const monthEnd = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 0).getTime();
 
-  const isOpen = (r: any) => {
-    const s = (r.status || "").toLowerCase();
-    return !["completed", "won", "lost"].includes(s);
-  };
-  const isOverdue = (r: any) => {
-    const s = (r.status || "").toLowerCase();
-    if (s === "overdue" || s === "expired") return true;
-    return isOpen(r) && daysUntil(r.renewal_date) < 0;
-  };
+  const isOpen = (r: any) => isRenewalOpen(r);
+  const isOverdue = (r: any) => isRenewalOverdue(r);
 
   // ---------- KPIs ----------
   const openRenewals = renewals.filter(isOpen);
@@ -1474,7 +1431,8 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
 
   // ---------- Executive insights ----------
   const insights: string[] = [];
-  const top5Value = sortedPartners.slice(0, 5).reduce((s, p) => s + p.value, 0);
+  const rankedPartners = rankByValue(partnerRows);
+  const top5Value = rankedPartners.slice(0, 5).reduce((s, p) => s + p.value, 0);
   const totalPartnerValue = partnerRows.reduce((s, p) => s + p.value, 0);
   if (totalPartnerValue > 0 && partnerRows.length >= 5) {
     const pct = Math.round((top5Value / totalPartnerValue) * 100);
@@ -1496,7 +1454,7 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
   else if (successRate > 0 && successRate < 60) insights.push(`Renewal success rate is below target (${successRate}%).`);
   if (highValueOpen >= 3) insights.push(`${highValueOpen} high-value renewals (>€20k) require executive attention.`);
   if (partnerRows.length > 0 && partnerRows[0].value > 0) {
-    const lead = sortedPartners[0];
+    const lead = rankedPartners[0];
     if (lead && lead.value > 0) insights.push(`${lead.name} carries the largest renewal exposure (${fmtEuroK(lead.value)}).`);
   }
 
@@ -1533,7 +1491,7 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KPI label="Renewal Pipeline" value={fmtEuroK(pipelineValue)} sub="Total commercial renewal value" />
         <KPI label="Upcoming (90d)" value={String(upcoming90)} sub="Open renewals due in 90 days" />
-        <KPI label="Overdue" value={String(overdueCount)} sub={overdueValue > 0 ? `${fmtEuroK(overdueValue)} at risk` : "No overdue renewals"} trend={overdueCount > 0 ? "down" : undefined} />
+        <KPI label="Overdue" error={renewalsQ.isError} errorHint="Renewals could not be loaded" value={renewalsQ.isLoading ? "…" : String(overdueCount)} sub={overdueValue > 0 ? `${fmtEuroK(overdueValue)} at risk` : "No overdue renewals"} trend={overdueCount > 0 ? "down" : undefined} />
         <KPI label="Renewal Success Rate" value={`${successRate}%`} sub={`${summary?.won ?? 0} won · ${summary?.lost ?? 0} lost`} trend={successRate >= 70 ? "up" : successRate > 0 ? "down" : undefined} />
       </div>
 
@@ -1687,7 +1645,7 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
                   const cName = clientsById.get(r.client_id)?.commercial_name || "—";
                   const partner = r.partner_id ? partnersById.get(r.partner_id) : null;
                   const tone = renewalStatusTone(r.status);
-                  const ownerName = r.assigned_owner && profiles ? (profiles.get(r.assigned_owner)?.full_name || profiles.get(r.assigned_owner)?.email) : null;
+                  const ownerName = resolveRenewalOwner(r, profiles as any);
                   return (
                     <tr
                       key={r.id}
