@@ -2202,6 +2202,13 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
                   canAuthorizeManualImplementation={isHQ}
                 />
               )}
+              {usesContractBaselineItems && renewalBaseline && !readOnly && (
+                <RenewalPriceAdjustmentPanel
+                  baselineItems={buildBaselineProposalItems(renewalBaseline)}
+                  items={items}
+                  onApply={(patches) => patches.forEach((p) => updateItem(p.index, { unit_price: p.unit_price }))}
+                />
+              )}
               <div className="border rounded-lg overflow-hidden">
                 <div className="px-3 py-2 bg-secondary/50 flex items-center justify-between">
                   <h4 className="text-sm font-semibold text-foreground">Line Items (editable)</h4>
