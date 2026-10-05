@@ -603,9 +603,16 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
 
 
   // Default payment terms in selected language
+  // Never overwrite saved terms, and never give a renewal the new-implementation
+  // standard terms: renewals keep their agreed terms, or require explicit review.
   useEffect(() => {
+    if (editingProposal) return;
+    if (isRenewalProposal) {
+      setPaymentTerms("");
+      return;
+    }
     setPaymentTerms(standardPaymentTerms(language));
-  }, [language]);
+  }, [language, editingProposal, isRenewalProposal]);
 
   // Reset Requests discount when the Requests Module is turned off
   useEffect(() => {
@@ -2100,6 +2107,11 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
               <div>
                 <Label>Payment Terms</Label>
                 <Textarea rows={4} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
+                {isRenewalProposal && !paymentTerms.trim() && (
+                  <p className="mt-1 text-xs text-warning">
+                    Review required: enter the payment terms already agreed with this customer. Standard new-implementation terms are not applied to renewals.
+                  </p>
+                )}
               </div>
               <div>
                 <Label>Notes / Special Conditions</Label>
