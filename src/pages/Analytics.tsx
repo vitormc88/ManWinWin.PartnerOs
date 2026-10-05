@@ -45,6 +45,14 @@ function KPI({ label, value, sub, trend, error, errorHint }: { label: string; va
   );
 }
 
+type QState = { isLoading?: boolean; isError?: boolean } | undefined;
+/** Section-level guard: never render zeros/insights from failed or partial sources. */
+function sectionGuard(qs: QState[]): JSX.Element | null {
+  if (qs.some((q) => q?.isError)) return <EmptyState message="Data unavailable" hint="One or more sources failed to load. Figures are hidden rather than shown as zero." />;
+  if (qs.some((q) => q?.isLoading)) return <EmptyState message="Loading…" hint="Loading analytics sources." />;
+  return null;
+}
+
 function EmptyState({ message = "No analytics data available yet", hint }: { message?: string; hint?: string }) {
   return (
     <div className="text-center py-8 px-4">
@@ -210,6 +218,7 @@ export default function Analytics() {
 
         {/* ---------- OVERVIEW (Executive Cockpit) ---------- */}
         <TabsContent value="overview" className="space-y-4 mt-4">
+          {sectionGuard([pipelineStage, renewals, partners, outcomes, revenue]) ?? (<>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {/* Historical billed revenue — client_revenue_history */}
             <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(lifetimeRevenue)} sub={clientsWithRevenue > 0 ? `${clientsWithRevenue} client${clientsWithRevenue !== 1 ? "s" : ""} billed` : "No billed revenue recorded yet"} error={revenue.isError} errorHint="Billed revenue could not be loaded" />
@@ -306,37 +315,35 @@ export default function Analytics() {
               ) : <EmptyState hint="Highlights will appear as data accumulates." />}
             </ExecCard>
           </div>
+          </>)}
         </TabsContent>
-
-
-
         {/* ---------- PIPELINE (Commercial Intelligence) ---------- */}
         <TabsContent value="pipeline" className="space-y-4 mt-4">
-          <PipelineCockpit
+          {sectionGuard([pipelineStage, outcomes]) ?? <PipelineCockpit
             stageData={stageData}
             totalOpenDeals={totalOpenDeals}
             totalPipelineValue={totalPipelineValue}
             totalWeightedPipeline={totalWeightedPipeline}
             wonCount={wonOutcomes.length}
             navigate={navigate}
-          />
+          />}
         </TabsContent>
 
 
         {/* ---------- SALES ---------- */}
         <TabsContent value="sales" className="space-y-4 mt-4">
-          <SalesCockpit sales={sales.data || []} isAdmin={isAdmin} navigate={navigate} />
+          {sectionGuard([sales]) ?? <SalesCockpit sales={sales.data || []} isAdmin={isAdmin} navigate={navigate} />}
         </TabsContent>
 
 
         {/* ---------- PARTNERS (Executive Cockpit) ---------- */}
         <TabsContent value="partners" className="space-y-4 mt-4">
-          <PartnerCockpit partners={partners.data || []} navigate={navigate} />
+          {sectionGuard([partners]) ?? <PartnerCockpit partners={partners.data || []} navigate={navigate} />}
         </TabsContent>
 
         {/* ---------- RENEWALS (Executive Cockpit) ---------- */}
         <TabsContent value="renewals" className="space-y-4 mt-4">
-          <RenewalsCockpit summary={renewals.data} navigate={navigate} />
+          {sectionGuard([renewals]) ?? <RenewalsCockpit summary={renewals.data} navigate={navigate} />}
         </TabsContent>
       </Tabs>
 
@@ -473,6 +480,8 @@ function PipelineCockpit({
 
   const avgDealSize = totalOpenDeals > 0 ? totalPipelineValue / totalOpenDeals : 0;
 
+  const guard = sectionGuard([dealsQ]);
+  if (guard) return guard;
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -797,7 +806,7 @@ function SalesCockpit({
         <KPI label="Total Salespeople" value={String(sales.length)} sub="active users with deals" />
         <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(totalRevenue)} sub="New business won (deals)" trend="up" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="across all owners" />
-        <KPI label="Average Win Rate" value={aggRate === null ? "—" : `${avgConversion}%`} sub={aggRate === null ? "No closed deals yet" : "total won / (won + lost)"} trend={avgConversion >= 50 ? "up" : "neutral"} />
+        <KPI label="Team Win Rate" value={aggRate === null ? "—" : `${avgConversion}%`} sub={aggRate === null ? "No closed deals yet" : "total won / (won + lost)"} trend={avgConversion >= 50 ? "up" : "neutral"} />
       </div>
 
       {/* Top Performers */}
@@ -1118,6 +1127,8 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     ? <ArrowUpDown className="inline h-3 w-3 ml-1 opacity-40" />
     : sortDir === "asc" ? <ArrowUp className="inline h-3 w-3 ml-1" /> : <ArrowDown className="inline h-3 w-3 ml-1" />;
 
+  const guard = sectionGuard([metricsQ, partnersFullQ, leadsQ, renewalsQ, profilesQ, revenueEntriesQ]);
+  if (guard) return guard;
   return (
     <>
       {/* KPI Row */}
@@ -1485,6 +1496,8 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
 
   const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
+  const guard = sectionGuard([renewalsQ, clientsQ, partnersQ, profilesQ]);
+  if (guard) return guard;
   return (
     <>
       {/* KPI Row */}
@@ -1492,7 +1505,7 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
         <KPI label="Renewal Pipeline" value={fmtEuroK(pipelineValue)} sub="Total commercial renewal value" />
         <KPI label="Upcoming (90d)" value={String(upcoming90)} sub="Open renewals due in 90 days" />
         <KPI label="Overdue" error={renewalsQ.isError} errorHint="Renewals could not be loaded" value={renewalsQ.isLoading ? "…" : String(overdueCount)} sub={overdueValue > 0 ? `${fmtEuroK(overdueValue)} at risk` : "No overdue renewals"} trend={overdueCount > 0 ? "down" : undefined} />
-        <KPI label="Renewal Success Rate" value={`${successRate}%`} sub={`${summary?.won ?? 0} won · ${summary?.lost ?? 0} lost`} trend={successRate >= 70 ? "up" : successRate > 0 ? "down" : undefined} />
+        <KPI label="Renewal Success Rate" value={(summary?.won ?? 0) + (summary?.lost ?? 0) > 0 ? `${successRate}%` : "—"} sub={`${summary?.won ?? 0} won · ${summary?.lost ?? 0} lost`} trend={successRate >= 70 ? "up" : successRate > 0 ? "down" : undefined} />
       </div>
 
       {/* Risk + Timeline */}
