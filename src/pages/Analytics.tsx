@@ -315,11 +315,8 @@ export default function Analytics() {
               ) : <EmptyState hint="Highlights will appear as data accumulates." />}
             </ExecCard>
           </div>
-        </TabsContent>
-
-
-
           </>)}
+        </TabsContent>
         {/* ---------- PIPELINE (Commercial Intelligence) ---------- */}
         <TabsContent value="pipeline" className="space-y-4 mt-4">
           {sectionGuard([pipelineStage, outcomes]) ?? <PipelineCockpit
