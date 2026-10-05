@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { CloseReadiness } from "@/lib/proposal-workflow";
 
 function invalidateAll(qc: ReturnType<typeof useQueryClient>) {
-  for (const key of [["proposals"], ["proposal"], ["renewals"], ["renewal-closure-context"], ["renewal-close-readiness"], ["client_commercial_intelligence"]]) {
+  for (const key of [["proposals"], ["proposal"], ["renewals"], ["renewal-closure-context"], ["renewal-close-readiness"], ["client_commercial_intelligence"], ["client-commercial-intelligence"]]) {
     qc.invalidateQueries({ queryKey: key });
   }
 }

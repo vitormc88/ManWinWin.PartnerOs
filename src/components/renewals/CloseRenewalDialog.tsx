@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName, in
     open
   );
   const closeRenewal = useCloseRenewal();
+  const navigate = useNavigate();
 
   const preview = useMemo(
     () =>
@@ -64,6 +66,11 @@ export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName, in
         hasContract: ctx ? ctx.hasContract : undefined,
       }),
     [renewal, ctx, outcome, lossReason, effectiveDate, nextDate]
+  );
+
+  // The client already explains a missing proposal; don't repeat the server's copy of it.
+  const readinessIssues = (readiness?.issues ?? []).filter(
+    (i) => !(preview.missingProposal && i.code === "PROPOSAL_REQUIRED")
   );
 
   const submit = async () => {
@@ -184,13 +191,23 @@ export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName, in
                   <span className="text-muted-foreground">Recurring before</span>
                   <span className="text-right tabular-nums">{formatMoney(preview.previousRecurring)}</span>
                   <span className="text-muted-foreground">Recurring after</span>
-                  <span className="text-right tabular-nums font-medium">{formatMoney(preview.renewedRecurring)}</span>
-                  <span className="text-muted-foreground">Change</span>
-                  <span className={`text-right tabular-nums font-medium ${deltaTone}`}>
-                    {preview.deltaValue >= 0 ? "+" : ""}
-                    {formatMoney(preview.deltaValue)}
-                    {preview.deltaPct !== null ? ` (${preview.deltaPct >= 0 ? "+" : ""}${preview.deltaPct.toFixed(1)}%)` : ""}
-                  </span>
+                  {preview.impactAvailable ? (
+                    <>
+                      <span className="text-right tabular-nums font-medium">{formatMoney(preview.renewedRecurring)}</span>
+                      <span className="text-muted-foreground">Change</span>
+                      <span className={`text-right tabular-nums font-medium ${deltaTone}`}>
+                        {preview.deltaValue >= 0 ? "+" : ""}
+                        {formatMoney(preview.deltaValue)}
+                        {preview.deltaPct !== null ? ` (${preview.deltaPct >= 0 ? "+" : ""}${preview.deltaPct.toFixed(1)}%)` : ""}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-right text-xs text-muted-foreground" data-testid="impact-unavailable">Not available until a renewal proposal is validated</span>
+                      <span className="text-muted-foreground">Change</span>
+                      <span className="text-right text-xs text-muted-foreground">Not available</span>
+                    </>
+                  )}
                   {preview.oneTimeValue > 0 && (
                     <>
                       <span className="text-muted-foreground">One-time this cycle</span>
@@ -215,12 +232,22 @@ export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName, in
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {b}
                 </p>
               ))}
+              {preview.missingProposal && renewal?.id && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-2"
+                  onClick={() => { onOpenChange(false); navigate(`/renewals?renewal=${renewal.id}`); }}
+                >
+                  Create / open renewal proposal
+                </Button>
+              )}
             </div>
           )}
 
-          {(readiness?.issues?.length ?? 0) > 0 && (
+          {(readinessIssues.length ?? 0) > 0 && (
             <div className={`rounded-lg border p-3 space-y-1 ${readiness!.enforced ? "border-destructive/30 bg-destructive/5" : "border-warning/30 bg-warning/10"}`}>
-              {readiness!.issues.map((i) => (
+              {readinessIssues.map((i) => (
                 <p key={i.code} className={`flex items-start gap-2 text-xs ${readiness!.enforced ? "text-destructive" : "text-warning-foreground"}`}>
                   <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> {i.message}
                 </p>

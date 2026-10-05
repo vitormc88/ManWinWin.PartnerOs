@@ -85,15 +85,24 @@ export function useClientCommercialIntelligence(clientId: string | null | undefi
     queryKey: ["client-commercial-intelligence", clientId],
     enabled: !!clientId,
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("client_commercial_intelligence")
-        .select("*")
-        .eq("client_id", clientId!)
-        .maybeSingle();
+      // Single-customer path: call the function for THIS client only. Filtering
+      // the all-clients view by client_id evaluated the function for every
+      // client before filtering (timeouts in PROD).
+      const { data, error } = await (supabase as any).rpc("get_client_commercial_intelligence", {
+        client_uuid: clientId!,
+      });
       if (error) throw error;
-      return data as ClientCommercialIntelligence | null;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as ClientCommercialIntelligence | null;
     },
   });
+}
+
+/** Maps a react-query result onto the presentation state. */
+export function intelligenceStateOf(q: { isLoading?: boolean; isError?: boolean }): "loading" | "error" | "ready" {
+  if (q.isError) return "error";
+  if (q.isLoading) return "loading";
+  return "ready";
 }
 
 export interface CommercialIntelligenceFilters {

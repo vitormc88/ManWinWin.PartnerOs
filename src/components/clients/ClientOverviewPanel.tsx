@@ -16,6 +16,7 @@ import type { ResolvedRenewal } from "@/lib/renewal-resolution";
 interface Props {
   clientId: string;
   client: any;
+  intelligenceState?: "loading" | "error" | "ready";
   intelligence?: { recurring_arr?: number | null; year1_value?: number | null; active_contract_count?: number | null } | null;
   resolvedRenewal?: ResolvedRenewal | null;
   contractStatus?: string | null;
@@ -50,6 +51,7 @@ export function ClientOverviewPanel({
   clientId,
   client,
   intelligence,
+  intelligenceState = "ready",
   resolvedRenewal,
   contractStatus,
   hasLicense = true,
@@ -66,7 +68,8 @@ export function ClientOverviewPanel({
     resolvedRenewal,
     contractStatus,
     activeContractCount: intelligence?.active_contract_count ?? null,
-  });
+    intelligenceState,
+  }, fmtCurrency);
 
   const attention = deriveTopAttention({
     resolvedRenewal,
@@ -124,18 +127,10 @@ export function ClientOverviewPanel({
           <Row label="Contract status" value={summary.contractLabel} />
           <Row
             label="Recurring revenue (ARR)"
-            value={
-              summary.arrZeroWithYear1 ? (
-                <span className="text-foreground">
-                  No recurring revenue recorded
-                </span>
-              ) : (
-                `${fmtCurrency(summary.arr)} / year`
-              )
-            }
+            value={<span className="text-foreground">{summary.arrLabel}</span>}
           />
-          {(summary.arrZeroWithYear1 || summary.year1 > 0) && (
-            <Row label="Year 1 value" value={fmtCurrency(summary.year1)} />
+          {summary.state === "ready" && (summary.arrZeroWithYear1 || summary.year1 > 0) && (
+            <Row label="Year 1 value" value={summary.year1Label} />
           )}
           <Row
             label="Next renewal"

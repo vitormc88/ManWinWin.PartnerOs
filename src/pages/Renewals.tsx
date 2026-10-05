@@ -27,7 +27,11 @@ import { getOwnerDisplay } from "@/lib/owner-display";
 import { ProposalWorkflowActions } from "@/components/proposals/ProposalWorkflowActions";
 import { proposalStatusLabel } from "@/lib/proposal-workflow";
 
+/** Every open working state shown as "In Progress" in the pipeline counter. */
+export const IN_PROGRESS_RENEWAL_STATUSES = new Set(["In Progress", "In Negotiation", "Quoted"]);
+
 const statusColors: Record<string, string> = {
+  "In Progress": "bg-purple-50 text-purple-700 border-purple-200",
   "Upcoming": "bg-info/10 text-info border-info/20",
   "Due Soon": "bg-warning/15 text-warning-foreground border-warning/30",
   "In Negotiation": "bg-purple-50 text-purple-700 border-purple-200",
@@ -97,7 +101,7 @@ export default function Renewals() {
     total: enriched.length,
     expired: enriched.filter(r => r.status === "Expired").length,
     dueSoon: enriched.filter(r => r.status === "Due Soon").length,
-    inProgress: enriched.filter(r => r.status === "In Negotiation" || r.status === "Quoted").length,
+    inProgress: enriched.filter(r => IN_PROGRESS_RENEWAL_STATUSES.has(r.status)).length,
     atRisk: enriched.filter(r => r.daysUntil < 0 && r.status !== "Won").length,
     unassigned: enriched.filter(r => r.isUnassigned && r.status !== "Won" && r.status !== "Lost").length,
     totalValue: enriched.reduce((s, r) => s + Number(r.estimated_value || 0), 0),
@@ -198,7 +202,7 @@ export default function Renewals() {
           <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            {["Upcoming", "Due Soon", "In Negotiation", "Quoted", "Won", "Lost", "Expired"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {["Upcoming", "Due Soon", "In Progress", "In Negotiation", "Quoted", "Won", "Lost", "Expired"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         {!partnerScoped && (
