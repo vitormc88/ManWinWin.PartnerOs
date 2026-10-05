@@ -289,7 +289,7 @@ export default function Analytics() {
                     </li>
                   ))}
                 </ul>
-              ) : <EmptyState message="All clear" hint="No commercial alerts at this time." />}
+              ) : (pipelineStage.isError || renewals.isError || partners.isError || outcomes.isError) ? <EmptyState message="Alerts unavailable" hint="Some data sources failed to load." /> : (pipelineStage.isLoading || renewals.isLoading || partners.isLoading) ? <EmptyState message="Loading…" hint="" /> : <EmptyState message="All clear" hint="No commercial alerts at this time." />}
             </ExecCard>
 
             {/* Card 4 — Executive Highlights */}
