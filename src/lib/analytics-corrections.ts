@@ -81,3 +81,46 @@ export function quarterEndInclusive(now = new Date()): Date {
 export function startOfToday(now = new Date()): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
+
+/**
+ * Shared open-renewal summary used by every Analytics tab. Input must be the
+ * operational unified renewal list (useRenewals from useDeals: explicit cycles
+ * plus derived contract/licence rows, already deduplicated/suppressed there),
+ * so Analytics counts match the Renewals module. Ids are deduplicated here as a
+ * safety net; closed rows are excluded.
+ */
+export function summarizeOpenRenewals(rows: any[], now = Date.now()) {
+  const seen = new Set<string>();
+  const open = (rows || []).filter((r) => {
+    const id = String(r?.id ?? "");
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return isRenewalOpen(r);
+  });
+  const overdue = open.filter((r) => isRenewalOverdue(r, now));
+  const upcoming90 = open.filter((r) => {
+    if (!r.renewal_date || isRenewalOverdue(r, now)) return false;
+    const d = Math.ceil((new Date(r.renewal_date).getTime() - now) / 86400000);
+    return d >= 0 && d <= 90;
+  });
+  const overdueByPartner = new Map<string, number>();
+  overdue.forEach((r) => {
+    const pid = r.partner_id || "__unassigned__";
+    overdueByPartner.set(pid, (overdueByPartner.get(pid) || 0) + 1);
+  });
+  return {
+    open,
+    overdue,
+    overdueIds: overdue.map((r) => String(r.id)),
+    overdueValue: overdue.reduce((s, r) => s + Number(r.estimated_value || 0), 0),
+    upcoming90: upcoming90.length,
+    overdueByPartner,
+    partnersWithOverdue: overdueByPartner.size,
+  };
+}
+
+/** Salespeople split: distinct user ids (never merged by name) vs unlinked names. */
+export function salespeopleBreakdown(rows: Array<{ user_id: string | null; is_unlinked?: boolean }>) {
+  const linked = new Set(rows.filter((r) => r.user_id && !r.is_unlinked).map((r) => r.user_id as string)).size;
+  return { linked, unlinked: rows.filter((r) => !r.user_id || r.is_unlinked).length, rows: rows.length };
+}

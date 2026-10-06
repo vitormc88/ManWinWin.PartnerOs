@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles, Trophy, Rocket, Target as TargetIcon, Users, Heart, GraduationCap, ArrowUp, ArrowDown, ArrowUpDown, CalendarClock, ShieldAlert, Building2, ListChecks } from "lucide-react";
 import { PIPELINE_STAGES, resolveDealProbability, isActivePipelineStage } from "@/data/pipeline-stages";
-import { authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue, renewalStatusDisplay, resolveRenewalOwner, rankByValue, isPartnerActive, quarterEndInclusive, startOfToday } from "@/lib/analytics-corrections";
+import { authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue, renewalStatusDisplay, resolveRenewalOwner, rankByValue, isPartnerActive, summarizeOpenRenewals, salespeopleBreakdown, quarterEndInclusive, startOfToday } from "@/lib/analytics-corrections";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   usePipelineStageBreakdown,
@@ -99,6 +99,9 @@ export default function Analytics() {
   const sales = useSalesPerformance();
   const partners = usePartnerAnalytics();
   const renewals = useRenewalsAnalytics();
+  // Overdue/upcoming come from the operational unified renewal list (same as /renewals).
+  const unifiedRenewals = useUnifiedRenewals();
+  const renSum = useMemo(() => summarizeOpenRenewals(unifiedRenewals.data || []), [unifiedRenewals.data]);
   const outcomes = useOutcomes();
   const reconciliation = useDealReconciliation(isAdmin);
   // Historical billed revenue (client_revenue_history), RLS-scoped.
@@ -150,7 +153,7 @@ export default function Analytics() {
   const bottleneckStage = largestStage;
 
   const topPartner = (partners.data || [])[0];
-  const overdueRenewals = renewals.data?.overdue ?? 0;
+  const overdueRenewals = renSum.overdue.length;
 
   const alerts = useMemo(() => {
     const out: Array<{ tone: "red" | "orange" | "yellow" | "green"; text: string; onClick?: () => void }> = [];
@@ -179,10 +182,10 @@ export default function Analytics() {
     if (mostOppStage && mostOppStage.stage !== largestStage?.stage) out.push(`${mostOppStage.stage} holds the most opportunities (${mostOppStage.deal_count}).`);
     if (conversionRate > 0) out.push(`Conversion rate sits at ${conversionRate}% across closed deals.`);
     if (overdueRenewals > 0) out.push(`Renewals are the primary commercial risk (${overdueRenewals} overdue).`);
-    else if ((renewals.data?.upcoming ?? 0) > 0) out.push(`${renewals.data?.upcoming} renewals upcoming — protect recurring revenue.`);
+    else if (renSum.upcoming90 > 0) out.push(`${renSum.upcoming90} renewals due in the next 90 days — protect recurring revenue.`);
     if (topPartner) out.push(`${topPartner.company_name} remains the strongest performing partner.`);
     return out.slice(0, 5);
-  }, [topCountry, topCountryPct, largestStage, mostOppStage, conversionRate, overdueRenewals, renewals.data, topPartner]);
+  }, [topCountry, topCountryPct, largestStage, mostOppStage, conversionRate, overdueRenewals, renSum.upcoming90, topPartner]);
 
   const toneStyles: Record<string, string> = {
     red: "bg-destructive/10 text-destructive border-destructive/30",
@@ -298,7 +301,7 @@ export default function Analytics() {
                     </li>
                   ))}
                 </ul>
-              ) : (pipelineStage.isError || renewals.isError || partners.isError || outcomes.isError) ? <EmptyState message="Alerts unavailable" hint="Some data sources failed to load." /> : (pipelineStage.isLoading || renewals.isLoading || partners.isLoading) ? <EmptyState message="Loading…" hint="" /> : <EmptyState message="All clear" hint="No commercial alerts at this time." />}
+              ) : (pipelineStage.isError || unifiedRenewals.isError || partners.isError || outcomes.isError) ? <EmptyState message="Alerts unavailable" hint="Some data sources failed to load." /> : (pipelineStage.isLoading || unifiedRenewals.isLoading || partners.isLoading) ? <EmptyState message="Loading…" hint="" /> : <EmptyState message="All clear" hint="No commercial alerts at this time." />}
             </ExecCard>
 
             {/* Card 4 — Executive Highlights */}
@@ -761,8 +764,7 @@ function SalesCockpit({
   if (byPipeline[0]) insights.push(`${byPipeline[0].name} owns the largest active pipeline (${fmtEuroK(byPipeline[0].value)}).`);
   if (top2PipeShare >= 50) insights.push(`Pipeline ownership is concentrated — top 2 hold ${top2PipeShare}% of total pipeline.`);
   else if (sales.length >= 3) insights.push(`Pipeline distribution is balanced across the team.`);
-  if (avgConversion >= 60) insights.push(`Overall conversion remains strong at ${avgConversion}%.`);
-  else if (avgConversion > 0) insights.push(`Average conversion at ${avgConversion}% — coaching focus advised.`);
+  if (avgConversion > 0) insights.push(`Team win rate is ${avgConversion}% (won / (won + lost)).`);
   if (noPipelineCount > 0) insights.push(`${noPipelineCount} salesperson${noPipelineCount > 1 ? "s have" : " has"} no active pipeline.`);
 
   // Sortable table
@@ -803,7 +805,7 @@ function SalesCockpit({
     <>
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KPI label="Total Salespeople" value={String(sales.length)} sub="active users with deals" />
+        <KPI label="Sales owners" value={String(sales.length)} sub={`${salespeopleBreakdown(sales).linked} linked user${salespeopleBreakdown(sales).linked !== 1 ? "s" : ""} · ${salespeopleBreakdown(sales).unlinked} unlinked name${salespeopleBreakdown(sales).unlinked !== 1 ? "s" : ""}`} />
         <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(totalRevenue)} sub="New business won (deals)" trend="up" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="across all owners" />
         <KPI label="Team Win Rate" value={aggRate === null ? "—" : `${avgConversion}%`} sub={aggRate === null ? "No closed deals yet" : "total won / (won + lost)"} trend={avgConversion >= 50 ? "up" : "neutral"} />
@@ -831,7 +833,7 @@ function SalesCockpit({
             )}
             <li className="flex items-start gap-2">
               <span className="text-muted-foreground">•</span>
-              <span>Average conversion {avgConversion >= 50 ? "remains above target" : "needs attention"} at <strong>{avgConversion}%</strong>.</span>
+              <span>Team win rate: <strong>{avgConversion}%</strong> (won / (won + lost)).</span>
             </li>
           </ul>
         </ExecCard>
@@ -1006,15 +1008,13 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     if (openLeadStatuses.has(l.status)) leadsByPartner.set(pid, (leadsByPartner.get(pid) || 0) + 1);
   });
 
-  const overdueByPartner = new Map<string, number>();
+  const renSumP = summarizeOpenRenewals(renewals);
+  const overdueByPartner = renSumP.overdueByPartner;
   const renewalsByPartner = new Map<string, number>();
   renewals.forEach((r: any) => {
     const pid = r.partner_id;
     if (!pid) return;
     renewalsByPartner.set(pid, (renewalsByPartner.get(pid) || 0) + 1);
-    if (isRenewalOverdue(r)) {
-      overdueByPartner.set(pid, (overdueByPartner.get(pid) || 0) + 1);
-    }
   });
 
   // Enrich partner rows with health/owner/leads/renewals/relationship
@@ -1159,7 +1159,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
             <ul className="space-y-1.5 text-sm">
               <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-emerald-500 shrink-0" /><span className="text-foreground">{healthy} healthy partnership{healthy !== 1 ? "s" : ""}</span></li>
               <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-amber-500 shrink-0" /><span className="text-foreground">{atRisk} require attention</span></li>
-              <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-red-500 shrink-0" /><span className="text-foreground">{overdueRenewalsPartners} have overdue renewals</span></li>
+              <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-red-500 shrink-0" /><span className="text-foreground">{overdueRenewalsPartners} partner{overdueRenewalsPartners !== 1 ? "s" : ""} with overdue renewals ({rows.reduce((s, r) => s + r.overdue_renewals, 0)} renewal{rows.reduce((s, r) => s + r.overdue_renewals, 0) !== 1 ? "s" : ""})</span></li>
               <li className="flex items-start gap-2"><span className="h-1.5 w-1.5 rounded-full mt-1.5 bg-muted-foreground shrink-0" /><span className="text-foreground">{inactive} with no recent interaction (60d+)</span></li>
             </ul>
           ) : <EmptyState />}
@@ -1362,12 +1362,10 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
   // ---------- KPIs ----------
   const openRenewals = renewals.filter(isOpen);
   const pipelineValue = openRenewals.reduce((s, r) => s + Number(r.estimated_value || 0), 0);
-  const upcoming90 = openRenewals.filter((r) => {
-    const d = daysUntil(r.renewal_date);
-    return d >= 0 && d <= 90;
-  }).length;
-  const overdueCount = openRenewals.filter(isOverdue).length;
-  const overdueValue = openRenewals.filter(isOverdue).reduce((s, r) => s + Number(r.estimated_value || 0), 0);
+  const renSumR = summarizeOpenRenewals(renewals, now);
+  const upcoming90 = renSumR.upcoming90;
+  const overdueCount = renSumR.overdue.length;
+  const overdueValue = renSumR.overdueValue;
   const successRate = summary?.success_rate ?? 0;
 
   // ---------- Risk bullets ----------
@@ -1461,8 +1459,7 @@ function RenewalsCockpit({ summary, navigate }: { summary: any; navigate: (path:
     const cName = clientsById.get(top.client_id)?.commercial_name || "A client";
     insights.push(`${cName} remains overdue${top.estimated_value ? ` (${fmtEuroK(Number(top.estimated_value))})` : ""}.`);
   }
-  if (successRate >= 80) insights.push(`Renewal success rate is above target (${successRate}%).`);
-  else if (successRate > 0 && successRate < 60) insights.push(`Renewal success rate is below target (${successRate}%).`);
+  if (summary && (summary as any).success_rate != null && successRate > 0) insights.push(`Renewal success rate: ${successRate}% (Won / (Won + Lost)).`);
   if (highValueOpen >= 3) insights.push(`${highValueOpen} high-value renewals (>€20k) require executive attention.`);
   if (partnerRows.length > 0 && partnerRows[0].value > 0) {
     const lead = rankedPartners[0];
