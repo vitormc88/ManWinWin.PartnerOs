@@ -46,3 +46,29 @@ describe("analytics corrections", () => {
     expect(e.getMonth()).toBe(11); expect(e.getDate()).toBe(31); expect(e.getHours()).toBe(23);
   });
 });
+
+import { summarizeOpenRenewals, salespeopleBreakdown } from "../analytics-corrections";
+describe("summarizeOpenRenewals", () => {
+  const now = new Date("2026-10-06T12:00:00Z").getTime();
+  const rows = [
+    { id: "r1", status: "Upcoming", renewal_date: "2026-09-01", partner_id: "p1", estimated_value: 100 },
+    { id: "derived-contract-a", status: "Expired", renewal_date: "2026-08-01", partner_id: "p1", estimated_value: 50 },
+    { id: "derived-license-b", status: "Expired", renewal_date: "2026-07-01", partner_id: "p2", estimated_value: 0 },
+    { id: "r1", status: "Upcoming", renewal_date: "2026-09-01", partner_id: "p1", estimated_value: 100 },
+    { id: "r2", status: "Completed", renewal_date: "2026-08-01", partner_id: "p3" },
+    { id: "r3", status: "Upcoming", renewal_date: "2026-08-01", outcome: "lost", partner_id: "p3" },
+    { id: "r4", status: "Upcoming", renewal_date: "2026-11-01", partner_id: "p3", estimated_value: 10 },
+    { id: "r5", status: "Upcoming", renewal_date: "2027-06-01", partner_id: "p3" },
+  ];
+  it("counts explicit + derived overdue, dedupes ids, excludes closed", () => {
+    const s = summarizeOpenRenewals(rows, now);
+    expect(s.overdueIds.sort()).toEqual(["derived-contract-a", "derived-license-b", "r1"]);
+    expect(s.overdueValue).toBe(150);
+    expect(s.partnersWithOverdue).toBe(2);
+    expect(s.overdueByPartner.get("p1")).toBe(2);
+    expect(s.upcoming90).toBe(1);
+  });
+  it("salespeople never merges by name", () => {
+    expect(salespeopleBreakdown([{ user_id: "a" }, { user_id: "b" }, { user_id: null, is_unlinked: true }])).toEqual({ linked: 2, unlinked: 1, rows: 3 });
+  });
+});
