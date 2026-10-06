@@ -221,7 +221,7 @@ export default function Analytics() {
 
         {/* ---------- OVERVIEW (Executive Cockpit) ---------- */}
         <TabsContent value="overview" className="space-y-4 mt-4">
-          {sectionGuard([pipelineStage, renewals, partners, outcomes, revenue]) ?? (<>
+          {sectionGuard([pipelineStage, renewals, partners, outcomes, revenue, unifiedRenewals, revenueEntries]) ?? (<>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {/* Historical billed revenue — client_revenue_history */}
             <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(lifetimeRevenue)} sub={clientsWithRevenue > 0 ? `${clientsWithRevenue} client${clientsWithRevenue !== 1 ? "s" : ""} billed` : "No billed revenue recorded yet"} error={revenue.isError} errorHint="Billed revenue could not be loaded" />
