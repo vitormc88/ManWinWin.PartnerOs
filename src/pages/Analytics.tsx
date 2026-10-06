@@ -6,8 +6,8 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles, Trophy, Rocket, Target as TargetIcon, Users, Heart, GraduationCap, ArrowUp, ArrowDown, ArrowUpDown, CalendarClock, ShieldAlert, Building2, ListChecks } from "lucide-react";
-import { PIPELINE_STAGES, resolveDealProbability, isActivePipelineStage } from "@/data/pipeline-stages";
-import { authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue, renewalStatusDisplay, resolveRenewalOwner, rankByValue, isPartnerActive, summarizeOpenRenewals, salespeopleBreakdown, quarterEndInclusive, startOfToday } from "@/lib/analytics-corrections";
+import { resolveDealProbability, isActivePipelineStage } from "@/data/pipeline-stages";
+import { analyticsStageLabel, analyticsStageRows, authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue, renewalStatusDisplay, resolveRenewalOwner, rankByValue, isPartnerActive, summarizeOpenRenewals, salespeopleBreakdown, quarterEndInclusive, startOfToday } from "@/lib/analytics-corrections";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   usePipelineStageBreakdown,
@@ -108,11 +108,8 @@ export default function Analytics() {
   const revenue = useRevenueSummary();
   const revenueEntries = useRevenueHistory();
 
-  // Order pipeline-stage data by canonical stage order
-  const stageOrder = new Map<string, number>(
-    PIPELINE_STAGES.filter(s => s.key !== "Won" && s.key !== "Lost").map((s, i) => [s.key as string, i])
-  );
-  const stageData = (pipelineStage.data || []).slice().sort((a, b) => (stageOrder.get(a.stage) ?? 99) - (stageOrder.get(b.stage) ?? 99));
+  // Canonical active-stage order, including zero-count rows; keys and totals stay unchanged.
+  const stageData = useMemo(() => analyticsStageRows(pipelineStage.data || []), [pipelineStage.data]);
 
   // Historical revenue — the ONLY source for anything labelled "Revenue".
   const lifetimeRevenue = revenue.data?.lifetime_revenue ?? 0;
@@ -147,8 +144,8 @@ export default function Analytics() {
   const topCountryPct = topCountry ? shareOfTotal(topCountry.revenue, lifetimeRevenue) : 0;
 
 
-  const largestStage = useMemo(() => stageData.slice().sort((a, b) => b.total_value - a.total_value)[0], [stageData]);
-  const mostOppStage = useMemo(() => stageData.slice().sort((a, b) => b.deal_count - a.deal_count)[0], [stageData]);
+  const largestStage = useMemo(() => stageData.filter((s) => s.deal_count > 0).sort((a, b) => b.total_value - a.total_value)[0], [stageData]);
+  const mostOppStage = useMemo(() => stageData.filter((s) => s.deal_count > 0).sort((a, b) => b.deal_count - a.deal_count)[0], [stageData]);
   // Bottleneck = stage holding the largest commercial exposure (value)
   const bottleneckStage = largestStage;
 
@@ -161,7 +158,7 @@ export default function Analytics() {
       out.push({ tone: "red", text: `${overdueRenewals} renewal${overdueRenewals !== 1 ? "s" : ""} overdue`, onClick: () => navigate("/renewals") });
     }
     if (bottleneckStage && bottleneckStage.total_value > 0) {
-      out.push({ tone: "orange", text: `${bottleneckStage.stage} concentrates ${fmtEuroK(bottleneckStage.total_value)} of exposure`, onClick: () => navigate("/pipeline") });
+      out.push({ tone: "orange", text: `${analyticsStageLabel(bottleneckStage.stage)} concentrates ${fmtEuroK(bottleneckStage.total_value)} of exposure`, onClick: () => navigate("/pipeline") });
     }
     (partners.data || []).forEach(p => {
       if (p.pipeline > 0 && p.client_count === 0) {
@@ -178,8 +175,8 @@ export default function Analytics() {
   const highlights = useMemo(() => {
     const out: string[] = [];
     if (topCountry) out.push(`Billed revenue is led by ${topCountry.label} (${topCountryPct}% of lifetime).`);
-    if (largestStage) out.push(`Pipeline value is concentrated in ${largestStage.stage}.`);
-    if (mostOppStage && mostOppStage.stage !== largestStage?.stage) out.push(`${mostOppStage.stage} holds the most opportunities (${mostOppStage.deal_count}).`);
+    if (largestStage) out.push(`Pipeline value is concentrated in ${analyticsStageLabel(largestStage.stage)}.`);
+    if (mostOppStage && mostOppStage.stage !== largestStage?.stage) out.push(`${analyticsStageLabel(mostOppStage.stage)} holds the most opportunities (${mostOppStage.deal_count}).`);
     if (conversionRate > 0) out.push(`Conversion rate sits at ${conversionRate}% across closed deals.`);
     if (overdueRenewals > 0) out.push(`Renewals are the primary commercial risk (${overdueRenewals} overdue).`);
     else if (renSum.upcoming90 > 0) out.push(`${renSum.upcoming90} renewals due in the next 90 days — protect recurring revenue.`);
@@ -261,16 +258,16 @@ export default function Analytics() {
 
             {/* Card 2 — Pipeline Health */}
             <ExecCard title="Pipeline Health" icon={Activity} onClick={() => setTab("pipeline")}>
-              {stageData.length > 0 ? (
+              {totalOpenDeals > 0 ? (
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Largest stage</p>
-                    <p className="font-semibold text-foreground mt-0.5">{largestStage?.stage}</p>
+                    <p className="font-semibold text-foreground mt-0.5">{analyticsStageLabel(largestStage?.stage)}</p>
                     <p className="text-xs text-primary tabular-nums">{fmtEuroK(largestStage?.total_value || 0)}</p>
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Most opportunities</p>
-                    <p className="font-semibold text-foreground mt-0.5">{mostOppStage?.stage}</p>
+                    <p className="font-semibold text-foreground mt-0.5">{analyticsStageLabel(mostOppStage?.stage)}</p>
                     <p className="text-xs text-muted-foreground tabular-nums">{mostOppStage?.deal_count} deals</p>
                   </div>
                   <div>
@@ -280,7 +277,7 @@ export default function Analytics() {
                   </div>
                   <div>
                     <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Attention</p>
-                    <p className="text-xs text-foreground mt-0.5 leading-snug">{bottleneckStage?.stage} holds the highest commercial exposure.</p>
+                    <p className="text-xs text-foreground mt-0.5 leading-snug">{analyticsStageLabel(bottleneckStage?.stage)} holds the highest commercial exposure.</p>
                   </div>
                 </div>
               ) : <EmptyState hint="Create open opportunities to see pipeline health." />}
@@ -374,7 +371,7 @@ export default function Analytics() {
                     <tr key={r.id} className="hover:bg-secondary/30">
                       <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{r.company_name}</td>
                       <td className="px-3 py-2"><Badge variant={r.status === "Won" ? "success" : r.status === "Lost" ? "destructive" : "outline"} className="text-[10px]">{r.status}</Badge></td>
-                      <td className="px-3 py-2 text-muted-foreground">{r.stage}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{analyticsStageLabel(r.stage)}</td>
                       <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
                         {r.country_raw || "—"} {r.country_raw !== r.country_normalized && <span className="text-foreground">→ {r.country_normalized || "—"}</span>}
                       </td>
@@ -441,9 +438,9 @@ function PipelineCockpit({
     return { stage: s.stage, avgDays: n > 0 ? Math.round(sum / n) : 0 };
   });
 
-  const largestValueStage = stageData.slice().sort((a: any, b: any) => b.total_value - a.total_value)[0];
-  const mostDealsStage = stageData.slice().sort((a: any, b: any) => b.deal_count - a.deal_count)[0];
-  const oldestStage = avgAgeByStage.slice().sort((a, b) => b.avgDays - a.avgDays)[0];
+  const largestValueStage = stageData.filter((s) => s.deal_count > 0).sort((a: any, b: any) => b.total_value - a.total_value)[0];
+  const mostDealsStage = stageData.filter((s) => s.deal_count > 0).sort((a: any, b: any) => b.deal_count - a.deal_count)[0];
+  const oldestStage = avgAgeByStage.filter((s) => (stageDealsCount.get(s.stage) || 0) > 0).sort((a, b) => b.avgDays - a.avgDays)[0];
 
 
   // Forecast
@@ -465,13 +462,13 @@ function PipelineCockpit({
   const insights: string[] = [];
   if (largestValueStage && totalPipelineValue > 0) {
     const pct = Math.round((largestValueStage.total_value / totalPipelineValue) * 100);
-    insights.push(`${largestValueStage.stage} contains ${pct}% of pipeline value.`);
+    insights.push(`${analyticsStageLabel(largestValueStage.stage)} contains ${pct}% of pipeline value.`);
   }
   if (mostDealsStage && largestValueStage && mostDealsStage.stage !== largestValueStage.stage) {
-    insights.push(`${mostDealsStage.stage} concentrates most opportunities (${mostDealsStage.deal_count}).`);
+    insights.push(`${analyticsStageLabel(mostDealsStage.stage)} concentrates most opportunities (${mostDealsStage.deal_count}).`);
   }
   if (oldestStage && oldestStage.avgDays >= 21) {
-    insights.push(`${oldestStage.stage} deals have aged on average ${oldestStage.avgDays} days.`);
+    insights.push(`${analyticsStageLabel(oldestStage.stage)} deals have aged on average ${oldestStage.avgDays} days.`);
   }
   const big = openDeals.filter((d: any) => authDealValue(d) >= 25000);
   if (big.length > 0) insights.push(`${big.length} opportunit${big.length === 1 ? "y exceeds" : "ies exceed"} €25k.`);
@@ -507,9 +504,9 @@ function PipelineCockpit({
                 const avg = s.deal_count > 0 ? s.total_value / s.deal_count : 0;
                 const pct = totalPipelineValue > 0 ? Math.round((s.total_value / totalPipelineValue) * 100) : 0;
                 return (
-                  <tr key={s.stage} onClick={() => navigate("/pipeline")} className="hover:bg-secondary/40 cursor-pointer">
+                  <tr key={analyticsStageLabel(s.stage)} onClick={() => navigate("/pipeline")} className="hover:bg-secondary/40 cursor-pointer">
                     <td className="px-4 py-2 w-40">
-                      <span className="text-sm font-medium text-foreground">{s.stage}</span>
+                      <span className="text-sm font-medium text-foreground">{analyticsStageLabel(s.stage)}</span>
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
@@ -534,26 +531,26 @@ function PipelineCockpit({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Bottlenecks */}
         <ExecCard title="Pipeline Bottlenecks" icon={Target} onClick={() => navigate("/pipeline")}>
-          {stageData.length > 0 ? (
+          {totalOpenDeals > 0 ? (
             <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
               <div>
                 <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Largest value</p>
-                <p className="font-semibold text-foreground mt-0.5">{largestValueStage?.stage}</p>
+                <p className="font-semibold text-foreground mt-0.5">{analyticsStageLabel(largestValueStage?.stage)}</p>
                 <p className="text-xs text-primary tabular-nums">{fmtEuroK(largestValueStage?.total_value || 0)}</p>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Most deals</p>
-                <p className="font-semibold text-foreground mt-0.5">{mostDealsStage?.stage}</p>
+                <p className="font-semibold text-foreground mt-0.5">{analyticsStageLabel(mostDealsStage?.stage)}</p>
                 <p className="text-xs text-muted-foreground tabular-nums">{mostDealsStage?.deal_count} deals</p>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Longest avg age</p>
-                <p className="font-semibold text-foreground mt-0.5">{oldestStage?.stage || "—"}</p>
+                <p className="font-semibold text-foreground mt-0.5">{analyticsStageLabel(oldestStage?.stage)}</p>
                 <p className="text-xs text-muted-foreground tabular-nums">{oldestStage ? `${oldestStage.avgDays} days` : "—"}</p>
               </div>
               <div>
                 <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Attention</p>
-                <p className="text-xs text-foreground mt-0.5 leading-snug">{largestValueStage?.stage} concentrates the highest commercial exposure.</p>
+                <p className="text-xs text-foreground mt-0.5 leading-snug">{analyticsStageLabel(largestValueStage?.stage)} concentrates the highest commercial exposure.</p>
               </div>
             </div>
           ) : <EmptyState hint="Add open opportunities to detect bottlenecks." />}
@@ -623,7 +620,7 @@ function PipelineCockpit({
                 <tr key={d.id} onClick={() => navigate(`/deals/${d.id}`)} className="hover:bg-secondary/30 cursor-pointer">
                   <td className="px-4 py-2 font-medium text-foreground">{d.company_name}</td>
                   <td className="px-4 py-2 text-muted-foreground">{partnerMap.get(d.partner_id) || "—"}</td>
-                  <td className="px-4 py-2"><Badge variant="outline" className="text-[10px]">{d.stage}</Badge></td>
+                  <td className="px-4 py-2"><Badge variant="outline" className="text-[10px]">{analyticsStageLabel(d.stage)}</Badge></td>
                   <td className="px-4 py-2 text-right tabular-nums font-semibold">{fmtEuro(d._value)}</td>
                   <td className="px-4 py-2 text-muted-foreground">{d.assigned_salesperson || "—"}</td>
                 </tr>
