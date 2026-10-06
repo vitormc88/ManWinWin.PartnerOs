@@ -504,7 +504,7 @@ function PipelineCockpit({
                 const avg = s.deal_count > 0 ? s.total_value / s.deal_count : 0;
                 const pct = totalPipelineValue > 0 ? Math.round((s.total_value / totalPipelineValue) * 100) : 0;
                 return (
-                  <tr key={analyticsStageLabel(s.stage)} onClick={() => navigate("/pipeline")} className="hover:bg-secondary/40 cursor-pointer">
+                  <tr key={s.stage} onClick={() => navigate("/pipeline")} className="hover:bg-secondary/40 cursor-pointer">
                     <td className="px-4 py-2 w-40">
                       <span className="text-sm font-medium text-foreground">{analyticsStageLabel(s.stage)}</span>
                     </td>
