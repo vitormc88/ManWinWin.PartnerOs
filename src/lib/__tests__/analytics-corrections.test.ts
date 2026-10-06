@@ -2,7 +2,38 @@ import { describe, it, expect } from "vitest";
 import {
   authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue,
   renewalStatusDisplay, resolveRenewalOwner, rankByValue, kpiText, quarterEndInclusive,
+  analyticsStageLabel, analyticsStageRows,
 } from "../analytics-corrections";
+import { ACTIVE_STAGES, PIPELINE_STAGES } from "@/data/pipeline-stages";
+import { stageLabel } from "../pipeline-gates";
+
+describe("Analytics shared Pipeline labels", () => {
+  it.each(PIPELINE_STAGES)("uses the operational label for $key", (stage) => {
+    expect(analyticsStageLabel(stage.key)).toBe(stageLabel(stage.key, stage.label));
+  });
+  it("keeps active order, includes zero Price Negotiation once, and preserves totals", () => {
+    const input = [
+      { stage: "Advance 1", deal_count: 2, total_value: 100, weighted_value: 70 },
+      { stage: "Advance 1", deal_count: 1, total_value: 50, weighted_value: 35 },
+      { stage: "Meeting 2", deal_count: 1, total_value: 200, weighted_value: 150 },
+    ];
+    const rows = analyticsStageRows(input);
+    expect(rows.map((r) => r.stage)).toEqual(ACTIVE_STAGES.map((s) => s.key));
+    expect(rows.find((r) => r.stage === "Price Negotiation")).toEqual({ stage: "Price Negotiation", deal_count: 0, total_value: 0, weighted_value: 0 });
+    expect(rows.reduce((sum, r) => sum + r.deal_count, 0)).toBe(4);
+    expect(rows.reduce((sum, r) => sum + r.total_value, 0)).toBe(350);
+    expect(rows.reduce((sum, r) => sum + r.weighted_value, 0)).toBe(255);
+    expect(input).toHaveLength(3);
+  });
+  it("includes every active stage when loaded empty and handles missing labels", () => {
+    expect(analyticsStageRows([]).map((r) => analyticsStageLabel(r.stage))).toEqual([
+      "Open Lead", "Qualified / Call Done", "Demo", "Proposal Sent", "Solution Alignment",
+      "Clarifications & Validation", "Decision Path Confirmed", "Price Negotiation",
+    ]);
+    expect(analyticsStageLabel(null)).toBe("—");
+    expect(analyticsStageLabel("unknown")).toBe("unknown");
+  });
+});
 
 describe("analytics corrections", () => {
   it("zero total falls back to expected and ranks correctly", () => {
