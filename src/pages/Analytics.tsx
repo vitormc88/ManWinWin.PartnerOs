@@ -9,6 +9,7 @@ import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles, Trophy, Rocket
 import { resolveDealProbability, isActivePipelineStage } from "@/data/pipeline-stages";
 import { analyticsStageLabel, analyticsStageRows, authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue, renewalStatusDisplay, resolveRenewalOwner, rankByValue, isPartnerActive, summarizeOpenRenewals, salespeopleBreakdown, quarterEndInclusive, startOfToday } from "@/lib/analytics-corrections";
 import { useAuth } from "@/contexts/AuthContext";
+import { LossAnalysis } from "@/components/analytics/LossAnalysis";
 import {
   usePipelineStageBreakdown,
   useSalesPerformance,
@@ -214,7 +215,12 @@ export default function Analytics() {
           <TabsTrigger value="sales">Sales</TabsTrigger>
           <TabsTrigger value="partners">Partners</TabsTrigger>
           <TabsTrigger value="renewals">Renewals</TabsTrigger>
+          <TabsTrigger value="loss">Loss Analysis</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="loss" className="space-y-4 mt-4">
+          <LossAnalysis active={tab === "loss"} />
+        </TabsContent>
 
         {/* ---------- OVERVIEW (Executive Cockpit) ---------- */}
         <TabsContent value="overview" className="space-y-4 mt-4">
