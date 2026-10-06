@@ -1,5 +1,32 @@
 /** Analytics correction package 1 — pure helpers (no IO). */
 import { isClosedComponent } from "./renewal-active-cycle";
+import { ACTIVE_STAGES, PIPELINE_STAGES } from "@/data/pipeline-stages";
+import { stageLabel } from "./pipeline-gates";
+
+/** Same display resolver and fallback labels as the operational Pipeline. */
+export function analyticsStageLabel(stage: string | null | undefined): string {
+  if (!stage) return "—";
+  return stageLabel(stage, PIPELINE_STAGES.find((s) => s.key === stage)?.label);
+}
+
+/** Presentation-only: include empty active stages without changing any totals. */
+export function analyticsStageRows(rows: Array<{ stage: string; deal_count: number; total_value: number; weighted_value: number }>) {
+  const byStage = new Map<string, { stage: string; deal_count: number; total_value: number; weighted_value: number }>();
+  for (const row of rows) {
+    const previous = byStage.get(row.stage);
+    byStage.set(row.stage, previous ? {
+      stage: row.stage,
+      deal_count: previous.deal_count + row.deal_count,
+      total_value: previous.total_value + row.total_value,
+      weighted_value: previous.weighted_value + row.weighted_value,
+    } : { ...row });
+  }
+  const activeKeys = new Set<string>(ACTIVE_STAGES.map((s) => s.key));
+  return [
+    ...ACTIVE_STAGES.map((s) => byStage.get(s.key) ?? { stage: s.key, deal_count: 0, total_value: 0, weighted_value: 0 }),
+    ...Array.from(byStage.values()).filter((row) => !activeKeys.has(row.stage)),
+  ];
+}
 
 /** Canonical deal value (matches Pipeline): non-zero total_value, else expected_value. */
 export function authDealValue(d: { total_value?: any; expected_value?: any }): number {
