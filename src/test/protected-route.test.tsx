@@ -119,6 +119,26 @@ describe("ProtectedRoute", () => {
     expect(screen.queryByText("Analytics content")).not.toBeInTheDocument();
   });
 
+  it("allows Customer Explorer for partners with Knowledge Base permission", async () => {
+    mockUseMyPermissions.mockReturnValue({
+      data: [{ module_key: "knowledge_base", access_level: "view" }],
+      isLoading: false, isResolved: true, isError: false,
+    });
+    render(<MemoryRouter initialEntries={["/customer-explorer"]}><Routes>
+      <Route path="/customer-explorer" element={<ProtectedRoute><div>Customer network</div></ProtectedRoute>} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText("Customer network")).toBeInTheDocument();
+  });
+
+  it("does not expose Customer Explorer through Clients permission alone", async () => {
+    render(<MemoryRouter initialEntries={["/customer-explorer"]}><Routes>
+      <Route path="/customer-explorer" element={<ProtectedRoute><div>Customer network</div></ProtectedRoute>} />
+      <Route path="/clients" element={<ProtectedRoute><div>Scoped clients</div></ProtectedRoute>} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText("Scoped clients")).toBeInTheDocument();
+    expect(screen.queryByText("Customer network")).not.toBeInTheDocument();
+  });
+
   it("forces invite or recovery sessions to reset-password before app access", async () => {
     mockUseAuth.mockReturnValue({
       session: { user: { id: "user-1" } },

@@ -15,6 +15,7 @@ import Tasks from "@/pages/Tasks";
 import Partners from "@/pages/Partners";
 import PartnerDetail from "@/pages/PartnerDetail";
 import ClientsLicenses from "@/pages/ClientsLicenses";
+import CustomerExplorerPage from "@/pages/CustomerExplorer";
 import ClientDetail from "@/pages/ClientDetail";
 import ClientOnboardingWizard from "@/pages/ClientOnboardingWizard";
 import Renewals from "@/pages/Renewals";
@@ -93,6 +94,7 @@ const App = () => (
               <Route path="/partners" element={<Partners />} />
               <Route path="/partners/:id" element={<PartnerDetail />} />
               <Route path="/clients" element={<ClientsLicenses />} />
+              <Route path="/customer-explorer" element={<CustomerExplorerPage />} />
               <Route path="/clients/new" element={<ClientOnboardingWizard />} />
               <Route path="/clients/:id" element={<ClientDetail />} />
               <Route path="/renewals" element={<Renewals />} />

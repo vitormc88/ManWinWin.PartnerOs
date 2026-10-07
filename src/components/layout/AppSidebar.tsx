@@ -25,6 +25,7 @@ import {
   Inbox,
   CheckSquare,
   Target,
+  Globe2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { BrandMark } from "@/components/BrandMark";
@@ -81,6 +82,7 @@ const partnerOpsNav = [
 ];
 
 const resourcesNav = [
+  { title: "Customer Explorer", url: "/customer-explorer", icon: Globe2 },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
   { title: "Training", url: "/training", icon: GraduationCap },
 ];

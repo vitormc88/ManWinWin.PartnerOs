@@ -92,6 +92,7 @@ const ROUTE_MODULES: RouteModule[] = [
   { prefix: "/onboarding", path: "/academy", moduleKey: "onboarding" },
   { prefix: "/certifications", path: "/certifications", moduleKey: "certifications" },
   { prefix: "/knowledge", path: "/knowledge", moduleKey: "knowledge_base" },
+  { prefix: "/customer-explorer", path: "/customer-explorer", moduleKey: "knowledge_base" },
   { prefix: "/training", path: "/training", moduleKey: "training" },
   { prefix: "/announcements", path: "/announcements", moduleKey: "announcements" },
   { prefix: "/community", path: "/community", moduleKey: "community" },
