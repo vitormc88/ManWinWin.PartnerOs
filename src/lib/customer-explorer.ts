@@ -6,16 +6,27 @@ export interface ExplorerClient {
   name: string;
   country: string | null;
   sector: string | null;
-  active: boolean;
+  active: boolean | null;
+  client_id?: string;
+  sector_evidence?: string | null;
+  evidence_status?: 'unconfirmed' | 'suggested' | 'validated';
+  sector_source?: string | null;
+  source?: string;
   partner: string;
   contact_name: string;
   contact_email: string | null;
 }
 
-export const CUSTOMER_CARE_EMAIL = "support@manwinwin.com";
+export const CUSTOMER_CARE_EMAIL = "customercare@manwinwin.com";
 export const UNKNOWN_SECTOR = "Sector to confirm";
 type Country = { code: string; name: string; region: string; lon: number; lat: number; aliases: string[] };
 export const EXPLORER_COUNTRIES: Country[] = [
+  {code:"BH",name:"Bahrain",region:"MENA",lon:50.55,lat:26,aliases:["BAHRAIN"]},
+  {code:"CV",name:"Cape Verde",region:"Africa",lon:-24,lat:16,aliases:["CAPE VERDE","CABO VERDE"]},
+  {code:"GI",name:"Gibraltar",region:"Europe",lon:-5.35,lat:36.14,aliases:["GIBRALTAR"]},
+  {code:"SC",name:"Seychelles",region:"Africa",lon:55.45,lat:-4.6,aliases:["SEYCHELLES"]},
+  {code:"ST",name:"São Tomé and Príncipe",region:"Africa",lon:6.6,lat:0.3,aliases:["SÃO TOMÉ AND PRÍNCIPE","SAO TOME AND PRINCIPE"]},
+  {code:"TC",name:"Turks and Caicos Islands",region:"LATAM",lon:-71.8,lat:21.75,aliases:["TURKS AND CAICOS ISLANDS"]},
   {code:"RO",name:"Romania",region:"Europe",lon:25,lat:46,aliases:["ROMANIA"]},
   {code:"NO",name:"Norway",region:"Europe",lon:9,lat:62,aliases:["NORWAY"]},
   {code:"NL",name:"Netherlands",region:"Europe",lon:5,lat:52,aliases:["NETHERLANDS"]},
@@ -42,7 +53,9 @@ export function countryInfo(value: string | null) {
   if (current) return current;
   const iso = ISO_COUNTRIES.find(c=>c.code===key||c.name.toUpperCase()===key);
   const world = worldCountries.find(c=>c.code===(iso?.code||key)||c.name.toUpperCase()===key||c.aliases.some(a=>a.toUpperCase()===key));
-  if (!world) return undefined;
+  // Small territories may be absent from the low-resolution world geometry.
+  // Keep valid ISO countries usable without inventing geographic coordinates.
+  if (!world) return iso?{code:iso.code,name:iso.name,region:'Region to confirm',lon:undefined,lat:undefined,aliases:[iso.name]}:undefined;
   const mena = new Set(["DZ","BH","EG","IR","IQ","IL","JO","KW","LB","LY","MA","OM","PS","QA","SA","SY","TN","AE","YE"]);
   const region=mena.has(world.code)?"MENA":world.continent==="Europe"?"Europe":world.continent==="Asia"||world.continent==="Oceania"?"APAC":world.continent==="Africa"?"Africa":world.continent==="South America"||world.subregion==="Central America"||world.subregion==="Caribbean"?"LATAM":world.continent==="North America"?"North America":"Region to confirm";
   return {code:world.code,name:world.name,region,lon:world.lon,lat:world.lat,aliases:world.aliases};
@@ -53,7 +66,7 @@ export function regionName(value: string | null) { return countryInfo(value)?.re
 export type ExplorerFilters = { search: string; sector: string; region: string; country: string; includeHistorical: boolean };
 export function filterExplorerClients(rows: ExplorerClient[], f: ExplorerFilters) {
   const search = f.search.trim().toLocaleLowerCase();
-  return rows.filter(r => (f.includeHistorical || r.active)
+  return rows.filter(r => (f.includeHistorical || r.active !== false)
     && (!f.sector || (r.sector || UNKNOWN_SECTOR) === f.sector)
     && (!f.region || regionName(r.country) === f.region)
     && (!f.country || countryCode(r.country) === f.country)

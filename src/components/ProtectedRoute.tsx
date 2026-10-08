@@ -45,6 +45,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/reset-password" replace />;
   }
 
+  // Global directory has its own membership RLS; it does not inherit Knowledge Base permissions.
+  if(location.pathname === '/customer-explorer') {
+    if(profile?.is_active && (profile.is_hq || profile.partner_id))return <>{children}</>;
+    return <AccessDenied message="An active PartnerOS membership is required."/>;
+  }
+
   if (isAdmin) return <>{children}</>;
 
   if (permsLoading || !permsResolved) return <LoadingSpinner />;

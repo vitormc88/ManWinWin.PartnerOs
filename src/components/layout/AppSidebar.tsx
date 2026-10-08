@@ -104,6 +104,7 @@ export function AppSidebar() {
   const isPartnerUser = profile?.is_hq !== true;
 
   const canSee = (url: string) => {
+    if(url === '/customer-explorer')return profile?.is_active === true && (profile.is_hq || !!profile.partner_id);
     if (url === "/academy/analytics") {
       return isAdmin || academyAnalyticsPerms?.academy_analytics_view === true;
     }

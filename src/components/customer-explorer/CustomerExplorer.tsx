@@ -21,6 +21,7 @@ export function CustomerExplorer({ clients, preview = false, updatedAt, onRefres
   const [selected,setSelected] = useState<ExplorerClient|null>(null);
   const [context,setContext] = useState("");
   const [world,setWorld] = useState<World|null>(null);
+  const [zoom,setZoom] = useState(1);
   const modalRef = useRef<HTMLElement>(null);
   useEffect(() => { let alive=true; fetch("/customer-explorer-world.geojson").then(r=>{if(!r.ok)throw new Error("Map unavailable");return r.json()}).then(d=>{if(alive)setWorld(d)}).catch(()=>{});return()=>{alive=false} },[]);
   useEffect(()=>setLimit(12),[search,sector,region,country,historical]);
@@ -47,7 +48,14 @@ export function CustomerExplorer({ clients, preview = false, updatedAt, onRefres
   const mapMatches = useMemo(()=>filterExplorerClients(clients,{search,sector,region,country:"",includeHistorical:historical}),[clients,search,sector,region,historical]);
   const groups = countryGroups(mapMatches);
   const resultCountries = countryGroups(matches);
-  const activeCount = matches.filter(r=>r.active).length;
+  const focus=groups.find(g=>g.code===country);
+  const center=focus?.lon!==undefined&&focus.lat!==undefined?project(focus.lon,focus.lat):[450,185];
+  const viewWidth=900/zoom,viewHeight=370/zoom;
+  const viewX=Math.max(0,Math.min(900-viewWidth,center[0]-viewWidth/2));
+  const viewY=Math.max(0,Math.min(370-viewHeight,center[1]-viewHeight/2));
+  const activeCount = matches.filter(r=>r.active === true).length;
+  const historicalCount = matches.filter(r=>r.active === false).length;
+  const unknownCount = matches.filter(r=>r.active === null).length;
   const reset = () => {setSearch("");setSector("");setRegion("");setCountry("");setHistorical(false)};
   const openRequest = (r:ExplorerClient) => {setContext("");setSelected(r)};
   return <div className="ce">
@@ -61,22 +69,24 @@ export function CustomerExplorer({ clients, preview = false, updatedAt, onRefres
       <label className="ce-select"><span>COUNTRY</span><select aria-label="Country" value={country} onChange={e=>setCountry(e.target.value)}><option value="">All countries</option>{allCountries.filter(c=>!region||c.region===region).map(c=><option key={c.code} value={c.code}>{c.name}</option>)}</select><ChevronDown size={13}/></label>
       <button className="ce-reset" onClick={reset} aria-label="Clear filters" title="Clear filters"><RotateCcw size={17}/></button>
     </div>
-    <div className="ce-options"><label><input type="checkbox" checked={historical} onChange={e=>setHistorical(e.target.checked)}/> Include historical customers <span>({clients.filter(c=>!c.active).length})</span></label><span>{preview?`Snapshot ${updatedAt||"7 Oct 2026"}`:"Updates automatically · every minute"}{onRefresh&&<button onClick={onRefresh}>Refresh</button>}</span></div>
+    <div className="ce-options"><label><input type="checkbox" checked={historical} onChange={e=>setHistorical(e.target.checked)}/> Include historical customers <span>({clients.filter(c=>c.active===false).length})</span></label><span>{preview?`Snapshot ${updatedAt||"8 Oct 2026"}`:"Updates automatically · every minute"}{onRefresh&&<button onClick={onRefresh}>Refresh</button>}</span></div>
     <section className="ce-map-panel" aria-label="Global customer map">
       <div className="ce-map-top"><div><Globe2 size={17}/><strong>Your next reference could be anywhere.</strong></div><span>Choose a country to explore its customers</span></div>
       <div className="ce-map-grid">
-        <div className="ce-map-wrap"><svg viewBox="0 0 900 370" role="group" aria-label="World map. Country buttons are also available in the list.">
+        <div className="ce-map-wrap"><div className="ce-map-zoom"><button aria-label="Zoom in map" onClick={()=>setZoom(v=>Math.min(4,v+1))} disabled={zoom===4}>+</button><button aria-label="Zoom out map" onClick={()=>setZoom(v=>Math.max(1,v-1))} disabled={zoom===1}>−</button><button onClick={()=>setZoom(1)}>World</button><span>{zoom}× · select a country to center</span></div><svg viewBox={`${viewX} ${viewY} ${viewWidth} ${viewHeight}`} role="group" aria-label="World map. Country buttons are also available in the list.">
           <defs><pattern id="ce-dots" width="14" height="14" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.7" fill="#d9e1e7"/></pattern></defs><rect width="900" height="370" fill="url(#ce-dots)"/>
           {world?.features.filter(f=>f.properties.NAME!=="Antarctica").map((f,i)=><path key={i} d={mapPath(f.geometry)} fill="#e8edf1" stroke="#fff" strokeWidth="0.8"/>)}
-          {groups.filter(g=>g.lon!==undefined&&g.lat!==undefined).map(g=>{const [x,y]=project(g.lon!,g.lat!); const r=Math.min(21,9+Math.sqrt(g.count)*1.8);return <g key={g.code} transform={`translate(${x},${y})`} role="button" tabIndex={0} aria-label={`${g.name}, ${g.count} customers`} aria-pressed={country===g.code} onClick={()=>setCountry(country===g.code?"":g.code)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setCountry(country===g.code?"":g.code)}}} className={`ce-map-marker ${country===g.code?"selected":""}`}><title>{g.name}: {g.count} customers</title><circle r={r+5} className="ce-marker-halo"/><circle r={r} className="ce-marker-dot"/><text textAnchor="middle" dy="4">{g.count}</text></g>})}
+          {groups.filter(g=>g.lon!==undefined&&g.lat!==undefined).map(g=>{const [x,y]=project(g.lon!,g.lat!); const r=Math.min(21,9+Math.sqrt(g.count)*1.8)/zoom;return <g key={g.code} transform={`translate(${x},${y})`} role="button" tabIndex={0} aria-label={`${g.name}, ${g.count} customers`} aria-pressed={country===g.code} onClick={()=>setCountry(country===g.code?"":g.code)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setCountry(country===g.code?"":g.code)}}} className={`ce-map-marker ${country===g.code?"selected":""}`}><title>{g.name}: {g.count} customers</title><circle r={r+5/zoom} className="ce-marker-halo"/><circle r={r} className="ce-marker-dot"/><text textAnchor="middle" dy={4/zoom} style={{fontSize:`${12/zoom}px`}}>{g.count}</text></g>})}
         </svg><div className="ce-map-caption"><span className="ce-red-dot"/> Customer presence · country-level locations <a href="https://www.naturalearthdata.com/" target="_blank" rel="noreferrer">Map: Natural Earth</a></div>{!world&&<p className="ce-map-fallback">Country list available while the map loads.</p>}</div>
         <aside className="ce-country-list"><div className="ce-country-title">{region||"Worldwide"}<span>{groups.length} {groups.length===1?"country":"countries"}</span></div>{groups.map(g=><button key={g.code} className={country===g.code?"selected":""} onClick={()=>setCountry(country===g.code?"":g.code)} aria-pressed={country===g.code}><span><span className="ce-country-code">{g.code}</span>{g.name}</span><b>{g.count}</b></button>)}{!groups.length&&<p>No countries match these filters.</p>}</aside>
       </div>
+      {groups.some(g=>g.lon===undefined||g.lat===undefined)&&<p className="ce-map-fallback">Some countries are available in the country list but do not yet have a map marker.</p>}
     </section>
-    <div className="ce-results-head"><div><h2>{country?countryName(country):sector||"Explore the network"}</h2><p aria-live="polite"><strong>{matches.length}</strong> {matches.length===1?"customer":"customers"} · {resultCountries.length} {resultCountries.length===1?"country":"countries"} · {activeCount} active{historical?` · ${matches.length-activeCount} historical`:""}</p></div>{(sector||region||country||search)&&<button onClick={reset}>Clear selection <X size={14}/></button>}</div>
+    <div className="ce-results-head"><div><h2>{country?countryName(country):sector||"Explore the network"}</h2><p aria-live="polite"><strong>{matches.length}</strong> {matches.length===1?"customer":"customers"} · {resultCountries.length} {resultCountries.length===1?"country":"countries"} · {activeCount} active{historical?` · ${historicalCount} historical`:""}{unknownCount?` · ${unknownCount} status unconfirmed`:""}</p></div>{(sector||region||country||search)&&<button onClick={reset}>Clear selection <X size={14}/></button>}</div>
     <div className="ce-cards">{matches.slice(0,limit).map(r=><article className="ce-card" key={r.id}>
-      <div className="ce-card-top"><span className="ce-sector"><Layers size={12}/>{r.sector||UNKNOWN_SECTOR}</span>{!r.active&&<span className="ce-history">Historical</span>}</div>
+      <div className="ce-card-top"><span className="ce-sector"><Layers size={12}/>{r.sector||UNKNOWN_SECTOR}</span>{r.active===false&&<span className="ce-history">Historical</span>}{r.active===null&&<span className="ce-history">Status unconfirmed</span>}</div>
       <h3>{r.name}</h3><div className="ce-location"><MapPin size={14}/>{countryName(r.country)}<span>·</span>{regionName(r.country)}</div>
+      {r.evidence_status?<small className="ce-sector-evidence">{r.evidence_status==='suggested'?'Sector suggested · needs validation':r.evidence_status==='validated'?'Sector validated by HQ':null}</small>:r.sector_evidence&&<small className="ce-sector-evidence">{r.sector_evidence.startsWith("Suggested")||r.sector_evidence.startsWith("Correction proposed")?"Sector suggested · needs validation":r.sector_evidence.startsWith("Unresolved")?"Sector not identified":r.sector_evidence.startsWith("Web verified")?"Sector verified in supplied workbook":null}</small>}
       <div className="ce-contact"><span className="ce-avatar">{(r.contact_email?r.contact_name:"Customer Care").split(/\s+/).slice(0,2).map(s=>s[0]).join("")}</span><div><span>YOUR CONTACT</span><strong>{r.contact_email?r.contact_name:"Customer Care"}</strong><small>{r.contact_email?r.partner:"ManWinWin"}</small></div></div>
       <button className="ce-request" onClick={()=>openRequest(r)}>Ask for information<ArrowUpRight size={16}/></button>
     </article>)}</div>

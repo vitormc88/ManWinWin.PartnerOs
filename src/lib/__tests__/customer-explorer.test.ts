@@ -36,7 +36,11 @@ describe("Customer Explorer",()=>{
     expect(url.searchParams.get("body")).toContain("A hospital in Peru & a new project");
     expect(url.searchParams.get("subject")).toContain("INFOMED (Romania)");
   });
-  it("routes missing partner contacts to the established support address",()=>{
-    expect(requestEmail(rows[3],"")).toMatch(/^mailto:support%40manwinwin.com/);
+  it("routes missing partner contacts to Customer Care",()=>{
+    expect(requestEmail(rows[3],"")).toMatch(/^mailto:customercare%40manwinwin.com/);
+  });
+  it("includes unconfirmed statuses without treating them as historical",()=>{
+    const unconfirmed={...rows[3],id:"5",active:null};
+    expect(filterExplorerClients([unconfirmed],filters)).toHaveLength(1);
   });
 });
