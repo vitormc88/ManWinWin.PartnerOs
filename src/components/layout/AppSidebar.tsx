@@ -25,6 +25,7 @@ import {
   Inbox,
   CheckSquare,
   Target,
+  Globe2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { BrandMark } from "@/components/BrandMark";
@@ -81,6 +82,7 @@ const partnerOpsNav = [
 ];
 
 const resourcesNav = [
+  { title: "Customer Explorer", url: "/customer-explorer", icon: Globe2 },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
   { title: "Training", url: "/training", icon: GraduationCap },
 ];
@@ -102,6 +104,7 @@ export function AppSidebar() {
   const isPartnerUser = profile?.is_hq !== true;
 
   const canSee = (url: string) => {
+    if(url === '/customer-explorer')return profile?.is_active === true && (profile.is_hq || !!profile.partner_id);
     if (url === "/academy/analytics") {
       return isAdmin || academyAnalyticsPerms?.academy_analytics_view === true;
     }

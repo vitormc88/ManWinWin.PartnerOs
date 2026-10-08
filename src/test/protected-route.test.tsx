@@ -32,7 +32,7 @@ describe("ProtectedRoute", () => {
       isAuthReady: true,
       isInviteOrRecoveryFlow: false,
       isAdmin: false,
-      profile: { is_hq: false },
+      profile: { is_hq: false, is_active: true, partner_id:'partner-1' },
     });
 
     mockUseMyPermissions.mockReturnValue({
@@ -117,6 +117,33 @@ describe("ProtectedRoute", () => {
 
     expect(await screen.findByText("Dashboard content")).toBeInTheDocument();
     expect(screen.queryByText("Analytics content")).not.toBeInTheDocument();
+  });
+
+  it("allows Customer Explorer for partners with Knowledge Base permission", async () => {
+    mockUseMyPermissions.mockReturnValue({
+      data: [{ module_key: "knowledge_base", access_level: "view" }],
+      isLoading: false, isResolved: true, isError: false,
+    });
+    render(<MemoryRouter initialEntries={["/customer-explorer"]}><Routes>
+      <Route path="/customer-explorer" element={<ProtectedRoute><div>Customer network</div></ProtectedRoute>} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText("Customer network")).toBeInTheDocument();
+  });
+
+  it("allows all active partner members independently of module permissions", async () => {
+    render(<MemoryRouter initialEntries={["/customer-explorer"]}><Routes>
+      <Route path="/customer-explorer" element={<ProtectedRoute><div>Customer network</div></ProtectedRoute>} />
+      <Route path="/clients" element={<ProtectedRoute><div>Scoped clients</div></ProtectedRoute>} />
+    </Routes></MemoryRouter>);
+    expect(await screen.findByText("Customer network")).toBeInTheDocument();
+    expect(screen.queryByText("Scoped clients")).not.toBeInTheDocument();
+  });
+
+  it('denies the directory to inactive users',async()=>{
+    mockUseAuth.mockReturnValue({session:{user:{id:'user-1'}},isLoading:false,isAuthReady:true,isAdmin:false,profile:{is_active:false,is_hq:false,partner_id:'partner-1'}});
+    render(<MemoryRouter initialEntries={['/customer-explorer']}><ProtectedRoute><div>Customer network</div></ProtectedRoute></MemoryRouter>);
+    expect(await screen.findByText('An active PartnerOS membership is required.')).toBeInTheDocument();
+    expect(screen.queryByText('Customer network')).not.toBeInTheDocument();
   });
 
   it("forces invite or recovery sessions to reset-password before app access", async () => {
