@@ -75,9 +75,9 @@ export default function PartnerDetail() {
   const updatePartner = useUpdatePartner();
   const archivePartner = useArchivePartner();
   const createClient = useCreateClient();
-  const { data: academyCertsAll = [] } = useManagedCertificates(id);
+  const { data: academyCertsAll = [], isLoading: academyCertsLoading, isError: academyCertsError } = useManagedCertificates(id);
   const academyCerts = certificatesForPartner(academyCertsAll, id);
-  const { data: certs = [], refetch: refetchCerts } = useQuery({
+  const { data: certs = [], refetch: refetchCerts, isLoading: legacyCertsLoading, isError: legacyCertsError } = useQuery({
     queryKey: ["partner_certs", id],
     queryFn: async () => {
       if (!id) return [];
@@ -457,7 +457,7 @@ export default function PartnerDetail() {
               ["clients", "Clients", clients.length],
               ["leads", "Leads", deals.length],
               ["renewals", "Renewals", partnerRenewals.length],
-              ["certifications", "Certifications", certs.length],
+              ["certifications", "Certifications", academyCertsError || legacyCertsError ? "—" : academyCertsLoading || legacyCertsLoading ? "…" : academyCerts.length + certs.length],
             ].map(([value, label, count]) => (
               <TabsTrigger
                 key={value as string}
@@ -467,7 +467,7 @@ export default function PartnerDetail() {
                 <span>{label}</span>
                 {count !== null && (
                   <span className="ml-2 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-muted text-[11px] font-medium text-muted-foreground tabular-nums group-data-[state=active]:bg-primary/10 group-data-[state=active]:text-primary">
-                    {count as number}
+                    {count as number | string}
                   </span>
                 )}
               </TabsTrigger>
@@ -970,7 +970,11 @@ export default function PartnerDetail() {
             <h3 className="text-sm font-semibold text-foreground">Partner Academy certificates</h3>
             <p className="text-xs text-muted-foreground">Issued automatically by the Academy when a learner passes a module certification.</p>
           </div>
-          {academyCerts.length === 0 ? (
+          {academyCertsError ? (
+            <div role="alert" className="bg-card rounded-xl border shadow-sm p-6 text-center text-sm text-destructive">Could not load Academy certificates. Please refresh to try again.</div>
+          ) : academyCertsLoading ? (
+            <div className="bg-card rounded-xl border shadow-sm p-6 text-center text-sm text-muted-foreground">Loading Academy certificates…</div>
+          ) : academyCerts.length === 0 ? (
             <div className="bg-card rounded-xl border shadow-sm p-6 text-center text-sm text-muted-foreground">
               No Academy certificates for this partner's users yet.
             </div>
@@ -1011,7 +1015,11 @@ export default function PartnerDetail() {
             <Button size="sm" onClick={() => setShowAddCert(true)}><Plus className="h-4 w-4 mr-1.5" /> Add Certification</Button>
           </div>
 
-          {certs.length === 0 ? (
+          {legacyCertsError ? (
+            <div role="alert" className="bg-card rounded-xl border shadow-sm p-6 text-center text-sm text-destructive">Could not load legacy certifications. Please refresh to try again.</div>
+          ) : legacyCertsLoading ? (
+            <div className="bg-card rounded-xl border shadow-sm p-6 text-center text-sm text-muted-foreground">Loading legacy certifications…</div>
+          ) : certs.length === 0 ? (
             <div className="bg-card rounded-xl border shadow-sm p-8 text-center text-muted-foreground">No certifications yet.</div>
           ) : (
             <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
