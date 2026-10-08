@@ -229,6 +229,10 @@ export function evaluateRenewalClosure(input: ClosurePreviewInput): ClosurePrevi
 export function renewalClosureRefreshKeys(renewalId: string, clientId?: string | null): unknown[][] {
   const keys: unknown[][] = [
     ["renewals"],
+    ["unified_tasks"],
+    ["unified_tasks_focus"],
+    ["unified_tasks_workload"],
+    ["unified_tasks_team"],
     ["renewals", "real"],
     ["renewal_activities", renewalId],
     ["proposal", "renewal", renewalId],

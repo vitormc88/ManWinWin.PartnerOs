@@ -368,7 +368,7 @@ function TaskRow({
   const [collapsing, setCollapsing] = useState(false);
 
   const handleComplete = async (checked: boolean | "indeterminate") => {
-    if (!checked || completing) return;
+    if (!checked || completing || task.is_auto) return;
     // 1. Show checked state + strike-through immediately
     setCompleting(true);
     // 2. Hold the strike-through briefly so it's perceived
@@ -460,12 +460,18 @@ function TaskRow({
             />
           )}
           <div className={cn(density === "compact" ? "pt-0.5" : "pt-1")}>
-            <Checkbox
-              checked={completing}
-              onCheckedChange={handleComplete}
-              aria-label={`Mark "${task.title}" complete`}
-              className="h-[18px] w-[18px] data-[state=checked]:bg-success data-[state=checked]:border-success data-[state=checked]:text-success-foreground transition-colors"
-            />
+            {task.is_auto ? (
+              <Button asChild variant="ghost" size="icon" className="h-[18px] w-[18px]" title={task.source === "renewal" ? "Open renewal to resolve this task" : "Open related record to resolve this task"}>
+                <Link to={task.related_route || "/tasks"} aria-label={task.source === "renewal" ? "Open renewal" : "Open related record"}><ExternalLink className="h-3.5 w-3.5" /></Link>
+              </Button>
+            ) : (
+              <Checkbox
+                checked={completing}
+                onCheckedChange={handleComplete}
+                aria-label={`Mark "${task.title}" complete`}
+                className="h-[18px] w-[18px] data-[state=checked]:bg-success data-[state=checked]:border-success data-[state=checked]:text-success-foreground transition-colors"
+              />
+            )}
           </div>
           <div
             className={cn(
@@ -600,8 +606,11 @@ function TaskRow({
                 <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {!archived && (
+                {!archived && !task.is_auto && (
                   <DropdownMenuItem onSelect={() => handleComplete(true)}>Mark complete</DropdownMenuItem>
+                )}
+                {!archived && task.is_auto && task.related_route && (
+                  <DropdownMenuItem asChild><Link to={task.related_route}>{task.source === "renewal" ? "Open renewal" : "Open related record"}</Link></DropdownMenuItem>
                 )}
                 {!archived && !task.is_auto && (
                   <>
