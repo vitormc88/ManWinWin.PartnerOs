@@ -3,6 +3,7 @@
  * Opportunities: deals with status Lost, joined 1:1 with opportunity_loss_details.
  * Renewals: FULL historical explicit renewals with status Lost OR outcome lost (one row per cycle).
  */
+import { canonicalRenewalComponents } from "@/lib/renewal-active-cycle";
 import { authDealValue } from "@/lib/analytics-corrections";
 
 export const NO_PARTNER = "__none__";
@@ -95,7 +96,7 @@ export function renewalEstimatedLost(r: any): number {
 
 export function buildRenewalRows(renewals: any[], clientNames: Map<string, string>): LossRow[] {
   const seen = new Set<string>();
-  return renewals.filter((r) => isRenewalLost(r) && !seen.has(r.id) && seen.add(r.id)).map((r) => {
+  return canonicalRenewalComponents(renewals).filter((r) => isRenewalLost(r) && !seen.has(r.id) && seen.add(r.id)).map((r) => {
     const value = renewalEstimatedLost(r);
     return {
       kind: "renewal" as const,

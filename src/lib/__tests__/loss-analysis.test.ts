@@ -58,3 +58,13 @@ describe("loss analysis", () => {
     expect(res).toHaveLength(2500);
   });
 });
+
+ it("reconciled duplicate losses excluded, genuine later cycles retained", () => {
+ const rows=buildRenewalRows([
+ {id:"original",client_id:"c",status:"Lost",estimated_value:2616},
+ {id:"duplicate",client_id:"c",status:"Lost",estimated_value:1896,superseded_by_renewal_id:"original"},
+ {id:"later-cycle",client_id:"c",status:"Lost",estimated_value:3000}
+ ],new Map([["c","ASEE"]]));
+ expect(rows.map(r=>r.id)).toEqual(["original","later-cycle"]);
+ expect(lossSummary(rows)).toMatchObject({count:2,value:5616});
+ });

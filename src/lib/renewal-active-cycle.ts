@@ -15,6 +15,7 @@ export const CLOSED_RENEWAL_STATUSES = new Set(["Won", "Lost", "Completed"]);
 
 export interface RenewalComponentLike {
   id?: string | null;
+  superseded_by_renewal_id?: string | null;
   status?: string | null;
   closed_at?: string | null;
   outcome?: string | null;
@@ -130,4 +131,9 @@ export function isPerpetualKeepIt(l: { product?: string | null; edition?: string
   if (!l) return false;
   const txt = `${l.product || ""} ${l.edition || ""} ${l.license_type || ""}`.toLowerCase();
   return txt.includes("keepit") && !txt.includes("saas");
+}
+
+/** Reconciled duplicate records remain stored for audit, outside commercial counts. */
+export function canonicalRenewalComponents<T extends RenewalComponentLike>(rows: T[]): T[] {
+  return rows.filter(r => !r.superseded_by_renewal_id);
 }

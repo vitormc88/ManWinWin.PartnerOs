@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
-import { selectActiveCycle, isDerivedComponent, suppressDerivedForClosedCycles, isPerpetualKeepIt } from "@/lib/renewal-active-cycle";
+import { canonicalRenewalComponents, selectActiveCycle, isDerivedComponent, suppressDerivedForClosedCycles, isPerpetualKeepIt } from "@/lib/renewal-active-cycle";
 
 export type Deal = Tables<"deals">;
 
@@ -48,7 +48,7 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
       const { data: existing, error } = await query;
       if (error) throw error;
 
-      const explicit = existing || [];
+      const explicit = canonicalRenewalComponents(existing || []);
 
       // Track license_ids and contract clients already covered by explicit renewals,
       // so we don't generate phantom "License"/"SAT" derived rows on top of real operationalized ones.
@@ -189,7 +189,7 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
         const selection = selectActiveCycle(components);
         if (!selection) continue;
         const primary = selection.primary;
-        const scope = selection.valueComponents;
+        const scope = selection.isClosed ? [primary] : selection.valueComponents;
 
         // Prefer an explicit (non-derived) row for ownership / notes / id.
         const isExplicit = (c: any) => !isDerivedComponent(c);

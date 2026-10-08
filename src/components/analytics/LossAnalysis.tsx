@@ -23,7 +23,7 @@ function useLossData(enabled: boolean) {
         fetchAllPages<any>((f, t) => supabase.from("deals").select("id,status,company_name,partner_id,total_value,expected_value,assigned_user_id,assigned_salesperson,lost_at").eq("status", "Lost").order("id").range(f, t)),
         fetchAllPages<any>((f, t) => supabase.from("opportunity_loss_details").select("id,deal_id,loss_category,competitor_name,competitor_other,notes,lost_at").order("id").range(f, t)),
         fetchAllPages<any>((f, t) => supabase.from("opportunity_loss_reasons").select("loss_detail_id,reason").order("id").range(f, t)),
-        fetchAllPages<any>((f, t) => supabase.from("renewals").select("id,client_id,partner_id,partner_uuid,status,outcome,closed_at,assigned_user_id,assigned_owner,estimated_value,loss_reason,closing_notes").or("status.ilike.lost,outcome.ilike.lost").order("id").range(f, t)),
+        fetchAllPages<any>((f, t) => supabase.from("renewals").select("id,client_id,partner_id,partner_uuid,status,outcome,closed_at,assigned_user_id,assigned_owner,estimated_value,loss_reason,closing_notes,superseded_by_renewal_id").or("status.ilike.lost,outcome.ilike.lost").order("id").range(f, t)),
         fetchAllPages<any>((f, t) => supabase.from("partners").select("id,company_name").order("id").range(f, t)),
       ]);
       const clientIds = [...new Set(renewals.map((r) => r.client_id).filter(Boolean))];

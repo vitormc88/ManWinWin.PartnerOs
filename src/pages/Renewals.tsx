@@ -55,7 +55,7 @@ export default function Renewals() {
   const { data: clients = [], isLoading: clientsLoading } = useClients();
   const kpisReady = !isLoading && !partnersLoading && !clientsLoading && !isError;
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
   const [partnerFilter, setPartnerFilter] = useState<string>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showProposal, setShowProposal] = useState(false);
@@ -91,21 +91,24 @@ export default function Renewals() {
   const filtered = useMemo(() => {
     return enriched.filter(r => {
       if (search && !r.clientName.toLowerCase().includes(search.toLowerCase()) && !r.clientCode.toLowerCase().includes(search.toLowerCase())) return false;
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (statusFilter === "active" && isClosedRenewal(r)) return false;
+      if (statusFilter !== "all" && statusFilter !== "active" && r.status !== statusFilter) return false;
       if (partnerFilter !== "all" && r.partner_id !== partnerFilter) return false;
       return true;
     });
   }, [enriched, search, statusFilter, partnerFilter]);
 
+  const activeRenewals = useMemo(() => enriched.filter(r => !isClosedRenewal(r)), [enriched]);
+
   const stats = useMemo(() => ({
-    total: enriched.length,
-    expired: enriched.filter(r => r.status === "Expired").length,
-    dueSoon: enriched.filter(r => r.status === "Due Soon").length,
-    inProgress: enriched.filter(r => IN_PROGRESS_RENEWAL_STATUSES.has(r.status)).length,
-    atRisk: enriched.filter(r => r.daysUntil < 0 && r.status !== "Won").length,
-    unassigned: enriched.filter(r => r.isUnassigned && r.status !== "Won" && r.status !== "Lost").length,
-    totalValue: enriched.reduce((s, r) => s + Number(r.estimated_value || 0), 0),
-  }), [enriched]);
+    total: activeRenewals.length,
+    expired: activeRenewals.filter(r => r.status === "Expired").length,
+    dueSoon: activeRenewals.filter(r => r.status === "Due Soon").length,
+    inProgress: activeRenewals.filter(r => IN_PROGRESS_RENEWAL_STATUSES.has(r.status)).length,
+    atRisk: activeRenewals.filter(r => r.daysUntil < 0 && r.status !== "Won").length,
+    unassigned: activeRenewals.filter(r => r.isUnassigned && r.status !== "Won" && r.status !== "Lost").length,
+    totalValue: activeRenewals.reduce((s, r) => s + Number(r.estimated_value || 0), 0),
+  }), [activeRenewals]);
 
   const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
 
@@ -201,7 +204,8 @@ export default function Renewals() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="active">Active renewals</SelectItem>
+            <SelectItem value="all">All statuses (including closed)</SelectItem>
             {["Upcoming", "Due Soon", "In Progress", "In Negotiation", "Quoted", "Won", "Lost", "Expired"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -240,7 +244,7 @@ export default function Renewals() {
                   <td className="px-4 py-3"><Link to={`/clients/${r.client_id}`} className="font-medium text-foreground hover:text-primary" onClick={e => e.stopPropagation()}>{r.clientCode}</Link><p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.clientName}</p></td>
                   {!partnerScoped && <td className="px-4 py-3 text-muted-foreground text-xs">{r.partnerName}</td>}
                   <td className="px-4 py-3 tabular-nums text-xs">{formatDateOnly(r.renewal_date)}</td>
-                  <td className="px-4 py-3"><span className={`tabular-nums text-xs font-semibold ${r.daysUntil < 0 ? "text-destructive" : r.daysUntil <= 30 ? "text-amber-600" : "text-muted-foreground"}`}>{r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `${r.daysUntil}d`}</span></td>
+                  <td className="px-4 py-3"><span className={`tabular-nums text-xs font-semibold ${r.daysUntil < 0 ? "text-destructive" : r.daysUntil <= 30 ? "text-amber-600" : "text-muted-foreground"}`}>{isClosedRenewal(r) ? "Closed" : r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `${r.daysUntil}d`}</span></td>
                   <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusColors[r.status] || ""}`}>{r.status}</span></td>
                   <td className="px-4 py-3 text-right tabular-nums font-medium">{formatMoney(r.estimated_value)}</td>
                   <td className="px-4 py-3 text-xs"><span className={r.isUnassigned ? "text-destructive font-medium" : "text-muted-foreground"}>{r.ownerName}</span></td>
@@ -264,7 +268,7 @@ export default function Renewals() {
                   <div><span className="text-muted-foreground">Status</span><p className="font-medium mt-0.5">{detail.status}</p></div>
                   <div><span className="text-muted-foreground">Priority</span><p className="font-medium mt-0.5">{detail.priority}</p></div>
                   <div><span className="text-muted-foreground">Renewal Date</span><p className="font-medium mt-0.5 tabular-nums">{detail.renewal_date}</p></div>
-                  <div><span className="text-muted-foreground">Days Until</span><p className="font-medium mt-0.5 tabular-nums">{detail.daysUntil < 0 ? `${Math.abs(detail.daysUntil)} overdue` : `${detail.daysUntil} days`}</p></div>
+                  <div><span className="text-muted-foreground">Days Until</span><p className="font-medium mt-0.5 tabular-nums">{detailClosed ? "Closed" : detail.daysUntil < 0 ? `${Math.abs(detail.daysUntil)} overdue` : `${detail.daysUntil} days`}</p></div>
                   <div><span className="text-muted-foreground">Estimated Value</span><p className="font-medium mt-0.5 tabular-nums">{formatMoney(detail.estimated_value)}</p></div>
                   <div><span className="text-muted-foreground">Owner</span><p className={`font-medium mt-0.5 ${detail.isUnassigned ? "text-destructive" : ""}`}>{detail.ownerName}</p></div>
                   <div><span className="text-muted-foreground">Contract Period</span><p className="font-medium mt-0.5">{detail.billing_frequency || "Not standard / unknown"}</p></div>

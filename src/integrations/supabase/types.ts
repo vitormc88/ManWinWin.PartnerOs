@@ -5524,6 +5524,7 @@ export type Database = {
       }
       renewals: {
         Row: {
+          superseded_by_renewal_id: string | null
           alert_window_days: number | null
           assigned_owner: string | null
           assigned_user_id: string | null
@@ -5566,6 +5567,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          superseded_by_renewal_id?: string | null
           alert_window_days?: number | null
           assigned_owner?: string | null
           assigned_user_id?: string | null
@@ -5608,6 +5610,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          superseded_by_renewal_id?: string | null
           alert_window_days?: number | null
           assigned_owner?: string | null
           assigned_user_id?: string | null
