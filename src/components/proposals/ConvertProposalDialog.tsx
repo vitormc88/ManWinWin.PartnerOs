@@ -126,6 +126,8 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
       setStep(4);
       qc.invalidateQueries({ queryKey: ["proposals"] });
       qc.invalidateQueries({ queryKey: ["deals"] });
+      qc.invalidateQueries({ queryKey: ["revenue-history"] });
+      qc.invalidateQueries({ queryKey: ["analytics"] });
       qc.invalidateQueries({ queryKey: ["licenses"] });
       qc.invalidateQueries({ queryKey: ["contracts"] });
       qc.invalidateQueries({ queryKey: ["contract-lines"] });

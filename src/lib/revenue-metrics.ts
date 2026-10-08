@@ -3,8 +3,8 @@
  *
  * PartnerOS has three DIFFERENT money concepts that must never be mixed:
  *
- *  1. Historical / lifetime billed revenue — `public.client_revenue_history.amount`.
- *     Year 1 + invoiced renewals up to today. This is the ONLY source for
+ *  1. Historical / lifetime awarded revenue — `public.client_revenue_history.amount`.
+ *     Year 1 + awarded renewals; imported history retains source dates. This is the ONLY source for
  *     anything labelled "Revenue" (lifetime, YTD, by country, by partner, monthly).
  *
  *  2. Won Deal Value ("New Business Won") — `public.deals` with status Won.
@@ -21,7 +21,9 @@
 
 /** Canonical UI labels — asserted by tests so the separation cannot silently regress. */
 export const LIFETIME_REVENUE_LABEL = "Lifetime Revenue";
-export const REVENUE_YTD_LABEL = "Revenue YTD";
+export const REVENUE_YTD_LABEL = "Total Revenue YTD";
+export const NB_YTD_LABEL = "New Business YTD";
+export const RENEWALS_YTD_LABEL = "Renewals YTD";
 export const WON_DEAL_VALUE_LABEL = "Won Deal Value";
 export const NEW_BUSINESS_WON_LABEL = "New Business Won";
 export const CURRENT_ARR_LABEL = "Current ARR";
@@ -33,8 +35,10 @@ export interface RevenueHistoryRow {
   partner_name?: string | null;
   country?: string | null;
   amount: number | string | null | undefined;
-  /** ISO date of the billed entry. */
+  /** ISO date of the awarded entry. */
   revenue_date: string | null | undefined;
+  revenue_type?: string | null;
+  source?: string | null;
 }
 
 export interface RevenueSummary {
@@ -42,6 +46,9 @@ export interface RevenueSummary {
   revenue_ytd: number;
   revenue_entry_count: number;
   clients_with_revenue: number;
+  nb_ytd: number;
+  renewals_ytd: number;
+  other_ytd: number;
 }
 
 export const EMPTY_REVENUE_SUMMARY: RevenueSummary = {
@@ -49,6 +56,9 @@ export const EMPTY_REVENUE_SUMMARY: RevenueSummary = {
   revenue_ytd: 0,
   revenue_entry_count: 0,
   clients_with_revenue: 0,
+  nb_ytd: 0,
+  renewals_ytd: 0,
+  other_ytd: 0,
 };
 
 export function toAmount(value: number | string | null | undefined): number {
@@ -66,22 +76,29 @@ export function revenueYear(date: string | null | undefined): number | null {
 
 /**
  * Lifetime + YTD in one pass. `year` defaults to the current calendar year.
- * Entries without a usable date still count towards lifetime (they are billed
+ * Entries without a usable date still count towards lifetime (they are awarded
  * history) but can never count towards a specific year.
  */
 export function summarizeRevenueHistory(
   rows: RevenueHistoryRow[] | null | undefined,
   year: number = new Date().getUTCFullYear(),
+  asOf: string = new Date().toISOString().slice(0, 10),
 ): RevenueSummary {
   const list = rows || [];
   const clients = new Set<string>();
   let lifetime = 0;
   let ytd = 0;
+  let nb = 0, renewals = 0, other = 0;
 
   for (const r of list) {
     const amount = toAmount(r.amount);
     lifetime += amount;
-    if (revenueYear(r.revenue_date) === year) ytd += amount;
+    if (revenueYear(r.revenue_date) === year && r.revenue_date! <= asOf) {
+      ytd += amount;
+      if (r.revenue_type === "renewal" || r.source === "renewal_closure") renewals += amount;
+      else if (r.revenue_type === "initial_sale") nb += amount;
+      else other += amount;
+    }
     if (r.client_id) clients.add(r.client_id);
   }
 
@@ -90,6 +107,9 @@ export function summarizeRevenueHistory(
     revenue_ytd: round2(ytd),
     revenue_entry_count: list.length,
     clients_with_revenue: clients.size,
+    nb_ytd: round2(nb),
+    renewals_ytd: round2(renewals),
+    other_ytd: round2(other),
   };
 }
 
@@ -123,7 +143,7 @@ function groupBy(
     .sort((a, b) => b.revenue - a.revenue);
 }
 
-/** Historical billed revenue grouped by the client's country. */
+/** Historical awarded revenue grouped by the client's country. */
 export function revenueByCountry(rows: RevenueHistoryRow[] | null | undefined): RevenueGroup[] {
   return groupBy(rows, (r) => {
     const c = (r.country || "").trim();
@@ -131,7 +151,7 @@ export function revenueByCountry(rows: RevenueHistoryRow[] | null | undefined): 
   });
 }
 
-/** Historical billed revenue grouped by canonical partner. */
+/** Historical awarded revenue grouped by canonical partner. */
 export function revenueByPartner(rows: RevenueHistoryRow[] | null | undefined): RevenueGroup[] {
   return groupBy(rows, (r) => {
     const id = (r.partner_uuid || "").trim();
@@ -147,7 +167,7 @@ export interface RevenueMonthPoint {
 
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Historical billed revenue per calendar month, ascending by month_key. */
+/** Historical awarded revenue per calendar month, ascending by month_key. */
 export function revenueMonthly(rows: RevenueHistoryRow[] | null | undefined): RevenueMonthPoint[] {
   const map = new Map<string, number>();
   for (const r of rows || []) {

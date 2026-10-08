@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { getStageProbability, isActivePipelineStage } from "@/data/pipeline-stages";
 import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
-import { LIFETIME_REVENUE_LABEL, REVENUE_YTD_LABEL, WON_DEAL_VALUE_LABEL } from "@/lib/revenue-metrics";
+import { LIFETIME_REVENUE_LABEL, REVENUE_YTD_LABEL, NB_YTD_LABEL, RENEWALS_YTD_LABEL, WON_DEAL_VALUE_LABEL } from "@/lib/revenue-metrics";
 
 
 export default function Dashboard() {
@@ -33,7 +33,7 @@ export default function Dashboard() {
   const { data: deals = [], isLoading: dealsLoading } = useDeals(undefined, { enabled: showPipeline });
   const { data: renewals = [], isLoading: renewalsLoading } = useRenewals(undefined, { enabled: showRenewals });
   const { data: notifications = [] } = useNotifications(showNotifications);
-  // Historical billed revenue — RLS-scoped, so FITC sees only FITC, Raven only
+  // Historical awarded revenue — RLS-scoped, so FITC sees only FITC, Raven only
   // Raven and HQ sees everything. Never mixed with deal or ARR values.
   const { data: revenueSummary, isLoading: revenueLoading, isError: revenueFailed } = useRevenueSummary(showClients);
 
@@ -52,11 +52,11 @@ export default function Dashboard() {
     return m;
   }, [clients]);
 
-  // Sales metrics from deals — kept deliberately separate from billed revenue.
+  // Sales metrics from deals — kept deliberately separate from awarded revenue.
   // Imported customers have no synthetic Won deals, so €0 here can be correct.
   const wonDeals = deals.filter(d => d.status === "Won" && d.stage === "Won");
   const openDeals = deals.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
-  const wonDealTotal = wonDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
+  const wonDealTotal = wonDeals.reduce((s, d) => s + (d.total_value || d.expected_value || 0), 0);
   const totalPipeline = openDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
 
 
@@ -116,9 +116,12 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Billed customer revenue — client_revenue_history. Not deals, not ARR. */}
-        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Billed revenue could not be loaded" title={LIFETIME_REVENUE_LABEL} value={formatMoney(revenueSummary?.lifetime_revenue)} change={(revenueSummary?.clients_with_revenue ?? 0) > 0 ? `${revenueSummary?.clients_with_revenue} client${(revenueSummary?.clients_with_revenue ?? 0) !== 1 ? "s" : ""} billed` : "No billed revenue recorded yet"} changeType="neutral" icon={DollarSign} delay={60} />}
-        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Billed revenue could not be loaded" title={REVENUE_YTD_LABEL} value={formatMoney(revenueSummary?.revenue_ytd)} change={`Calendar year ${currentYear}`} changeType={(revenueSummary?.revenue_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
+        {/* Awarded customer revenue — client_revenue_history. Not deals, not ARR. */}
+        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Awarded revenue could not be loaded" title={LIFETIME_REVENUE_LABEL} value={formatMoney(revenueSummary?.lifetime_revenue)} change={(revenueSummary?.clients_with_revenue ?? 0) > 0 ? `${revenueSummary?.clients_with_revenue} client${(revenueSummary?.clients_with_revenue ?? 0) !== 1 ? "s" : ""} with revenue` : "No awarded revenue recorded yet"} changeType="neutral" icon={DollarSign} delay={60} />}
+        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Awarded revenue could not be loaded" title={REVENUE_YTD_LABEL} value={formatMoney(revenueSummary?.revenue_ytd)} change={`Adjudicated in ${currentYear} · through today`} changeType={(revenueSummary?.revenue_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
+        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Awarded revenue could not be loaded" title={NB_YTD_LABEL} value={formatMoney(revenueSummary?.nb_ytd)} change={`Year 1 · includes services`} changeType={(revenueSummary?.nb_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
+        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Awarded revenue could not be loaded" title={RENEWALS_YTD_LABEL} value={formatMoney(revenueSummary?.renewals_ytd)} change={`Year 2+ · closed as Renewed`} changeType={(revenueSummary?.renewals_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
+        {showClients && (revenueSummary?.other_ytd ?? 0) !== 0 && <KPICard title="Other Revenue YTD" value={formatMoney(revenueSummary?.other_ytd)} change="Unclassified historical entries" icon={Wallet} changeType="neutral" />}
         {/* Sales metric — explicitly labelled so it is never read as revenue. */}
         {showPipeline && <KPICard loading={!dealsReady} title={WON_DEAL_VALUE_LABEL} value={formatMoney(wonDealTotal)} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""} · new business`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={Trophy} delay={180} />}
         {showPipeline && <KPICard loading={!dealsReady} title="Pipeline Value" value={formatMoney(totalPipeline)} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={240} />}
@@ -126,6 +129,8 @@ export default function Dashboard() {
         {showClients && <KPICard loading={!clientsReady} title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={360} />}
 
       </div>
+
+      {showClients && <p className="text-xs text-muted-foreground">Revenue follows commercial awards, not invoices or payments. Imported history retains its original dates and values. Won Deal Value is not added to revenue.</p>}
 
       {/* Renewals Urgency */}
       {(showRenewals || showNotifications) && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-reveal-up stagger-2">

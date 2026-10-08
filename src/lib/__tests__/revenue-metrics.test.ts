@@ -158,3 +158,20 @@ describe("revenue-metrics — Won Deals stay separate from revenue", () => {
   });
 
 });
+
+describe("commercial award revenue", () => {
+  it("splits Year 1 from renewals including renewal services and reconciles the total", () => {
+    const result = summarizeRevenueHistory([
+      { client_id: "a", amount: 1000, revenue_date: "2026-01-01", revenue_type: "initial_sale" },
+      { client_id: "a", amount: 200, revenue_date: "2026-02-01", revenue_type: "renewal" },
+      { client_id: "a", amount: 50, revenue_date: "2026-02-01", revenue_type: "implementation", source: "renewal_closure" },
+      { client_id: "b", amount: 20, revenue_date: "2026-03-01", revenue_type: "unknown" },
+      { client_id: "a", amount: 500, revenue_date: "2026-12-01", revenue_type: "renewal" },
+    ], 2026, "2026-10-08");
+    expect(result.nb_ytd).toBe(1000);
+    expect(result.renewals_ytd).toBe(250);
+    expect(result.other_ytd).toBe(20);
+    expect(result.revenue_ytd).toBe(result.nb_ytd + result.renewals_ytd + result.other_ytd);
+    expect(result.revenue_ytd).toBe(1270);
+  });
+});

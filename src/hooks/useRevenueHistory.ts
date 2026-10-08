@@ -14,7 +14,7 @@ import {
 const REVENUE_STALE_MS = 60_000;
 
 /**
- * Historical billed revenue (`public.client_revenue_history`).
+ * Historical awarded revenue (`public.client_revenue_history`).
  *
  * All views below are `security_invoker=true`, so the table's own RLS policies
  * apply: HQ sees every row, a partner user sees only their own clients' rows.
@@ -39,6 +39,9 @@ export function useRevenueSummary(enabled = true) {
         revenue_ytd: toAmount(r.revenue_ytd),
         revenue_entry_count: toAmount(r.revenue_entry_count),
         clients_with_revenue: toAmount(r.clients_with_revenue),
+        nb_ytd: toAmount(r.nb_ytd),
+        renewals_ytd: toAmount(r.renewals_ytd),
+        other_ytd: toAmount(r.other_ytd),
       };
     },
     placeholderData: undefined,
@@ -63,6 +66,8 @@ export function useRevenueHistory(enabled = true) {
         country: r.country ?? null,
         amount: r.amount,
         revenue_date: r.revenue_date,
+        revenue_type: r.revenue_type,
+        source: r.source,
       }));
     },
   });

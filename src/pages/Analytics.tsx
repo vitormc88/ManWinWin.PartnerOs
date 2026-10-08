@@ -25,7 +25,7 @@ import {
   revenueByPartner as historicalRevenueByPartner,
   shareOfTotal,
   LIFETIME_REVENUE_LABEL,
-  REVENUE_YTD_LABEL,
+  REVENUE_YTD_LABEL, NB_YTD_LABEL, RENEWALS_YTD_LABEL,
   WON_DEAL_VALUE_LABEL,
 } from "@/lib/revenue-metrics";
 
@@ -175,7 +175,7 @@ export default function Analytics() {
 
   const highlights = useMemo(() => {
     const out: string[] = [];
-    if (topCountry) out.push(`Billed revenue is led by ${topCountry.label} (${topCountryPct}% of lifetime).`);
+    if (topCountry) out.push(`Awarded revenue is led by ${topCountry.label} (${topCountryPct}% of lifetime).`);
     if (largestStage) out.push(`Pipeline value is concentrated in ${analyticsStageLabel(largestStage.stage)}.`);
     if (mostOppStage && mostOppStage.stage !== largestStage?.stage) out.push(`${analyticsStageLabel(mostOppStage.stage)} holds the most opportunities (${mostOppStage.deal_count}).`);
     if (conversionRate > 0) out.push(`Conversion rate sits at ${conversionRate}% across closed deals.`);
@@ -227,8 +227,11 @@ export default function Analytics() {
           {sectionGuard([pipelineStage, renewals, partners, outcomes, revenue, unifiedRenewals, revenueEntries]) ?? (<>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {/* Historical billed revenue — client_revenue_history */}
-            <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(lifetimeRevenue)} sub={clientsWithRevenue > 0 ? `${clientsWithRevenue} client${clientsWithRevenue !== 1 ? "s" : ""} billed` : "No billed revenue recorded yet"} error={revenue.isError} errorHint="Billed revenue could not be loaded" />
-            <KPI label={REVENUE_YTD_LABEL} value={fmtEuroK(revenueYtd)} sub={`Calendar year ${currentYear}`} trend={revenueYtd > 0 ? "up" : "neutral"} error={revenue.isError} errorHint="Billed revenue could not be loaded" />
+            <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(lifetimeRevenue)} sub={clientsWithRevenue > 0 ? `${clientsWithRevenue} client${clientsWithRevenue !== 1 ? "s" : ""} with revenue` : "No awarded revenue recorded yet"} error={revenue.isError} errorHint="Awarded revenue could not be loaded" />
+            <KPI label={REVENUE_YTD_LABEL} value={fmtEuroK(revenueYtd)} sub={`Adjudicated in ${currentYear} · through today`} trend={revenueYtd > 0 ? "up" : "neutral"} error={revenue.isError} errorHint="Awarded revenue could not be loaded" />
+            <KPI label={NB_YTD_LABEL} value={fmtEuroK(revenue.data?.nb_ytd ?? 0)} sub="Year 1 · includes services" error={revenue.isError} />
+            <KPI label={RENEWALS_YTD_LABEL} value={fmtEuroK(revenue.data?.renewals_ytd ?? 0)} sub="Year 2+ · closed as Renewed" error={revenue.isError} />
+            {(revenue.data?.other_ytd ?? 0) !== 0 && <KPI label="Other Revenue YTD" value={fmtEuroK(revenue.data?.other_ytd ?? 0)} sub="Unclassified historical entries" />}
             {/* Sales metrics — deal-derived */}
             <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(wonDealTotal)} sub={`${wonOutcomes.length} won deal${wonOutcomes.length !== 1 ? "s" : ""} · new business`} />
             <KPI label="Pipeline Value (Open)" value={fmtEuroK(totalPipelineValue)} sub={`${totalOpenDeals} open deal${totalOpenDeals !== 1 ? "s" : ""}`} />
@@ -236,6 +239,7 @@ export default function Analytics() {
             <KPI label="Conversion Rate" value={`${conversionRate}%`} sub={`${wonOutcomes.length} won / ${lostOutcomes.length} lost`} trend={conversionRate >= 50 ? "up" : conversionRate > 0 ? "down" : "neutral"} />
           </div>
 
+          <p className="text-xs text-muted-foreground">Revenue follows commercial awards, not invoices or payments. Imported history retains its original dates and values; Won Deal Value is a separate sales metric and is not added to revenue.</p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Card 1 — Revenue by Country (billed revenue, not won deals) */}
             <ExecCard title="Revenue by Country" icon={Globe2} onClick={() => setTab("partners")}>
@@ -252,13 +256,13 @@ export default function Analytics() {
                       <BarChart data={countryRevenue.slice(0, 5)} layout="vertical" barSize={10} margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
                         <XAxis type="number" hide tickFormatter={v => `€${v / 1000}k`} />
                         <YAxis type="category" dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} width={70} />
-                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }} formatter={(v: number) => [fmtEuro(v), "Billed revenue"]} />
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "11px" }} formatter={(v: number) => [fmtEuro(v), "Awarded revenue"]} />
                         <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[0, 3, 3, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
-              ) : <EmptyState hint="Billed revenue will appear once customer revenue is recorded." />}
+              ) : <EmptyState hint="Awarded revenue will appear once customer revenue is recorded." />}
             </ExecCard>
 
 
@@ -984,7 +988,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   const leadsQ = useIncomingLeads();
   const renewalsQ = useUnifiedRenewals();
   const profilesQ = useAllProfilesMap();
-  // Billed revenue per canonical partner (client_revenue_history), RLS-scoped.
+  // Awarded revenue per canonical partner (client_revenue_history), RLS-scoped.
   const revenueEntriesQ = useRevenueHistory();
 
   const metrics = metricsQ.data || {};
@@ -1029,7 +1033,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     const ownerName = ownerProfile?.full_name || ownerProfile?.email || null;
     return {
       ...p,
-      // Billed revenue and won new business are never conflated.
+      // Awarded revenue and won new business are never conflated.
       won_deal_value: p.won_new_business_value,
       revenue: billedByPartner.get(p.partner_id) || p.billed_revenue_lifetime || 0,
       billed_revenue_ytd: p.billed_revenue_ytd,
@@ -1072,7 +1076,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
     if (r.pipeline > 0 && r.client_count === 0) {
       opportunities.push({ name: r.company_name, note: "Growing pipeline but no customers yet.", tone: "info", id: r.partner_id });
     } else if (r.revenue > 0 && r.pipeline === 0) {
-      opportunities.push({ name: r.company_name, note: "Strong billed revenue but no active pipeline.", tone: "warning", id: r.partner_id });
+      opportunities.push({ name: r.company_name, note: "Strong recorded revenue but no active pipeline.", tone: "warning", id: r.partner_id });
     } else if (r.pipeline > 30000 && r.health >= 60) {
       opportunities.push({ name: r.company_name, note: "Excellent momentum — invest more.", tone: "positive", id: r.partner_id });
     } else if (r.health > 0 && r.health < 60 && r.revenue > 0) {
@@ -1085,7 +1089,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   const insights: string[] = [];
   if (topRevenue[0] && totalRevenue > 0) {
     const pct = Math.round((topRevenue[0].revenue / totalRevenue) * 100);
-    insights.push(`${topRevenue[0].company_name} generates ${pct}% of total billed partner revenue.`);
+    insights.push(`${topRevenue[0].company_name} generates ${pct}% of total recorded partner revenue.`);
   }
   if (topPipeline[0]) {
     insights.push(`${topPipeline[0].company_name} leads pipeline with ${fmtEuroK(topPipeline[0].pipeline)} in open opportunities.`);
@@ -1211,7 +1215,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
                 <SortHeader label="Partner" k="company_name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Country" k="country" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Billed Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <SortHeader label="Billed YTD" k="billed_ytd" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Revenue YTD" k="billed_ytd" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Won New Business" k="won_new_business" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Pipeline" k="pipeline" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Clients" k="client_count" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
