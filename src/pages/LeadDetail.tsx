@@ -1,5 +1,9 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useIncomingLead, useUpdateIncomingLead, useDeleteIncomingLead } from "@/hooks/useIncomingLeads";
+import {
+  useIncomingLead,
+  useUpdateIncomingLead,
+  useDeleteIncomingLead,
+} from "@/hooks/useIncomingLeads";
 import { usePartners } from "@/hooks/usePartners";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
@@ -7,20 +11,74 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import {
-  Accordion, AccordionItem, AccordionTrigger, AccordionContent,
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
 } from "@/components/ui/accordion";
 import {
-  ArrowLeft, Building2, Trash2, Save, ArrowRight, CheckCircle2, XCircle,
-  Plus, Sparkles, Clock, Wallet, Users, Lightbulb, AlertCircle,
-  HelpCircle, Target, Mail, Phone, Globe, Briefcase, Compass, ShieldAlert, ShieldCheck,
-  Wand2, Copy, PhoneCall, MailPlus, Leaf, Activity as ActivityIcon, Gauge, Hourglass,
-  User as UserIcon, History, ListChecks, UserCheck, CheckSquare, CircleDot, Leaf as LeafIcon,
-
+  ArrowLeft,
+  Building2,
+  Trash2,
+  Save,
+  ArrowRight,
+  CheckCircle2,
+  XCircle,
+  Plus,
+  Sparkles,
+  Clock,
+  Wallet,
+  Users,
+  Lightbulb,
+  AlertCircle,
+  HelpCircle,
+  Target,
+  Mail,
+  Phone,
+  Globe,
+  Briefcase,
+  Compass,
+  ShieldAlert,
+  ShieldCheck,
+  Wand2,
+  Copy,
+  PhoneCall,
+  MailPlus,
+  Leaf,
+  Activity as ActivityIcon,
+  Gauge,
+  Hourglass,
+  User as UserIcon,
+  History,
+  ListChecks,
+  UserCheck,
+  CheckSquare,
+  CircleDot,
+  Leaf as LeafIcon,
 } from "lucide-react";
 import { format, formatDistanceToNow, isSameDay } from "date-fns";
 import { toast } from "sonner";
@@ -35,32 +93,74 @@ import { MoveToNurtureDialog } from "@/components/leads/MoveToNurtureDialog";
 import { SendEmailDialog } from "@/components/leads/SendEmailDialog";
 import { OutreachIntelligence } from "@/components/leads/OutreachIntelligence";
 import type { PlayKey } from "@/lib/outreach";
-import { useLeadContactAttempts, OUTCOME_LABEL, CHANNEL_LABEL } from "@/hooks/useLeadContactAttempts";
+import {
+  useLeadContactAttempts,
+  OUTCOME_LABEL,
+  CHANNEL_LABEL,
+} from "@/hooks/useLeadContactAttempts";
 import { useLeadTasks } from "@/hooks/useLeadTasks";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
 import { useHQUsers } from "@/hooks/useHQUsers";
 import { cn } from "@/lib/utils";
 import {
-  QUALIFICATION_STAGES, type QualificationStage, normalizeStage, lifecycleFromStage,
+  QUALIFICATION_STAGES,
+  type QualificationStage,
+  normalizeStage,
+  lifecycleFromStage,
   engagementLabel,
-  TIMD_CATEGORIES, CATEGORY_STATUSES, type CategoryStatus,
-  resolvedStatus, autoStatusFromNotes,
-  timdCompletion, fitScore, missingInformation, nextBestActions, topNextAction,
-  suggestedQuestions, qualificationSignals, lastMeaningfulDiscovery, FIT_FACTORS,
-  CURRENT_PROCESS_OPTIONS, MAIN_CHALLENGE_OPTIONS, EXISTING_SYSTEM_OPTIONS, DATA_VISIBILITY_OPTIONS,
-  contextualGuidanceAll, discoveryInsights, positioningHelp, likelyRisks, knowledgeSnippets,
+  TIMD_CATEGORIES,
+  CATEGORY_STATUSES,
+  type CategoryStatus,
+  resolvedStatus,
+  autoStatusFromNotes,
+  timdCompletion,
+  fitScore,
+  missingInformation,
+  nextBestActions,
+  topNextAction,
+  suggestedQuestions,
+  qualificationSignals,
+  lastMeaningfulDiscovery,
+  FIT_FACTORS,
+  CURRENT_PROCESS_OPTIONS,
+  MAIN_CHALLENGE_OPTIONS,
+  EXISTING_SYSTEM_OPTIONS,
+  DATA_VISIBILITY_OPTIONS,
+  contextualGuidanceAll,
+  discoveryInsights,
+  positioningHelp,
+  likelyRisks,
+  knowledgeSnippets,
   splitPositioning,
-  cadenceGuidance, attemptCounts, slaBucket, nextBestActionDynamic, qualificationReadiness,
+  cadenceGuidance,
+  attemptCounts,
+  slaBucket,
+  nextBestActionDynamic,
+  qualificationReadiness,
   waitingState,
 } from "@/lib/qualification";
 
-
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, BookOpen, Megaphone, Search as SearchIcon } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  ChevronDown,
+  BookOpen,
+  Megaphone,
+  Search as SearchIcon,
+} from "lucide-react";
 import { DiscoveryWorkspace } from "@/components/commercial/DiscoveryWorkspace";
 import { NextStepPanel } from "@/components/commercial/NextStepPanel";
 
@@ -76,11 +176,15 @@ export default function LeadDetail() {
   const { isHQ, isAdmin } = useAuth();
 
   const isHQUser = isHQ || isAdmin;
-  const activePartners = partners.filter((p) => p.is_active);
+  const activePartners = partners.filter(
+    (p) => p.is_active && p.status !== "Archived",
+  );
 
   const [draft, setDraft] = useState<Record<string, any>>({});
   const [dirty, setDirty] = useState(false);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveState, setSaveState] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -96,11 +200,15 @@ export default function LeadDetail() {
     setEmailPlay(play);
     setShowSendEmail(true);
   };
+  const [activeTab, setActiveTab] = useState("overview");
+  const [showAssistant, setShowAssistant] = useState(false);
   const [openTimd, setOpenTimd] = useState<string>("");
 
   const { data: attempts = [] } = useLeadContactAttempts(id);
   const { data: tasks = [] } = useLeadTasks(id);
-  const { data: partnerUsers = [] } = usePartnerUsers(lead?.linked_partner_id || null);
+  const { data: partnerUsers = [] } = usePartnerUsers(
+    lead?.linked_partner_id || null,
+  );
   const { data: hqUsers = [] } = useHQUsers();
 
   useEffect(() => {
@@ -116,7 +224,9 @@ export default function LeadDetail() {
   };
 
   const isConverted = !!draft?.converted_to_deal_id;
-  const stage: QualificationStage = normalizeStage(draft.qualification_stage as any);
+  const stage: QualificationStage = normalizeStage(
+    draft.qualification_stage as any,
+  );
 
   const timd = useMemo(() => timdCompletion(draft), [draft]);
   const fit = useMemo(() => fitScore(draft), [draft]);
@@ -133,13 +243,19 @@ export default function LeadDetail() {
 
   const counts = useMemo(() => attemptCounts(attempts as any), [attempts]);
   const cadence = useMemo(() => cadenceGuidance(attempts as any), [attempts]);
-  const sla = useMemo(() => slaBucket(lead?.created_at, (draft as any).last_contact_at), [lead?.created_at, draft]);
+  const sla = useMemo(
+    () => slaBucket(lead?.created_at, (draft as any).last_contact_at),
+    [lead?.created_at, draft],
+  );
   const dynamicNba = useMemo(
     () => nextBestActionDynamic(draft, attempts as any, tasks as any),
     [draft, attempts, tasks],
   );
   const readiness = useMemo(() => qualificationReadiness(draft), [draft]);
-  const openTasksCount = useMemo(() => tasks.filter((t: any) => t.status !== "Done").length, [tasks]);
+  const openTasksCount = useMemo(
+    () => tasks.filter((t: any) => t.status !== "Done").length,
+    [tasks],
+  );
 
   const allAssignableUsers = useMemo(() => {
     const list = [...(hqUsers || []), ...(partnerUsers || [])];
@@ -152,12 +268,21 @@ export default function LeadDetail() {
   }, [hqUsers, partnerUsers]);
 
   const assignedUser = useMemo(
-    () => allAssignableUsers.find((u: any) => u.id === (draft as any).assigned_user_id) || null,
+    () =>
+      allAssignableUsers.find(
+        (u: any) => u.id === (draft as any).assigned_user_id,
+      ) || null,
     [allAssignableUsers, draft],
   );
 
   const timeline = useMemo(
-    () => buildTimeline({ lead: draft, attempts: attempts as any, tasks: tasks as any, assignedUser }),
+    () =>
+      buildTimeline({
+        lead: draft,
+        attempts: attempts as any,
+        tasks: tasks as any,
+        assignedUser,
+      }),
     [draft, attempts, tasks, assignedUser],
   );
 
@@ -166,9 +291,13 @@ export default function LeadDetail() {
     [draft, attempts, tasks],
   );
 
-  const handleSave = (extra: Record<string, any> = {}, opts: { silent?: boolean } = {}) => {
+  const handleSave = (
+    extra: Record<string, any> = {},
+    opts: { silent?: boolean } = {},
+  ) => {
     if (!lead) return;
-    const partnerId = draft.linked_partner_id === "__hq__" ? null : draft.linked_partner_id;
+    const partnerId =
+      draft.linked_partner_id === "__hq__" ? null : draft.linked_partner_id;
     const ownerType = partnerId ? "partner" : "HQ";
     const base: any = {
       id: lead.id,
@@ -226,7 +355,6 @@ export default function LeadDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft, dirty]);
 
-
   const markQualified = () =>
     handleSave({ qualification_stage: "Qualified", status: "Qualified" });
   const markDisqualified = () =>
@@ -236,7 +364,6 @@ export default function LeadDetail() {
   const setStage = (s: QualificationStage) => {
     set({ qualification_stage: s, status: lifecycleFromStage(s) });
   };
-
 
   const handleDelete = () => {
     if (!lead) return;
@@ -249,8 +376,10 @@ export default function LeadDetail() {
     });
   };
 
-  if (isLoading) return <div className="p-6 text-muted-foreground">Loading lead…</div>;
-  if (!lead) return <div className="p-6 text-muted-foreground">Lead not found.</div>;
+  if (isLoading)
+    return <div className="p-6 text-muted-foreground">Loading lead…</div>;
+  if (!lead)
+    return <div className="p-6 text-muted-foreground">Lead not found.</div>;
 
   const canConvert = stage === "Qualified" && !isConverted && isHQUser;
 
@@ -258,11 +387,17 @@ export default function LeadDetail() {
     <div className="pb-6 max-w-[1400px] mx-auto">
       {/* COMPACT TOP HEADER (non-sticky) */}
       <div className="px-6 pt-4 pb-2 flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/incoming-leads")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/incoming-leads")}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight truncate">{draft.company_name || "Unnamed Lead"}</h1>
+          <h1 className="text-lg font-semibold tracking-tight truncate">
+            {draft.company_name || "Unnamed Lead"}
+          </h1>
           <p className="text-[11px] text-muted-foreground leading-tight">
             Created {format(new Date(lead.created_at), "dd MMM yyyy")}
             {draft.contact_name ? ` · ${draft.contact_name}` : ""}
@@ -271,13 +406,19 @@ export default function LeadDetail() {
         </div>
         <div className="flex-1" />
         <StageBadge stage={stage} />
-        {draft.linked_partner_id && partners.find((p) => p.id === draft.linked_partner_id) ? (
+        {draft.linked_partner_id &&
+        partners.find((p) => p.id === draft.linked_partner_id) ? (
           <Badge variant="secondary" className="gap-1 text-[11px]">
             <Building2 className="h-3 w-3" />
-            {partners.find((p) => p.id === draft.linked_partner_id)?.company_name}
+            {
+              partners.find((p) => p.id === draft.linked_partner_id)
+                ?.company_name
+            }
           </Badge>
         ) : (
-          <Badge variant="outline" className="text-[11px]">HQ owned</Badge>
+          <Badge variant="outline" className="text-[11px]">
+            HQ owned
+          </Badge>
         )}
       </div>
 
@@ -288,35 +429,59 @@ export default function LeadDetail() {
           <div className="flex items-center gap-x-3 gap-y-1 flex-wrap text-[11px]">
             <div className="flex items-center gap-2.5 text-muted-foreground">
               {draft.email && (
-                <a href={`mailto:${draft.email}`} className="inline-flex items-center gap-1 hover:text-foreground truncate max-w-[180px]">
-                  <Mail className="h-3 w-3" />{draft.email}
+                <a
+                  href={`mailto:${draft.email}`}
+                  className="inline-flex items-center gap-1 hover:text-foreground truncate max-w-[180px]"
+                >
+                  <Mail className="h-3 w-3" />
+                  {draft.email}
                 </a>
               )}
               {draft.phone && (
-                <a href={`tel:${draft.phone}`} className="inline-flex items-center gap-1 hover:text-foreground">
-                  <Phone className="h-3 w-3" />{draft.phone}
+                <a
+                  href={`tel:${draft.phone}`}
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                >
+                  <Phone className="h-3 w-3" />
+                  {draft.phone}
                 </a>
               )}
               {draft.country && (
-                <span className="inline-flex items-center gap-1"><Globe className="h-3 w-3" />{draft.country}</span>
+                <span className="inline-flex items-center gap-1">
+                  <Globe className="h-3 w-3" />
+                  {draft.country}
+                </span>
               )}
               <span className="inline-flex items-center gap-1">
                 <UserIcon className="h-3 w-3" />
-                {assignedUser ? (assignedUser as any).full_name || (assignedUser as any).email : "Unassigned"}
+                {assignedUser
+                  ? (assignedUser as any).full_name ||
+                    (assignedUser as any).email
+                  : "Unassigned"}
               </span>
             </div>
             <span className="h-3 w-px bg-border" />
-            <Badge variant="outline" className="gap-1 text-[10px] h-5 px-1.5" title="Communication state — not a business status">
-              <ActivityIcon className="h-2.5 w-2.5" /> {engagementLabel((draft as any).engagement_status)}
+            <Badge
+              variant="outline"
+              className="gap-1 text-[10px] h-5 px-1.5"
+              title="Communication state — not a business status"
+            >
+              <ActivityIcon className="h-2.5 w-2.5" />{" "}
+              {engagementLabel((draft as any).engagement_status)}
             </Badge>
 
             <span className="text-muted-foreground">
-              <PhoneCall className="h-3 w-3 inline mr-0.5" />{counts.calls}
-              <Mail className="h-3 w-3 inline ml-2 mr-0.5" />{counts.emails}
+              <PhoneCall className="h-3 w-3 inline mr-0.5" />
+              {counts.calls}
+              <Mail className="h-3 w-3 inline ml-2 mr-0.5" />
+              {counts.emails}
             </span>
             {(draft as any).last_contact_at ? (
               <span className="text-muted-foreground">
-                · last {formatDistanceToNow(new Date((draft as any).last_contact_at), { addSuffix: true })}
+                · last{" "}
+                {formatDistanceToNow(new Date((draft as any).last_contact_at), {
+                  addSuffix: true,
+                })}
               </span>
             ) : (
               <span className="text-muted-foreground">· no activity yet</span>
@@ -334,85 +499,132 @@ export default function LeadDetail() {
                 <Hourglass className="h-2.5 w-2.5" /> {waiting.label}
               </Badge>
             ) : (
-              <Badge className={cn(
-                "gap-1 text-[10px] h-5 px-1.5 border",
-                sla.bucket === "healthy" && "bg-success/10 text-success border-success/30",
-                sla.bucket === "warning" && "bg-warning/15 text-warning-foreground border-warning/30",
-                sla.bucket === "critical" && "bg-destructive/10 text-destructive border-destructive/30",
-              )}>
+              <Badge
+                className={cn(
+                  "gap-1 text-[10px] h-5 px-1.5 border",
+                  sla.bucket === "healthy" &&
+                    "bg-success/10 text-success border-success/30",
+                  sla.bucket === "warning" &&
+                    "bg-warning/15 text-warning-foreground border-warning/30",
+                  sla.bucket === "critical" &&
+                    "bg-destructive/10 text-destructive border-destructive/30",
+                )}
+              >
                 <Clock className="h-2.5 w-2.5" /> {sla.label}
               </Badge>
             )}
 
             <div className="flex-1" />
-            <span className="inline-flex items-center gap-1.5 text-foreground">
-              <Target className="h-3 w-3 text-primary" />
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Next:</span>
-              <span className="font-medium truncate max-w-[260px]" title={dynamicNba.reason}>{dynamicNba.title}</span>
-            </span>
           </div>
 
           {/* Row 2: action buttons + stage progression */}
           <div className="flex items-center gap-1 flex-wrap">
             {draft.phone && (
               <Button size="sm" variant="outline" className="h-8" asChild>
-                <a href={`tel:${draft.phone}`}><PhoneCall className="h-3.5 w-3.5" /> Call</a>
+                <a href={`tel:${draft.phone}`}>
+                  <PhoneCall className="h-3.5 w-3.5" /> Call
+                </a>
               </Button>
             )}
-            <Button size="sm" variant="outline" className="h-8" onClick={() => setShowLogContact(true)} disabled={isConverted}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={() => setShowLogContact(true)}
+              disabled={isConverted}
+            >
               <CheckSquare className="h-3.5 w-3.5" /> Log activity
-            </Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => openSendEmail()} disabled={!draft.email}>
-              <MailPlus className="h-3.5 w-3.5" /> Send email
-            </Button>
-            <Button size="sm" variant="outline" className="h-8" onClick={() => setShowAddTask(true)} disabled={isConverted}>
-              <Plus className="h-3.5 w-3.5" /> Task
-            </Button>
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowNurture(true)} disabled={isConverted}>
-              <Leaf className="h-3.5 w-3.5" /> Nurture
-            </Button>
-            <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowDisqualify(true)} disabled={isConverted}>
-              <XCircle className="h-3.5 w-3.5" /> Disqualify
             </Button>
             <Button
               size="sm"
-              variant={canConvert ? "default" : "outline"}
+              variant="outline"
               className="h-8"
-              onClick={() => {
-                if (!isHQUser || isConverted) return;
-                if (!readiness.ready) setShowConvertGate(true);
-                else setShowConvert(true);
-              }}
-              disabled={!isHQUser || isConverted}
+              onClick={() => openSendEmail()}
+              disabled={!draft.email}
             >
-              <ArrowRight className="h-3.5 w-3.5" /> Convert
+              <MailPlus className="h-3.5 w-3.5" /> Send email
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={() => setShowAddTask(true)}
+              disabled={isConverted}
+            >
+              <Plus className="h-3.5 w-3.5" /> Task
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="h-8">
+                  More actions
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  disabled={isConverted}
+                  onSelect={() => setShowNurture(true)}
+                >
+                  Move to nurture
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isConverted}
+                  onSelect={() => setShowDisqualify(true)}
+                >
+                  Disqualify lead
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {isHQUser && (
+              <Button
+                size="sm"
+                variant={canConvert ? "default" : "outline"}
+                className="h-8"
+                onClick={() => {
+                  if (!isHQUser || isConverted) return;
+                  if (!readiness.ready) setShowConvertGate(true);
+                  else setShowConvert(true);
+                }}
+                disabled={!isHQUser || isConverted}
+              >
+                <ArrowRight className="h-3.5 w-3.5" /> Convert
+              </Button>
+            )}
             <div className="flex-1" />
             <div className="hidden md:flex items-center gap-1 mr-2">
-              {QUALIFICATION_STAGES.filter((s) => s !== "Disqualified").map((s, i, arr) => {
-                const cur = arr.indexOf(stage as any);
-                const isActive = i === cur;
-                const isDone = cur > -1 && i < cur;
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    disabled={isConverted}
-                    onClick={() => setStage(s as QualificationStage)}
-                    className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-medium border transition",
-                      isActive && "bg-primary text-primary-foreground border-primary",
-                      isDone && !isActive && "bg-success/10 text-success border-success/30",
-                      !isActive && !isDone && "bg-muted text-muted-foreground border-transparent hover:bg-muted/70",
-                      isConverted && "opacity-60 cursor-not-allowed",
-                    )}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
+              {QUALIFICATION_STAGES.filter((s) => s !== "Disqualified").map(
+                (s, i, arr) => {
+                  const cur = arr.indexOf(stage as any);
+                  const isActive = i === cur;
+                  const isDone = cur > -1 && i < cur;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={isConverted}
+                      onClick={() => setStage(s as QualificationStage)}
+                      className={cn(
+                        "px-2 py-0.5 rounded-full text-[10px] font-medium border transition",
+                        isActive &&
+                          "bg-primary text-primary-foreground border-primary",
+                        isDone &&
+                          !isActive &&
+                          "bg-success/10 text-success border-success/30",
+                        !isActive &&
+                          !isDone &&
+                          "bg-muted text-muted-foreground border-transparent hover:bg-muted/70",
+                        isConverted && "opacity-60 cursor-not-allowed",
+                      )}
+                    >
+                      {s}
+                    </button>
+                  );
+                },
+              )}
             </div>
-            <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1 px-2" aria-live="polite">
+            <span
+              className="text-[11px] text-muted-foreground inline-flex items-center gap-1 px-2"
+              aria-live="polite"
+            >
               {saveState === "saving" || (dirty && updateLead.isPending) ? (
                 <>· Saving…</>
               ) : saveState === "error" ? (
@@ -420,7 +632,10 @@ export default function LeadDetail() {
               ) : dirty ? (
                 <>· Unsaved changes</>
               ) : lastSavedAt ? (
-                <>· Saved {formatDistanceToNow(lastSavedAt, { addSuffix: true })}</>
+                <>
+                  · Saved{" "}
+                  {formatDistanceToNow(lastSavedAt, { addSuffix: true })}
+                </>
               ) : null}
             </span>
             <Button
@@ -433,117 +648,397 @@ export default function LeadDetail() {
             >
               <Save className="h-3.5 w-3.5" />
             </Button>
-
           </div>
         </div>
       </div>
 
       {/* TWO-COLUMN LAYOUT */}
-      <div className="px-6 pt-4 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5 items-start">
+      <div className="px-6 pt-4 max-w-6xl mx-auto">
         {/* MAIN */}
         <div className="space-y-3 min-w-0">
-          {/* COMPACT GUIDANCE STRIP: Cadence · Readiness · Discovery */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-            <CompactDisclosure icon={Gauge} title="Cadence" summary={cadence.step} tone="neutral">
-              <ul className="space-y-1 text-xs">
-                {cadence.suggestions.map((s, i) => (
-                  <li key={i} className="flex gap-1.5">
-                    <span className="mt-1 h-1 w-1 rounded-full bg-foreground/40 shrink-0" />
-                    <span className="leading-snug">{s}</span>
-                  </li>
-                ))}
-              </ul>
-            </CompactDisclosure>
-
-            <CompactDisclosure
-              icon={ShieldCheck}
-              title="Readiness"
-              summary={`${readiness.done}/${readiness.total}${readiness.ready ? " · ready" : ""}`}
-              tone={readiness.ready ? "success" : "neutral"}
-            >
-              <ul className="space-y-1 text-xs">
-                {readiness.items.map((it) => (
-                  <li key={it.key} className="flex items-center gap-1.5">
-                    {it.done
-                      ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
-                      : <AlertCircle className="h-3 w-3 text-muted-foreground shrink-0" />}
-                    <span className={it.done ? "" : "text-muted-foreground"}>{it.label}</span>
-                  </li>
-                ))}
-              </ul>
-            </CompactDisclosure>
-
-            <CompactDisclosure
-              icon={Compass}
-              title="Discovery"
-              summary={discovery.length === 0 ? "Not captured yet" : `${discovery.length} insight${discovery.length === 1 ? "" : "s"}`}
-              tone={discovery.length === 0 ? "muted" : "neutral"}
-            >
-              {discovery.length === 0 ? (
-                <p className="text-xs text-muted-foreground italic">
-                  Capture current process, system or main challenge to surface insights.
+          <section className="rounded-xl border bg-card p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <h2 className="font-semibold text-sm">
+                  {isConverted ? "Lead converted" : "Next action"}
+                </h2>
+                <p className="text-sm mt-1">
+                  {isConverted
+                    ? "Continue working in the linked opportunity."
+                    : dynamicNba.title}
                 </p>
-              ) : (
-                <ul className="space-y-1 text-xs">
-                  {discovery.map((d, i) => (
-                    <li key={i} className="flex gap-1.5">
-                      <span className="mt-1 h-1 w-1 rounded-full bg-foreground/40 shrink-0" />
-                      <span className="leading-snug">{d}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CompactDisclosure>
-          </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {!isConverted && dynamicNba.reason}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                disabled={isConverted}
+                onClick={() => {
+                  if (dynamicNba.cta === "convert") {
+                    if (isHQUser) {
+                      if (readiness.ready) setShowConvert(true);
+                      else setShowConvertGate(true);
+                    } else setActiveTab("qualification");
+                  } else if (dynamicNba.cta === "log_contact")
+                    setShowLogContact(true);
+                  else if (
+                    dynamicNba.cta === "create_task" ||
+                    dynamicNba.cta === "schedule_discovery"
+                  )
+                    setShowAddTask(true);
+                  else
+                    setActiveTab(
+                      openTasksCount > 0 ? "tasks" : "qualification",
+                    );
+                }}
+              >
+                {dynamicNba.cta === "log_contact"
+                  ? "Log contact"
+                  : dynamicNba.cta === "create_task" ||
+                      dynamicNba.cta === "schedule_discovery"
+                    ? "Plan contact"
+                    : dynamicNba.cta === "convert" && isHQUser
+                      ? "Review conversion"
+                      : openTasksCount > 0
+                        ? "View tasks"
+                        : "Continue qualification"}
+              </Button>
+            </div>
+            <div className="flex justify-between items-center gap-3 text-xs text-muted-foreground">
+              <span>
+                {timd.percent}% qualification captured ·{" "}
+                {readiness.ready
+                  ? "Ready for conversion review"
+                  : "Qualification in progress"}
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowAssistant(true)}
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                Qualification help
+              </Button>
+            </div>
+          </section>
+          <details className="rounded-lg border p-3">
+            <summary className="text-sm cursor-pointer">
+              Contact strategy and templates
+            </summary>
+            <div className="mt-3 space-y-3">
+              {" "}
+              {/* COMPACT GUIDANCE STRIP: Cadence · Readiness · Discovery */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <CompactDisclosure
+                  icon={Gauge}
+                  title="Cadence"
+                  summary={cadence.step}
+                  tone="neutral"
+                >
+                  <ul className="space-y-1 text-xs">
+                    {cadence.suggestions.map((s, i) => (
+                      <li key={i} className="flex gap-1.5">
+                        <span className="mt-1 h-1 w-1 rounded-full bg-foreground/40 shrink-0" />
+                        <span className="leading-snug">{s}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </CompactDisclosure>
 
-          {/* OUTREACH INTELLIGENCE — distinct from Qualification Assistant.
+                <CompactDisclosure
+                  icon={ShieldCheck}
+                  title="Readiness"
+                  summary={`${readiness.done}/${readiness.total}${readiness.ready ? " · ready" : ""}`}
+                  tone={readiness.ready ? "success" : "neutral"}
+                >
+                  <ul className="space-y-1 text-xs">
+                    {readiness.items.map((it) => (
+                      <li key={it.key} className="flex items-center gap-1.5">
+                        {it.done ? (
+                          <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                        ) : (
+                          <AlertCircle className="h-3 w-3 text-muted-foreground shrink-0" />
+                        )}
+                        <span
+                          className={it.done ? "" : "text-muted-foreground"}
+                        >
+                          {it.label}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CompactDisclosure>
+
+                <CompactDisclosure
+                  icon={Compass}
+                  title="Discovery"
+                  summary={
+                    discovery.length === 0
+                      ? "Not captured yet"
+                      : `${discovery.length} insight${discovery.length === 1 ? "" : "s"}`
+                  }
+                  tone={discovery.length === 0 ? "muted" : "neutral"}
+                >
+                  {discovery.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">
+                      Capture current process, system or main challenge to
+                      surface insights.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1 text-xs">
+                      {discovery.map((d, i) => (
+                        <li key={i} className="flex gap-1.5">
+                          <span className="mt-1 h-1 w-1 rounded-full bg-foreground/40 shrink-0" />
+                          <span className="leading-snug">{d}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CompactDisclosure>
+              </div>
+              {/* OUTREACH INTELLIGENCE — distinct from Qualification Assistant.
               Focus: contact strategy, cadence guidance, plays, micro-discovery. */}
-          <OutreachIntelligence
-            lead={draft}
-            attempts={attempts as any}
-            onSendEmail={(k) => openSendEmail(k)}
-            onLogActivity={() => setShowLogContact(true)}
-            onCreateTask={() => setShowAddTask(true)}
-          />
-
-
+              <OutreachIntelligence
+                lead={draft}
+                attempts={attempts as any}
+                onSendEmail={(k) => openSendEmail(k)}
+                onLogActivity={() => setShowLogContact(true)}
+                onCreateTask={() => setShowAddTask(true)}
+              />
+            </div>
+          </details>
 
           {/* TABS */}
-          <Tabs defaultValue="qualification" className="w-full">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="w-full"
+          >
             <TabsList className="flex-wrap h-auto">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="qualification">Qualification</TabsTrigger>
-              <TabsTrigger value="discovery">Discovery</TabsTrigger>
-              <TabsTrigger value="situation">Situation</TabsTrigger>
-              <TabsTrigger value="overview">Lead info</TabsTrigger>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="tasks" className="gap-1.5">
-                Tasks
-                {openTasksCount > 0 && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{openTasksCount}</Badge>
-                )}
+              <TabsTrigger value="activity">
+                Activity {timeline.length > 0 ? `(${timeline.length})` : ""}
               </TabsTrigger>
-              <TabsTrigger value="activity" className="gap-1.5">
-                Activity
-                {timeline.length > 0 && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{timeline.length}</Badge>
-                )}
+              <TabsTrigger value="tasks">
+                Tasks {openTasksCount > 0 ? `(${openTasksCount})` : ""}
               </TabsTrigger>
-              <TabsTrigger value="assignment">Assignment</TabsTrigger>
             </TabsList>
+            <TabsContent value="overview" className="space-y-4 mt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Lead overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                    <Info
+                      icon={Building2}
+                      label="Company"
+                      value={draft.company_name}
+                    />
+                    <Info
+                      icon={Users}
+                      label="Contact"
+                      value={draft.contact_name}
+                    />
+                    <Info
+                      icon={Briefcase}
+                      label="Job role"
+                      value={draft.job_role}
+                    />
+                    <Info icon={Mail} label="Email" value={draft.email} />
+                    <Info icon={Phone} label="Phone" value={draft.phone} />
+                    <Info icon={Globe} label="Country" value={draft.country} />
+                    <Info
+                      icon={Target}
+                      label="Source"
+                      value={draft.lead_source}
+                    />
+                    <Info label="Asset range" value={draft.asset_range} />
+                    <Info
+                      label="Maintenance team"
+                      value={draft.maintenance_team_size}
+                    />
+                    <Info label="Sector" value={draft.sector} />
+                    <Info label="SharpSpring ID" value={draft.sharpspring_id} />
+                  </div>
+                </CardContent>
+              </Card>
+              <details className="rounded-xl border bg-card p-4">
+                <summary className="cursor-pointer font-medium text-sm">
+                  Assignment and routing
+                </summary>
+                <div className="mt-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Assignment</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <Label className="text-xs text-muted-foreground">
+                          Assigned partner
+                        </Label>
+                        {isHQUser ? (
+                          <Select
+                            value={draft.linked_partner_id || "__hq__"}
+                            onValueChange={(v) =>
+                              set({
+                                linked_partner_id: v === "__hq__" ? null : v,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__hq__">
+                                No partner (HQ owned)
+                              </SelectItem>
+                              {activePartners
+                                .sort((a, b) =>
+                                  a.company_name.localeCompare(b.company_name),
+                                )
+                                .map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>
+                                    {p.company_name}{" "}
+                                    {p.country ? `(${p.country})` : ""}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <p className="mt-1 font-medium">
+                            {partners.find(
+                              (p) => p.id === draft.linked_partner_id,
+                            )?.company_name || "HQ"}
+                          </p>
+                        )}
+                      </div>
+                      {isHQUser && (
+                        <div>
+                          <Label className="text-xs text-muted-foreground">
+                            Routing reason
+                          </Label>
+                          <Input
+                            className="mt-1"
+                            value={draft.routing_reason || ""}
+                            onChange={(e) =>
+                              set({ routing_reason: e.target.value })
+                            }
+                            placeholder="Why was this lead routed this way?"
+                          />
+                        </div>
+                      )}
 
-            {/* QUALIFICATION TAB */}
-            <TabsContent value="qualification" className="space-y-5 mt-4">
+                      {/* Assigned owner — saved immediately so the trigger fires
+                      and SLA/ownership context updates without a manual Save. */}
+                      <div>
+                        <Label className="text-xs text-muted-foreground">
+                          Assigned owner
+                        </Label>
+                        <Select
+                          value={(draft as any).assigned_user_id || "__none__"}
+                          onValueChange={(v) => {
+                            const next = v === "__none__" ? null : v;
+                            set({ assigned_user_id: next });
+                            updateLead.mutate(
+                              { id: lead.id, assigned_user_id: next as any },
+                              {
+                                onSuccess: () =>
+                                  toast.success(
+                                    next ? "Owner assigned" : "Owner cleared",
+                                  ),
+                                onError: (e: any) => toast.error(e.message),
+                              },
+                            );
+                          }}
+                          disabled={
+                            isConverted || allAssignableUsers.length === 0
+                          }
+                        >
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Unassigned</SelectItem>
+                            {allAssignableUsers.map((u: any) => (
+                              <SelectItem key={u.id} value={u.id}>
+                                {u.full_name || u.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {(draft as any).assigned_at &&
+                          (draft as any).assigned_user_id && (
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              Assigned{" "}
+                              {formatDistanceToNow(
+                                new Date((draft as any).assigned_at),
+                                { addSuffix: true },
+                              )}
+                            </p>
+                          )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {isAdmin && (
+                    <Card className="border-destructive/30">
+                      <CardContent className="pt-6 flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          Permanently delete this lead record.
+                        </p>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleDelete}
+                          disabled={deleteLead.isPending}
+                        >
+                          <Trash2 className="h-4 w-4" /> Delete lead
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </details>
+              <details className="rounded-xl border bg-card p-4">
+                <summary className="cursor-pointer font-medium text-sm">
+                  Internal notes
+                </summary>
+                <div className="mt-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">Internal notes</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Textarea
+                        value={draft.notes || ""}
+                        onChange={(e) => set({ notes: e.target.value })}
+                        rows={8}
+                        placeholder="Add internal notes about this lead…"
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              </details>
+            </TabsContent>
+            <TabsContent value="qualification" className="space-y-4 mt-4">
               {/* TIMD ACCORDION */}
               <Card>
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <div>
-                    <CardTitle className="text-sm">Qualification checklist</CardTitle>
+                    <CardTitle className="text-sm">
+                      Qualification checklist
+                    </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Interest · Timing · Budget · Decision
                     </p>
                   </div>
                   <div className="w-36">
-                    <div className="text-[11px] text-muted-foreground mb-1 text-right">{timd.percent}% complete</div>
+                    <div className="text-[11px] text-muted-foreground mb-1 text-right">
+                      {timd.percent}% complete
+                    </div>
                     <Progress value={timd.percent} className="h-1.5" />
                   </div>
                 </CardHeader>
@@ -556,23 +1051,32 @@ export default function LeadDetail() {
                     className="divide-y border-t"
                   >
                     {TIMD_CATEGORIES.map((c) => {
-                      const Icon = TIMD_ICONS[c.icon as keyof typeof TIMD_ICONS];
+                      const Icon =
+                        TIMD_ICONS[c.icon as keyof typeof TIMD_ICONS];
                       const notes = draft[`${c.key}_notes`] || "";
                       const stored = draft[`${c.key}_status`];
                       const status = resolvedStatus(stored, notes);
-                      const isAuto = !stored || stored === "missing"
-                        ? autoStatusFromNotes(notes) === status && !stored
-                        : false;
+                      const isAuto =
+                        !stored || stored === "missing"
+                          ? autoStatusFromNotes(notes) === status && !stored
+                          : false;
                       return (
-                        <AccordionItem key={c.key} value={c.key} className="border-b-0 last:border-b-0">
+                        <AccordionItem
+                          key={c.key}
+                          value={c.key}
+                          className="border-b-0 last:border-b-0"
+                        >
                           <AccordionTrigger className="hover:no-underline py-3 px-1">
                             <div className="flex items-center justify-between gap-3 flex-1 pr-2">
                               <div className="flex items-center gap-2.5">
                                 <Icon className="h-4 w-4 text-muted-foreground" />
-                                <span className="font-medium text-sm">{c.label}</span>
+                                <span className="font-medium text-sm">
+                                  {c.label}
+                                </span>
                                 {notes.trim() && (
                                   <span className="text-xs text-muted-foreground truncate max-w-[260px] hidden md:inline">
-                                    — {notes.trim().slice(0, 60)}{notes.trim().length > 60 ? "…" : ""}
+                                    — {notes.trim().slice(0, 60)}
+                                    {notes.trim().length > 60 ? "…" : ""}
                                   </span>
                                 )}
                               </div>
@@ -582,7 +1086,9 @@ export default function LeadDetail() {
                           <AccordionContent className="px-1 pb-4">
                             <Textarea
                               value={notes}
-                              onChange={(e) => set({ [`${c.key}_notes`]: e.target.value })}
+                              onChange={(e) =>
+                                set({ [`${c.key}_notes`]: e.target.value })
+                              }
                               placeholder={c.prompt}
                               rows={2}
                               className="text-sm resize-none"
@@ -596,7 +1102,9 @@ export default function LeadDetail() {
                                   <button
                                     key={s}
                                     type="button"
-                                    onClick={() => set({ [`${c.key}_status`]: s })}
+                                    onClick={() =>
+                                      set({ [`${c.key}_status`]: s })
+                                    }
                                     className={cn(
                                       "px-2 py-0.5 rounded-full text-[11px] border transition capitalize",
                                       stored === s
@@ -610,7 +1118,9 @@ export default function LeadDetail() {
                                 {stored && stored !== "missing" && (
                                   <button
                                     type="button"
-                                    onClick={() => set({ [`${c.key}_status`]: null })}
+                                    onClick={() =>
+                                      set({ [`${c.key}_status`]: null })
+                                    }
                                     className="text-[11px] text-muted-foreground hover:text-foreground ml-1 inline-flex items-center gap-1"
                                     title="Use auto-detected status"
                                   >
@@ -642,8 +1152,15 @@ export default function LeadDetail() {
               {/* QUALIFICATION SIGNALS */}
               <Card>
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm">Qualification signals</CardTitle>
-                  <FitBadge label={fit.label} tone={fit.tone} score={fit.score} total={fit.total} />
+                  <CardTitle className="text-sm">
+                    Qualification signals
+                  </CardTitle>
+                  <FitBadge
+                    label={fit.label}
+                    tone={fit.tone}
+                    score={fit.score}
+                    total={fit.total}
+                  />
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Positive signals */}
@@ -652,12 +1169,18 @@ export default function LeadDetail() {
                       <ShieldCheck className="h-3.5 w-3.5" /> Positive signals
                     </div>
                     {signals.positive.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">None captured yet.</p>
+                      <p className="text-xs text-muted-foreground italic">
+                        None captured yet.
+                      </p>
                     ) : (
                       <ul className="space-y-1.5">
                         {signals.positive.map((s) => (
-                          <li key={s.key} className="text-sm flex items-center gap-2">
-                            <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" /> {s.label}
+                          <li
+                            key={s.key}
+                            className="text-sm flex items-center gap-2"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />{" "}
+                            {s.label}
                           </li>
                         ))}
                       </ul>
@@ -666,15 +1189,22 @@ export default function LeadDetail() {
                   {/* Risks */}
                   <div>
                     <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-warning-foreground font-semibold mb-2">
-                      <ShieldAlert className="h-3.5 w-3.5" /> Potential risks
+                      <HelpCircle className="h-3.5 w-3.5" /> Information to
+                      confirm
                     </div>
                     {signals.risks.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">No risks detected.</p>
+                      <p className="text-xs text-muted-foreground italic">
+                        All listed points have been confirmed.
+                      </p>
                     ) : (
                       <ul className="space-y-1.5">
                         {signals.risks.slice(0, 6).map((s) => (
-                          <li key={s.key} className="text-sm flex items-center gap-2 text-muted-foreground">
-                            <AlertCircle className="h-3.5 w-3.5 text-warning-foreground shrink-0" /> {s.label}
+                          <li
+                            key={s.key}
+                            className="text-sm flex items-center gap-2 text-muted-foreground"
+                          >
+                            <AlertCircle className="h-3.5 w-3.5 text-warning-foreground shrink-0" />{" "}
+                            {s.label}
                           </li>
                         ))}
                       </ul>
@@ -683,10 +1213,15 @@ export default function LeadDetail() {
                 </CardContent>
                 <div className="px-6 pb-4 -mt-2">
                   <details className="text-xs text-muted-foreground">
-                    <summary className="cursor-pointer hover:text-foreground">Adjust signals manually</summary>
+                    <summary className="cursor-pointer hover:text-foreground">
+                      Adjust signals manually
+                    </summary>
                     <div className="grid grid-cols-2 gap-2 mt-2">
                       {FIT_FACTORS.map((f) => (
-                        <label key={f.key} className="flex items-center gap-2 text-xs cursor-pointer">
+                        <label
+                          key={f.key}
+                          className="flex items-center gap-2 text-xs cursor-pointer"
+                        >
                           <input
                             type="checkbox"
                             className="rounded border-input"
@@ -704,115 +1239,87 @@ export default function LeadDetail() {
               {stage === "Disqualified" && (
                 <Card className="border-destructive/30 bg-destructive/5">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm text-destructive">Disqualification reason</CardTitle>
+                    <CardTitle className="text-sm text-destructive">
+                      Disqualification reason
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <Textarea
                       value={draft.disqualified_reason || ""}
-                      onChange={(e) => set({ disqualified_reason: e.target.value })}
+                      onChange={(e) =>
+                        set({ disqualified_reason: e.target.value })
+                      }
                       placeholder="Why was this lead disqualified?"
                       rows={3}
                     />
                   </CardContent>
                 </Card>
               )}
+              <details className="rounded-xl border bg-card p-4">
+                <summary className="cursor-pointer font-medium text-sm">
+                  Discovery and current situation
+                </summary>
+                <div className="mt-4">
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-sm">
+                        Current situation
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground">
+                        How they operate today.
+                      </p>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <PickerField
+                        label="Current process"
+                        value={draft.current_process}
+                        options={CURRENT_PROCESS_OPTIONS}
+                        onChange={(v) => set({ current_process: v })}
+                      />
+                      <PickerField
+                        label="Main challenge"
+                        value={draft.main_challenge}
+                        options={MAIN_CHALLENGE_OPTIONS}
+                        onChange={(v) => set({ main_challenge: v })}
+                      />
+                      <PickerField
+                        label="Existing system"
+                        value={draft.existing_system}
+                        options={EXISTING_SYSTEM_OPTIONS}
+                        onChange={(v) => set({ existing_system: v })}
+                      />
+                      <PickerField
+                        label="Data visibility"
+                        value={draft.data_visibility}
+                        options={DATA_VISIBILITY_OPTIONS}
+                        onChange={(v) => set({ data_visibility: v })}
+                      />
+                    </CardContent>
+                  </Card>
+
+                  <NextStepPanel parent={{ leadId: id }} />
+                  <DiscoveryWorkspace parent={{ leadId: id }} />
+                </div>
+              </details>
             </TabsContent>
-
-            {/* DISCOVERY TAB */}
-            <TabsContent value="discovery" className="mt-4 space-y-4">
-              <NextStepPanel parent={{ leadId: id }} />
-              <DiscoveryWorkspace parent={{ leadId: id }} />
-            </TabsContent>
-
-
-
-            {/* SITUATION TAB */}
-            <TabsContent value="situation" className="mt-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Current situation</CardTitle>
-                  <p className="text-xs text-muted-foreground">How they operate today.</p>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <PickerField label="Current process" value={draft.current_process}
-                    options={CURRENT_PROCESS_OPTIONS} onChange={(v) => set({ current_process: v })} />
-                  <PickerField label="Main challenge" value={draft.main_challenge}
-                    options={MAIN_CHALLENGE_OPTIONS} onChange={(v) => set({ main_challenge: v })} />
-                  <PickerField label="Existing system" value={draft.existing_system}
-                    options={EXISTING_SYSTEM_OPTIONS} onChange={(v) => set({ existing_system: v })} />
-                  <PickerField label="Data visibility" value={draft.data_visibility}
-                    options={DATA_VISIBILITY_OPTIONS} onChange={(v) => set({ data_visibility: v })} />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* OVERVIEW */}
-            <TabsContent value="overview" className="mt-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Lead overview</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                    <Info icon={Building2} label="Company" value={draft.company_name} />
-                    <Info icon={Users} label="Contact" value={draft.contact_name} />
-                    <Info icon={Briefcase} label="Job role" value={draft.job_role} />
-                    <Info icon={Mail} label="Email" value={draft.email} />
-                    <Info icon={Phone} label="Phone" value={draft.phone} />
-                    <Info icon={Globe} label="Country" value={draft.country} />
-                    <Info icon={Target} label="Source" value={draft.lead_source} />
-                    <Info label="Asset range" value={draft.asset_range} />
-                    <Info label="Maintenance team" value={draft.maintenance_team_size} />
-                    <Info label="Sector" value={draft.sector} />
-                    <Info label="SharpSpring ID" value={draft.sharpspring_id} />
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* NOTES TAB */}
-            <TabsContent value="notes" className="mt-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Internal notes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={draft.notes || ""}
-                    onChange={(e) => set({ notes: e.target.value })}
-                    rows={8}
-                    placeholder="Add internal notes about this lead…"
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* TASKS */}
-            <TabsContent value="tasks" className="mt-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <LeadTaskList
-                    leadId={lead.id}
-                    leadCompanyName={lead.company_name || "Unnamed Lead"}
-                    linkedPartnerId={lead.linked_partner_id}
-                  />
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* ACTIVITY TIMELINE — real events only */}
             <TabsContent value="activity" className="mt-4">
               <Card>
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
                   <div>
                     <CardTitle className="text-sm flex items-center gap-2">
-                      <History className="h-4 w-4 text-muted-foreground" /> Activity timeline
+                      <History className="h-4 w-4 text-muted-foreground" />{" "}
+                      Activity timeline
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Real operational events stored in the system. No synthetic entries.
+                      Contacts, tasks and changes for this lead.
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => setShowLogContact(true)} disabled={isConverted}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowLogContact(true)}
+                    disabled={isConverted}
+                  >
                     <PhoneCall className="h-3.5 w-3.5" /> Log activity
                   </Button>
                 </CardHeader>
@@ -825,22 +1332,28 @@ export default function LeadDetail() {
                     <ol className="relative border-l border-border ml-2 space-y-4">
                       {timeline.map((ev) => (
                         <li key={ev.id} className="ml-4">
-                          <span className={cn(
-                            "absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-background",
-                            ev.tone === "success" && "bg-success",
-                            ev.tone === "warning" && "bg-warning",
-                            ev.tone === "destructive" && "bg-destructive",
-                            ev.tone === "neutral" && "bg-muted-foreground",
-                            ev.tone === "primary" && "bg-primary",
-                          )} />
+                          <span
+                            className={cn(
+                              "absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-background",
+                              ev.tone === "success" && "bg-success",
+                              ev.tone === "warning" && "bg-warning",
+                              ev.tone === "destructive" && "bg-destructive",
+                              ev.tone === "neutral" && "bg-muted-foreground",
+                              ev.tone === "primary" && "bg-primary",
+                            )}
+                          />
                           <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                            <div className="text-sm font-medium leading-snug">{ev.title}</div>
+                            <div className="text-sm font-medium leading-snug">
+                              {ev.title}
+                            </div>
                             <div className="text-[11px] text-muted-foreground whitespace-nowrap">
                               {format(new Date(ev.at), "dd MMM yyyy · HH:mm")}
                             </div>
                           </div>
                           {ev.detail && (
-                            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{ev.detail}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                              {ev.detail}
+                            </p>
                           )}
                         </li>
                       ))}
@@ -849,106 +1362,16 @@ export default function LeadDetail() {
                 </CardContent>
               </Card>
             </TabsContent>
-
-
-            {/* ASSIGNMENT */}
-            <TabsContent value="assignment" className="mt-4 space-y-4">
+            <TabsContent value="tasks" className="mt-4">
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Assignment</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Assigned partner</Label>
-                    {isHQUser ? (
-                      <Select
-                        value={draft.linked_partner_id || "__hq__"}
-                        onValueChange={(v) => set({ linked_partner_id: v === "__hq__" ? null : v })}
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__hq__">No partner (HQ owned)</SelectItem>
-                          {activePartners
-                            .sort((a, b) => a.company_name.localeCompare(b.company_name))
-                            .map((p) => (
-                              <SelectItem key={p.id} value={p.id}>
-                                {p.company_name} {p.country ? `(${p.country})` : ""}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="mt-1 font-medium">
-                        {partners.find((p) => p.id === draft.linked_partner_id)?.company_name || "HQ"}
-                      </p>
-                    )}
-                  </div>
-                  {isHQUser && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Routing reason</Label>
-                      <Input
-                        className="mt-1"
-                        value={draft.routing_reason || ""}
-                        onChange={(e) => set({ routing_reason: e.target.value })}
-                        placeholder="Why was this lead routed this way?"
-                      />
-                    </div>
-                  )}
-
-                  {/* Assigned owner — saved immediately so the trigger fires
-                      and SLA/ownership context updates without a manual Save. */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Assigned owner</Label>
-                    <Select
-                      value={(draft as any).assigned_user_id || "__none__"}
-                      onValueChange={(v) => {
-                        const next = v === "__none__" ? null : v;
-                        set({ assigned_user_id: next });
-                        updateLead.mutate(
-                          { id: lead.id, assigned_user_id: next as any },
-                          {
-                            onSuccess: () =>
-                              toast.success(next ? "Owner assigned — notification sent" : "Owner cleared"),
-                            onError: (e: any) => toast.error(e.message),
-                          },
-                        );
-                      }}
-                      disabled={isConverted || allAssignableUsers.length === 0}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue placeholder="Unassigned" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Unassigned</SelectItem>
-                        {allAssignableUsers.map((u: any) => (
-                          <SelectItem key={u.id} value={u.id}>
-                            {u.full_name || u.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {(draft as any).assigned_at && (draft as any).assigned_user_id && (
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Assigned {formatDistanceToNow(new Date((draft as any).assigned_at), { addSuffix: true })}
-                      </p>
-                    )}
-                  </div>
+                <CardContent className="pt-6">
+                  <LeadTaskList
+                    leadId={lead.id}
+                    leadCompanyName={lead.company_name || "Unnamed Lead"}
+                    linkedPartnerId={lead.linked_partner_id}
+                  />
                 </CardContent>
               </Card>
-
-
-              {isAdmin && (
-                <Card className="border-destructive/30">
-                  <CardContent className="pt-6 flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Permanently delete this lead record.</p>
-                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleteLead.isPending}>
-                      <Trash2 className="h-4 w-4" /> Delete lead
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
             </TabsContent>
           </Tabs>
 
@@ -957,9 +1380,17 @@ export default function LeadDetail() {
               <CardContent className="flex items-center justify-between py-4">
                 <div className="flex items-center gap-2 text-success">
                   <CheckCircle2 className="h-5 w-5" />
-                  <span className="font-medium">Converted to pipeline opportunity</span>
+                  <span className="font-medium">
+                    Converted to pipeline opportunity
+                  </span>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => navigate(`/deals/${draft.converted_to_deal_id}`)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    navigate(`/deals/${draft.converted_to_deal_id}`)
+                  }
+                >
                   <ArrowRight className="h-4 w-4" /> View opportunity
                 </Button>
               </CardContent>
@@ -968,183 +1399,269 @@ export default function LeadDetail() {
         </div>
 
         {/* RIGHT SIDEBAR – QUALIFICATION ASSISTANT */}
-        <aside className="space-y-4 lg:sticky lg:top-4">
-          <Card className="border-primary/20">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                Qualification Assistant
-              </CardTitle>
-              <p className="text-[11px] text-muted-foreground">
-                Contextual coaching. Updates as you capture discovery.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Always-visible: What to do next */}
-              <AsstSection icon={Target} title="What to do next">
-                <ul className="space-y-1.5 text-sm">
-                  {actions.map((a, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className={cn(
-                        "mt-1.5 h-1.5 w-1.5 rounded-full shrink-0",
-                        i === 0 ? "bg-primary" : "bg-muted-foreground/40",
-                      )} />
-                      <span className={i === 0 ? "font-medium" : "text-muted-foreground"}>{a}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Button size="sm" variant="outline" className="mt-3 w-full" onClick={() => setShowAddTask(true)}>
-                  <Plus className="h-3.5 w-3.5" /> Create task
-                </Button>
-              </AsstSection>
+        <Sheet open={showAssistant} onOpenChange={setShowAssistant}>
+          <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+            <SheetHeader className="mb-4">
+              <SheetTitle>Qualification help</SheetTitle>
+              <SheetDescription>
+                Optional guidance for this lead. Your working page remains
+                unchanged.
+              </SheetDescription>
+            </SheetHeader>
+            <Card className="border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Qualification Assistant
+                </CardTitle>
+                <p className="text-[11px] text-muted-foreground">
+                  Contextual coaching. Updates as you capture discovery.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Always-visible: What to do next */}
+                {openTimd && (
+                  <AsstSection
+                    icon={HelpCircle}
+                    title={`Working on ${TIMD_CATEGORIES.find((c) => c.key === openTimd)?.label || "qualification"}`}
+                  >
+                    <ul className="space-y-2 text-sm">
+                      {TIMD_CATEGORIES.find(
+                        (c) => c.key === openTimd,
+                      )?.questions?.map((q) => (
+                        <li key={q}>{q}</li>
+                      ))}
+                    </ul>
+                  </AsstSection>
+                )}
 
-              {/* Single-expand accordion — only one section open at a time.
+                {/* Single-expand accordion — only one section open at a time.
                   Order = visual priority: missing → insights → guidance → questions → emphasize → risks → snippets */}
-              <SingleAccordion
-                defaultValue={missing.length > 0 ? "missing" : "insights"}
-                sections={[
-                  {
-                    value: "missing",
-                    icon: AlertCircle,
-                    title: "Missing information",
-                    count: missing.length,
-                    empty: "All key information captured.",
-                    render: () => (
-                      <ul className="space-y-1 text-xs">
-                        {missing.map((m, i) => (<li key={i} className="text-muted-foreground">• {m}</li>))}
-                      </ul>
-                    ),
-                  },
-                  {
-                    value: "insights",
-                    icon: SearchIcon,
-                    title: "Discovery insights",
-                    count: insights.length,
-                    empty: "Capture current process, system or challenge to surface insights.",
-                    render: () => (
-                      <ul className="space-y-1">
-                        {insights.map((i) => (
-                          <li key={i.id} className="flex items-start gap-2 text-xs">
-                            <span className={cn(
-                              "mt-1 h-1.5 w-1.5 rounded-full shrink-0",
-                              i.tone === "positive" && "bg-success",
-                              i.tone === "warning" && "bg-warning",
-                              i.tone === "neutral" && "bg-muted-foreground/50",
-                            )} />
-                            <span className={i.tone === "warning" ? "text-foreground" : "text-muted-foreground"}>
-                              {i.label}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    ),
-                  },
-                  ...(guidanceBlocks.length > 0 ? [{
-                    value: "guidance",
-                    icon: Lightbulb,
-                    title: "Contextual guidance",
-                    count: guidanceBlocks.length,
-                    render: () => (
-                      <div className="space-y-3">
-                        {guidanceBlocks.map((g) => {
-                          const split = splitPositioning(g.positioning);
-                          return (
-                            <div key={g.id} className="rounded-md border bg-card/40 p-2.5">
-                              <div className="text-xs font-semibold text-foreground mb-2">{g.title}</div>
-                              {g.pains?.length ? (
-                                <Subsection label="Common pains">
-                                  <TopList items={g.pains} limit={3} className="text-xs text-muted-foreground" />
-                                </Subsection>
-                              ) : null}
-                              {g.prompts?.length ? (
-                                <Subsection label="Try asking">
-                                  <TopList items={g.prompts} limit={3} quote className="text-xs text-muted-foreground" />
-                                </Subsection>
-                              ) : null}
-                              {split.businessValue.length ? (
-                                <Subsection label="Business value">
-                                  <ChipList items={split.businessValue.slice(0, 3)} tone="primary" />
-                                </Subsection>
-                              ) : null}
-                              {split.capabilities.length ? (
-                                <Subsection label="Product capabilities">
-                                  <ChipList items={split.capabilities.slice(0, 3)} tone="muted" />
-                                </Subsection>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ),
-                  }] : []),
-                  {
-                    value: "questions",
-                    icon: HelpCircle,
-                    title: "Suggested questions",
-                    count: Math.min(questions.length, 3),
-                    render: () => (
-                      <TopList items={questions} limit={3} quote className="text-xs text-muted-foreground leading-snug" />
-                    ),
-                  },
-                  ...(positioning.length > 0 ? [{
-                    value: "emphasize",
-                    icon: Megaphone,
-                    title: "What to emphasize",
-                    count: Math.min(positioning.length, 3),
-                    render: () => (
-                      <ul className="space-y-2">
-                        {positioning.slice(0, 3).map((p) => (
-                          <li key={p.id} className="text-xs">
-                            <div className="font-medium text-foreground">{p.emphasis}</div>
-                            <div className="text-muted-foreground leading-snug">{p.reason}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    ),
-                  }] : []),
-                  ...(risks.length > 0 ? [{
-                    value: "risks",
-                    icon: ShieldAlert,
-                    title: "Likely risks",
-                    count: risks.length,
-                    render: () => (
-                      <ul className="space-y-2">
-                        {risks.slice(0, 3).map((r) => (
-                          <li key={r.id} className="text-xs">
-                            <div className="font-medium text-foreground">{r.label}</div>
-                            <div className="text-muted-foreground leading-snug">{r.hint}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    ),
-                  }] : []),
-                  ...(snippets.length > 0 ? [{
-                    value: "snippets",
-                    icon: BookOpen,
-                    title: "Positioning snippets",
-                    count: snippets.length,
-                    render: () => (
-                      <ul className="space-y-2">
-                        {snippets.slice(0, 3).map((s) => (
-                          <li key={s.id} className="text-xs">
-                            <div className="font-medium text-foreground">{s.title}</div>
-                            <div className="text-muted-foreground leading-snug">{s.body}</div>
-                          </li>
-                        ))}
-                      </ul>
-                    ),
-                  }] : []),
-                ]}
-              />
-            </CardContent>
-          </Card>
-        </aside>
+                <SingleAccordion
+                  defaultValue={missing.length > 0 ? "missing" : "insights"}
+                  sections={[
+                    {
+                      value: "missing",
+                      icon: AlertCircle,
+                      title: "Missing information",
+                      count: missing.length,
+                      empty: "All key information captured.",
+                      render: () => (
+                        <ul className="space-y-1 text-xs">
+                          {missing.map((m, i) => (
+                            <li key={i} className="text-muted-foreground">
+                              • {m}
+                            </li>
+                          ))}
+                        </ul>
+                      ),
+                    },
+                    {
+                      value: "insights",
+                      icon: SearchIcon,
+                      title: "Discovery insights",
+                      count: insights.length,
+                      empty:
+                        "Capture current process, system or challenge to surface insights.",
+                      render: () => (
+                        <ul className="space-y-1">
+                          {insights.map((i) => (
+                            <li
+                              key={i.id}
+                              className="flex items-start gap-2 text-xs"
+                            >
+                              <span
+                                className={cn(
+                                  "mt-1 h-1.5 w-1.5 rounded-full shrink-0",
+                                  i.tone === "positive" && "bg-success",
+                                  i.tone === "warning" && "bg-warning",
+                                  i.tone === "neutral" &&
+                                    "bg-muted-foreground/50",
+                                )}
+                              />
+                              <span
+                                className={
+                                  i.tone === "warning"
+                                    ? "text-foreground"
+                                    : "text-muted-foreground"
+                                }
+                              >
+                                {i.label}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ),
+                    },
+                    ...(guidanceBlocks.length > 0
+                      ? [
+                          {
+                            value: "guidance",
+                            icon: Lightbulb,
+                            title: "Contextual guidance",
+                            count: guidanceBlocks.length,
+                            render: () => (
+                              <div className="space-y-3">
+                                {guidanceBlocks.map((g) => {
+                                  const split = splitPositioning(g.positioning);
+                                  return (
+                                    <div
+                                      key={g.id}
+                                      className="rounded-md border bg-card/40 p-2.5"
+                                    >
+                                      <div className="text-xs font-semibold text-foreground mb-2">
+                                        {g.title}
+                                      </div>
+                                      {g.pains?.length ? (
+                                        <Subsection label="Common pains">
+                                          <TopList
+                                            items={g.pains}
+                                            limit={3}
+                                            className="text-xs text-muted-foreground"
+                                          />
+                                        </Subsection>
+                                      ) : null}
+                                      {g.prompts?.length ? (
+                                        <Subsection label="Try asking">
+                                          <TopList
+                                            items={g.prompts}
+                                            limit={3}
+                                            quote
+                                            className="text-xs text-muted-foreground"
+                                          />
+                                        </Subsection>
+                                      ) : null}
+                                      {split.businessValue.length ? (
+                                        <Subsection label="Business value">
+                                          <ChipList
+                                            items={split.businessValue.slice(
+                                              0,
+                                              3,
+                                            )}
+                                            tone="primary"
+                                          />
+                                        </Subsection>
+                                      ) : null}
+                                      {split.capabilities.length ? (
+                                        <Subsection label="Product capabilities">
+                                          <ChipList
+                                            items={split.capabilities.slice(
+                                              0,
+                                              3,
+                                            )}
+                                            tone="muted"
+                                          />
+                                        </Subsection>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ),
+                          },
+                        ]
+                      : []),
+                    {
+                      value: "questions",
+                      icon: HelpCircle,
+                      title: "Suggested questions",
+                      count: Math.min(questions.length, 3),
+                      render: () => (
+                        <TopList
+                          items={questions}
+                          limit={3}
+                          quote
+                          className="text-xs text-muted-foreground leading-snug"
+                        />
+                      ),
+                    },
+                    ...(positioning.length > 0
+                      ? [
+                          {
+                            value: "emphasize",
+                            icon: Megaphone,
+                            title: "What to emphasize",
+                            count: Math.min(positioning.length, 3),
+                            render: () => (
+                              <ul className="space-y-2">
+                                {positioning.slice(0, 3).map((p) => (
+                                  <li key={p.id} className="text-xs">
+                                    <div className="font-medium text-foreground">
+                                      {p.emphasis}
+                                    </div>
+                                    <div className="text-muted-foreground leading-snug">
+                                      {p.reason}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ),
+                          },
+                        ]
+                      : []),
+                    ...(risks.length > 0
+                      ? [
+                          {
+                            value: "risks",
+                            icon: ShieldAlert,
+                            title: "Points to explore",
+                            count: risks.length,
+                            render: () => (
+                              <ul className="space-y-2">
+                                {risks.slice(0, 3).map((r) => (
+                                  <li key={r.id} className="text-xs">
+                                    <div className="font-medium text-foreground">
+                                      {r.label}
+                                    </div>
+                                    <div className="text-muted-foreground leading-snug">
+                                      {r.hint}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ),
+                          },
+                        ]
+                      : []),
+                    ...(snippets.length > 0
+                      ? [
+                          {
+                            value: "snippets",
+                            icon: BookOpen,
+                            title: "Positioning snippets",
+                            count: snippets.length,
+                            render: () => (
+                              <ul className="space-y-2">
+                                {snippets.slice(0, 3).map((s) => (
+                                  <li key={s.id} className="text-xs">
+                                    <div className="font-medium text-foreground">
+                                      {s.title}
+                                    </div>
+                                    <div className="text-muted-foreground leading-snug">
+                                      {s.body}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ),
+                          },
+                        ]
+                      : []),
+                  ]}
+                />
+              </CardContent>
+            </Card>
+          </SheetContent>
+        </Sheet>
       </div>
-
 
       {/* Dialogs */}
       {lead && (
-        <ConvertToOpportunityDialog open={showConvert} onOpenChange={setShowConvert} lead={lead} />
+        <ConvertToOpportunityDialog
+          open={showConvert}
+          onOpenChange={setShowConvert}
+          lead={lead}
+        />
       )}
       <AddLeadTaskDialog
         open={showAddTask}
@@ -1180,11 +1697,16 @@ export default function LeadDetail() {
       <AlertDialog open={showConvertGate} onOpenChange={setShowConvertGate}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Cover the missing qualification items first</AlertDialogTitle>
+            <AlertDialogTitle>
+              Cover the missing qualification items first
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              The following items should be covered before this lead enters the pipeline:
+              The following items should be covered before this lead enters the
+              pipeline:
               <ul className="mt-2 list-disc pl-5 space-y-0.5 text-sm">
-                {readiness.missing.map((m) => <li key={m}>{m}</li>)}
+                {readiness.missing.map((m) => (
+                  <li key={m}>{m}</li>
+                ))}
               </ul>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -1201,14 +1723,21 @@ export default function LeadDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
     </div>
   );
 }
 
 /* ---------- helpers ---------- */
 
-function Info({ icon: Icon, label, value }: { icon?: any; label: string; value: any }) {
+function Info({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon?: any;
+  label: string;
+  value: any;
+}) {
   return (
     <div>
       <div className="text-xs text-muted-foreground flex items-center gap-1">
@@ -1221,8 +1750,16 @@ function Info({ icon: Icon, label, value }: { icon?: any; label: string; value: 
 }
 
 function PickerField({
-  label, value, options, onChange,
-}: { label: string; value: any; options: string[]; onChange: (v: string) => void }) {
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: any;
+  options: string[];
+  onChange: (v: string) => void;
+}) {
   return (
     <div>
       <Label className="text-xs text-muted-foreground">{label}</Label>
@@ -1232,7 +1769,9 @@ function PickerField({
         </SelectTrigger>
         <SelectContent>
           {options.map((o) => (
-            <SelectItem key={o} value={o}>{o}</SelectItem>
+            <SelectItem key={o} value={o}>
+              {o}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -1241,8 +1780,14 @@ function PickerField({
 }
 
 function QualificationJourney({
-  current, onChange, disabled,
-}: { current: QualificationStage; onChange: (s: QualificationStage) => void; disabled?: boolean }) {
+  current,
+  onChange,
+  disabled,
+}: {
+  current: QualificationStage;
+  onChange: (s: QualificationStage) => void;
+  disabled?: boolean;
+}) {
   const stages = QUALIFICATION_STAGES.filter((s) => s !== "Disqualified");
   const currentIdx = stages.indexOf(current as any);
   return (
@@ -1259,9 +1804,14 @@ function QualificationJourney({
                 onClick={() => onChange(s)}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-xs font-medium border transition",
-                  isActive && "bg-primary text-primary-foreground border-primary",
-                  isDone && !isActive && "bg-success/10 text-success border-success/30",
-                  !isActive && !isDone && "bg-muted text-muted-foreground border-transparent hover:bg-muted/70",
+                  isActive &&
+                    "bg-primary text-primary-foreground border-primary",
+                  isDone &&
+                    !isActive &&
+                    "bg-success/10 text-success border-success/30",
+                  !isActive &&
+                    !isDone &&
+                    "bg-muted text-muted-foreground border-transparent hover:bg-muted/70",
                   disabled && "opacity-60 cursor-not-allowed",
                 )}
               >
@@ -1272,7 +1822,9 @@ function QualificationJourney({
           );
         })}
         {current === "Disqualified" && (
-          <Badge variant="destructive" className="ml-2">Disqualified</Badge>
+          <Badge variant="destructive" className="ml-2">
+            Disqualified
+          </Badge>
         )}
       </div>
     </div>
@@ -1291,8 +1843,16 @@ function StageBadge({ stage }: { stage: QualificationStage }) {
   return <Badge className={cn("border", map[stage])}>{stage}</Badge>;
 }
 
-function FitBadge({ label, tone, score, total }: {
-  label: string; tone: "success" | "warning" | "destructive"; score: number; total: number;
+function FitBadge({
+  label,
+  tone,
+  score,
+  total,
+}: {
+  label: string;
+  tone: "success" | "warning" | "destructive";
+  score: number;
+  total: number;
 }) {
   const cls = {
     success: "bg-success/10 text-success border-success/30",
@@ -1300,7 +1860,9 @@ function FitBadge({ label, tone, score, total }: {
     destructive: "bg-destructive/10 text-destructive border-destructive/30",
   }[tone];
   return (
-    <div className={cn("px-3 py-1 rounded-full text-xs font-medium border", cls)}>
+    <div
+      className={cn("px-3 py-1 rounded-full text-xs font-medium border", cls)}
+    >
       {label} · {score}/{total}
     </div>
   );
@@ -1308,16 +1870,25 @@ function FitBadge({ label, tone, score, total }: {
 
 function statusPillClass(s: string) {
   if (s === "complete") return "bg-success/15 text-success border-success/30";
-  if (s === "partial") return "bg-warning/20 text-warning-foreground border-warning/30";
-  return "bg-destructive/10 text-destructive border-destructive/30";
+  if (s === "partial")
+    return "bg-warning/20 text-warning-foreground border-warning/30";
+  return "bg-muted text-muted-foreground border-border";
 }
 
-function StatusPill({ status, auto }: { status: CategoryStatus; auto?: boolean }) {
+function StatusPill({
+  status,
+  auto,
+}: {
+  status: CategoryStatus;
+  auto?: boolean;
+}) {
   return (
-    <span className={cn(
-      "px-2 py-0.5 rounded-full text-[11px] border capitalize flex items-center gap-1",
-      statusPillClass(status),
-    )}>
+    <span
+      className={cn(
+        "px-2 py-0.5 rounded-full text-[11px] border capitalize flex items-center gap-1",
+        statusPillClass(status),
+      )}
+    >
       {auto && <Wand2 className="h-2.5 w-2.5 opacity-70" />}
       {status}
     </span>
@@ -1325,8 +1896,16 @@ function StatusPill({ status, auto }: { status: CategoryStatus; auto?: boolean }
 }
 
 function AsstSection({
-  icon: Icon, title, badge, children,
-}: { icon: any; title: string; badge?: string; children: React.ReactNode }) {
+  icon: Icon,
+  title,
+  badge,
+  children,
+}: {
+  icon: any;
+  title: string;
+  badge?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
@@ -1334,7 +1913,11 @@ function AsstSection({
           <Icon className="h-3.5 w-3.5" />
           {title}
         </div>
-        {badge && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{badge}</Badge>}
+        {badge && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            {badge}
+          </Badge>
+        )}
       </div>
       {children}
     </div>
@@ -1342,26 +1925,48 @@ function AsstSection({
 }
 
 function CompactDisclosure({
-  icon: Icon, title, summary, tone = "neutral", children,
+  icon: Icon,
+  title,
+  summary,
+  tone = "neutral",
+  children,
 }: {
-  icon?: any; title: string; summary: string;
-  tone?: "neutral" | "success" | "muted"; children: React.ReactNode;
+  icon?: any;
+  title: string;
+  summary: string;
+  tone?: "neutral" | "success" | "muted";
+  children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border bg-card">
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className="rounded-md border bg-card"
+    >
       <CollapsibleTrigger className="flex w-full items-center justify-between px-2.5 py-1.5 hover:bg-muted/40 rounded-md">
         <div className="flex items-center gap-1.5 min-w-0">
-          {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+          {Icon && (
+            <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          )}
           <span className="text-xs font-medium text-foreground">{title}</span>
-          <span className={cn(
-            "text-[11px] truncate",
-            tone === "success" && "text-success",
-            tone === "muted" && "text-muted-foreground italic",
-            tone === "neutral" && "text-muted-foreground",
-          )}>· {summary}</span>
+          <span
+            className={cn(
+              "text-[11px] truncate",
+              tone === "success" && "text-success",
+              tone === "muted" && "text-muted-foreground italic",
+              tone === "neutral" && "text-muted-foreground",
+            )}
+          >
+            · {summary}
+          </span>
         </div>
-        <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 text-muted-foreground transition-transform shrink-0",
+            open && "rotate-180",
+          )}
+        />
       </CollapsibleTrigger>
       <CollapsibleContent className="px-2.5 pb-2.5 pt-1 border-t">
         {children}
@@ -1371,24 +1976,48 @@ function CompactDisclosure({
 }
 
 function CollapsibleSection({
-  icon: Icon, title, count, defaultOpen, emptyHint, compact, children,
+  icon: Icon,
+  title,
+  count,
+  defaultOpen,
+  emptyHint,
+  compact,
+  children,
 }: {
-  icon?: any; title: string; count?: number; defaultOpen?: boolean;
-  emptyHint?: string; compact?: boolean; children: React.ReactNode;
+  icon?: any;
+  title: string;
+  count?: number;
+  defaultOpen?: boolean;
+  emptyHint?: string;
+  compact?: boolean;
+  children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(!!defaultOpen);
   const isEmpty = count === 0;
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className={cn("rounded-md border bg-card/40", compact && "border-dashed")}>
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      className={cn("rounded-md border bg-card/40", compact && "border-dashed")}
+    >
       <CollapsibleTrigger className="flex w-full items-center justify-between px-2.5 py-2 hover:bg-muted/40 rounded-md">
         <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {Icon && <Icon className="h-3.5 w-3.5" />}
-          <span className="normal-case tracking-normal text-foreground">{title}</span>
+          <span className="normal-case tracking-normal text-foreground">
+            {title}
+          </span>
           {typeof count === "number" && count > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{count}</Badge>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
+              {count}
+            </Badge>
           )}
         </div>
-        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn(
+            "h-3.5 w-3.5 text-muted-foreground transition-transform",
+            open && "rotate-180",
+          )}
+        />
       </CollapsibleTrigger>
       <CollapsibleContent className="px-2.5 pb-2.5 pt-1">
         {isEmpty && emptyHint ? (
@@ -1401,10 +2030,18 @@ function CollapsibleSection({
   );
 }
 
-function Subsection({ label, children }: { label: string; children: React.ReactNode }) {
+function Subsection({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="mb-2 last:mb-0">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+        {label}
+      </div>
       {children}
     </div>
   );
@@ -1419,7 +2056,13 @@ type AsstAccordionSection = {
   render: () => React.ReactNode;
 };
 
-function SingleAccordion({ sections, defaultValue }: { sections: AsstAccordionSection[]; defaultValue?: string }) {
+function SingleAccordion({
+  sections,
+  defaultValue,
+}: {
+  sections: AsstAccordionSection[];
+  defaultValue?: string;
+}) {
   const [open, setOpen] = useState<string>(defaultValue || "");
   return (
     <div className="space-y-1.5">
@@ -1434,18 +2077,32 @@ function SingleAccordion({ sections, defaultValue }: { sections: AsstAccordionSe
               className="flex w-full items-center justify-between px-2.5 py-2 hover:bg-muted/40 rounded-md"
             >
               <div className="flex items-center gap-1.5 text-xs">
-                {s.icon && <s.icon className="h-3.5 w-3.5 text-muted-foreground" />}
+                {s.icon && (
+                  <s.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
                 <span className="font-medium text-foreground">{s.title}</span>
                 {typeof s.count === "number" && s.count > 0 && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{s.count}</Badge>
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px] px-1.5 py-0 ml-1"
+                  >
+                    {s.count}
+                  </Badge>
                 )}
               </div>
-              <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 text-muted-foreground transition-transform",
+                  isOpen && "rotate-180",
+                )}
+              />
             </button>
             {isOpen && (
               <div className="px-2.5 pb-2.5 pt-1">
                 {isEmpty && s.empty ? (
-                  <p className="text-xs text-muted-foreground italic">{s.empty}</p>
+                  <p className="text-xs text-muted-foreground italic">
+                    {s.empty}
+                  </p>
                 ) : (
                   s.render()
                 )}
@@ -1459,8 +2116,16 @@ function SingleAccordion({ sections, defaultValue }: { sections: AsstAccordionSe
 }
 
 function TopList({
-  items, limit = 3, quote, className,
-}: { items: string[]; limit?: number; quote?: boolean; className?: string }) {
+  items,
+  limit = 3,
+  quote,
+  className,
+}: {
+  items: string[];
+  limit?: number;
+  quote?: boolean;
+  className?: string;
+}) {
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? items : items.slice(0, limit);
   const hidden = items.length - shown.length;
@@ -1484,7 +2149,13 @@ function TopList({
   );
 }
 
-function ChipList({ items, tone }: { items: string[]; tone: "primary" | "muted" }) {
+function ChipList({
+  items,
+  tone,
+}: {
+  items: string[];
+  tone: "primary" | "muted";
+}) {
   return (
     <div className="flex flex-wrap gap-1">
       {items.map((p, i) => (
@@ -1503,8 +2174,6 @@ function ChipList({ items, tone }: { items: string[]; tone: "primary" | "muted" 
     </div>
   );
 }
-
-
 
 /* ---------- Activity timeline (real events only) ---------- */
 
@@ -1576,9 +2245,16 @@ function buildTimeline({
   for (const a of attempts || []) {
     const channel = CHANNEL_TITLE[a.channel] || "Contact";
     const outcome = ATTEMPT_LABEL[a.outcome] || a.outcome;
-    const isConversation = a.outcome === "reached" || a.outcome === "replied" || a.outcome === "scheduled";
+    const isConversation =
+      a.outcome === "reached" ||
+      a.outcome === "replied" ||
+      a.outcome === "scheduled";
     const isFailed = a.outcome === "unreachable" || a.outcome === "bounced";
-    const tone: TimelineEvent["tone"] = isConversation ? "success" : isFailed ? "destructive" : "warning";
+    const tone: TimelineEvent["tone"] = isConversation
+      ? "success"
+      : isFailed
+        ? "destructive"
+        : "warning";
     // Wording: only call it a real "contact" when two-way comms happened.
     const title = isConversation
       ? `${channel} — ${outcome}`
@@ -1591,7 +2267,6 @@ function buildTimeline({
       tone,
     });
   }
-
 
   // Tasks created and completed.
   for (const t of tasks || []) {
@@ -1615,7 +2290,10 @@ function buildTimeline({
   }
 
   // Nurture decision (real, only when nurture_until or nurture_reason exist).
-  if (lead?.status === "Nurture" && (lead?.nurture_until || lead?.nurture_reason)) {
+  if (
+    lead?.status === "Nurture" &&
+    (lead?.nurture_until || lead?.nurture_reason)
+  ) {
     events.push({
       id: `nurture-${lead.id}`,
       at: lead.nurture_until
@@ -1625,13 +2303,18 @@ function buildTimeline({
       detail: [
         lead.nurture_reason,
         lead.nurture_until ? `Follow up on ${lead.nurture_until}` : null,
-      ].filter(Boolean).join(" — "),
+      ]
+        .filter(Boolean)
+        .join(" — "),
       tone: "warning",
     });
   }
 
   // Disqualified (only if we have a reason recorded).
-  if (lead?.qualification_stage === "Disqualified" && lead?.disqualified_reason) {
+  if (
+    lead?.qualification_stage === "Disqualified" &&
+    lead?.disqualified_reason
+  ) {
     events.push({
       id: `disq-${lead.id}`,
       at: lead.last_contact_at || lead.created_at,
