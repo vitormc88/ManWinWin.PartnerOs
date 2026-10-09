@@ -41,6 +41,7 @@ export function renewalProposalRefreshKeys(
 ): unknown[][] {
   const keys: unknown[][] = [
     ["proposal", "renewal", renewalId],
+    ["proposal", "renewal-pipeline-stages"],
     ["proposals"],
     ["renewals"],
     ["renewal_activities", renewalId],
