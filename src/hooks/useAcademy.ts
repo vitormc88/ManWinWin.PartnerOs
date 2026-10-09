@@ -58,9 +58,10 @@ export function useAcademyPhases() {
   });
 }
 
-export function useAcademyModules() {
+export function useAcademyModules(enabled = true) {
   return useQuery({
     queryKey: QK.modules,
+    enabled,
     queryFn: async (): Promise<AcademyModule[]> => {
       const { data, error } = await supabase
         .from("academy_modules")
@@ -72,9 +73,10 @@ export function useAcademyModules() {
   });
 }
 
-export function useAcademyMissions(moduleId?: string) {
+export function useAcademyMissions(moduleId?: string, enabled = true) {
   return useQuery({
     queryKey: [...QK.missions, moduleId ?? "all"],
+    enabled,
     queryFn: async (): Promise<AcademyMission[]> => {
       let query = supabase.from("academy_missions").select("*");
       if (moduleId) query = query.eq("module_id", moduleId);
@@ -117,11 +119,11 @@ export function useAllAcademyResources() {
 }
 
 /** Mission completions for the authenticated user only (RLS-scoped, read-only). */
-export function useMyMissionProgress() {
+export function useMyMissionProgress(enabled = true) {
   const { user } = useAuth();
   return useQuery({
     queryKey: [...QK.missionProgress, user?.id ?? "anon"],
-    enabled: !!user?.id,
+    enabled: enabled && !!user?.id,
     queryFn: async (): Promise<MissionProgressRow[]> => {
       const { data, error } = await supabase
         .from("academy_mission_progress")

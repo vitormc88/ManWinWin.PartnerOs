@@ -20,9 +20,7 @@ export function useDeals(
       let query = supabase.from("deals").select("*").order("created_at", { ascending: false });
       if (filters?.stage) query = query.eq("stage", filters.stage);
       if (filters?.partner_id) query = query.eq("partner_id", filters.partner_id);
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as Deal[];
+      return fetchAllPages<Deal>((from, to) => query.order("id").range(from, to));
     },
   });
 }

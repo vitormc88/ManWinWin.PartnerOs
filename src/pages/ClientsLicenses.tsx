@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Download, Plus, ChevronDown, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,8 @@ const VARIANT_OPTIONS: Record<string, { value: string; label: string }[]> = {
 
 export default function ClientsLicenses() {
   const navigate = useNavigate();
+  const [dashboardParams] = useSearchParams();
+  const fromDashboard = dashboardParams.get("dashboard") === "active";
   const { isHQ, isAdmin, profile } = useAuth();
   const userPartnerId = !isHQ ? profile?.partner_id : null;
   const { data: clients = [], isLoading, isError: clientsError, refetch: refetchClients } = useClients();
@@ -49,12 +51,12 @@ export default function ClientsLicenses() {
   const canEditClients = canEdit("clients");
   const createClient = useCreateClient();
   const persisted = useMemo(() => loadClientsListState() ?? {}, []);
-  const [search, setSearch] = useState<string>(persisted.search ?? "");
-  const [partnerFilter, setPartnerFilter] = useState<string>(persisted.partnerFilter ?? "all");
-  const [statusFilter, setStatusFilter] = useState<string>(persisted.showArchived ? "all" : persisted.statusFilter ?? "all");
+  const [search, setSearch] = useState<string>(fromDashboard ? "" : persisted.search ?? "");
+  const [partnerFilter, setPartnerFilter] = useState<string>(fromDashboard ? dashboardParams.get("partner") || "all" : persisted.partnerFilter ?? "all");
+  const [statusFilter, setStatusFilter] = useState<string>(fromDashboard ? "Active" : persisted.showArchived ? "all" : persisted.statusFilter ?? "all");
   const [sortField, setSortField] = useState<string>(persisted.sortField ?? "commercial_name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(persisted.sortDir ?? "asc");
-  const [showArchived, setShowArchived] = useState<boolean>(persisted.showArchived ?? false);
+  const [showArchived, setShowArchived] = useState<boolean>(fromDashboard ? false : persisted.showArchived ?? false);
   const [includeArchivedPartners, setIncludeArchivedPartners] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({

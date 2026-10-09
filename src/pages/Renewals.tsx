@@ -55,6 +55,8 @@ const priorityColors: Record<string, string> = {
 
 export default function Renewals() {
   const { isHQ, profile } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const dashboardDeadline = searchParams.get("deadline");
   const { data: renewals = [], isLoading, isError, refetch } = useRenewals({ includeHistory: true });
   const { data: partners = [], isLoading: partnersLoading, isError: partnersError } = usePartners();
   const { data: clients = [], isLoading: clientsLoading, isError: clientsError } = useClients();
@@ -75,11 +77,11 @@ export default function Renewals() {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [periodFilter, setPeriodFilter] = useState("365");
   const [stageFilter, setStageFilter] = useState("all");
-  const [deadlineFilter, setDeadlineFilter] = useState("all");
+  const [deadlineFilter, setDeadlineFilter] = useState(["Overdue", "Due Soon"].includes(dashboardDeadline || "") ? dashboardDeadline! : "all");
   const [makingOperational, setMakingOperational] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
-  const [partnerFilter, setPartnerFilter] = useState<string>("all");
+  const [partnerFilter, setPartnerFilter] = useState<string>(searchParams.get("partner") || "all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showProposal, setShowProposal] = useState(false);
   const [showClose, setShowClose] = useState(false);
@@ -119,9 +121,11 @@ export default function Renewals() {
       if (periodFilter !== "all" && (r.daysUntil === null || r.daysUntil > Number(periodFilter))) return false;
       if (stageFilter !== "all" && r.stage !== stageFilter) return false;
       if (deadlineFilter !== "all" && r.deadline !== deadlineFilter) return false;
+      if (dashboardDeadline === "31-60" && (r.daysUntil === null || r.daysUntil < 31 || r.daysUntil > 60)) return false;
+      if (dashboardDeadline === "61-90" && (r.daysUntil === null || r.daysUntil < 61 || r.daysUntil > 90)) return false;
       return true;
     });
-  }, [enriched, search, statusFilter, partnerFilter, periodFilter, stageFilter, deadlineFilter]);
+  }, [enriched, search, statusFilter, partnerFilter, periodFilter, stageFilter, deadlineFilter, dashboardDeadline]);
 
   const activeRenewals = useMemo(() => filtered.filter(r => !isClosedRenewal(r)), [filtered]);
 
@@ -138,7 +142,6 @@ export default function Renewals() {
   const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
 
   // Deep link: /renewals?renewal=<id> opens that renewal's detail.
-  const [searchParams, setSearchParams] = useSearchParams();
   const deepRenewalId = searchParams.get("renewal");
   useEffect(() => {
     if (!deepRenewalId || isLoading || clientsLoading || partnersLoading || loadError) return;
@@ -239,6 +242,7 @@ export default function Renewals() {
       </div>
 
       {loadError && <div role="alert" className="rounded-lg border border-destructive/40 p-4 text-sm">Could not load the complete renewal pipeline. <Button variant="outline" size="sm" onClick={() => { refetch(); qc.invalidateQueries({ queryKey: ["clients"] }); qc.invalidateQueries({ queryKey: ["partners"] }); qc.invalidateQueries({ queryKey: ["proposal"] }); }}>Retry</Button></div>}
+      {["31-60", "61-90"].includes(dashboardDeadline || "") && <p className="text-sm">Dashboard range: {dashboardDeadline} days. <button className="text-primary underline" onClick={() => { const next = new URLSearchParams(searchParams); next.delete("deadline"); setSearchParams(next); }}>Clear range</button></p>}
       <p className="text-xs text-muted-foreground">Indicators show open renewals matching the filters below. Commercial stages follow proposal actions: Validate → Mark Sent → Record acceptance. Renewed/Lost are recorded through Close Renewal. Priority is calculated from the renewal date: overdue = Critical, up to 30 days = High, up to 90 days = Medium, later = Low.</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 animate-reveal-up stagger-1">
         {[

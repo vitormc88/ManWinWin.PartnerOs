@@ -48,9 +48,10 @@ function normalizeFactors(value: unknown): HealthFactor[] {
     .filter((f) => f.label) as HealthFactor[];
 }
 
-export function usePartnerMetrics() {
+export function usePartnerMetrics(enabled = true) {
   return useQuery({
     queryKey: ["partner-metrics"],
+    enabled,
     queryFn: async () => {
       const { data, error } = await supabase.from("partner_metrics" as any).select("*");
       if (error) throw error;

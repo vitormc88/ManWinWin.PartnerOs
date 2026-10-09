@@ -133,6 +133,9 @@ export function MarkAsLostButton({ deal }: Props) {
       toast.success("Opportunity marked as Lost");
       qc.invalidateQueries({ queryKey: ["deal", deal.id] });
       qc.invalidateQueries({ queryKey: ["deals"] });
+    qc.invalidateQueries({ queryKey: ["partner-metrics"] });
+    qc.invalidateQueries({ queryKey: ["analytics"] });
+    qc.invalidateQueries({ queryKey: ["revenue-history"] });
       qc.invalidateQueries({ queryKey: ["deal_activities", deal.id] });
       qc.invalidateQueries({ queryKey: ["loss_details", deal.id] });
       reset();

@@ -14,7 +14,7 @@ const categoryVariant: Record<string, "default" | "secondary" | "outline"> = {
 };
 
 export function RecentActivity() {
-  const { data: announcements = [] } = useQuery({
+  const { data: announcements = [], isLoading, isError, refetch } = useQuery({
     queryKey: ["announcements", "dashboard"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -36,7 +36,7 @@ export function RecentActivity() {
         <Link to="/announcements" className="text-xs text-primary hover:underline">View all →</Link>
       </div>
       <div className="divide-y">
-        {announcements.length === 0 ? (
+        {isError ? (<p role="alert" className="p-5">Announcements unavailable. <button className="underline text-primary" onClick={() => { void refetch(); }}>Retry</button></p>) : isLoading ? (<p className="p-5" aria-busy="true">Loading announcements…</p>) : announcements.length === 0 ? (
           <div className="px-5 py-8 text-center">
             <Megaphone className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
             <p className="text-sm text-muted-foreground">No announcements yet</p>

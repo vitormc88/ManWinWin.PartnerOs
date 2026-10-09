@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useDeals } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,9 +43,11 @@ function formatRelativeFuture(d: Date | null): string | null {
 
 export default function Pipeline() {
   const { isHQ, profile } = useAuth();
+  const [dashboardParams, setDashboardParams] = useSearchParams();
+  const dashboardFilter = dashboardParams.get("dashboard");
   const userPartnerId = !isHQ ? profile?.partner_id : null;
   const [search, setSearch] = useState("");
-  const [partnerFilter, setPartnerFilter] = useState("all");
+  const [partnerFilter, setPartnerFilter] = useState(dashboardParams.get("partner_id") || "all");
   const [healthFilter, setHealthFilter] = useState<string>("all");
   const [signalFilter, setSignalFilter] = useState<"none" | "no-followup" | "overdue">("none");
   const [showCreate, setShowCreate] = useState(false);
@@ -63,12 +65,14 @@ export default function Pipeline() {
   const partnerNames = [...new Set(deals.map(d => partnerMap.get(d.partner_id || "") || "Unknown"))].filter(Boolean);
 
   const filtered = deals.filter(d => {
+    if (["open", "undated"].includes(dashboardFilter || "") && (d.status !== "Open" || !isActivePipelineStage(d.stage))) return false;
+    if (dashboardFilter === "undated" && d.expected_close_date) return false;
     const pName = partnerMap.get(d.partner_id || "") || "";
     const ownerDisplay = getOwnerDisplay(d as any, profilesMap).toLowerCase();
     const matchSearch =
       d.company_name.toLowerCase().includes(search.toLowerCase()) ||
       ownerDisplay.includes(search.toLowerCase());
-    const matchPartner = partnerFilter === "all" || pName === partnerFilter;
+    const matchPartner = partnerFilter === "all" || pName === partnerFilter || d.partner_id === partnerFilter || (partnerFilter === "hq" && !d.partner_id);
     const h = healthMap?.get(d.id);
     const matchHealth = healthFilter === "all" || h?.health === healthFilter;
     const matchSignal =
@@ -118,6 +122,9 @@ export default function Pipeline() {
       logSystemActivity(dealId, "Stage changed", `Stage changed from ${deal.stage} to ${stage}.`);
     }
     queryClient.invalidateQueries({ queryKey: ["deals"] });
+    queryClient.invalidateQueries({ queryKey: ["partner-metrics"] });
+    queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    queryClient.invalidateQueries({ queryKey: ["revenue-history"] });
     queryClient.invalidateQueries({ queryKey: ["deals-health"] });
   };
 
@@ -180,6 +187,7 @@ export default function Pipeline() {
 
   return (
     <div className="max-w-[1600px] mx-auto space-y-5">
+      {dashboardFilter && <p className="text-sm bg-secondary p-3 rounded">{dashboardFilter === "undated" ? "Open opportunities without an expected close date" : "Current open opportunities"} · <button className="underline text-primary" onClick={() => { const next = new URLSearchParams(dashboardParams); next.delete("dashboard"); setDashboardParams(next); }}>Clear dashboard filter</button></p>}
       <div className="flex items-center justify-between animate-reveal-up">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Sales Pipeline</h1>
@@ -253,6 +261,8 @@ export default function Pipeline() {
         {!partnerScoped && (
         <select value={partnerFilter} onChange={e => setPartnerFilter(e.target.value)} className="h-9 px-3 rounded-lg border bg-card text-sm text-muted-foreground">
           <option value="all">All Partners</option>
+          {partnerFilter === "hq" && <option value="hq">HQ Direct</option>}
+          {partners.some(p => p.id === partnerFilter) && <option value={partnerFilter}>{partners.find(p => p.id === partnerFilter)?.company_name}</option>}
           {partnerNames.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
         )}

@@ -1,224 +1,705 @@
-import { useMemo } from "react";
-import { DollarSign, Users, TrendingUp, Activity, AlertTriangle, RefreshCcw, ArrowRight, Clock, Plus, Wallet, Trophy } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { DollarSign, Users, TrendingUp, Activity, Wallet } from "lucide-react";
+import { Link } from "react-router-dom";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { PartnerHealthList } from "@/components/dashboard/PartnerHealthList";
+import { PartnerLearning } from "@/components/dashboard/PartnerLearning";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
 import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
 import { useDeals, useRenewals, useNotifications } from "@/hooks/useDeals";
-import { useRevenueSummary } from "@/hooks/useRevenueHistory";
+import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
+import {
+  useDashboardRevenue,
+  useDashboardTasks,
+  useDashboardPartnerName,
+} from "@/hooks/useDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
-import { getStageProbability, isActivePipelineStage } from "@/data/pipeline-stages";
-import { formatMoney, LOADING_PLACEHOLDER } from "@/lib/money";
-import { LIFETIME_REVENUE_LABEL, REVENUE_YTD_LABEL, NB_YTD_LABEL, RENEWALS_YTD_LABEL, WON_DEAL_VALUE_LABEL } from "@/lib/revenue-metrics";
+import { getRouteModule } from "@/lib/module-access";
+import {
+  periodBounds,
+  comparisonBounds,
+  revenueTotals,
+  pipelineForecast,
+  dashboardRenewals,
+  partnerHealthRows,
+  atRiskHealth,
+  type Period,
+} from "@/lib/dashboard-metrics";
+import { formatMoney } from "@/lib/money";
+import { matchesPartnerFilter } from "@/lib/partner-identity";
+import { authDealValue } from "@/lib/analytics-corrections";
 
-
+function LoadState({
+  loading,
+  error,
+  retry,
+  children,
+}: {
+  loading: boolean;
+  error: boolean;
+  retry: () => void;
+  children: React.ReactNode;
+}) {
+  return error ? (
+    <p role="alert" className="text-sm text-destructive">
+      Data unavailable.{" "}
+      <button className="underline" onClick={retry}>
+        Retry
+      </button>
+    </p>
+  ) : loading ? (
+    <p className="text-sm text-muted-foreground" aria-busy="true">
+      Loading…
+    </p>
+  ) : (
+    <>{children}</>
+  );
+}
+const scopeMatch = (id: string | null | undefined, scope: string) =>
+  scope === "all" || (scope === "hq" ? !id : id === scope);
 export default function Dashboard() {
-  const { isHQ, profile } = useAuth();
+  const { isHQ, profile, user } = useAuth();
   const { canView, isLoading: accessLoading } = useModuleAccess();
-  const accessReady = !accessLoading;
-  const allow = (key: string) => accessReady && canView(key);
-  const showPartners = allow("partners");
-  const showRenewals = allow("renewals");
-  const showNotifications = allow("notifications");
-  const showAnnouncements = allow("announcements");
-  const showClients = allow("clients");
-  const showPipeline = allow("pipeline");
-  const { data: partners = [], isLoading: partnersLoading } = usePartners(undefined, { enabled: showPartners });
-  const { data: clients = [], isLoading: clientsLoading } = useClients(undefined, { enabled: showClients });
-  const { data: deals = [], isLoading: dealsLoading } = useDeals(undefined, { enabled: showPipeline });
-  const { data: renewals = [], isLoading: renewalsLoading } = useRenewals(undefined, { enabled: showRenewals });
-  const { data: notifications = [] } = useNotifications(showNotifications);
-  // Historical awarded revenue — RLS-scoped, so FITC sees only FITC, Raven only
-  // Raven and HQ sees everything. Never mixed with deal or ARR values.
-  const { data: revenueSummary, isLoading: revenueLoading, isError: revenueFailed } = useRevenueSummary(showClients);
-
-  const partnersReady = showPartners && !partnersLoading;
-  const clientsReady = showClients && !clientsLoading;
-  const dealsReady = showPipeline && !dealsLoading;
-  const renewalsReady = showRenewals && !renewalsLoading;
-  const revenueReady = showClients && !revenueLoading && (!!revenueSummary || revenueFailed);
-  const currentYear = new Date().getFullYear();
-
-
-
-  const clientMap = useMemo(() => {
-    const m: Record<string, { client_code: string; commercial_name: string; short_name?: string | null }> = {};
-    clients.forEach(c => { m[c.id] = { client_code: c.client_code, commercial_name: c.commercial_name, short_name: c.short_name }; });
-    return m;
-  }, [clients]);
-
-  // Sales metrics from deals — kept deliberately separate from awarded revenue.
-  // Imported customers have no synthetic Won deals, so €0 here can be correct.
-  const wonDeals = deals.filter(d => d.status === "Won" && d.stage === "Won");
-  const openDeals = deals.filter(d => d.status === "Open" && isActivePipelineStage(d.stage));
-  const wonDealTotal = wonDeals.reduce((s, d) => s + (d.total_value || d.expected_value || 0), 0);
-  const totalPipeline = openDeals.reduce((s, d) => s + (d.expected_value || 0), 0);
-
-
-  const activePartners = partners.filter((p) => p.status === "Active").length;
-  const activeClients = clients.filter(c => c.status === "Active").length;
-  const premiumClients = clients.filter(c => c.is_premium).length;
-
-  const now = new Date();
-
-  // Active (non-terminal) renewals with days calculated
-  const activeRenewals = useMemo(() => renewals
-    .filter((r: any) => r.status !== "Won" && r.status !== "Lost" && r.renewal_date)
-    .map((r: any) => ({
-      ...r,
-      _days: Math.ceil((new Date(r.renewal_date).getTime() - now.getTime()) / 86400000),
-    })), [renewals, now]);
-
-  const urgentRenewals = activeRenewals.filter(r => r._days >= 0 && r._days <= 30);
-  const overdueRenewals = activeRenewals.filter(r => r._days < 0);
-
-  // Exclusive buckets
-  const bucket0_30 = activeRenewals.filter(r => r._days >= 0 && r._days <= 30);
-  const bucket31_60 = activeRenewals.filter(r => r._days >= 31 && r._days <= 60);
-  const bucket61_90 = activeRenewals.filter(r => r._days >= 61 && r._days <= 90);
-
-  const totalDueSoonValue = urgentRenewals.reduce((s: number, r: any) => s + (Number(r.estimated_value) || 0), 0);
-
-  const atRiskPartners = partners.filter(p => (p.health_score ?? 50) < 40);
-  const unreadNotifs = notifications.filter((n: any) => !n.is_read);
-
+  const allow = (key: string) => !accessLoading && canView(key);
+  const showPartners = isHQ && allow("partners"),
+    showClients = allow("clients"),
+    showPipeline = allow("pipeline"),
+    showRenewals = allow("renewals"),
+    showTasks = allow("tasks");
+  const partnersQ = usePartners(undefined, { enabled: showPartners });
+  const clientsQ = useClients(undefined, { enabled: showClients });
+  const dealsQ = useDeals(undefined, { enabled: showPipeline });
+  const renewalsQ = useRenewals(undefined, { enabled: showRenewals });
+  const notificationsQ = useNotifications(allow("notifications"));
+  const revenueQ = useDashboardRevenue(showClients);
+  const healthQ = usePartnerMetrics(showPartners);
+  const tasksQ = useDashboardTasks(showTasks, isHQ, user?.id);
+  const ownName = useDashboardPartnerName(
+    !isHQ && !accessLoading,
+    profile?.partner_id,
+  );
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const [year, setYear] = useState(now.getFullYear());
+  const [period, setPeriod] = useState<Period>("ytd");
+  const [grouping, setGrouping] = useState<"month" | "quarter">("month");
+  const [partner, setPartner] = useState("all");
+  const [archived, setArchived] = useState(false);
+  const [currency, setCurrency] = useState("EUR");
+  // Scope is resolved on every render so an HQ filter cannot survive an identity switch.
+  const scope = isHQ && showPartners ? partner : "all";
+  const partners = partnersQ.data ?? [];
+  const clients = (showClients ? clientsQ.data ?? [] : []).filter((c) =>
+    matchesPartnerFilter(c, scope),
+  );
+  const deals = (showPipeline ? (dealsQ.data ?? []) : []).filter((d) =>
+    scopeMatch(d.partner_id, scope),
+  );
+  const revenue = (showClients ? (revenueQ.data ?? []) : []).filter((r) =>
+    scopeMatch(r.partner_id, scope),
+  );
+  const currencies = [
+    ...new Set(revenue.map((r) => r.currency || "EUR")),
+  ].sort();
+  const selectedCurrency = currencies.includes(currency)
+    ? currency
+    : (currencies[0] ?? "EUR");
+  const monetaryRows = revenue.filter(
+    (r) => (r.currency || "EUR") === selectedCurrency,
+  );
+  const bounds = periodBounds(year, period, now),
+    previous = comparisonBounds(year, period, now);
+  const totals = revenueTotals(monetaryRows, bounds),
+    prior = revenueTotals(monetaryRows, previous),
+    lifetime = revenueTotals(monetaryRows);
+  const forecastBounds = periodBounds(year, period, now, false);
+  const forecast = pipelineForecast(deals, forecastBounds);
+  const clientMap = useMemo(
+    () => new Map((showClients ? clientsQ.data ?? [] : []).map((c) => [c.id, c])),
+    [clientsQ.data, showClients],
+  );
+  const renewalRows = dashboardRenewals(renewalsQ.data ?? [], now).filter((r) =>
+    matchesPartnerFilter({
+      partner_uuid: r.partner_uuid ?? clientMap.get(r.client_id)?.partner_uuid,
+      partner_id: r.partner_id ?? clientMap.get(r.client_id)?.partner_id,
+    }, scope),
+  );
+  const overdue = renewalRows.filter((r) => r.days !== null && r.days < 0);
+  const soon = renewalRows.filter(
+    (r) => r.days !== null && r.days >= 0 && r.days <= 30,
+  );
+  const healthRows = partnerHealthRows(partners, healthQ.data ?? {}).filter(
+    (r) => scopeMatch(r.partner.id, scope),
+  );
+  const risks = atRiskHealth(healthRows);
+  const years = [
+    ...new Set([
+      now.getFullYear(),
+      ...(showClients ? (revenueQ.data ?? []) : [])
+        .map((r) => Number(r.revenue_date?.slice(0, 4)))
+        .filter(Boolean),
+      ...(showPipeline ? (dealsQ.data ?? []) : [])
+        .map((d) => Number(d.expected_close_date?.slice(0, 4)))
+        .filter(Boolean),
+    ]),
+  ].sort((a, b) => b - a);
+  const renewalLink = (r: any) =>
+    `/renewals?renewal=${encodeURIComponent(r.id)}`;
+  const label = (r: any) => {
+    const c = clientMap.get(r.client_id);
+    return c
+      ? `${c.client_code} — ${c.short_name || c.commercial_name}`
+      : "Open renewal details";
+  };
+  const taskRows = (tasksQ.data ?? []).filter((t) => {
+    const route = t.related_route?.split("?")[0];
+    const module = route ? getRouteModule(route)?.moduleKey : null;
+    const sourceModule: Record<string, string> = {
+      manual: "tasks",
+      pipeline: "pipeline",
+      renewal: "renewals",
+      partner: "partners",
+      lead: "incoming_leads",
+      customer: "clients",
+      certification: "certifications",
+    };
+    const required = module || sourceModule[t.source];
+    return !!required && allow(required) && (scope === "all" || !showPartners);
+  });
+  const retryRevenue = () => {
+    void revenueQ.refetch();
+  };
+  const delta =
+    prior.total === 0
+      ? `Previous equivalent period: ${formatMoney(prior.total, { currency: selectedCurrency })}`
+      : `${(((totals.total - prior.total) / Math.abs(prior.total)) * 100).toFixed(1)}% vs equivalent period in ${year - 1}`;
+  const pipelineLink = `/pipeline?dashboard=open${scope !== "all" ? `&partner_id=${encodeURIComponent(scope)}` : ""}`;
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="animate-reveal-up">
-        <h1 className="text-2xl font-bold text-foreground tracking-tight">
-          {isHQ ? "Dashboard" : `${partners[0]?.company_name || profile?.full_name || "Partner"} Dashboard`}
+      <header>
+        <h1 className="text-2xl font-bold">
+          {isHQ ? "Dashboard" : `${ownName.data || "Your Partner"} Dashboard`}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {isHQ ? "Partner ecosystem overview" : "Your partner overview"} · {new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+        <p className="text-sm text-muted-foreground">
+          {isHQ
+            ? "Partner ecosystem overview"
+            : "Your results and next actions"}{" "}
+          · {now.toLocaleDateString("en-GB")}
         </p>
-      </div>
-
-      {((showRenewals && overdueRenewals.length > 0) || (showPartners && atRiskPartners.length > 0)) && (
-        <div className="bg-destructive/8 border border-destructive/20 rounded-xl p-4 flex items-start gap-3 animate-reveal-up stagger-1">
-          <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-foreground">Action Required</p>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
-              {showRenewals && overdueRenewals.length > 0 && (
-                <Link to="/renewals" className="text-xs text-destructive hover:underline">{overdueRenewals.length} overdue renewal{overdueRenewals.length > 1 ? "s" : ""}</Link>
-              )}
-              {showPartners && atRiskPartners.length > 0 && (
-                <Link to="/partners" className="text-xs text-destructive hover:underline">{atRiskPartners.length} partner{atRiskPartners.length > 1 ? "s" : ""} at risk</Link>
-              )}
-            </div>
+        <button className="text-xs text-primary underline mt-2" onClick={() => {
+          if(showClients) { void revenueQ.refetch(); void clientsQ.refetch(); }
+          if(showPipeline) void dealsQ.refetch();
+          if(showPartners) { void partnersQ.refetch(); void healthQ.refetch(); }
+          if(showRenewals) void renewalsQ.refetch();
+          if(showTasks) void tasksQ.refetch();
+          if(allow("notifications")) void notificationsQ.refetch();
+        }}>Refresh dashboard</button>
+      </header>
+      {accessLoading ? (
+        <p aria-busy="true">Loading permissions…</p>
+      ) : !showClients &&
+        !showPipeline &&
+        !showRenewals &&
+        !showTasks &&
+        !allow("announcements") ? (
+        <p>
+          No dashboard sections are available with your current permissions.
+        </p>
+      ) : null}
+      {(showClients || showPipeline) && (
+        <section className="bg-card border rounded-xl p-4 space-y-3">
+          <div className="flex flex-wrap gap-4">
+            <label className="text-sm">
+              Year{" "}
+              <select
+                aria-label="Year"
+                value={year}
+                onChange={(e) => setYear(Number(e.target.value))}
+                className="ml-2 border rounded bg-background p-2"
+              >
+                {years.map((y) => (
+                  <option key={y}>{y}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              Period{" "}
+              <select
+                aria-label="Period"
+                value={period}
+                onChange={(e) => setPeriod(e.target.value as Period)}
+                className="ml-2 border rounded bg-background p-2"
+              >
+                <option value="ytd">YTD / equivalent year-to-date</option>
+                <option value="year">Full year</option>
+                {[1, 2, 3, 4].map((q) => (
+                  <option key={q} value={`q${q}`}>
+                    Q{q}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {showClients && (
+              <label className="text-sm">
+                Group by{" "}
+                <select
+                  aria-label="Group by"
+                  value={grouping}
+                  onChange={(e) => setGrouping(e.target.value as any)}
+                  className="ml-2 border rounded bg-background p-2"
+                >
+                  <option value="month">Month</option>
+                  <option value="quarter">Quarter</option>
+                </select>
+              </label>
+            )}
+            {showPartners && (
+              <label className="text-sm">
+                Partner{" "}
+                <select
+                  aria-label="Partner"
+                  value={partner}
+                  onChange={(e) => setPartner(e.target.value)}
+                  className="ml-2 border rounded bg-background p-2"
+                >
+                  <option value="all">All partners + HQ Direct</option>
+                  <option value="hq">HQ Direct</option>
+                  {partners
+                    .filter((p) => archived || p.status !== "Archived")
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.company_name}
+                        {p.status === "Archived" ? " (archived)" : ""}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+            {showClients && currencies.length > 1 && (
+              <label className="text-sm">
+                Revenue currency{" "}
+                <select
+                  value={selectedCurrency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="ml-2 border rounded bg-background p-2"
+                >
+                  {currencies.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
-        </div>
+          {showPartners && (
+            <label className="text-xs flex gap-2">
+              <input
+                type="checkbox"
+                checked={archived}
+                onChange={(e) => {
+                  setArchived(e.target.checked);
+                  setPartner("all");
+                }}
+              />
+              Include archived partners in historical selection
+            </label>
+          )}
+          <p className="text-xs text-muted-foreground">
+            {bounds.label} · Awards: {bounds.start} to {bounds.end}. Open
+            pipeline and renewal urgency are current, not historical snapshots.
+          </p>
+        </section>
       )}
-
+      {((showRenewals &&
+        !renewalsQ.isLoading &&
+        !renewalsQ.isError &&
+        overdue.length > 0) ||
+        (showPartners &&
+          !healthQ.isLoading &&
+          !healthQ.isError &&
+          risks.length > 0)) && (
+        <section className="border border-destructive/30 rounded-xl p-4 bg-destructive/5">
+          <h2 className="font-semibold">Action Required</h2>
+          <div className="flex gap-4 flex-wrap mt-2">
+            {showRenewals && !renewalsQ.isError && overdue.length > 0 && (
+              <Link
+                className="text-destructive underline text-sm"
+                to={`/renewals?deadline=Overdue${scope !== "all" ? `&partner=${scope}` : ""}`}
+              >
+                {overdue.length} overdue renewals
+              </Link>
+            )}
+            {showPartners &&
+              !healthQ.isError &&
+              risks.map((r) => (
+                <Link
+                  className="text-destructive underline text-sm"
+                  key={r.partner.id}
+                  to={`/partners/${r.partner.id}`}
+                >
+                  {r.partner.company_name}: health requires attention
+                </Link>
+              ))}
+          </div>
+        </section>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* Awarded customer revenue — client_revenue_history. Not deals, not ARR. */}
-        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Awarded revenue could not be loaded" title={LIFETIME_REVENUE_LABEL} value={formatMoney(revenueSummary?.lifetime_revenue)} change={(revenueSummary?.clients_with_revenue ?? 0) > 0 ? `${revenueSummary?.clients_with_revenue} client${(revenueSummary?.clients_with_revenue ?? 0) !== 1 ? "s" : ""} with revenue` : "No awarded revenue recorded yet"} changeType="neutral" icon={DollarSign} delay={60} />}
-        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Awarded revenue could not be loaded" title={REVENUE_YTD_LABEL} value={formatMoney(revenueSummary?.revenue_ytd)} change={`Adjudicated in ${currentYear} · through today`} changeType={(revenueSummary?.revenue_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
-        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Awarded revenue could not be loaded" title={NB_YTD_LABEL} value={formatMoney(revenueSummary?.nb_ytd)} change={`Year 1 · includes services`} changeType={(revenueSummary?.nb_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
-        {showClients && <KPICard loading={!revenueReady} error={revenueFailed} errorHint="Awarded revenue could not be loaded" title={RENEWALS_YTD_LABEL} value={formatMoney(revenueSummary?.renewals_ytd)} change={`Year 2+ · closed as Renewed`} changeType={(revenueSummary?.renewals_ytd ?? 0) > 0 ? "positive" : "neutral"} icon={Wallet} delay={120} />}
-        {showClients && (revenueSummary?.other_ytd ?? 0) !== 0 && <KPICard title="Other Revenue YTD" value={formatMoney(revenueSummary?.other_ytd)} change="Unclassified historical entries" icon={Wallet} changeType="neutral" />}
-        {/* Sales metric — explicitly labelled so it is never read as revenue. */}
-        {showPipeline && <KPICard loading={!dealsReady} title={WON_DEAL_VALUE_LABEL} value={formatMoney(wonDealTotal)} change={`${wonDeals.length} won deal${wonDeals.length !== 1 ? "s" : ""} · new business`} changeType={wonDeals.length > 0 ? "positive" : "neutral"} icon={Trophy} delay={180} />}
-        {showPipeline && <KPICard loading={!dealsReady} title="Pipeline Value" value={formatMoney(totalPipeline)} change={`${openDeals.length} open deal${openDeals.length !== 1 ? "s" : ""}`} changeType={openDeals.length > 0 ? "positive" : "neutral"} icon={TrendingUp} delay={240} />}
-        {showPartners && <KPICard loading={!partnersReady} title="Active Partners" value={String(activePartners)} change={`of ${partners.length} total`} changeType="neutral" icon={Users} delay={300} />}
-        {showClients && <KPICard loading={!clientsReady} title="Active Clients" value={String(activeClients)} change={`${premiumClients} premium`} changeType="neutral" icon={Activity} delay={360} />}
-
-      </div>
-
-      {showClients && <p className="text-xs text-muted-foreground">Revenue follows commercial awards, not invoices or payments. Imported history retains its original dates and values. Won Deal Value is not added to revenue.</p>}
-
-      {/* Renewals Urgency */}
-      {(showRenewals || showNotifications) && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-reveal-up stagger-2">
-        {showRenewals && <div className="bg-card rounded-xl border shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h3 className="font-semibold text-foreground text-sm">Renewals Due Soon</h3>
-              {renewalsReady && totalDueSoonValue > 0 && (
-                <p className="text-xs text-muted-foreground mt-0.5">Total: {formatMoney(totalDueSoonValue)}</p>
+        {showClients && (
+          <>
+            <KPICard
+              title={`Awarded Revenue · ${period.toUpperCase()}`}
+              value={formatMoney(totals.total, { currency: selectedCurrency })}
+              loading={revenueQ.isLoading}
+              error={revenueQ.isError}
+              change={delta}
+              changeType={
+                totals.total > prior.total
+                  ? "positive"
+                  : totals.total < prior.total
+                    ? "negative"
+                    : "neutral"
+              }
+              icon={Wallet}
+            />
+            <KPICard
+              title="New Business · selected period"
+              value={formatMoney(totals.nb, { currency: selectedCurrency })}
+              loading={revenueQ.isLoading}
+              error={revenueQ.isError}
+              change="Year 1 · includes services"
+              icon={DollarSign}
+            />
+            <KPICard
+              title="Renewals · selected period"
+              value={formatMoney(totals.renewals, {
+                currency: selectedCurrency,
+              })}
+              loading={revenueQ.isLoading}
+              error={revenueQ.isError}
+              change="Year 2+ · awarded renewals"
+              icon={Wallet}
+            />
+            {totals.other !== 0 && (
+              <KPICard
+                title="Other / unclassified awards"
+                value={formatMoney(totals.other, {
+                  currency: selectedCurrency,
+                })}
+                loading={revenueQ.isLoading}
+                error={revenueQ.isError}
+                icon={Wallet}
+              />
+            )}
+          </>
+        )}
+        {showPipeline && (
+          <Link to={pipelineLink}>
+            <KPICard
+              title="Open Pipeline · current"
+              value={formatMoney(forecast.total)}
+              change={`${forecast.open.length} open opportunities · EUR`}
+              loading={dealsQ.isLoading}
+              error={dealsQ.isError}
+              icon={TrendingUp}
+            />
+          </Link>
+        )}
+        {showClients && (
+          <Link to={`/clients?dashboard=active${scope !== "all" ? `&partner=${scope}` : ""}`}>
+            <KPICard
+              title="Active Clients · current"
+              value={String(
+                clients.filter((c) => c.status === "Active").length,
               )}
-            </div>
-            <Link to="/renewals" className="text-xs text-primary hover:underline">View all →</Link>
-          </div>
-          <div className="space-y-2.5">
-            {urgentRenewals.slice(0, 4).map((r: any) => {
-              const client = clientMap[r.client_id];
-              const label = client ? `${client.client_code} — ${client.short_name || client.commercial_name}` : r.client_id.slice(0, 8);
-              const value = Number(r.estimated_value) || 0;
-              return (
-                <div key={r.id} className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1 mr-2">
-                    <Link to={`/clients/${r.client_id}`} className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate block">{label}</Link>
-                    <p className="text-[11px] text-muted-foreground truncate">{r.renewal_type} · {r.status}{value > 0 ? ` · ${formatMoney(value)}` : ""}</p>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-xs tabular-nums font-semibold ${r._days < 0 ? "text-destructive" : "text-warning-foreground"}`}>
-                      {r._days < 0 ? `${Math.abs(r._days)}d ago` : `${r._days}d`}
-                    </span>
-                    <Badge variant="outline" className="text-[10px]">{r.renewal_type}</Badge>
-                  </div>
-                </div>
-              );
-            })}
-            {!renewalsReady && <p className="text-xs text-muted-foreground animate-pulse">Loading renewals…</p>}
-            {renewalsReady && urgentRenewals.length === 0 && <p className="text-xs text-muted-foreground">No urgent renewals</p>}
-          </div>
-        </div>}
-
-        {showRenewals && <div className="bg-card rounded-xl border shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground text-sm">Renewal Summary</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "0–30 days", value: bucket0_30.length, color: "text-warning-foreground" },
-              { label: "31–60 days", value: bucket31_60.length, color: "text-foreground" },
-              { label: "61–90 days", value: bucket61_90.length, color: "text-foreground" },
-              { label: "Overdue", value: overdueRenewals.length, color: "text-destructive" },
-            ].map(item => (
-              <div key={item.label} className="text-center p-2 rounded-lg bg-secondary/50">
-                <p className={`text-lg font-bold tabular-nums ${renewalsReady ? item.color : "text-muted-foreground animate-pulse"}`} aria-busy={!renewalsReady || undefined}>
-                  {renewalsReady ? item.value : LOADING_PLACEHOLDER}
-                </p>
-                <p className="text-[11px] text-muted-foreground">{item.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>}
-
-
-        {showNotifications && <div className="bg-card rounded-xl border shadow-sm p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-foreground text-sm">Recent Alerts</h3>
-            <Link to="/notifications" className="text-xs text-primary hover:underline">All →</Link>
-          </div>
-          <div className="space-y-2.5">
-            {unreadNotifs.slice(0, 4).map((n: any) => (
-              <div key={n.id} className="flex items-start gap-2">
-                <div className={`h-1.5 w-1.5 rounded-full mt-1.5 shrink-0 ${n.type === "danger" ? "bg-destructive" : n.type === "warning" ? "bg-amber-500" : "bg-blue-500"}`} />
-                <p className="text-xs text-muted-foreground line-clamp-2">{n.title}</p>
-              </div>
-            ))}
-            {unreadNotifs.length === 0 && <p className="text-xs text-muted-foreground">No new alerts</p>}
-          </div>
-        </div>}
-      </div>}
-
-      {isHQ && showPartners && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <RevenueChart />
-          </div>
-          <PartnerHealthList />
-        </div>
+              change={`${clients.filter((c) => c.status === "Active" && c.is_premium).length} premium`}
+              loading={clientsQ.isLoading}
+              error={clientsQ.isError}
+              icon={Activity}
+            />
+          </Link>
+        )}
+        {showPartners && (
+          <KPICard
+            title="Active Partners · current"
+            value={String(healthRows.length)}
+            change="Archived partners excluded"
+            loading={partnersQ.isLoading}
+            error={partnersQ.isError}
+            icon={Users}
+          />
+        )}
+      </div>
+      {showClients && (
+        <p className="text-xs text-muted-foreground">
+          Awarded revenue is the recorded commercial value, not invoices,
+          payments or partner commissions. Imported history keeps its original
+          dates and values. Historical revenue includes archived relationships.
+          Currency: {selectedCurrency}.
+        </p>
       )}
-
-      {showAnnouncements && <RecentActivity />}
+      <div
+        className={`grid grid-cols-1 ${showClients && showPartners ? "lg:grid-cols-3" : ""} gap-4`}
+      >
+        {showClients && (
+          <div className={showPartners ? "lg:col-span-2" : ""}>
+            <RevenueChart
+              rows={monetaryRows}
+              year={year}
+              period={period}
+              grouping={grouping}
+              currency={selectedCurrency}
+              loading={revenueQ.isLoading}
+              error={revenueQ.isError}
+              retry={retryRevenue}
+              updatedAt={revenueQ.dataUpdatedAt}
+              now={now}
+            />
+          </div>
+        )}
+        {showPartners && (
+          <PartnerHealthList
+            rows={healthRows}
+            loading={partnersQ.isLoading || healthQ.isLoading}
+            error={partnersQ.isError || healthQ.isError}
+            retry={() => {
+              void partnersQ.refetch();
+              void healthQ.refetch();
+            }}
+          />
+        )}
+      </div>
+      {showPipeline && (
+        <section className="bg-card rounded-xl border p-5 space-y-3">
+          <h2 className="font-semibold">Expected Closures · {bounds.label}</h2>
+          <LoadState
+            loading={dealsQ.isLoading}
+            error={dealsQ.isError}
+            retry={() => {
+              void dealsQ.refetch();
+            }}
+          >
+            <p>
+              {forecast.scheduled.length} currently open opportunities scheduled{" "}
+              {forecastBounds.start} to {forecastBounds.end} ·{" "}
+              {formatMoney(forecast.scheduledValue)} · weighted{" "}
+              {formatMoney(forecast.weighted)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Based on expected close dates and commercial probabilities. This
+              is a forecast of today's open opportunities, not past pipeline or
+              awarded revenue.
+            </p>
+            {forecast.missing.length > 0 && (
+              <Link
+                className="block text-amber-700 dark:text-amber-400 underline"
+                to={`${pipelineLink.replace("dashboard=open", "dashboard=undated")}`}
+              >
+                {forecast.missing.length} opportunities without an expected
+                close date — review
+              </Link>
+            )}
+            {forecast.scheduled.slice(0, 5).map((d) => (
+              <Link
+                className="block text-sm text-primary"
+                key={d.id}
+                to={`/deals/${d.id}`}
+              >
+                {d.company_name} · {d.expected_close_date} ·{" "}
+                {formatMoney(d.expected_value)}
+              </Link>
+            ))}
+          </LoadState>
+        </section>
+      )}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {showRenewals && (
+          <section className="bg-card rounded-xl border p-5 space-y-3">
+            <h2 className="font-semibold">Renewals · current urgency</h2>
+            <LoadState
+              loading={renewalsQ.isLoading}
+              error={renewalsQ.isError}
+              retry={() => {
+                void renewalsQ.refetch();
+              }}
+            >
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: "Overdue", rows: overdue, deadline: "Overdue" },
+                  { label: "0–30 days", rows: soon, deadline: "Due Soon" },
+                  {
+                    label: "31–60 days",
+                    rows: renewalRows.filter(
+                      (r) => r.days !== null && r.days >= 31 && r.days <= 60,
+                    ),
+                    deadline: "31-60",
+                  },
+                  {
+                    label: "61–90 days",
+                    rows: renewalRows.filter(
+                      (r) => r.days !== null && r.days >= 61 && r.days <= 90,
+                    ),
+                    deadline: "61-90",
+                  },
+                ].map((b) => (
+                  <Link
+                    className="rounded bg-secondary/50 p-3"
+                    key={b.label}
+                    to={`/renewals?deadline=${encodeURIComponent(b.deadline)}${scope !== "all" ? `&partner=${scope}` : ""}`}
+                  >
+                    <strong>{b.rows.length}</strong>
+                    <p className="text-xs">{b.label}</p>
+                  </Link>
+                ))}
+              </div>
+              {[...overdue, ...soon].slice(0, 6).map((r) => (
+                <Link
+                  key={r.id}
+                  className="block text-sm border-t pt-2"
+                  to={renewalLink(r)}
+                >
+                  {label(r)}{" "}
+                  <span className="text-muted-foreground">
+                    ·{" "}
+                    {r.days < 0 ? `${Math.abs(r.days)}d overdue` : `${r.days}d`}{" "}
+                    · {r.assigned_owner || "Unassigned"}
+                  </span>
+                </Link>
+              ))}
+              {overdue.length === 0 && soon.length === 0 && (
+                <p className="text-sm">
+                  No overdue renewals or renewals due within 30 days.
+                </p>
+              )}
+            </LoadState>
+          </section>
+        )}
+        {showTasks && (
+          <section className="bg-card rounded-xl border p-5 space-y-3">
+            <h2 className="font-semibold">
+              {isHQ ? "Team Next Actions" : "My Next Actions"}
+            </h2>
+            <LoadState
+              loading={tasksQ.isLoading}
+              error={tasksQ.isError}
+              retry={() => {
+                void tasksQ.refetch();
+              }}
+            >
+              {scope !== "all" ? (
+                <p className="text-sm text-muted-foreground">
+                  Team actions cover all partners.{" "}
+                  <button
+                    className="underline text-primary"
+                    onClick={() => setPartner("all")}
+                  >
+                    Show all
+                  </button>
+                </p>
+              ) : taskRows.length === 0 ? (
+                <p>No open actions available in your accessible modules.</p>
+              ) : (
+                taskRows.slice(0, 6).map((t) => (
+                  <Link
+                    key={t.id}
+                    className="block border-t pt-2 text-sm"
+                    to={`/tasks?view=${isHQ ? "team" : "my"}&task=${encodeURIComponent(t.id)}`}
+                  >
+                    <span className="font-medium">{t.title}</span>
+                    <p className="text-xs text-muted-foreground">
+                      {t.priority} · {t.due_date?.slice(0, 10) || "No due date"}
+                      {isHQ ? ` · ${t.owner_name || "Unassigned"}` : ""}
+                    </p>
+                  </Link>
+                ))
+              )}
+            </LoadState>
+            <Link
+              className="text-xs text-primary underline"
+              to={`/tasks?view=${isHQ ? "team" : "my"}`}
+            >
+              View actions
+            </Link>
+          </section>
+        )}
+      </div>
+      {!isHQ && (allow("onboarding") || allow("certifications")) && (
+        <PartnerLearning
+          academy={allow("onboarding")}
+          certifications={allow("certifications")}
+        />
+      )}
+      {allow("notifications") && (
+        <section className="bg-card rounded-xl border p-5 space-y-2">
+          <h2 className="font-semibold">Recent Alerts</h2>
+          <LoadState
+            loading={notificationsQ.isLoading}
+            error={notificationsQ.isError}
+            retry={() => {
+              void notificationsQ.refetch();
+            }}
+          >
+            {(notificationsQ.data ?? [])
+              .filter((n) => !n.is_read)
+              .slice(0, 4)
+              .map((n) => (
+                <Link className="block text-sm" key={n.id} to="/notifications">
+                  {n.title}
+                </Link>
+              ))}
+            {!(notificationsQ.data ?? []).some((n) => !n.is_read) && (
+              <p className="text-sm text-muted-foreground">
+                No unread alerts among the 50 most recent notifications.
+              </p>
+            )}
+          </LoadState>
+        </section>
+      )}
+      {showClients && (
+        <details className="bg-card rounded-xl border p-4">
+          <summary className="cursor-pointer text-sm font-medium">
+            Historical context and sales reconciliation
+          </summary>
+          <LoadState
+            loading={revenueQ.isLoading}
+            error={revenueQ.isError}
+            retry={retryRevenue}
+          >
+            <p className="text-sm mt-3">
+              Lifetime awarded revenue:{" "}
+              {formatMoney(lifetime.total, { currency: selectedCurrency })}.
+              Selected-period awards{" "}
+              {formatMoney(totals.total, { currency: selectedCurrency })};
+              equivalent {year - 1} period{" "}
+              {formatMoney(prior.total, { currency: selectedCurrency })}.
+            </p>
+          </LoadState>
+          {showPipeline && (
+            <LoadState
+              loading={dealsQ.isLoading}
+              error={dealsQ.isError}
+              retry={() => {
+                void dealsQ.refetch();
+              }}
+            >
+              <p className="text-xs mt-2">
+                Won Deal Value · all time:{" "}
+                {formatMoney(
+                  deals
+                    .filter((d) => d.status === "Won" && d.stage === "Won")
+                    .reduce((s, d) => s + authDealValue(d), 0),
+                )}
+                . Sales metric only; never added to awarded revenue.
+              </p>
+            </LoadState>
+          )}
+        </details>
+      )}
+      {allow("announcements") && <RecentActivity />}
     </div>
   );
 }

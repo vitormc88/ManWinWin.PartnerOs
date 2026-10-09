@@ -140,6 +140,9 @@ export default function DealDetail() {
     toast.success("Lead updated");
     queryClient.invalidateQueries({ queryKey: ["deal", id] });
     queryClient.invalidateQueries({ queryKey: ["deals"] });
+    queryClient.invalidateQueries({ queryKey: ["partner-metrics"] });
+    queryClient.invalidateQueries({ queryKey: ["analytics"] });
+    queryClient.invalidateQueries({ queryKey: ["revenue-history"] });
     queryClient.invalidateQueries({ queryKey: ["deal_activities", id] });
     setEditing(false);
   };

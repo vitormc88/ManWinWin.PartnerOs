@@ -1128,7 +1128,8 @@ function WorkGuidance({ tasks }: { tasks: UnifiedTask[] }) {
 export default function Tasks() {
   const { profile, roles } = useAuth();
   const isManager = roles.includes("hq_admin") || profile?.is_hq === true;
-  const [view, setView] = useState<TaskView>("my");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [view, setView] = useState<TaskView>(searchParams.get("view") === "team" && isManager ? "team" : "my");
   const [source, setSource] = useState<TaskSource | "all">("all");
   const [priority, setPriority] = useState<TaskPriority | "all">("all");
   const [groupBy, setGroupBy] = useState<GroupKey>("priority");
@@ -1171,7 +1172,6 @@ export default function Tasks() {
   }, [visibleFlat, focusedId]);
 
   // Deep link: /tasks?task=manual:<id> focuses that exact task.
-  const [searchParams, setSearchParams] = useSearchParams();
   const deepTaskId = searchParams.get("task");
   useEffect(() => {
     if (!deepTaskId || isLoading) return;
