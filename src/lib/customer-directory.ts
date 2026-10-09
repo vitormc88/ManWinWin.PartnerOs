@@ -10,6 +10,10 @@ export type DirectoryClient = ExplorerClient & {
   validated_by: string | null;
   // HQ row / partner override revision, fetched only for authorized management.
   write_updated_at?: string | null;
+  source_sector?: string | null;
+  source_sector_at_review?: string | null;
+  has_sector_override?: boolean;
+  source_sector_changed?: boolean;
 };
 export type DirectoryInput = {
   client_id: string; name: string; country: string; sector: string | null;

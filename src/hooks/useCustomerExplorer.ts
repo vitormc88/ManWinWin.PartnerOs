@@ -22,6 +22,12 @@ export function useCustomerExplorer(manage=false,enabled=true) {
         if(!data||data.length<500)break;
       }
       if(manage){
+        const {data:reviewData,error:reviewError}=await supabase.rpc('customer_explorer_sector_review_data' as never);
+        if(reviewError)throw new Error(reviewError.message);
+        for(const source of (reviewData||[]) as unknown as {source_id:string;source_sector:string|null;source_sector_at_review:string|null;has_sector_override:boolean;source_sector_changed:boolean}[]){
+          const row=rows.find(r=>r.source_kind==='partner'&&r.source_id===source.source_id);
+          if(row)Object.assign(row,source);
+        }
         for(const [table,kind,key] of [['customer_explorer_hq','hq','id'],['customer_explorer_overrides','partner','client_id']] as const){
           for(let offset=0;;offset+=500){
             const {data,error}=await supabase.from(table as never).select(`${key},evidence_note,updated_at`).order(key).range(offset,offset+499);
@@ -93,5 +99,10 @@ export function useDirectoryWrites(){
    }
    await refresh();
  };
- return {onSave,onImport,onMediaSave};
+ const onKeepSector=async(current:DirectoryClient)=>{
+   const {error}=await supabase.rpc('customer_explorer_keep_sector' as never,{p_client_id:current.source_id,p_expected_updated_at:current.write_updated_at,p_expected_source:current.source_sector??null} as never);
+   await refresh();
+   if(error)throw new Error(error.message);
+ };
+ return {onSave,onImport,onMediaSave,onKeepSector};
 }
