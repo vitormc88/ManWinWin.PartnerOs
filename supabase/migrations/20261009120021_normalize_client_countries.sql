@@ -1,0 +1,313 @@
+-- Normalize the client country at the shared persistence boundary, including
+-- imports and clients created from proposals/deals. English names match the
+-- Clients country picker. Unknown legacy text is preserved, not guessed.
+-- Pure SECURITY INVOKER functions; no RLS or ownership changes.
+CREATE OR REPLACE FUNCTION public.normalize_client_country_name(input text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+SECURITY INVOKER
+SET search_path = pg_catalog
+AS $function$
+  SELECT CASE
+    WHEN input IS NULL THEN NULL
+    WHEN upper(btrim(input)) = 'KSA' THEN 'Saudi Arabia'
+    WHEN upper(btrim(input)) = 'UAE' THEN 'United Arab Emirates'
+    ELSE coalesce((
+      SELECT c.canonical_name
+      FROM (VALUES
+    ('AF', 'Afghanistan', 'Afghanistan'),
+    ('AL', 'Albania', 'Albania'),
+    ('DZ', 'Algeria', 'Algeria'),
+    ('AS', 'American Samoa', 'American Samoa'),
+    ('AD', 'Andorra', 'Andorra'),
+    ('AO', 'Angola', 'Angola'),
+    ('AI', 'Anguilla', 'Anguilla'),
+    ('AQ', 'Antarctica', 'Antarctica'),
+    ('AG', 'Antigua and Barbuda', 'Antigua and Barbuda'),
+    ('AR', 'Argentina', 'Argentina'),
+    ('AM', 'Armenia', 'Armenia'),
+    ('AW', 'Aruba', 'Aruba'),
+    ('AU', 'Australia', 'Australia'),
+    ('AT', 'Austria', 'Austria'),
+    ('AZ', 'Azerbaijan', 'Azerbaijan'),
+    ('BS', 'Bahamas', 'Bahamas'),
+    ('BH', 'Bahrain', 'Bahrain'),
+    ('BD', 'Bangladesh', 'Bangladesh'),
+    ('BB', 'Barbados', 'Barbados'),
+    ('BY', 'Belarus', 'Belarus'),
+    ('BE', 'Belgium', 'Belgium'),
+    ('BZ', 'Belize', 'Belize'),
+    ('BJ', 'Benin', 'Benin'),
+    ('BM', 'Bermuda', 'Bermuda'),
+    ('BT', 'Bhutan', 'Bhutan'),
+    ('BO', 'Bolivia, Plurinational State of', 'Bolivia'),
+    ('BQ', 'Bonaire, Sint Eustatius and Saba', 'Bonaire, Sint Eustatius and Saba'),
+    ('BA', 'Bosnia and Herzegovina', 'Bosnia and Herzegovina'),
+    ('BW', 'Botswana', 'Botswana'),
+    ('BV', 'Bouvet Island', 'Bouvet Island'),
+    ('BR', 'Brazil', 'Brazil'),
+    ('IO', 'British Indian Ocean Territory', 'British Indian Ocean Territory'),
+    ('BN', 'Brunei Darussalam', 'Brunei'),
+    ('BG', 'Bulgaria', 'Bulgaria'),
+    ('BF', 'Burkina Faso', 'Burkina Faso'),
+    ('BI', 'Burundi', 'Burundi'),
+    ('CV', 'Cabo Verde', 'Cabo Verde'),
+    ('KH', 'Cambodia', 'Cambodia'),
+    ('CM', 'Cameroon', 'Cameroon'),
+    ('CA', 'Canada', 'Canada'),
+    ('KY', 'Cayman Islands', 'Cayman Islands'),
+    ('CF', 'Central African Republic', 'Central African Republic'),
+    ('TD', 'Chad', 'Chad'),
+    ('CL', 'Chile', 'Chile'),
+    ('CN', 'China', 'China'),
+    ('CX', 'Christmas Island', 'Christmas Island'),
+    ('CC', 'Cocos (Keeling) Islands', 'Cocos (Keeling) Islands'),
+    ('CO', 'Colombia', 'Colombia'),
+    ('KM', 'Comoros', 'Comoros'),
+    ('CG', 'Congo', 'Congo'),
+    ('CD', 'Congo, Democratic Republic of the', 'Congo, Democratic Republic of the'),
+    ('CK', 'Cook Islands', 'Cook Islands'),
+    ('CR', 'Costa Rica', 'Costa Rica'),
+    ('HR', 'Croatia', 'Croatia'),
+    ('CU', 'Cuba', 'Cuba'),
+    ('CW', 'Curaçao', 'Curaçao'),
+    ('CY', 'Cyprus', 'Cyprus'),
+    ('CZ', 'Czechia', 'Czech Republic'),
+    ('CI', 'Côte d''Ivoire', 'Ivory Coast'),
+    ('DK', 'Denmark', 'Denmark'),
+    ('DJ', 'Djibouti', 'Djibouti'),
+    ('DM', 'Dominica', 'Dominica'),
+    ('DO', 'Dominican Republic', 'Dominican Republic'),
+    ('EC', 'Ecuador', 'Ecuador'),
+    ('EG', 'Egypt', 'Egypt'),
+    ('SV', 'El Salvador', 'El Salvador'),
+    ('GQ', 'Equatorial Guinea', 'Equatorial Guinea'),
+    ('ER', 'Eritrea', 'Eritrea'),
+    ('EE', 'Estonia', 'Estonia'),
+    ('SZ', 'Eswatini', 'Eswatini'),
+    ('ET', 'Ethiopia', 'Ethiopia'),
+    ('FK', 'Falkland Islands (Malvinas)', 'Falkland Islands (Malvinas)'),
+    ('FO', 'Faroe Islands', 'Faroe Islands'),
+    ('FJ', 'Fiji', 'Fiji'),
+    ('FI', 'Finland', 'Finland'),
+    ('FR', 'France', 'France'),
+    ('GF', 'French Guiana', 'French Guiana'),
+    ('PF', 'French Polynesia', 'French Polynesia'),
+    ('TF', 'French Southern Territories', 'French Southern Territories'),
+    ('GA', 'Gabon', 'Gabon'),
+    ('GM', 'Gambia', 'Gambia'),
+    ('GE', 'Georgia', 'Georgia'),
+    ('DE', 'Germany', 'Germany'),
+    ('GH', 'Ghana', 'Ghana'),
+    ('GI', 'Gibraltar', 'Gibraltar'),
+    ('GR', 'Greece', 'Greece'),
+    ('GL', 'Greenland', 'Greenland'),
+    ('GD', 'Grenada', 'Grenada'),
+    ('GP', 'Guadeloupe', 'Guadeloupe'),
+    ('GU', 'Guam', 'Guam'),
+    ('GT', 'Guatemala', 'Guatemala'),
+    ('GG', 'Guernsey', 'Guernsey'),
+    ('GN', 'Guinea', 'Guinea'),
+    ('GW', 'Guinea-Bissau', 'Guinea-Bissau'),
+    ('GY', 'Guyana', 'Guyana'),
+    ('HT', 'Haiti', 'Haiti'),
+    ('HM', 'Heard Island and McDonald Islands', 'Heard Island and McDonald Islands'),
+    ('VA', 'Holy See', 'Vatican City'),
+    ('HN', 'Honduras', 'Honduras'),
+    ('HK', 'Hong Kong', 'Hong Kong'),
+    ('HU', 'Hungary', 'Hungary'),
+    ('IS', 'Iceland', 'Iceland'),
+    ('IN', 'India', 'India'),
+    ('ID', 'Indonesia', 'Indonesia'),
+    ('IR', 'Iran, Islamic Republic of', 'Iran'),
+    ('IQ', 'Iraq', 'Iraq'),
+    ('IE', 'Ireland', 'Ireland'),
+    ('IM', 'Isle of Man', 'Isle of Man'),
+    ('IL', 'Israel', 'Israel'),
+    ('IT', 'Italy', 'Italy'),
+    ('JM', 'Jamaica', 'Jamaica'),
+    ('JP', 'Japan', 'Japan'),
+    ('JE', 'Jersey', 'Jersey'),
+    ('JO', 'Jordan', 'Jordan'),
+    ('KZ', 'Kazakhstan', 'Kazakhstan'),
+    ('KE', 'Kenya', 'Kenya'),
+    ('KI', 'Kiribati', 'Kiribati'),
+    ('KP', 'Korea, Democratic People''s Republic of', 'North Korea'),
+    ('KR', 'Korea, Republic of', 'South Korea'),
+    ('KW', 'Kuwait', 'Kuwait'),
+    ('KG', 'Kyrgyzstan', 'Kyrgyzstan'),
+    ('LA', 'Lao People''s Democratic Republic', 'Laos'),
+    ('LV', 'Latvia', 'Latvia'),
+    ('LB', 'Lebanon', 'Lebanon'),
+    ('LS', 'Lesotho', 'Lesotho'),
+    ('LR', 'Liberia', 'Liberia'),
+    ('LY', 'Libya', 'Libya'),
+    ('LI', 'Liechtenstein', 'Liechtenstein'),
+    ('LT', 'Lithuania', 'Lithuania'),
+    ('LU', 'Luxembourg', 'Luxembourg'),
+    ('MO', 'Macao', 'Macao'),
+    ('MG', 'Madagascar', 'Madagascar'),
+    ('MW', 'Malawi', 'Malawi'),
+    ('MY', 'Malaysia', 'Malaysia'),
+    ('MV', 'Maldives', 'Maldives'),
+    ('ML', 'Mali', 'Mali'),
+    ('MT', 'Malta', 'Malta'),
+    ('MH', 'Marshall Islands', 'Marshall Islands'),
+    ('MQ', 'Martinique', 'Martinique'),
+    ('MR', 'Mauritania', 'Mauritania'),
+    ('MU', 'Mauritius', 'Mauritius'),
+    ('YT', 'Mayotte', 'Mayotte'),
+    ('MX', 'Mexico', 'Mexico'),
+    ('FM', 'Micronesia, Federated States of', 'Micronesia'),
+    ('MD', 'Moldova, Republic of', 'Moldova'),
+    ('MC', 'Monaco', 'Monaco'),
+    ('MN', 'Mongolia', 'Mongolia'),
+    ('ME', 'Montenegro', 'Montenegro'),
+    ('MS', 'Montserrat', 'Montserrat'),
+    ('MA', 'Morocco', 'Morocco'),
+    ('MZ', 'Mozambique', 'Mozambique'),
+    ('MM', 'Myanmar', 'Myanmar'),
+    ('NA', 'Namibia', 'Namibia'),
+    ('NR', 'Nauru', 'Nauru'),
+    ('NP', 'Nepal', 'Nepal'),
+    ('NL', 'Netherlands, Kingdom of the', 'Netherlands, Kingdom of the'),
+    ('NC', 'New Caledonia', 'New Caledonia'),
+    ('NZ', 'New Zealand', 'New Zealand'),
+    ('NI', 'Nicaragua', 'Nicaragua'),
+    ('NE', 'Niger', 'Niger'),
+    ('NG', 'Nigeria', 'Nigeria'),
+    ('NU', 'Niue', 'Niue'),
+    ('NF', 'Norfolk Island', 'Norfolk Island'),
+    ('MK', 'North Macedonia', 'North Macedonia'),
+    ('MP', 'Northern Mariana Islands', 'Northern Mariana Islands'),
+    ('NO', 'Norway', 'Norway'),
+    ('OM', 'Oman', 'Oman'),
+    ('PK', 'Pakistan', 'Pakistan'),
+    ('PW', 'Palau', 'Palau'),
+    ('PS', 'Palestine, State of', 'Palestine'),
+    ('PA', 'Panama', 'Panama'),
+    ('PG', 'Papua New Guinea', 'Papua New Guinea'),
+    ('PY', 'Paraguay', 'Paraguay'),
+    ('PE', 'Peru', 'Peru'),
+    ('PH', 'Philippines', 'Philippines'),
+    ('PN', 'Pitcairn', 'Pitcairn'),
+    ('PL', 'Poland', 'Poland'),
+    ('PT', 'Portugal', 'Portugal'),
+    ('PR', 'Puerto Rico', 'Puerto Rico'),
+    ('QA', 'Qatar', 'Qatar'),
+    ('RO', 'Romania', 'Romania'),
+    ('RU', 'Russian Federation', 'Russia'),
+    ('RW', 'Rwanda', 'Rwanda'),
+    ('RE', 'Réunion', 'Réunion'),
+    ('BL', 'Saint Barthélemy', 'Saint Barthélemy'),
+    ('SH', 'Saint Helena, Ascension and Tristan da Cunha', 'Saint Helena, Ascension and Tristan da Cunha'),
+    ('KN', 'Saint Kitts and Nevis', 'Saint Kitts and Nevis'),
+    ('LC', 'Saint Lucia', 'Saint Lucia'),
+    ('MF', 'Saint Martin (French part)', 'Saint Martin (French part)'),
+    ('PM', 'Saint Pierre and Miquelon', 'Saint Pierre and Miquelon'),
+    ('VC', 'Saint Vincent and the Grenadines', 'Saint Vincent and the Grenadines'),
+    ('WS', 'Samoa', 'Samoa'),
+    ('SM', 'San Marino', 'San Marino'),
+    ('ST', 'Sao Tome and Principe', 'Sao Tome and Principe'),
+    ('SA', 'Saudi Arabia', 'Saudi Arabia'),
+    ('SN', 'Senegal', 'Senegal'),
+    ('RS', 'Serbia', 'Serbia'),
+    ('SC', 'Seychelles', 'Seychelles'),
+    ('SL', 'Sierra Leone', 'Sierra Leone'),
+    ('SG', 'Singapore', 'Singapore'),
+    ('SX', 'Sint Maarten (Dutch part)', 'Sint Maarten (Dutch part)'),
+    ('SK', 'Slovakia', 'Slovakia'),
+    ('SI', 'Slovenia', 'Slovenia'),
+    ('SB', 'Solomon Islands', 'Solomon Islands'),
+    ('SO', 'Somalia', 'Somalia'),
+    ('ZA', 'South Africa', 'South Africa'),
+    ('GS', 'South Georgia and the South Sandwich Islands', 'South Georgia and the South Sandwich Islands'),
+    ('SS', 'South Sudan', 'South Sudan'),
+    ('ES', 'Spain', 'Spain'),
+    ('LK', 'Sri Lanka', 'Sri Lanka'),
+    ('SD', 'Sudan', 'Sudan'),
+    ('SR', 'Suriname', 'Suriname'),
+    ('SJ', 'Svalbard and Jan Mayen', 'Svalbard and Jan Mayen'),
+    ('SE', 'Sweden', 'Sweden'),
+    ('CH', 'Switzerland', 'Switzerland'),
+    ('SY', 'Syrian Arab Republic', 'Syria'),
+    ('TW', 'Taiwan, Province of China', 'Taiwan'),
+    ('TJ', 'Tajikistan', 'Tajikistan'),
+    ('TZ', 'Tanzania, United Republic of', 'Tanzania'),
+    ('TH', 'Thailand', 'Thailand'),
+    ('TL', 'Timor-Leste', 'East Timor'),
+    ('TG', 'Togo', 'Togo'),
+    ('TK', 'Tokelau', 'Tokelau'),
+    ('TO', 'Tonga', 'Tonga'),
+    ('TT', 'Trinidad and Tobago', 'Trinidad and Tobago'),
+    ('TN', 'Tunisia', 'Tunisia'),
+    ('TM', 'Turkmenistan', 'Turkmenistan'),
+    ('TC', 'Turks and Caicos Islands', 'Turks and Caicos Islands'),
+    ('TV', 'Tuvalu', 'Tuvalu'),
+    ('TR', 'Türkiye', 'Turkey'),
+    ('UG', 'Uganda', 'Uganda'),
+    ('UA', 'Ukraine', 'Ukraine'),
+    ('AE', 'United Arab Emirates', 'United Arab Emirates'),
+    ('GB', 'United Kingdom of Great Britain and Northern Ireland', 'United Kingdom of Great Britain and Northern Ireland'),
+    ('UM', 'United States Minor Outlying Islands', 'United States Minor Outlying Islands'),
+    ('US', 'United States of America', 'United States of America'),
+    ('UY', 'Uruguay', 'Uruguay'),
+    ('UZ', 'Uzbekistan', 'Uzbekistan'),
+    ('VU', 'Vanuatu', 'Vanuatu'),
+    ('VE', 'Venezuela, Bolivarian Republic of', 'Venezuela'),
+    ('VN', 'Viet Nam', 'Vietnam'),
+    ('VG', 'Virgin Islands (British)', 'Virgin Islands (British)'),
+    ('VI', 'Virgin Islands (U.S.)', 'Virgin Islands (U.S.)'),
+    ('WF', 'Wallis and Futuna', 'Wallis and Futuna'),
+    ('EH', 'Western Sahara', 'Western Sahara'),
+    ('YE', 'Yemen', 'Yemen'),
+    ('ZM', 'Zambia', 'Zambia'),
+    ('ZW', 'Zimbabwe', 'Zimbabwe'),
+    ('AX', 'Åland Islands', 'Åland Islands')
+      ) AS c(code, iso_name, canonical_name)
+      WHERE upper(btrim(input)) IN (c.code, upper(c.iso_name), upper(c.canonical_name))
+      LIMIT 1
+    ), btrim(input))
+  END;
+$function$;
+REVOKE ALL ON FUNCTION public.normalize_client_country_name(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.normalize_client_country_name(text) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.normalize_client_country_before_write()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog
+AS $function$
+BEGIN
+  NEW.country := public.normalize_client_country_name(NEW.country);
+  RETURN NEW;
+END;
+$function$;
+REVOKE ALL ON FUNCTION public.normalize_client_country_before_write() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.normalize_client_country_before_write() TO authenticated, service_role;
+
+CREATE TRIGGER normalize_client_country_before_write
+BEFORE INSERT OR UPDATE OF country ON public.clients
+FOR EACH ROW EXECUTE FUNCTION public.normalize_client_country_before_write();
+
+-- Assert expected conversions before touching the existing client data.
+DO $verify$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM (VALUES
+      ('RO','Romania'), ('ROMANIA','Romania'), (' ro ','Romania'),
+      ('MY','Malaysia'), ('EGYPT','Egypt'), ('SA','Saudi Arabia'),
+      ('KSA','Saudi Arabia'), ('UAE','United Arab Emirates'),
+      ('VIETNAM','Vietnam'), ('VN','Vietnam'),
+      ('Freedonia','Freedonia'), ('',''), (NULL,NULL)
+    ) AS t(raw, expected)
+    WHERE public.normalize_client_country_name(t.raw) IS DISTINCT FROM t.expected
+  ) THEN RAISE EXCEPTION 'Client country normalization verification failed'; END IF;
+END;
+$verify$;
+
+UPDATE public.clients
+SET country = public.normalize_client_country_name(country)
+WHERE country IS DISTINCT FROM public.normalize_client_country_name(country);
