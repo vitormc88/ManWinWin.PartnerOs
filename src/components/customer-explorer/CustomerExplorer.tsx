@@ -3,6 +3,7 @@ import { Globe2, Search, ArrowUpRight, Mail, X, MapPin, Building2, RotateCcw, La
 import { countryCode, countryGroups, sectorGroups, countryName, filterExplorerClients, regionName, requestEmail, UNKNOWN_SECTOR, CUSTOMER_CARE_EMAIL, type ExplorerClient } from "@/lib/customer-explorer";
 import { CustomerLogo } from './CustomerLogo';
 import { CustomerCaseStudy } from './CustomerCaseStudy';
+import {CustomerExportDialog} from './CustomerExportDialog';
 import "./customer-explorer.css";
 
 type World = { features: { properties: { NAME: string; ISO_A2: string }; geometry: { type: string; coordinates: number[][][] | number[][][][] } }[] };
@@ -13,7 +14,8 @@ function mapPath(geometry: World["features"][number]["geometry"]) {
     const [x,y] = project(lon,lat); return `${i?"L":"M"}${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(" ")+" Z").join(" ")).join(" ");
 }
-export function CustomerExplorer({ clients, preview = false, updatedAt, onRefresh }: { clients: ExplorerClient[]; preview?: boolean; updatedAt?: string; onRefresh?: () => void }) {
+export function CustomerExplorer({ clients, preview = false, updatedAt, onRefresh,prepareExport,validateExport }: { clients: ExplorerClient[]; preview?: boolean; updatedAt?: string; onRefresh?: () => void;prepareExport?:()=>Promise<ExplorerClient[]>;validateExport?:(ids:string[])=>Promise<void> }) {
+  const [exportOpen,setExportOpen]=useState(false);
   const [search,setSearch] = useState("");
   const [sector,setSector] = useState("");
   const [region,setRegion] = useState("");
@@ -77,6 +79,8 @@ export function CustomerExplorer({ clients, preview = false, updatedAt, onRefres
     </div>
     <div className="ce-case-filter"><label><input type="checkbox" checked={onlyCaseStudies} onChange={e=>setOnlyCaseStudies(e.target.checked)}/> With case study</label><small>Selected public implementation stories · not a ranking of customer quality.</small></div>
     <div className="ce-options"><label><input type="checkbox" checked={historical} onChange={e=>setHistorical(e.target.checked)}/> Include historical customers <span>({clients.filter(c=>c.active===false).length})</span></label><span>{preview?`Snapshot ${updatedAt||"8 Oct 2026"}`:"Updates automatically · every minute"}{onRefresh&&<button onClick={onRefresh}>Refresh</button>}</span></div>
+    {prepareExport&&validateExport&&<div className="ce-export-actions"><button disabled={!matches.length} onClick={()=>setExportOpen(true)}>Export to PDF</button></div>}
+    {exportOpen&&prepareExport&&validateExport&&<CustomerExportDialog rows={matches} filters={{search,sector,region,country,includeHistorical:historical,onlyCaseStudies}} prepare={prepareExport} validate={validateExport} onClose={()=>setExportOpen(false)}/>}
     <section className="ce-map-panel" aria-label="Global customer map">
       <div className="ce-map-top"><div><Globe2 size={17}/><strong>Your next reference could be anywhere.</strong></div><span>Choose a country to explore its customers</span></div>
       <div className="ce-map-grid">

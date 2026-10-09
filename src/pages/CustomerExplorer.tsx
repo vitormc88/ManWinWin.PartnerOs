@@ -11,9 +11,21 @@ export default function CustomerExplorerPage() {
   const [manage,setManage]=useState(false);
   const writes=useDirectoryWrites();
   const { data, isLoading, error, refetch } = useCustomerExplorer(canManage,canRead);
+  const prepareExport=async()=>{
+    const permission=await access.refetch();
+    if(permission.isError||permission.data?.read!==true)throw new Error('Customer Explorer access is no longer available.');
+    const fresh=await refetch();
+    if(fresh.isError||!fresh.data)throw new Error('Unable to verify the current customer directory. Please refresh.');
+    return fresh.data.filter(r=>r.visible===true);
+  };
+  const validateExport=async(ids:string[])=>{
+    const fresh=await prepareExport();
+    const allowed=new Set(fresh.map(r=>r.id));
+    if(ids.some(id=>!allowed.has(id)))throw new Error('Customer visibility changed during export. Please review the selection.');
+  };
   if (access.isLoading || (canRead&&isLoading)) return <div role="status" className="p-10 text-center text-muted-foreground">Loading the customer network…</div>;
   if (!canRead) return <div role="alert" className="p-10">Customer Explorer has not been enabled for your account.</div>;
   if (error) return <div role="alert" className="rounded-xl border p-8"><h1 className="text-xl font-semibold">Customer network unavailable</h1><p className="my-3 text-sm text-muted-foreground">Your session may have expired or the directory has not been enabled for this environment.</p><button onClick={() => refetch()} className="text-primary">Try again</button></div>;
   if(manage&&canManage)return <DirectoryManager rows={data||[]} {...writes} onClose={()=>setManage(false)}/>;
-  return <><div className="ce-admin-actions">{canManage&&<button onClick={()=>setManage(true)}>Manage directory</button>}</div><CustomerExplorer clients={(data || []).filter(r=>r.visible)} onRefresh={() => refetch()} /></>;
+  return <><div className="ce-admin-actions">{canManage&&<button onClick={()=>setManage(true)}>Manage directory</button>}</div><CustomerExplorer clients={(data || []).filter(r=>r.visible)} onRefresh={() => refetch()} prepareExport={prepareExport} validateExport={validateExport}/></>;
 }
