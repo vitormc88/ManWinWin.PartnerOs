@@ -1,3 +1,4 @@
+import { currentLicenses, primaryContract as selectPrimaryContract } from "@/lib/client-primary-records";
 import { invalidateClientViews } from "@/lib/client-refresh";
 import { createClientWritePlan } from "@/lib/client-write-plan";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
@@ -20,7 +21,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  useClient, useUpdateClient, useArchiveClient,
+  useClient, useUpdateClient, useArchiveClient, useRestoreClient,
   useClientContacts, useCreateContact, useDeleteContact,
   useClientLicenses, useCreateLicense, useUpdateLicense, useDeleteLicense,
   useClientContracts, useCreateContract, useUpdateContract,
@@ -147,12 +148,15 @@ export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: client, isLoading } = useClient(id);
-  const { data: contacts = [] } = useClientContacts(id);
-  const { data: licenses = [] } = useClientLicenses(id);
-  const { data: contracts = [] } = useClientContracts(id);
+  const { data: client, isLoading, isError: clientError } = useClient(id);
+  const { data: contacts = [], isError: contactsError } = useClientContacts(id);
+  const { data: licenses = [], isLoading: licensesLoading, isError: licensesError } = useClientLicenses(id);
+  const { data: contracts = [], isLoading: contractsLoading, isError: contractsError } = useClientContracts(id);
   const updateClient = useUpdateClient();
   const archiveClient = useArchiveClient();
+  const restoreClient = useRestoreClient();
+  const [restoreStatus, setRestoreStatus] = useState<"Active" | "Inactive">("Inactive");
+  const [selectedLicenseId, setSelectedLicenseId] = useState<string | null>(null);
   const { canEdit: canEditModule } = useModuleAccess();
   const canWrite = canEditModule("clients");
   const createContact = useCreateContact();
@@ -165,12 +169,12 @@ export default function ClientDetail() {
   const createNote = useCreateNote();
   const createCredential = useCreateCredential();
 
-  const { data: notes = [] } = useQuery({
+  const { data: notes = [], isError: notesError } = useQuery({
     queryKey: ["client_notes", id],
     queryFn: async () => { if (!id) return []; const { data, error } = await supabase.from("client_notes").select("*").eq("client_id", id).order("created_at", { ascending: false }); if (error) throw error; return data; },
     enabled: !!id,
   });
-  const { data: credentials = [] } = useQuery({
+  const { data: credentials = [], isError: credentialsError } = useQuery({
     queryKey: ["client_credentials", id],
     queryFn: async () => { if (!id) return []; const { data, error } = await supabase.from("client_credentials").select("*").eq("client_id", id); if (error) throw error; return data; },
     enabled: !!id,
@@ -183,22 +187,25 @@ export default function ClientDetail() {
     [licenses]
   );
 
-  const { data: modules = [] } = useQuery({
-    queryKey: ["licensed_modules", id, validLicenses],
-    queryFn: async () => { if (!validLicenses.length) return []; const ids = validLicenses.map(l => l.id); const { data, error } = await supabase.from("licensed_modules").select("*").in("license_id", ids); if (error) throw error; return data; },
-    enabled: validLicenses.length > 0,
+  const currentLicenseRows = useMemo(() => currentLicenses(licenses as any[]), [licenses]);
+  const primaryLicense = currentLicenseRows.find(l => l.id === selectedLicenseId) || currentLicenseRows[0] || null;
+  const primaryContract = selectPrimaryContract(contracts);
+
+  const { data: modules = [], isLoading: modulesLoading, isError: modulesError } = useQuery({
+    queryKey: ["licensed_modules", id, primaryLicense?.id],
+    queryFn: async () => { if (!primaryLicense) return []; const ids = [primaryLicense.id]; const { data, error } = await supabase.from("licensed_modules").select("*").in("license_id", ids); if (error) throw error; return data; },
+    enabled: !!primaryLicense,
   });
 
   // Derived data
-  const primaryLicense = validLicenses[0] || null;
-  const primaryContract = contracts[0] || null;
+
   const intelligenceQuery = useClientCommercialIntelligence(id);
   const intelligence = intelligenceQuery.data;
   const intelligenceState = intelligenceStateOf(intelligenceQuery);
 
   // Operational renewal cycles for this client. The ACTIVE cycle (never a closed
   // one) drives the "next renewal" date across the client screens.
-  const { data: clientRenewals = [] } = useQuery({
+  const { data: clientRenewals = [], isError: renewalsError } = useQuery({
     queryKey: ["renewals", "client-cycles", id],
     queryFn: async () => {
       if (!id) return [];
@@ -237,7 +244,7 @@ export default function ClientDetail() {
 
   // Parsed license info
   const licenseProduct = primaryLicense?.product || "";
-  const { family: licenseFamily, variant: licenseVariant } = useMemo(() => parseLicenseProduct(licenseProduct), [licenseProduct]);
+  const { family: licenseFamily, variant: licenseVariant } = useMemo(() => { const product = readLicenseVocabulary(primaryLicense, client?.cloud_onpremise).product.value || licenseProduct; return parseLicenseProduct(product); }, [primaryLicense, client?.cloud_onpremise, licenseProduct]);
   const isProfessional = licenseFamily === "Professional";
   const isBusiness = licenseFamily === "Business";
   // Any existing license row is workable — legacy products are flagged, never hidden.
@@ -368,7 +375,8 @@ export default function ClientDetail() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [isDirty]);
 
-  if (isLoading) return <div className="max-w-4xl mx-auto py-20 text-center text-muted-foreground">Loading...</div>;
+  if (clientError || contactsError || licensesError || contractsError || modulesError || renewalsError || notesError || credentialsError) return <div role="alert" className="max-w-4xl mx-auto py-20 text-center space-y-4"><p>Unable to load client details.</p><Button onClick={() => { invalidateClientViews(queryClient); void queryClient.invalidateQueries({ queryKey: ["client_contacts", id] }); void queryClient.invalidateQueries({ queryKey: ["client_notes", id] }); void queryClient.invalidateQueries({ queryKey: ["client_credentials", id] }); }}>Retry</Button><Button variant="outline" onClick={() => navigate("/clients")}>Back to clients</Button></div>;
+  if (isLoading || licensesLoading || contractsLoading || modulesLoading) return <div className="max-w-4xl mx-auto py-20 text-center text-muted-foreground">Loading...</div>;
   if (!client) return (
     <div className="max-w-4xl mx-auto py-20 text-center">
       <p className="text-muted-foreground">Client not found.</p>
@@ -916,6 +924,16 @@ export default function ClientDetail() {
                 <AlertTriangle className="h-3 w-3" /> Missing license configuration
               </Badge>
             )}
+            {canWrite && client.status === "Archived" && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild><Button variant="outline" size="sm">Restore client</Button></AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader><AlertDialogTitle>Restore client</AlertDialogTitle><AlertDialogDescription>Choose the status for the restored client. Existing licenses, contracts and renewal outcomes will be preserved.</AlertDialogDescription></AlertDialogHeader>
+                  <Select value={restoreStatus} onValueChange={v => setRestoreStatus(v as "Active" | "Inactive")}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Inactive">Inactive</SelectItem><SelectItem value="Active">Active</SelectItem></SelectContent></Select>
+                  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction disabled={restoreClient.isPending} onClick={async () => { try { await restoreClient.mutateAsync({ id: client.id, status: restoreStatus }); toast.success("Client restored"); } catch (e: any) { toast.error(e?.message || "Failed to restore client"); } }}>Restore</AlertDialogAction></AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
             {canWrite && client.status !== "Archived" && (
               <Button variant="outline" size="sm" onClick={handleArchive} className="text-destructive hover:text-destructive"><Trash2 className="h-3.5 w-3.5 mr-1.5" /> Archive</Button>
             )}
@@ -1186,6 +1204,7 @@ export default function ClientDetail() {
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-sm font-semibold">Modules & Plugins</CardTitle>
+                {currentLicenseRows.length > 1 && <div className="mt-2"><Label>License for summary and modules</Label><Select value={primaryLicense?.id} disabled={editingModules} onValueChange={setSelectedLicenseId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{currentLicenseRows.map(l => <SelectItem key={l.id} value={l.id}>{l.product || "License"} · {l.version || "No version"} · {l.license_start_date || l.id.slice(0, 8)}</SelectItem>)}</SelectContent></Select></div>}
                 {isProfessional && <p className="text-xs text-muted-foreground mt-1">Auto-filled based on {licenseVariant}. Maintenance Requests is an optional add-on.</p>}
                 {isBusiness && <p className="text-xs text-muted-foreground mt-1">Business licenses allow flexible module and plugin selection.</p>}
                 {!hasValidLicense && <p className="text-xs text-muted-foreground mt-1">Add a license configuration to manage modules.</p>}

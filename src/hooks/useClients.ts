@@ -1,3 +1,4 @@
+import { fetchAllPages } from "@/lib/loss-analysis";
 import { invalidateClientViews } from "@/lib/client-refresh";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,9 +38,7 @@ export function useClients(
       }
 
       if (filters?.status) query = query.eq("status", filters.status);
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as Client[];
+      return fetchAllPages<Client>((from, to) => query.order("id").range(from, to));
     },
   });
 }
@@ -119,8 +118,8 @@ export function useArchiveClient() {
 export function useRestoreClient() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase.from("clients").update({ status: "Active", is_inactive: false }).eq("id", id).select().single();
+    mutationFn: async ({ id, status }: { id: string; status: "Active" | "Inactive" }) => {
+      const { data, error } = await supabase.from("clients").update({ status, is_inactive: status === "Inactive" }).eq("id", id).select().single();
       if (error) throw mapError(error, "restore client");
       return data;
     },

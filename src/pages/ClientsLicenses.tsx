@@ -42,8 +42,8 @@ export default function ClientsLicenses() {
   const navigate = useNavigate();
   const { isHQ, isAdmin, profile } = useAuth();
   const userPartnerId = !isHQ ? profile?.partner_id : null;
-  const { data: clients = [], isLoading, isError: clientsError } = useClients();
-  const { data: partners = [], isLoading: partnersLoading, isError: partnersError } = usePartners();
+  const { data: clients = [], isLoading, isError: clientsError, refetch: refetchClients } = useClients();
+  const { data: partners = [], isLoading: partnersLoading, isError: partnersError, refetch: refetchPartners } = usePartners();
   const { data: aggregates, isLoading: aggregatesLoading, isError: aggregatesError } = useClientAggregates();
   const { canEdit } = useModuleAccess();
   const canEditClients = canEdit("clients");
@@ -51,7 +51,7 @@ export default function ClientsLicenses() {
   const persisted = useMemo(() => loadClientsListState() ?? {}, []);
   const [search, setSearch] = useState<string>(persisted.search ?? "");
   const [partnerFilter, setPartnerFilter] = useState<string>(persisted.partnerFilter ?? "all");
-  const [statusFilter, setStatusFilter] = useState<string>(persisted.statusFilter ?? "all");
+  const [statusFilter, setStatusFilter] = useState<string>(persisted.showArchived ? "all" : persisted.statusFilter ?? "all");
   const [sortField, setSortField] = useState<string>(persisted.sortField ?? "commercial_name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(persisted.sortDir ?? "asc");
   const [showArchived, setShowArchived] = useState<boolean>(persisted.showArchived ?? false);
@@ -78,7 +78,7 @@ export default function ClientsLicenses() {
     if (partnerFilter !== "all") {
       list = list.filter(c => matchesPartnerFilter(c as any, partnerFilter));
     }
-    if (statusFilter !== "all") {
+    if (statusFilter !== "all" && !showArchived) {
       list = list.filter(c => c.status === statusFilter);
     }
     list.sort((a, b) => {
@@ -113,6 +113,10 @@ export default function ClientsLicenses() {
   // Partner-scoped presentation: hide the partner dimension when the user can
   // only ever see one partner. Query/RLS scope is untouched.
   const partnerScoped = isPartnerScopedView({ isHQ: !!isHQ, partnerId: profile?.partner_id, visiblePartnerCount: partners.length });
+
+  useEffect(() => {
+    if (partnerScoped && partnerFilter !== "all") setPartnerFilter("all");
+  }, [partnerScoped, partnerFilter]);
 
   // Never render a KPI before every source it depends on has resolved.
   const kpisLoading = isLoading || partnersLoading || aggregatesLoading || renewalsLoading;
@@ -268,7 +272,7 @@ export default function ClientsLicenses() {
         </Select>
         )}
         {!partnerScoped && <Button variant="outline" size="sm" onClick={() => setIncludeArchivedPartners(v => !v)}>{includeArchivedPartners ? "Hide archived partners" : "Include archived partners"}</Button>}
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={setStatusFilter} disabled={showArchived}>
           <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="All Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
@@ -294,8 +298,10 @@ export default function ClientsLicenses() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
+              {isLoading || partnersLoading ? (
                 <TableRow><TableCell colSpan={partnerScoped ? 7 : 8} className="h-32 text-center text-muted-foreground">Loading clients...</TableCell></TableRow>
+              ) : clientsError || partnersError ? (
+                <TableRow><TableCell colSpan={partnerScoped ? 7 : 8} className="h-32 text-center"><p role="alert">Unable to load clients.</p><Button variant="outline" size="sm" onClick={() => { void refetchClients(); void refetchPartners(); }}>Retry</Button></TableCell></TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow><TableCell colSpan={partnerScoped ? 7 : 8} className="h-32 text-center text-muted-foreground">{showArchived ? "No archived clients." : "No clients match your filters."} {canEditClients && <button onClick={() => navigate("/clients/new")} className="text-primary hover:underline">Create client</button>}</TableCell></TableRow>
               ) : filtered.map(c => (
