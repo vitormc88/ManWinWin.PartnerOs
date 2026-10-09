@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useExplorerAccess } from '@/hooks/useExplorerAccess';
 import { useMyPermissions } from "@/hooks/useUsers";
 import { useAcademyAnalyticsPerms } from "@/hooks/useAcademyAnalytics";
 import { LogOut, UserCog } from "lucide-react";
@@ -25,6 +26,7 @@ import {
   Inbox,
   CheckSquare,
   Target,
+  Globe2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { BrandMark } from "@/components/BrandMark";
@@ -81,6 +83,7 @@ const partnerOpsNav = [
 ];
 
 const resourcesNav = [
+  { title: "Customer Explorer", url: "/customer-explorer", icon: Globe2 },
   { title: "Knowledge Base", url: "/knowledge", icon: BookOpen },
   { title: "Training", url: "/training", icon: GraduationCap },
 ];
@@ -93,6 +96,7 @@ const communityNav = [
 
 export function AppSidebar() {
   const { profile, roles, signOut } = useAuth();
+  const explorerAccess = useExplorerAccess();
   const { data: myPerms } = useMyPermissions();
   const { data: academyAnalyticsPerms } = useAcademyAnalyticsPerms();
   const { state, toggleSidebar, setOpenMobile, isMobile } = useSidebar();
@@ -102,6 +106,7 @@ export function AppSidebar() {
   const isPartnerUser = profile?.is_hq !== true;
 
   const canSee = (url: string) => {
+    if(url === '/customer-explorer')return profile?.is_active === true && !explorerAccess.isError && explorerAccess.data?.read===true;
     if (url === "/academy/analytics") {
       return isAdmin || academyAnalyticsPerms?.academy_analytics_view === true;
     }

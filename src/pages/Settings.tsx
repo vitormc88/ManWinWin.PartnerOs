@@ -6,6 +6,13 @@ import { cn } from "@/lib/utils";
 
 const sections = [
   {
+    to: "/settings/customer-explorer",
+    title: "Customer Explorer",
+    description: "Directory availability, pilot accounts and synchronization recovery.",
+    icon: ShieldCheck,
+    comingSoon: false,
+  },
+  {
     to: "/settings/general",
     title: "General Settings",
     description: "Workspace preferences and defaults.",

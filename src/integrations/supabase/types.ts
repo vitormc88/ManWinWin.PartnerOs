@@ -14,6 +14,261 @@ export type Database = {
   }
   public: {
     Tables: {
+      _backup_dasstec_partnerd_import_20260804: {
+        Row: {
+          aging_days: number | null
+          asset_range: string | null
+          assigned_salesperson: string | null
+          assigned_user_id: string | null
+          client_id: string | null
+          company_name: string | null
+          contact_email: string | null
+          contact_person_name: string | null
+          contact_phone: string | null
+          country: string | null
+          created_at: string | null
+          description: string | null
+          expected_close_date: string | null
+          expected_value: number | null
+          id: string | null
+          industry: string | null
+          job_role: string | null
+          last_activity_at: string | null
+          lead_source: string | null
+          lost_at: string | null
+          maintenance_team_size: string | null
+          notes: string | null
+          num_assets: number | null
+          num_maintenance_team: number | null
+          partner_id: string | null
+          probability: number | null
+          register_date: string | null
+          sector: string | null
+          stage: string | null
+          stage_entered_at: string | null
+          status: string | null
+          status_changed_at: string | null
+          total_value: number | null
+          updated_at: string | null
+          won_at: string | null
+        }
+        Insert: {
+          aging_days?: number | null
+          asset_range?: string | null
+          assigned_salesperson?: string | null
+          assigned_user_id?: string | null
+          client_id?: string | null
+          company_name?: string | null
+          contact_email?: string | null
+          contact_person_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          expected_value?: number | null
+          id?: string | null
+          industry?: string | null
+          job_role?: string | null
+          last_activity_at?: string | null
+          lead_source?: string | null
+          lost_at?: string | null
+          maintenance_team_size?: string | null
+          notes?: string | null
+          num_assets?: number | null
+          num_maintenance_team?: number | null
+          partner_id?: string | null
+          probability?: number | null
+          register_date?: string | null
+          sector?: string | null
+          stage?: string | null
+          stage_entered_at?: string | null
+          status?: string | null
+          status_changed_at?: string | null
+          total_value?: number | null
+          updated_at?: string | null
+          won_at?: string | null
+        }
+        Update: {
+          aging_days?: number | null
+          asset_range?: string | null
+          assigned_salesperson?: string | null
+          assigned_user_id?: string | null
+          client_id?: string | null
+          company_name?: string | null
+          contact_email?: string | null
+          contact_person_name?: string | null
+          contact_phone?: string | null
+          country?: string | null
+          created_at?: string | null
+          description?: string | null
+          expected_close_date?: string | null
+          expected_value?: number | null
+          id?: string | null
+          industry?: string | null
+          job_role?: string | null
+          last_activity_at?: string | null
+          lead_source?: string | null
+          lost_at?: string | null
+          maintenance_team_size?: string | null
+          notes?: string | null
+          num_assets?: number | null
+          num_maintenance_team?: number | null
+          partner_id?: string | null
+          probability?: number | null
+          register_date?: string | null
+          sector?: string | null
+          stage?: string | null
+          stage_entered_at?: string | null
+          status?: string | null
+          status_changed_at?: string | null
+          total_value?: number | null
+          updated_at?: string | null
+          won_at?: string | null
+        }
+        Relationships: []
+      }
+      _backup_partner_revenue_pre_20260804: {
+        Row: {
+          backed_up_at: string | null
+          company_name: string | null
+          id: string | null
+          revenue_ytd: number | null
+          total_revenue: number | null
+        }
+        Insert: {
+          backed_up_at?: string | null
+          company_name?: string | null
+          id?: string | null
+          revenue_ytd?: number | null
+          total_revenue?: number | null
+        }
+        Update: {
+          backed_up_at?: string | null
+          company_name?: string | null
+          id?: string | null
+          revenue_ytd?: number | null
+          total_revenue?: number | null
+        }
+        Relationships: []
+      }
+      _backup_partners_pre_notion_20260730: {
+        Row: {
+          account_owner_id: string | null
+          alert_notice_days: number | null
+          assigned_manager_id: string | null
+          company_name: string | null
+          country: string | null
+          created_at: string | null
+          created_by: string | null
+          health_score: number | null
+          id: string | null
+          is_active: boolean | null
+          last_meeting_date: string | null
+          legal_name: string | null
+          meeting_cadence: string | null
+          next_meeting_date: string | null
+          notes: string | null
+          number_of_clients: number | null
+          onboarding_status: string | null
+          partner_code: string | null
+          partner_type: string | null
+          partnership_level: string | null
+          phone: string | null
+          pipeline_value: number | null
+          primary_contact_email: string | null
+          primary_contact_name: string | null
+          region: string | null
+          relationship_status: string | null
+          revenue_ytd: number | null
+          start_date: string | null
+          status: string | null
+          tier_id: number | null
+          total_revenue: number | null
+          updated_at: string | null
+          updated_by: string | null
+          uses_manwinwin_database: boolean | null
+          uses_own_database: boolean | null
+          website: string | null
+        }
+        Insert: {
+          account_owner_id?: string | null
+          alert_notice_days?: number | null
+          assigned_manager_id?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          health_score?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          last_meeting_date?: string | null
+          legal_name?: string | null
+          meeting_cadence?: string | null
+          next_meeting_date?: string | null
+          notes?: string | null
+          number_of_clients?: number | null
+          onboarding_status?: string | null
+          partner_code?: string | null
+          partner_type?: string | null
+          partnership_level?: string | null
+          phone?: string | null
+          pipeline_value?: number | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          region?: string | null
+          relationship_status?: string | null
+          revenue_ytd?: number | null
+          start_date?: string | null
+          status?: string | null
+          tier_id?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          uses_manwinwin_database?: boolean | null
+          uses_own_database?: boolean | null
+          website?: string | null
+        }
+        Update: {
+          account_owner_id?: string | null
+          alert_notice_days?: number | null
+          assigned_manager_id?: string | null
+          company_name?: string | null
+          country?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          health_score?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          last_meeting_date?: string | null
+          legal_name?: string | null
+          meeting_cadence?: string | null
+          next_meeting_date?: string | null
+          notes?: string | null
+          number_of_clients?: number | null
+          onboarding_status?: string | null
+          partner_code?: string | null
+          partner_type?: string | null
+          partnership_level?: string | null
+          phone?: string | null
+          pipeline_value?: number | null
+          primary_contact_email?: string | null
+          primary_contact_name?: string | null
+          region?: string | null
+          relationship_status?: string | null
+          revenue_ytd?: number | null
+          start_date?: string | null
+          status?: string | null
+          tier_id?: number | null
+          total_revenue?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          uses_manwinwin_database?: boolean | null
+          uses_own_database?: boolean | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       _backup_partners_v1: {
         Row: {
           account_owner_id: string | null
@@ -224,6 +479,33 @@ export type Database = {
           id?: string | null
           role?: Database["public"]["Enums"]["app_role"] | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      _backup_watsons_pilot_20260730: {
+        Row: {
+          batch_id: string
+          captured_at: string
+          entity_type: string
+          id: string
+          row_data: Json
+          source_row_id: string | null
+        }
+        Insert: {
+          batch_id: string
+          captured_at?: string
+          entity_type: string
+          id?: string
+          row_data: Json
+          source_row_id?: string | null
+        }
+        Update: {
+          batch_id?: string
+          captured_at?: string
+          entity_type?: string
+          id?: string
+          row_data?: Json
+          source_row_id?: string | null
         }
         Relationships: []
       }
@@ -1281,6 +1563,13 @@ export type Database = {
             foreignKeyName: "announcements_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "announcements_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -1508,6 +1797,7 @@ export type Database = {
           client_id: string
           contract_id: string | null
           created_at: string
+          created_by: string | null
           currency: string
           id: string
           notes: string | null
@@ -1517,7 +1807,8 @@ export type Database = {
           revenue_date: string
           revenue_type: string
           source: string
-          source_reference: string | null
+          source_deal_id: string | null
+          source_reference: string
           updated_at: string
         }
         Insert: {
@@ -1525,6 +1816,7 @@ export type Database = {
           client_id: string
           contract_id?: string | null
           created_at?: string
+          created_by?: string | null
           currency?: string
           id?: string
           notes?: string | null
@@ -1534,7 +1826,8 @@ export type Database = {
           revenue_date: string
           revenue_type: string
           source?: string
-          source_reference?: string | null
+          source_deal_id?: string | null
+          source_reference: string
           updated_at?: string
         }
         Update: {
@@ -1542,6 +1835,7 @@ export type Database = {
           client_id?: string
           contract_id?: string | null
           created_at?: string
+          created_by?: string | null
           currency?: string
           id?: string
           notes?: string | null
@@ -1551,7 +1845,8 @@ export type Database = {
           revenue_date?: string
           revenue_type?: string
           source?: string
-          source_reference?: string | null
+          source_deal_id?: string | null
+          source_reference?: string
           updated_at?: string
         }
         Relationships: [
@@ -1574,6 +1869,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
             referencedColumns: ["partner_id"]
           },
           {
@@ -1603,6 +1905,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "renewals"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_deal_reconciliation"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_outcomes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_source_deal_id_fkey"
+            columns: ["source_deal_id"]
+            isOneToOne: false
+            referencedRelation: "v_deal_ownership_status"
+            referencedColumns: ["deal_id"]
           },
         ]
       }
@@ -1781,6 +2111,13 @@ export type Database = {
             columns: ["partner_uuid"]
             isOneToOne: false
             referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "clients_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
             referencedColumns: ["partner_id"]
           },
           {
@@ -2167,6 +2504,305 @@ export type Database = {
           },
         ]
       }
+      customer_explorer_audit: {
+        Row: {
+          action: string
+          actor: string | null
+          after_data: Json | null
+          before_data: Json | null
+          id: number
+          occurred_at: string
+          record_id: string
+          source_table: string
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          id?: never
+          occurred_at?: string
+          record_id: string
+          source_table: string
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          after_data?: Json | null
+          before_data?: Json | null
+          id?: never
+          occurred_at?: string
+          record_id?: string
+          source_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_explorer_audit_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_audit_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_audit_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      customer_explorer_directory: {
+        Row: {
+          active: boolean | null
+          client_id: string
+          client_key: string
+          contact_email: string | null
+          contact_name: string
+          country: string | null
+          evidence_note: string | null
+          evidence_status: string
+          id: string
+          name: string
+          partner: string
+          sector: string | null
+          source_id: string
+          source_kind: string
+          synced_at: string
+          validated_at: string | null
+          validated_by: string | null
+          visible: boolean
+        }
+        Insert: {
+          active?: boolean | null
+          client_id: string
+          client_key: string
+          contact_email?: string | null
+          contact_name: string
+          country?: string | null
+          evidence_note?: string | null
+          evidence_status: string
+          id: string
+          name: string
+          partner: string
+          sector?: string | null
+          source_id: string
+          source_kind: string
+          synced_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          visible: boolean
+        }
+        Update: {
+          active?: boolean | null
+          client_id?: string
+          client_key?: string
+          contact_email?: string | null
+          contact_name?: string
+          country?: string | null
+          evidence_note?: string | null
+          evidence_status?: string
+          id?: string
+          name?: string
+          partner?: string
+          sector?: string | null
+          source_id?: string
+          source_kind?: string
+          synced_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          visible?: boolean
+        }
+        Relationships: []
+      }
+      customer_explorer_hq: {
+        Row: {
+          active: boolean | null
+          client_id: string
+          client_key: string | null
+          country: string
+          evidence_note: string | null
+          evidence_status: string
+          id: string
+          name: string
+          sector: string | null
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+          visible: boolean
+        }
+        Insert: {
+          active?: boolean | null
+          client_id: string
+          client_key?: string | null
+          country: string
+          evidence_note?: string | null
+          evidence_status?: string
+          id?: string
+          name: string
+          sector?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          visible?: boolean
+        }
+        Update: {
+          active?: boolean | null
+          client_id?: string
+          client_key?: string | null
+          country?: string
+          evidence_note?: string | null
+          evidence_status?: string
+          id?: string
+          name?: string
+          sector?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_explorer_hq_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_hq_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_hq_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      customer_explorer_media: {
+        Row: {
+          case_study: Json | null
+          client_key: string
+          logo_dark: boolean
+          logo_path: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          case_study?: Json | null
+          client_key: string
+          logo_dark?: boolean
+          logo_path?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          case_study?: Json | null
+          client_key?: string
+          logo_dark?: boolean
+          logo_path?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_explorer_media_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_media_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_media_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      customer_explorer_overrides: {
+        Row: {
+          client_id: string
+          evidence_note: string | null
+          evidence_status: string
+          sector: string | null
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+          visible: boolean
+        }
+        Insert: {
+          client_id: string
+          evidence_note?: string | null
+          evidence_status?: string
+          sector?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          visible?: boolean
+        }
+        Update: {
+          client_id?: string
+          evidence_note?: string | null
+          evidence_status?: string
+          sector?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          visible?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_explorer_overrides_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: true
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_overrides_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_overrides_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "customer_explorer_overrides_validated_by_fkey"
+            columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       deal_activities: {
         Row: {
           activity_date: string | null
@@ -2174,18 +2810,13 @@ export type Database = {
           created_at: string
           deal_id: string
           description: string | null
-          external_note_id: string | null
           id: string
           linked_proposal_id: string | null
           linked_task_id: string | null
           participants: string[] | null
           performed_by: string | null
           performed_by_user_id: string | null
-          source_created_at: string | null
-          source_system: string | null
-          source_updated_at: string | null
           subject: string | null
-          sync_read_only: boolean
           tags: string[] | null
         }
         Insert: {
@@ -2194,18 +2825,13 @@ export type Database = {
           created_at?: string
           deal_id: string
           description?: string | null
-          external_note_id?: string | null
           id?: string
           linked_proposal_id?: string | null
           linked_task_id?: string | null
           participants?: string[] | null
           performed_by?: string | null
           performed_by_user_id?: string | null
-          source_created_at?: string | null
-          source_system?: string | null
-          source_updated_at?: string | null
           subject?: string | null
-          sync_read_only?: boolean
           tags?: string[] | null
         }
         Update: {
@@ -2214,18 +2840,13 @@ export type Database = {
           created_at?: string
           deal_id?: string
           description?: string | null
-          external_note_id?: string | null
           id?: string
           linked_proposal_id?: string | null
           linked_task_id?: string | null
           participants?: string[] | null
           performed_by?: string | null
           performed_by_user_id?: string | null
-          source_created_at?: string | null
-          source_system?: string | null
-          source_updated_at?: string | null
           subject?: string | null
-          sync_read_only?: boolean
           tags?: string[] | null
         }
         Relationships: [
@@ -2286,45 +2907,33 @@ export type Database = {
           created_at: string
           deal_id: string
           email: string | null
-          external_contact_id: string | null
           id: string
           is_decision_maker: boolean | null
           notes: string | null
           phone: string | null
           role: string | null
-          source_system: string | null
-          source_updated_at: string | null
-          sync_read_only: boolean
         }
         Insert: {
           contact_name: string
           created_at?: string
           deal_id: string
           email?: string | null
-          external_contact_id?: string | null
           id?: string
           is_decision_maker?: boolean | null
           notes?: string | null
           phone?: string | null
           role?: string | null
-          source_system?: string | null
-          source_updated_at?: string | null
-          sync_read_only?: boolean
         }
         Update: {
           contact_name?: string
           created_at?: string
           deal_id?: string
           email?: string | null
-          external_contact_id?: string | null
           id?: string
           is_decision_maker?: boolean | null
           notes?: string | null
           phone?: string | null
           role?: string | null
-          source_system?: string | null
-          source_updated_at?: string | null
-          sync_read_only?: boolean
         }
         Relationships: [
           {
@@ -2549,9 +3158,6 @@ export type Database = {
           description: string | null
           expected_close_date: string | null
           expected_value: number | null
-          external_opportunity_id: string | null
-          external_stage_id: string | null
-          external_stage_name: string | null
           id: string
           industry: string | null
           job_role: string | null
@@ -2566,15 +3172,10 @@ export type Database = {
           probability: number | null
           register_date: string | null
           sector: string | null
-          source_owner_id: string | null
-          source_synced_at: string | null
-          source_system: string | null
-          source_updated_at: string | null
           stage: string
           stage_entered_at: string | null
           status: string
           status_changed_at: string | null
-          sync_read_only: boolean
           total_value: number | null
           updated_at: string
           won_at: string | null
@@ -2594,9 +3195,6 @@ export type Database = {
           description?: string | null
           expected_close_date?: string | null
           expected_value?: number | null
-          external_opportunity_id?: string | null
-          external_stage_id?: string | null
-          external_stage_name?: string | null
           id?: string
           industry?: string | null
           job_role?: string | null
@@ -2611,15 +3209,10 @@ export type Database = {
           probability?: number | null
           register_date?: string | null
           sector?: string | null
-          source_owner_id?: string | null
-          source_synced_at?: string | null
-          source_system?: string | null
-          source_updated_at?: string | null
           stage?: string
           stage_entered_at?: string | null
           status?: string
           status_changed_at?: string | null
-          sync_read_only?: boolean
           total_value?: number | null
           updated_at?: string
           won_at?: string | null
@@ -2639,9 +3232,6 @@ export type Database = {
           description?: string | null
           expected_close_date?: string | null
           expected_value?: number | null
-          external_opportunity_id?: string | null
-          external_stage_id?: string | null
-          external_stage_name?: string | null
           id?: string
           industry?: string | null
           job_role?: string | null
@@ -2656,15 +3246,10 @@ export type Database = {
           probability?: number | null
           register_date?: string | null
           sector?: string | null
-          source_owner_id?: string | null
-          source_synced_at?: string | null
-          source_system?: string | null
-          source_updated_at?: string | null
           stage?: string
           stage_entered_at?: string | null
           status?: string
           status_changed_at?: string | null
-          sync_read_only?: boolean
           total_value?: number | null
           updated_at?: string
           won_at?: string | null
@@ -3027,6 +3612,13 @@ export type Database = {
             foreignKeyName: "documents_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "documents_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -3311,6 +3903,13 @@ export type Database = {
             columns: ["linked_partner_id"]
             isOneToOne: false
             referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "incoming_leads_linked_partner_id_fkey"
+            columns: ["linked_partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
             referencedColumns: ["partner_id"]
           },
           {
@@ -4203,6 +4802,59 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_discount_limits: {
+        Row: {
+          created_at: string
+          max_services_discount_pct: number | null
+          max_software_discount_pct: number | null
+          partner_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          max_services_discount_pct?: number | null
+          max_software_discount_pct?: number | null
+          partner_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          max_services_discount_pct?: number | null
+          max_software_discount_pct?: number | null
+          partner_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_discount_limits_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: true
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_discount_limits_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: true
+            referencedRelation: "partner_revenue_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_discount_limits_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: true
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_discount_limits_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: true
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+        ]
+      }
       partner_health_scores: {
         Row: {
           activity_score: number | null
@@ -4354,6 +5006,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_notes_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
             referencedColumns: ["partner_id"]
           },
           {
@@ -4940,6 +5599,13 @@ export type Database = {
             foreignKeyName: "profiles_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -5462,6 +6128,13 @@ export type Database = {
             foreignKeyName: "proposals_partner_uuid_fkey"
             columns: ["partner_uuid"]
             isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "proposals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -5524,7 +6197,6 @@ export type Database = {
       }
       renewals: {
         Row: {
-          superseded_by_renewal_id: string | null
           alert_window_days: number | null
           assigned_owner: string | null
           assigned_user_id: string | null
@@ -5562,12 +6234,12 @@ export type Database = {
           renewed_recurring_value: number | null
           source_proposal_id: string | null
           status: string
+          superseded_by_renewal_id: string | null
           target_id: string | null
           target_type: string | null
           updated_at: string
         }
         Insert: {
-          superseded_by_renewal_id?: string | null
           alert_window_days?: number | null
           assigned_owner?: string | null
           assigned_user_id?: string | null
@@ -5605,12 +6277,12 @@ export type Database = {
           renewed_recurring_value?: number | null
           source_proposal_id?: string | null
           status?: string
+          superseded_by_renewal_id?: string | null
           target_id?: string | null
           target_type?: string | null
           updated_at?: string
         }
         Update: {
-          superseded_by_renewal_id?: string | null
           alert_window_days?: number | null
           assigned_owner?: string | null
           assigned_user_id?: string | null
@@ -5648,6 +6320,7 @@ export type Database = {
           renewed_recurring_value?: number | null
           source_proposal_id?: string | null
           status?: string
+          superseded_by_renewal_id?: string | null
           target_id?: string | null
           target_type?: string | null
           updated_at?: string
@@ -5713,6 +6386,13 @@ export type Database = {
             foreignKeyName: "renewals_partner_uuid_fkey"
             columns: ["partner_uuid"]
             isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "renewals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -5722,6 +6402,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_analytics_partner_summary"
             referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "renewals_superseded_by_renewal_id_fkey"
+            columns: ["superseded_by_renewal_id"]
+            isOneToOne: false
+            referencedRelation: "renewals"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -6138,6 +6825,13 @@ export type Database = {
             foreignKeyName: "target_accounts_partner_uuid_fkey"
             columns: ["partner_uuid"]
             isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "target_accounts_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
             referencedRelation: "partners"
             referencedColumns: ["id"]
           },
@@ -6412,6 +7106,16 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_revenue_summary: {
+        Row: {
+          latest_revenue_date: string | null
+          partner_id: string | null
+          revenue_entry_count: number | null
+          revenue_ytd: number | null
+          total_revenue: number | null
+        }
+        Relationships: []
+      }
       unified_tasks: {
         Row: {
           company_name: string | null
@@ -6488,6 +7192,62 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
         ]
+      }
+      v_analytics_historical_revenue_by_country: {
+        Row: {
+          client_count: number | null
+          country: string | null
+          revenue: number | null
+        }
+        Relationships: []
+      }
+      v_analytics_historical_revenue_by_partner: {
+        Row: {
+          company_name: string | null
+          lifetime_revenue: number | null
+          partner_id: string | null
+          revenue_entry_count: number | null
+          revenue_ytd: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+        ]
+      }
+      v_analytics_historical_revenue_monthly: {
+        Row: {
+          month_key: string | null
+          month_label: string | null
+          revenue: number | null
+          revenue_entry_count: number | null
+        }
+        Relationships: []
       }
       v_analytics_outcomes: {
         Row: {
@@ -6588,6 +7348,18 @@ export type Database = {
         }
         Relationships: []
       }
+      v_analytics_revenue_summary: {
+        Row: {
+          clients_with_revenue: number | null
+          lifetime_revenue: number | null
+          nb_ytd: number | null
+          other_ytd: number | null
+          renewals_ytd: number | null
+          revenue_entry_count: number | null
+          revenue_ytd: number | null
+        }
+        Relationships: []
+      }
       v_analytics_sales_by_user: {
         Row: {
           is_active: boolean | null
@@ -6608,6 +7380,13 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "profiles_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
             referencedColumns: ["partner_id"]
           },
           {
@@ -6645,6 +7424,9 @@ export type Database = {
         Row: {
           clients_with_revenue: number | null
           lifetime_revenue: number | null
+          nb_ytd: number | null
+          other_ytd: number | null
+          renewals_ytd: number | null
           revenue_entry_count: number | null
           revenue_ytd: number | null
         }
@@ -6708,6 +7490,13 @@ export type Database = {
             columns: ["partner_uuid"]
             isOneToOne: false
             referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "client_revenue_history_partner_id_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partner_revenue_summary"
             referencedColumns: ["partner_id"]
           },
           {
@@ -6963,11 +7752,24 @@ export type Database = {
         }
         Returns: Json
       }
+      convert_target_account_to_lead: {
+        Args: { _account_id: string; _notes?: string }
+        Returns: string
+      }
+      customer_explorer_access: { Args: never; Returns: Json }
+      customer_explorer_configure: {
+        Args: { new_mode: string; pilot_ids?: string[] }
+        Returns: Json
+      }
+      customer_explorer_save_hq_batch: {
+        Args: { items: Json }
+        Returns: number
+      }
+      customer_explorer_settings: { Args: never; Returns: Json }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
-      email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
@@ -7135,13 +7937,9 @@ export type Database = {
       notify_license_expiry: { Args: { _dry_run?: boolean }; Returns: Json }
       notify_overdue_tasks: { Args: { _dry_run?: boolean }; Returns: Json }
       pipeline_stage_probability: { Args: { _stage: string }; Returns: number }
-      preview_sharpspring_opportunity_sync: {
-        Args: {
-          payload: Json
-          target_partner_id?: string
-          target_user_id?: string
-        }
-        Returns: Json
+      promote_lead_to_deal: {
+        Args: { _deal: Json; _lead_id: string; _override?: Json }
+        Returns: string
       }
       proposal_contract_recurring: {
         Args: { _proposal_id: string }

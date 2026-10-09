@@ -46,6 +46,7 @@ export function useSaveRoleTemplate() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["role-permission-templates"] });
+      qc.invalidateQueries({ queryKey: ["customer-explorer-access"] });
       qc.invalidateQueries({ queryKey: ["my-effective-permissions"] });
       qc.invalidateQueries({ queryKey: ["effective-permissions"] });
       toast.success("Role template saved");
@@ -66,6 +67,7 @@ export function useApplyRoleTemplate() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-effective-permissions"] });
+      qc.invalidateQueries({ queryKey: ["customer-explorer-access"] });
       qc.invalidateQueries({ queryKey: ["effective-permissions"] });
       toast.success("Template applied to existing users");
     },
@@ -109,6 +111,7 @@ export function useResetUserToTemplate() {
       if (error) throw error;
     },
     onSuccess: (_d, userId) => {
+      qc.invalidateQueries({ queryKey: ["customer-explorer-access"] });
       qc.invalidateQueries({ queryKey: ["effective-permissions", userId] });
       qc.invalidateQueries({ queryKey: ["user-permissions", userId] });
       qc.invalidateQueries({ queryKey: ["my-effective-permissions"] });

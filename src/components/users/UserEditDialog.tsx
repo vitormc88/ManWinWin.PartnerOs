@@ -221,6 +221,7 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
                   <div key={key} className="flex items-center justify-between rounded-lg border p-3">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">{MODULE_LABELS[key]}</span>
+                      {key==='customer_explorer'&&<span className="text-[11px] text-muted-foreground">Availability also follows Explorer Settings. Directory editing is restricted to HQ Admin.</span>}
                       <span className="text-[11px] text-muted-foreground">
                         Inherited: <span className="capitalize">{inherited.replace("_", " ")}</span>
                       </span>
@@ -230,7 +231,7 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
                       <Select value={current} onValueChange={v => setPerms(prev => ({ ...prev, [key]: v }))}>
                         <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {ACCESS_LEVELS.map(a => (
+                          {ACCESS_LEVELS.filter(a=>key!=='customer_explorer'||!isPartnerRole||['no_access','view'].includes(a.value)).map(a => (
                             <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
                           ))}
                         </SelectContent>
