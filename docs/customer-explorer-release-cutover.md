@@ -34,4 +34,30 @@ The official PROD editor installed all seven migrations and their matching CLI-g
 
 Generated Supabase types from the actual PROD schema and refreshed the generated local type file. Typecheck passed. These SQL role checks do not replace the final authenticated production-browser verification.
 
-No frontend commit/push/merge/publication has occurred yet. Initial logo transfers and authenticated PROD HQ browser verification remain. Do not merge old draft PR10 as the release artifact. The obsolete generated binary bun.lockb was removed locally in favour of the validated modern bun.lock; it remains recoverable through Git.
+Frontend publication COMPLETED: release commit `957ad915e19188cf7722c1b62529722e2981faff`, PR11 https://github.com/vitormc88/ManWinWin.PartnerOs/pull/11 (attached), merged as `ffce1c31e89f91245f162ac75d00035f041e7816`. Vercel reported success for both preview and the production merge commit. Production URL https://partneros.manwinwin.com/customer-explorer changed from the old 404 to the new protected login flow after publication; it redirects to /auth without a session. Awaiting the user's authenticated HQ PROD login for final map/administration verification and initial logo transfers. Do not claim authenticated page verification or logo migration complete yet. Old draft PR10 remains unmerged and is not the release artifact.
+
+Final frontend gate: 50 tests in nine canonical source suites passed, with TypeScript check passed. An earlier local run also picked up 27 duplicate suites copied into ignored build contexts; Vite denied those private paths, so that run failed despite all 50 genuine tests passing. Restricted the ignored fallback test config's include to canonical src tests (matching the tracked production Vitest config), then reran successfully. No production code workaround.
+
+Security advisors returned one Explorer-specific informational notice: private.customer_explorer_rollout has RLS but no policies. This is intentional default denial; authenticated/anonymous grants are revoked and only guarded HQ functions manage it. Reference: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy. Other existing application notices were not changed by this release.
+
+The obsolete generated binary bun.lockb was removed in favour of the validated modern bun.lock; it remains recoverable through Git. Private seed, backup and credential were excluded from the 119-file release commit. Screenshot of final PROD database reconciliation: ignored `.customer-explorer-preview/prod-database-installed.png`.
+
+## Authenticated PROD verification and media transfer
+
+The user signed in as the existing active HQ Admin. The production browser verified all 435 customers in the management directory and map with historical customers included; the default map shows 406, excluding 29 historical records. The live map reports 53 represented countries. Country/sector rankings and the five curated case-study cards work. All five case-study logos loaded successfully from private Storage.
+
+Settings displays HQ only. User Management exposes Customer Explorer with inherited Admin access for the HQ Admin and explicitly states that availability follows Explorer Settings and editing is restricted to HQ Admin. Neither settings nor user permissions were changed during this check.
+
+Transferred the prototype's 50 raster logos via the authenticated HQ media editor, with canonical numeric IDs and fresh row checks. Most upstream files named .png are actually WebP: copied their unchanged bytes into ignored upload-ready files with the correct extension; did not weaken MIME/signature validation. Aveleda's SVG remains pending a supported raster asset; SVG was not enabled in private Storage.
+
+Detected one pre-existing prototype mapping defect during transfer: CARMONTI's logo was mapped to 0662 (JDEUS) instead of 0661 (CARMONTI). The correct 0661 logo is now saved. Automatic browser review blocked unlinking the newly created incorrect 0662 association, and explicit user approval was requested. Until approved and verified, there are 51 linked logos (50 correct plus this one incorrect association); no customer or underlying file has been deleted. Do not declare this correction complete or open partner access while it remains pending.
+
+Screenshots retained privately: `.customer-explorer-preview/prod-case-studies-verified.png` and `.customer-explorer-preview/prod-explorer-live.png`. Frontend and database deployment are complete; only the specifically requested incorrect-logo unlink and optional unsupported SVG asset remain pending.
+
+## Partner release and correction completed
+
+The user explicitly confirmed at action time both opening read access to all eligible PROD partners and unlinking the incorrect CARMONTI logo from 0662 (JDEUS). Both changes were made through the authenticated HQ production interface. JDEUS now displays the no-logo fallback; CARMONTI 0661 keeps its correct logo. No client or stored file was deleted.
+
+Independent database verification: rollout `all`, 435 customers, 50 linked logos, five case studies, 51 retained private logo files. A BEGIN/ROLLBACK verification of all active partner profile identities confirmed 14 accounts with read access, zero unexpectedly restricted accounts and zero partner accounts with management access. Existing per-user permission, active-partner and account-status gates remain in force. No role or individual permission was overridden.
+
+Production Settings visibly reports All eligible partners and the successful saved-state message. Screenshot: `.customer-explorer-preview/prod-partners-enabled.png`. This section supersedes the earlier pending-logo and HQ-only rollout statements. Aveleda's optional SVG-to-supported-raster asset remains pending. Mixed raw country labels in the HQ manager were diagnosed (legacy partner sources); no source-country records or presentation code were changed as part of this activation.
