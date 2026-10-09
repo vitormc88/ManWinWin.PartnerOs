@@ -5,6 +5,37 @@ import {
   resolveDealProbability,
 } from "@/data/pipeline-stages";
 import { healthBand } from "./partner-health-config";
+import type { UnifiedTask } from "@/hooks/useTasks";
+
+// Group only an identical renewal cycle; unrelated manual work remains separate.
+export function dashboardActions(tasks: UnifiedTask[]) {
+  const rank: Record<string, number> = {
+    Critical: 0,
+    High: 1,
+    Medium: 2,
+    Low: 3,
+  };
+  const compare = (a: UnifiedTask, b: UnifiedTask) =>
+    (rank[a.priority] ?? 4) - (rank[b.priority] ?? 4) ||
+    (a.due_date ? Date.parse(a.due_date) : Infinity) -
+      (b.due_date ? Date.parse(b.due_date) : Infinity) ||
+    b.priority_score - a.priority_score ||
+    a.id.localeCompare(b.id);
+  const groups = new Map<string, UnifiedTask[]>();
+  for (const task of tasks) {
+    const key =
+      task.related_type === "renewal" && task.related_entity_id
+        ? `renewal:${task.related_entity_id}`
+        : task.id;
+    groups.set(key, [...(groups.get(key) ?? []), task]);
+  }
+  return [...groups.values()]
+    .map((members) => {
+      members.sort(compare);
+      return { ...members[0], members };
+    })
+    .sort(compare);
+}
 
 export type Period = "ytd" | "year" | "q1" | "q2" | "q3" | "q4";
 export type RevenueEntry = {

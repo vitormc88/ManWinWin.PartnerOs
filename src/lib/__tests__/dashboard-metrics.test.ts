@@ -8,6 +8,7 @@ import {
   partnerHealthRows,
   atRiskHealth,
   pipelineForecast,
+  dashboardActions,
   type RevenueEntry,
 } from "../dashboard-metrics";
 const now = new Date(2026, 9, 9, 23);
@@ -150,5 +151,62 @@ describe("Dashboard commercial periods and operational truth", () => {
     expect(result.scheduledValue).toBe(200);
     expect(result.weighted).toBe(100);
     expect(result.missing.map((d) => d.id)).toEqual(["old"]);
+  });
+});
+
+describe("Dashboard action ranking and renewal grouping", () => {
+  const task = (id: string, extra: any = {}) =>
+    ({
+      id,
+      priority: "Critical",
+      priority_score: 100,
+      due_date: "2026-10-08",
+      related_type: "deal",
+      related_entity_id: id,
+      ...extra,
+    }) as any;
+  it("groups manual and automatic signals only for the same renewal and preserves every task", () => {
+    const rows = dashboardActions([
+      task("manual:decision", {
+        related_type: "renewal",
+        related_entity_id: "bps",
+        due_date: "2026-10-02",
+      }),
+      task("manual:overdue", {
+        related_type: "renewal",
+        related_entity_id: "bps",
+        priority_score: 120,
+      }),
+      task("renewal:bps", {
+        related_type: "renewal",
+        related_entity_id: "bps",
+        priority_score: 115,
+      }),
+      task("manual:other", {
+        related_type: "renewal",
+        related_entity_id: "other",
+      }),
+      task("manual:deal-one", { related_entity_id: "same-deal" }),
+      task("manual:deal-two", { related_entity_id: "same-deal" }),
+    ]);
+    expect(rows).toHaveLength(4);
+    expect(rows[0].id).toBe("manual:decision");
+    expect(rows[0].members).toHaveLength(3);
+  });
+  it("ranks by severity then deadline then score and keeps undated tasks last within severity", () => {
+    const rows = dashboardActions([
+      task("recent", { priority_score: 120 }),
+      task("old", { due_date: "2026-09-21", priority_score: 105 }),
+      task("low", { priority: "High", due_date: "2020-01-01" }),
+      task("undated", { due_date: null }),
+      task("tie", { priority_score: 130 }),
+    ]);
+    expect(rows.map((r) => r.id)).toEqual([
+      "old",
+      "tie",
+      "recent",
+      "undated",
+      "low",
+    ]);
   });
 });

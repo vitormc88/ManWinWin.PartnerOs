@@ -26,6 +26,7 @@ import {
   dashboardRenewals,
   partnerHealthRows,
   atRiskHealth,
+  dashboardActions,
   type Period,
 } from "@/lib/dashboard-metrics";
 import { formatMoney } from "@/lib/money";
@@ -95,7 +96,7 @@ export default function Dashboard() {
   // Scope is resolved on every render so an HQ filter cannot survive an identity switch.
   const scope = isHQ && showPartners ? partner : "all";
   const partners = partnersQ.data ?? [];
-  const clients = (showClients ? clientsQ.data ?? [] : []).filter((c) =>
+  const clients = (showClients ? (clientsQ.data ?? []) : []).filter((c) =>
     matchesPartnerFilter(c, scope),
   );
   const deals = (showPipeline ? (dealsQ.data ?? []) : []).filter((d) =>
@@ -121,14 +122,19 @@ export default function Dashboard() {
   const forecastBounds = periodBounds(year, period, now, false);
   const forecast = pipelineForecast(deals, forecastBounds);
   const clientMap = useMemo(
-    () => new Map((showClients ? clientsQ.data ?? [] : []).map((c) => [c.id, c])),
+    () =>
+      new Map((showClients ? (clientsQ.data ?? []) : []).map((c) => [c.id, c])),
     [clientsQ.data, showClients],
   );
   const renewalRows = dashboardRenewals(renewalsQ.data ?? [], now).filter((r) =>
-    matchesPartnerFilter({
-      partner_uuid: r.partner_uuid ?? clientMap.get(r.client_id)?.partner_uuid,
-      partner_id: r.partner_id ?? clientMap.get(r.client_id)?.partner_id,
-    }, scope),
+    matchesPartnerFilter(
+      {
+        partner_uuid:
+          r.partner_uuid ?? clientMap.get(r.client_id)?.partner_uuid,
+        partner_id: r.partner_id ?? clientMap.get(r.client_id)?.partner_id,
+      },
+      scope,
+    ),
   );
   const overdue = renewalRows.filter((r) => r.days !== null && r.days < 0);
   const soon = renewalRows.filter(
@@ -157,21 +163,25 @@ export default function Dashboard() {
       ? `${c.client_code} — ${c.short_name || c.commercial_name}`
       : "Open renewal details";
   };
-  const taskRows = (tasksQ.data ?? []).filter((t) => {
-    const route = t.related_route?.split("?")[0];
-    const module = route ? getRouteModule(route)?.moduleKey : null;
-    const sourceModule: Record<string, string> = {
-      manual: "tasks",
-      pipeline: "pipeline",
-      renewal: "renewals",
-      partner: "partners",
-      lead: "incoming_leads",
-      customer: "clients",
-      certification: "certifications",
-    };
-    const required = module || sourceModule[t.source];
-    return !!required && allow(required) && (scope === "all" || !showPartners);
-  });
+  const taskRows = dashboardActions(
+    (tasksQ.data ?? []).filter((t) => {
+      const route = t.related_route?.split("?")[0];
+      const module = route ? getRouteModule(route)?.moduleKey : null;
+      const sourceModule: Record<string, string> = {
+        manual: "tasks",
+        pipeline: "pipeline",
+        renewal: "renewals",
+        partner: "partners",
+        lead: "incoming_leads",
+        customer: "clients",
+        certification: "certifications",
+      };
+      const required = module || sourceModule[t.source];
+      return (
+        !!required && allow(required) && (scope === "all" || !showPartners)
+      );
+    }),
+  );
   const retryRevenue = () => {
     void revenueQ.refetch();
   };
@@ -192,14 +202,25 @@ export default function Dashboard() {
             : "Your results and next actions"}{" "}
           · {now.toLocaleDateString("en-GB")}
         </p>
-        <button className="text-xs text-primary underline mt-2" onClick={() => {
-          if(showClients) { void revenueQ.refetch(); void clientsQ.refetch(); }
-          if(showPipeline) void dealsQ.refetch();
-          if(showPartners) { void partnersQ.refetch(); void healthQ.refetch(); }
-          if(showRenewals) void renewalsQ.refetch();
-          if(showTasks) void tasksQ.refetch();
-          if(allow("notifications")) void notificationsQ.refetch();
-        }}>Refresh dashboard</button>
+        <button
+          className="text-xs text-foreground border rounded-md px-3 py-2 hover:bg-secondary mt-2"
+          onClick={() => {
+            if (showClients) {
+              void revenueQ.refetch();
+              void clientsQ.refetch();
+            }
+            if (showPipeline) void dealsQ.refetch();
+            if (showPartners) {
+              void partnersQ.refetch();
+              void healthQ.refetch();
+            }
+            if (showRenewals) void renewalsQ.refetch();
+            if (showTasks) void tasksQ.refetch();
+            if (allow("notifications")) void notificationsQ.refetch();
+          }}
+        >
+          Refresh dashboard
+        </button>
       </header>
       {accessLoading ? (
         <p aria-busy="true">Loading permissions…</p>
@@ -410,7 +431,9 @@ export default function Dashboard() {
           </Link>
         )}
         {showClients && (
-          <Link to={`/clients?dashboard=active${scope !== "all" ? `&partner=${scope}` : ""}`}>
+          <Link
+            to={`/clients?dashboard=active${scope !== "all" ? `&partner=${scope}` : ""}`}
+          >
             <KPICard
               title="Active Clients · current"
               value={String(
@@ -483,17 +506,33 @@ export default function Dashboard() {
               void dealsQ.refetch();
             }}
           >
-            <p>
-              {forecast.scheduled.length} currently open opportunities scheduled{" "}
-              {forecastBounds.start} to {forecastBounds.end} ·{" "}
-              {formatMoney(forecast.scheduledValue)} · weighted{" "}
-              {formatMoney(forecast.weighted)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Based on expected close dates and commercial probabilities. This
-              is a forecast of today's open opportunities, not past pipeline or
-              awarded revenue.
-            </p>
+            {forecast.open.length > 0 &&
+            forecast.missing.length === forecast.open.length ? (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                <p className="font-semibold">
+                  Forecast unavailable — expected close dates missing
+                </p>
+                <p className="text-sm mt-1">
+                  All {forecast.open.length} open opportunities lack a close
+                  date. Current pipeline: {formatMoney(forecast.total)}. No
+                  reliable period forecast can be calculated.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p>
+                  {forecast.scheduled.length} currently open opportunities
+                  scheduled {forecastBounds.start} to {forecastBounds.end} ·{" "}
+                  {formatMoney(forecast.scheduledValue)} · weighted{" "}
+                  {formatMoney(forecast.weighted)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Based on expected close dates and commercial probabilities.
+                  This is a forecast of today's open opportunities, not past
+                  pipeline or awarded revenue.
+                </p>
+              </>
+            )}
             {forecast.missing.length > 0 && (
               <Link
                 className="block text-amber-700 dark:text-amber-400 underline"
@@ -503,6 +542,13 @@ export default function Dashboard() {
                 close date — review
               </Link>
             )}
+            {forecast.missing.length > 0 &&
+              forecast.missing.length < forecast.open.length && (
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  Partial forecast: undated opportunities are excluded from the
+                  period values above.
+                </p>
+              )}
             {forecast.scheduled.slice(0, 5).map((d) => (
               <Link
                 className="block text-sm text-primary"
@@ -583,6 +629,10 @@ export default function Dashboard() {
             <h2 className="font-semibold">
               {isHQ ? "Team Next Actions" : "My Next Actions"}
             </h2>
+            <p className="text-xs text-muted-foreground">
+              Ordered by priority, then earliest due date, then score. Tasks for
+              the same renewal are grouped.
+            </p>
             <LoadState
               loading={tasksQ.isLoading}
               error={tasksQ.isError}
@@ -604,22 +654,47 @@ export default function Dashboard() {
                 <p>No open actions available in your accessible modules.</p>
               ) : (
                 taskRows.slice(0, 6).map((t) => (
-                  <Link
-                    key={t.id}
-                    className="block border-t pt-2 text-sm"
-                    to={`/tasks?view=${isHQ ? "team" : "my"}&task=${encodeURIComponent(t.id)}`}
-                  >
-                    <span className="font-medium">{t.title}</span>
-                    <p className="text-xs text-muted-foreground">
-                      {t.priority} · {t.due_date?.slice(0, 10) || "No due date"}
-                      {isHQ ? ` · ${t.owner_name || "Unassigned"}` : ""}
-                    </p>
-                  </Link>
+                  <div key={t.id} className="border-t pt-2 space-y-1">
+                    <Link
+                      className="block text-sm hover:underline"
+                      to={`/tasks?view=${isHQ ? "team" : "my"}&task=${encodeURIComponent(t.id)}`}
+                    >
+                      <span className="font-medium">{t.title}</span>
+                      <p className="text-xs text-muted-foreground">
+                        {t.priority} ·{" "}
+                        {t.due_date?.slice(0, 10) || "No due date"}
+                        {isHQ ? ` · ${t.owner_name || "Unassigned"}` : ""}
+                        {` · score ${t.priority_score}`}
+                      </p>
+                    </Link>
+                    {t.members.length > 1 && (
+                      <details className="text-xs text-muted-foreground">
+                        <summary className="cursor-pointer">
+                          {t.members.length} tasks for this renewal — view
+                          details
+                        </summary>
+                        <ul className="mt-2 space-y-2">
+                          {t.members.map((member) => (
+                            <li key={member.id}>
+                              <Link
+                                className="hover:underline"
+                                to={`/tasks?view=${isHQ ? "team" : "my"}&task=${encodeURIComponent(member.id)}`}
+                              >
+                                {member.title} ·{" "}
+                                {member.owner_name || "Unassigned"} ·{" "}
+                                {member.due_date?.slice(0, 10) || "No due date"}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
                 ))
               )}
             </LoadState>
             <Link
-              className="text-xs text-primary underline"
+              className="inline-block text-xs text-foreground border rounded-md px-3 py-2 hover:bg-secondary"
               to={`/tasks?view=${isHQ ? "team" : "my"}`}
             >
               View actions

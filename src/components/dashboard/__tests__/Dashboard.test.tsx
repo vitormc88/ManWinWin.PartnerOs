@@ -23,6 +23,7 @@ const state = vi.hoisted(() => ({
     },
   ] as any[],
   revenue: [] as any[],
+  tasks: [] as any[],
 }));
 const result = (data: any) => ({
   data,
@@ -100,7 +101,7 @@ vi.mock("@/hooks/useDashboard", () => ({
     spies.revenue(enabled);
     return result(state.revenue);
   },
-  useDashboardTasks: () => result([]),
+  useDashboardTasks: () => result(state.tasks),
   useDashboardPartnerName: () => result("Own Partner"),
 }));
 vi.mock("@/components/dashboard/RevenueChart", () => ({
@@ -126,6 +127,7 @@ beforeEach(() => {
     "announcements",
   ];
   state.revenue = [];
+  state.tasks = [];
   state.renewals = [
     {
       id: "closed",
@@ -212,6 +214,30 @@ describe("Dashboard role, error and filter behavior", () => {
     fireEvent.click(screen.getByRole("checkbox"));
     expect(
       screen.getByRole("option", { name: "Archived Partner (archived)" }),
+    ).toBeInTheDocument();
+  });
+  it("shows one BPS action with access to all three underlying tasks", () => {
+    state.tasks = ["decision", "overdue", "automatic"].map((id, index) => ({
+      id, title: `BPS ${id}`, source: index === 2 ? "renewal" : "manual",
+      related_type: "renewal", related_entity_id: "bps", related_route: "/renewals?renewal=bps",
+      priority: "Critical", priority_score: 120 - index,
+      due_date: index === 0 ? "2026-10-02" : "2026-10-08", owner_name: "George",
+    }));
+    mount();
+    expect(screen.getByText(/3 tasks for this renewal/)).toBeInTheDocument();
+    expect(screen.getByText(/3 tasks for this renewal/).closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText(/3 tasks for this renewal/).closest("details")?.querySelectorAll("a")).toHaveLength(3);
+    fireEvent.click(screen.getByText(/3 tasks for this renewal/));
+    expect(screen.getByRole("link", {name: /BPS overdue/})).toHaveAttribute("href", "/tasks?view=team&task=overdue");
+  });
+  it("does not present zero as a reliable forecast when all opportunities are undated", () => {
+    mount();
+    expect(screen.getByText(/Forecast unavailable/)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/currently open opportunities scheduled/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Ordered by priority, then earliest due date/),
     ).toBeInTheDocument();
   });
   it("links missing dates to the exact open undated pipeline filter", () => {
