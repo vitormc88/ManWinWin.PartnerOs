@@ -1,3 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { invalidateClientViews } from "@/lib/client-refresh";
+import { createClientWritePlan } from "@/lib/client-write-plan";
 // Sprint E.1 — Single-Flow Client Onboarding Wizard
 // One page, 5 steps, autosave to localStorage, no modals.
 import { useEffect, useMemo, useState } from "react";
@@ -173,6 +176,7 @@ function useCatalog(table: "modules_catalog" | "plugins_catalog") {
 // Component
 // ─────────────────────────────────────────────────────────────
 export default function ClientOnboardingWizard() {
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { isHQ, profile } = useAuth();
   const { canEdit, isLoading: permsLoading } = useModuleAccess();
@@ -239,6 +243,7 @@ export default function ClientOnboardingWizard() {
     if (submitting) return;
     setSubmitting(true);
     try {
+      const transaction = createClientWritePlan();
       const partnerId = userPartnerId || draft.client.partner_id || null;
       // Compose canonical license product label
       // Variant already carries the full canonical product label (e.g. "Business KeepIT").
@@ -246,7 +251,7 @@ export default function ClientOnboardingWizard() {
       const product = normalizeLicenseProduct(variant || draft.license.family).value || null;
       const licenseModel = normalizeLicenseModel(product);
       // 1. Client
-      const { data: client, error: cErr } = await supabase.from("clients").insert({
+      const { data: client, error: cErr } = await transaction.insert("clients", {
         client_code: draft.client.client_code.trim(),
         commercial_name: draft.client.commercial_name.trim(),
         short_name: draft.client.short_name?.trim() || null,
@@ -254,6 +259,7 @@ export default function ClientOnboardingWizard() {
         sector: draft.client.sector || null,
         ...buildPartnerCreatePayload(partnerId),
         license_type: product,
+        current_version: draft.license.version?.trim() || null,
         cloud_onpremise: draft.license.deployment_type || null,
         phone: draft.client.phone?.trim() || null,
         email: draft.client.email?.trim() || null,
@@ -264,7 +270,7 @@ export default function ClientOnboardingWizard() {
         status: draft.client.status || "Active",
         address: draft.client.address || null,
         observations: [draft.client.vat ? `VAT: ${draft.client.vat}` : "", draft.client.notes].filter(Boolean).join("\n") || null,
-      } as any).select().single();
+      } as any);
       if (cErr) throw cErr;
 
       // 2. Contacts
@@ -286,12 +292,12 @@ export default function ClientOnboardingWizard() {
           else { c.is_primary = false; }
         });
         if (!primarySet) contactsPayload[0].is_primary = true;
-        const { error: ctErr } = await supabase.from("client_contacts").insert(contactsPayload as any);
+        const { error: ctErr } = await transaction.insert("client_contacts", contactsPayload as any);
         if (ctErr) throw ctErr;
       }
 
       // 3. License — populate every field expected by the Licensing tab & Commercial Intelligence
-      const { data: license, error: lErr } = await supabase.from("licenses").insert({
+      const { data: license, error: lErr } = await transaction.insert("licenses", {
         client_id: client.id,
         product,
         edition: variant ? getVariantLabel(variant) : null,
@@ -315,7 +321,7 @@ export default function ClientOnboardingWizard() {
         periodicity: draft.contract.billing_frequency,
         contract_value: draft.contract.contract_value || 0,
         recurring_contract_value: draft.contract.contract_value || 0,
-      } as any).select().single();
+      } as any);
       if (lErr) throw lErr;
 
       // 4. Modules + plugins → licensed_modules
@@ -330,12 +336,12 @@ export default function ClientOnboardingWizard() {
         }),
       ].filter(Boolean) as any[];
       if (modulesPayload.length) {
-        const { error: mErr } = await supabase.from("licensed_modules").insert(modulesPayload);
+        const { error: mErr } = await transaction.insert("licensed_modules", modulesPayload);
         if (mErr) throw mErr;
       }
 
       // 5. Contract (manual_legacy)
-      const { data: contract, error: kErr } = await supabase.from("contracts").insert({
+      const { data: contract, error: kErr } = await transaction.insert("contracts", {
         client_id: client.id,
         contract_start_date: draft.contract.start_date || null,
         contract_end_date: draft.contract.renewal_date || null,
@@ -346,12 +352,12 @@ export default function ClientOnboardingWizard() {
         billing_notes: null,
         contract_mode: "manual_legacy",
         is_imported: false,
-      } as any).select().single();
+      } as any);
       if (kErr) throw kErr;
 
       // 6. Recurring contract line
       if (draft.contract.contract_value > 0) {
-        await supabase.from("contract_lines" as any).insert({
+        await transaction.insert("contract_lines", {
           contract_id: contract.id,
           client_id: client.id,
           line_type: "license",
@@ -366,20 +372,24 @@ export default function ClientOnboardingWizard() {
       }
 
       // 7. Annual renewal
-      await supabase.from("renewals").insert({
+      await transaction.insert("renewals", {
         client_id: client.id,
         ...buildPartnerCreatePayload(partnerId),
         contract_id: contract.id,
         license_id: license.id,
         renewal_type: "Contract",
         renewal_date: draft.contract.renewal_date,
-        status: "Scheduled",
+        status: "Upcoming",
         estimated_value: draft.contract.contract_value || 0,
         billing_frequency: draft.contract.billing_frequency,
         notice_period_days: draft.contract.notice_period_days || null,
         target_type: "contract",
         target_id: contract.id,
       } as any);
+
+      // Commit every related record together, or none.
+      await transaction.commit();
+      invalidateClientViews(queryClient);
 
       // Done
       localStorage.removeItem(DRAFT_KEY);
@@ -515,7 +525,7 @@ export default function ClientOnboardingWizard() {
                       <SelectTrigger><SelectValue placeholder="HQ Direct" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">HQ Direct</SelectItem>
-                        {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
+                        {partners.filter(p => p.status !== "Archived").map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

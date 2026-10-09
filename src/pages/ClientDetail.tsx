@@ -1,3 +1,5 @@
+import { invalidateClientViews } from "@/lib/client-refresh";
+import { createClientWritePlan } from "@/lib/client-write-plan";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, Building2, FileText, KeyRound, Star, Pencil, Save, X, Plus, Trash2, Users, CalendarDays, Shield, Clock, CheckCircle2, AlertTriangle, XCircle, Info, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -620,15 +622,11 @@ export default function ClientDetail() {
   const saveModules = async () => {
     if (!primaryLicense) return;
     try {
-      for (const mod of ALL_MODULES) {
-        const existing = modules.find(m => m.module_name === mod && m.license_id === primaryLicense.id);
-        const enabled = moduleEdits[mod] ?? false;
-        if (existing) {
-          await supabase.from("licensed_modules").update({ enabled }).eq("id", existing.id);
-        } else {
-          await supabase.from("licensed_modules").insert({ license_id: primaryLicense.id, module_name: mod, enabled });
-        }
-      }
+      const { error } = await (supabase.rpc as any)("save_client_license_modules", {
+        p_license_id: primaryLicense.id,
+        p_modules: ALL_MODULES.map(module_name => ({ module_name, enabled: moduleEdits[module_name] ?? false })),
+      });
+      if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["licensed_modules"] });
       toast.success("Modules updated");
       setEditingModules(false);
@@ -644,10 +642,9 @@ export default function ClientDetail() {
     const recurringAmount = Number(cf._recurring_amount || 0);
     const wantsRecurringLine = !!cf._add_recurring_line && recurringAmount > 0;
     try {
+      const transaction = createClientWritePlan();
       // 1) Create the contract (manual legacy by default).
-      const { data: created, error: cErr } = await supabase
-        .from("contracts")
-        .insert({
+      const { data: created, error: cErr } = await transaction.insert("contracts", {
           client_id: client.id,
           contract_start_date: cf.contract_start_date,
           contract_end_date: cf.contract_end_date,
@@ -658,15 +655,13 @@ export default function ClientDetail() {
           observations: cf.observations || null,
           is_imported: false,
           contract_mode: "manual_legacy",
-        } as any)
-        .select()
-        .single();
+        } as any);
       if (cErr) throw cErr;
       const newContract = created as any;
 
       // 2) Optional recurring line so ARR is derived from contract_lines.
       if (wantsRecurringLine) {
-        const { error: lErr } = await supabase.from("contract_lines").insert({
+        const { error: lErr } = await transaction.insert("contract_lines", {
           contract_id: newContract.id,
           client_id: client.id,
           line_type: "license",
@@ -683,7 +678,7 @@ export default function ClientDetail() {
         // 3) Create the primary contract-level renewal (guarded against duplicates).
         //    Identity = client + contract + date, so a renewal for a different
         //    contract on the same date is still allowed.
-        const renewalOutcome = await createRenewalWorkflowRow<any>({
+        await createRenewalWorkflowRow<any>({
           fetchExisting: async () => {
             // Fail-closed: a failed duplicate check must abort the write.
             const { data, error } = await supabase
@@ -701,9 +696,7 @@ export default function ClientDetail() {
             target_id: newContract.id,
           },
           insert: async () => {
-            const { data, error } = await supabase
-              .from("renewals")
-              .insert(buildRenewalInsertPayload({
+            const { data, error } = await transaction.insert("renewals", buildRenewalInsertPayload({
                 client_id: client.id,
                 contract_id: newContract.id,
                 target_type: "contract",
@@ -714,30 +707,18 @@ export default function ClientDetail() {
                 billing_frequency: "Annual",
                 status: "Upcoming",
                 notes: "Annual Contract Renewal — auto-created from manual legacy agreement",
-              }, client as any) as any)
-              .select()
-              .single();
+              }, client as any) as any);
             if (error) throw error;
             return data as any;
           },
         });
-        const ren = renewalOutcome.row;
 
-        // 4) Suppress duplicate license-only €0 renewals for the same client/date.
-        await supabase
-          .from("renewals")
-          .update({ is_covered_by_contract: true, covered_by_contract_id: newContract.id } as any)
-          .eq("client_id", client.id)
-          .eq("renewal_date", cf.contract_end_date)
-          .is("contract_id", null)
-          .eq("is_covered_by_contract", false);
+        // Coverage links are set in the same database transaction.
 
-        // Also link the newly created contract renewal back to its source.
-        if (ren) {
-          await supabase.from("renewals").update({ covered_by_contract_id: newContract.id } as any).eq("id", (ren as any).id);
-        }
       }
 
+      await transaction.commit();
+      invalidateClientViews(queryClient);
       queryClient.invalidateQueries({ queryKey: ["contracts", client.id] });
       queryClient.invalidateQueries({ queryKey: ["contract-lines"] });
       queryClient.invalidateQueries({ queryKey: ["renewals"] });

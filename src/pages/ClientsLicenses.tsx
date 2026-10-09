@@ -17,6 +17,7 @@ import { resolvePartnerIdentity, matchesPartnerFilter, buildPartnerCreatePayload
 import { usePartners } from "@/hooks/usePartners";
 import { useClientAggregates } from "@/hooks/useClientAggregates";
 import { useRenewals } from "@/hooks/useDeals";
+import { currentContractValues, countOverdueClients } from "@/lib/client-kpis";
 import { countClientsDueWithin } from "@/lib/renewal-kpi";
 import { useAuth } from "@/contexts/AuthContext";
 import { loadClientsListState, saveClientsListState, type FilterChip } from "@/lib/clients-list-state";
@@ -42,7 +43,7 @@ export default function ClientsLicenses() {
   const { isHQ, isAdmin, profile } = useAuth();
   const userPartnerId = !isHQ ? profile?.partner_id : null;
   const { data: clients = [], isLoading, isError: clientsError } = useClients();
-  const { data: partners = [], isLoading: partnersLoading } = usePartners();
+  const { data: partners = [], isLoading: partnersLoading, isError: partnersError } = usePartners();
   const { data: aggregates, isLoading: aggregatesLoading, isError: aggregatesError } = useClientAggregates();
   const { canEdit } = useModuleAccess();
   const canEditClients = canEdit("clients");
@@ -54,6 +55,7 @@ export default function ClientsLicenses() {
   const [sortField, setSortField] = useState<string>(persisted.sortField ?? "commercial_name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(persisted.sortDir ?? "asc");
   const [showArchived, setShowArchived] = useState<boolean>(persisted.showArchived ?? false);
+  const [includeArchivedPartners, setIncludeArchivedPartners] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({
     client_code: "", commercial_name: "", short_name: "", country: "", sector: "",
@@ -70,8 +72,8 @@ export default function ClientsLicenses() {
     let list = [...clients];
     list = list.filter(c => showArchived ? c.status === "Archived" : c.status !== "Archived");
     if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(c => c.commercial_name.toLowerCase().includes(q) || c.client_code.toLowerCase().includes(q) || (c.country || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q));
+      const q = search.trim().toLowerCase();
+      list = list.filter(c => c.commercial_name.toLowerCase().includes(q) || (c.short_name || "").toLowerCase().includes(q) || c.client_code.toLowerCase().includes(q) || (c.country || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q));
     }
     if (partnerFilter !== "all") {
       list = list.filter(c => matchesPartnerFilter(c as any, partnerFilter));
@@ -97,13 +99,15 @@ export default function ClientsLicenses() {
   // (same source as the Renewals Pipeline), counting DISTINCT active clients.
   const { data: consolidatedRenewals = [], isLoading: renewalsLoading, isError: renewalsError } = useRenewals();
   const activeClientIds = useMemo(
-    () => new Set(clients.filter(c => c.status !== "Archived").map(c => c.id)),
-    [clients]
+    () => new Set(filtered.filter(c => c.status === "Active").map(c => c.id)),
+    [filtered]
   );
   const renewals30 = useMemo(
     () => countClientsDueWithin(consolidatedRenewals as any, 30, activeClientIds),
     [consolidatedRenewals, activeClientIds]
   );
+  const contractValues = useMemo(() => currentContractValues(aggregates || [], new Set(filtered.filter(c => c.status === "Active").map(c => c.id))), [aggregates, filtered]);
+  const overdue = countOverdueClients(consolidatedRenewals as any, activeClientIds);
   const premiumCount = filtered.filter(c => c.is_premium).length;
 
   // Partner-scoped presentation: hide the partner dimension when the user can
@@ -112,7 +116,7 @@ export default function ClientsLicenses() {
 
   // Never render a KPI before every source it depends on has resolved.
   const kpisLoading = isLoading || partnersLoading || aggregatesLoading || renewalsLoading;
-  const kpisError = clientsError || aggregatesError || renewalsError;
+  const kpisError = clientsError || partnersError || aggregatesError || renewalsError;
 
   // Build filter chips for the Client Detail context bar
   const filterChips: FilterChip[] = useMemo(() => {
@@ -165,7 +169,7 @@ export default function ClientsLicenses() {
   const handleExport = () => {
     const headers = ["Client Code", "Client Name", "Partner", "Country", "Sector", "License Type", "Version", "Status"];
     const rows = filtered.map(c => [c.client_code, c.commercial_name, resolvePartnerIdentity(c as any, partnerMap).label, c.country, c.sector, c.license_type, c.current_version, c.status]);
-    const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v || ""}"`).join(","))].join("\n");
+    const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "clients-export.csv"; a.click();
@@ -232,7 +236,7 @@ export default function ClientsLicenses() {
           <p className="text-sm text-muted-foreground mt-1">{clientsSubtitle(partnerScoped)}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => setShowArchived(!showArchived)}>
+          <Button variant={showArchived ? "default" : "outline"} size="sm" onClick={() => { setShowArchived(!showArchived); setStatusFilter("all"); }}>
             <Archive className="h-4 w-4 mr-1.5" /> {showArchived ? "Show Active" : "Show Archived"}
           </Button>
           {canEditClients && (
@@ -245,7 +249,7 @@ export default function ClientsLicenses() {
       </div>
 
       <div className="animate-reveal-up" style={{ animationDelay: "60ms" }}>
-        <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} totalValue={aggregates?.totalContractValue ?? 0} renewals30={renewals30} overdue={aggregates?.overdue ?? 0} loading={kpisLoading} error={!!kpisError} />
+        <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} contractValues={contractValues} renewals30={renewals30} overdue={overdue} loading={kpisLoading} error={!!kpisError} />
       </div>
 
       <div className="animate-reveal-up flex flex-wrap items-center gap-3" style={{ animationDelay: "120ms" }}>
@@ -259,10 +263,11 @@ export default function ClientsLicenses() {
           <SelectContent>
             <SelectItem value="all">All Partners</SelectItem>
             <SelectItem value="hq">HQ Direct</SelectItem>
-            {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
+            {partners.filter(p => includeArchivedPartners || p.status !== "Archived" || p.id === partnerFilter).map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}{p.status === "Archived" ? " (Archived)" : ""}</SelectItem>)}
           </SelectContent>
         </Select>
         )}
+        {!partnerScoped && <Button variant="outline" size="sm" onClick={() => setIncludeArchivedPartners(v => !v)}>{includeArchivedPartners ? "Hide archived partners" : "Include archived partners"}</Button>}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="All Status" /></SelectTrigger>
           <SelectContent>
@@ -357,7 +362,7 @@ export default function ClientsLicenses() {
                   <SelectTrigger><SelectValue placeholder="HQ Direct" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">HQ Direct</SelectItem>
-                    {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
+                    {partners.filter(p => p.status !== "Archived").map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

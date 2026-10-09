@@ -41,13 +41,13 @@ describe("partner-scoped presentation", () => {
 
 describe("KPIs never flash false zeroes", () => {
   it("shows a placeholder while sources load", () => {
-    render(<ClientsKPIBar active={0} total={0} premium={0} totalValue={0} renewals30={0} overdue={0} loading />);
+    render(<ClientsKPIBar active={0} total={0} premium={0} contractValues={{ EUR: 0 }} renewals30={0} overdue={0} loading />);
     expect(screen.getAllByText(LOADING_PLACEHOLDER).length).toBe(5);
     expect(screen.queryByText("€0")).toBeNull();
   });
 
   it("renders resolved values once loading completes", () => {
-    render(<ClientsKPIBar active={3} total={4} premium={1} totalValue={4221.6} renewals30={1} overdue={0} />);
+    render(<ClientsKPIBar active={3} total={4} premium={1} contractValues={{ EUR: 4221.6 }} renewals30={1} overdue={0} />);
     expect(screen.getByText("€4.2k")).toBeTruthy();
     expect(screen.getAllByText("1").length).toBeGreaterThan(0);
     expect(screen.queryByText(LOADING_PLACEHOLDER)).toBeNull();

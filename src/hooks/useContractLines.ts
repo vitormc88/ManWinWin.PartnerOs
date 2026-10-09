@@ -1,3 +1,4 @@
+import { invalidateClientViews } from "@/lib/client-refresh";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContractLineWritePayload } from "@/lib/contract-line-payload";
@@ -48,6 +49,7 @@ export function useCreateContractLine() {
       return data as unknown as ContractLine;
     },
     onSuccess: () => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["contract-lines"] });
       qc.invalidateQueries({ queryKey: ["client-commercial-intelligence"] });
     },
@@ -66,6 +68,7 @@ export function useUpdateContractLine() {
       return id;
     },
     onSuccess: () => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["contract-lines"] });
       qc.invalidateQueries({ queryKey: ["client-commercial-intelligence"] });
     },
@@ -81,6 +84,7 @@ export function useDeleteContractLine() {
       return id;
     },
     onSuccess: () => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["contract-lines"] });
       qc.invalidateQueries({ queryKey: ["client-commercial-intelligence"] });
     },

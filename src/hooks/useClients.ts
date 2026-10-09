@@ -1,3 +1,4 @@
+import { invalidateClientViews } from "@/lib/client-refresh";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
@@ -78,6 +79,7 @@ export function useCreateClient() {
       return data;
     },
     onSuccess: () => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["clients"] });
     },
   });
@@ -92,6 +94,7 @@ export function useUpdateClient() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["client", data.id] });
     },
@@ -107,6 +110,7 @@ export function useArchiveClient() {
       return data;
     },
     onSuccess: () => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["clients"] });
     },
   });
@@ -121,6 +125,7 @@ export function useRestoreClient() {
       return data;
     },
     onSuccess: () => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["clients"] });
     },
   });
@@ -149,6 +154,7 @@ export function useCreateContact() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["client_contacts", data.client_id] });
     },
   });
@@ -163,6 +169,7 @@ export function useUpdateContact() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["client_contacts", data.client_id] });
     },
   });
@@ -177,6 +184,7 @@ export function useDeleteContact() {
       return clientId;
     },
     onSuccess: (clientId) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["client_contacts", clientId] });
     },
   });
@@ -205,6 +213,7 @@ export function useCreateLicense() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["licenses", data.client_id] });
     },
   });
@@ -219,6 +228,7 @@ export function useUpdateLicense() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["licenses", data.client_id] });
     },
   });
@@ -229,12 +239,12 @@ export function useDeleteLicense() {
   return useMutation({
     mutationFn: async ({ id, clientId }: { id: string; clientId: string }) => {
       // Delete associated licensed_modules first
-      await supabase.from("licensed_modules").delete().eq("license_id", id);
-      const { error } = await supabase.from("licenses").delete().eq("id", id);
+      const { error } = await (supabase.rpc as any)("delete_client_license", { p_license_id: id });
       if (error) throw mapError(error, "delete license");
       return clientId;
     },
     onSuccess: (clientId) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["licenses", clientId] });
       qc.invalidateQueries({ queryKey: ["licensed_modules"] });
     },
@@ -264,6 +274,7 @@ export function useCreateContract() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["contracts", data.client_id] });
     },
   });
@@ -278,6 +289,7 @@ export function useUpdateContract() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["contracts", data.client_id] });
     },
   });
@@ -293,6 +305,7 @@ export function useCreateNote() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["client_notes", data.client_id] });
     },
   });
@@ -308,6 +321,7 @@ export function useCreateCredential() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["client_credentials", data.client_id] });
     },
   });
@@ -322,6 +336,7 @@ export function useUpdateCredential() {
       return data;
     },
     onSuccess: (data) => {
+      invalidateClientViews(qc);
       qc.invalidateQueries({ queryKey: ["client_credentials", data.client_id] });
     },
   });
