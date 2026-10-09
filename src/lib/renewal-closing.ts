@@ -34,7 +34,7 @@ export interface ClosableProposalLike {
 
 export function isClosedRenewal(r: ClosableRenewalLike | null | undefined): boolean {
   if (!r) return false;
-  if (r.closed_at) return true;
+  if (r.closed_at || (r.outcome || "").trim()) return true;
   return CLOSED_RENEWAL_STATUSES.has((r.status || "").trim());
 }
 

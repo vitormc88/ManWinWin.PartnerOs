@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { canonicalRenewalComponents, selectActiveCycle, isDerivedComponent, suppressDerivedForClosedCycles, isPerpetualKeepIt } from "@/lib/renewal-active-cycle";
 
+import { withRenewalHistory } from "@/lib/renewal-pipeline";
+import { fetchAllPages } from "@/lib/loss-analysis";
+
 export type Deal = Tables<"deals">;
 
 export function useDeals(
@@ -37,7 +40,7 @@ export function useDeal(id: string | undefined) {
   });
 }
 
-export function useRenewals(filters?: { status?: string }, options?: { enabled?: boolean }) {
+export function useRenewals(filters?: { status?: string; includeHistory?: boolean }, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["renewals", filters],
     enabled: options?.enabled ?? true,
@@ -45,8 +48,7 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
       // Fetch explicit renewal records
       let query = supabase.from("renewals").select("*").order("renewal_date");
       if (filters?.status) query = query.eq("status", filters.status);
-      const { data: existing, error } = await query;
-      if (error) throw error;
+      const existing = await fetchAllPages<any>((from, to) => query.order("id").range(from, to));
 
       const explicit = canonicalRenewalComponents(existing || []);
 
@@ -63,18 +65,16 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
       const derived: any[] = [];
 
       // Batch-fetch all clients for partner_id lookup
-      const { data: allClients } = await supabase
-        .from("clients")
-        .select("id, partner_id");
+      const allClients = await fetchAllPages<any>((from, to) => supabase.from("clients").select("id, partner_id, partner_uuid").order("id").range(from, to));
       const clientPartnerMap: Record<string, string | null> = {};
+      const clientCanonicalPartnerMap: Record<string, string | null> = {};
       (allClients || []).forEach((c: any) => {
         clientPartnerMap[c.id] = c.partner_id;
+        clientCanonicalPartnerMap[c.id] = c.partner_uuid;
       });
 
       // Derive from contracts
-      const { data: contracts } = await supabase
-        .from("contracts")
-        .select("id, client_id, contract_end_date, total_value");
+      const contracts = await fetchAllPages<any>((from, to) => supabase.from("contracts").select("id, client_id, contract_end_date, total_value").order("contract_end_date").order("id").range(from, to));
 
       for (const c of contracts || []) {
         if (!c.contract_end_date) continue;
@@ -90,6 +90,7 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
           id: `derived-contract-${c.id}`,
           client_id: c.client_id,
           partner_id: clientPartnerMap[c.client_id] || null,
+          partner_uuid: clientCanonicalPartnerMap[c.client_id] || null,
           renewal_type: "Contract",
           renewal_date: c.contract_end_date,
           estimated_value: c.total_value,
@@ -102,9 +103,7 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
       }
 
       // Derive from licenses
-      const { data: licenses } = await supabase
-        .from("licenses")
-        .select("id, client_id, license_end_date, sat_end_date, sat_active, product, edition");
+      const licenses = await fetchAllPages<any>((from, to) => supabase.from("licenses").select("id, client_id, license_end_date, sat_end_date, sat_active, product, edition").order("id").range(from, to));
 
       for (const l of licenses || []) {
         // Skip licenses already covered by an explicit operationalized renewal
@@ -122,6 +121,7 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
               id: `derived-license-${l.id}`,
               client_id: l.client_id,
               partner_id: clientPartnerMap[l.client_id] || null,
+              partner_uuid: clientCanonicalPartnerMap[l.client_id] || null,
               renewal_type: "License",
               renewal_date: l.license_end_date,
               estimated_value: null,
@@ -146,6 +146,7 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
               id: `derived-sat-${l.id}`,
               client_id: l.client_id,
               partner_id: clientPartnerMap[l.client_id] || null,
+              partner_uuid: clientCanonicalPartnerMap[l.client_id] || null,
               renewal_type: "SAT",
               renewal_date: l.sat_end_date,
               estimated_value: null,
@@ -226,7 +227,8 @@ export function useRenewals(filters?: { status?: string }, options?: { enabled?:
         });
       }
 
-      const result = [...consolidated, ...orphans];
+      const rows = [...consolidated, ...orphans];
+      const result = filters?.includeHistory ? withRenewalHistory(rows, explicit) : rows;
       result.sort((a, b) => (a.renewal_date || "").localeCompare(b.renewal_date || ""));
       return result;
     },

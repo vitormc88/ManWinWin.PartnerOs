@@ -30,7 +30,7 @@ export function useReassignRenewalOwner() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["renewals"] });
-      qc.invalidateQueries({ queryKey: ["tasks"] });
+      for (const key of ["unified_tasks", "unified_tasks_focus", "unified_tasks_workload", "unified_tasks_team", "renewal_activities"]) qc.invalidateQueries({ queryKey: [key] });
       qc.invalidateQueries({ queryKey: ["notifications"] });
       toast({ title: "Owner updated", description: "The renewal owner was reassigned." });
     },

@@ -1,3 +1,4 @@
+import { renewalResult } from "@/lib/renewal-pipeline";
 import { formatDateOnly } from "@/lib/date-format";
 import { formatMoney } from "@/lib/money";
 
@@ -8,15 +9,16 @@ import { formatMoney } from "@/lib/money";
  */
 export function RenewalClosureSummary({ renewal, title }: { renewal: any; title: string }) {
   if (!renewal) return null;
-  const lost = renewal.outcome === "lost" || renewal.status === "Lost";
+  const result = renewalResult(renewal);
+  const lost = result === "Lost";
   return (
     <div className="border-t pt-3 space-y-2">
       <p className="text-xs font-medium text-muted-foreground">{title}</p>
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <span className="text-muted-foreground">Outcome</span>
-          <p className={`font-medium mt-0.5 ${lost ? "text-destructive" : "text-success"}`}>
-            {lost ? "Lost" : "Renewed"}
+          <p className={`font-medium mt-0.5 ${lost ? "text-destructive" : result === "Renewed" ? "text-success" : "text-muted-foreground"}`}>
+            {result}
           </p>
         </div>
         <div>
