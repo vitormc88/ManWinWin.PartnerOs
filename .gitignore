@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Customer Explorer preview: real directory data must never be committed.
+.customer-explorer-preview/
+customer-explorer-preview.html
+pnpm-lock.yaml
+supabase/.temp/

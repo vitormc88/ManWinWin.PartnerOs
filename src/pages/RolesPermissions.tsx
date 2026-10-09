@@ -93,14 +93,14 @@ export default function RolesPermissions() {
               <div className="rounded-md border divide-y">
                 {MODULE_KEYS_LIST.map((m) => (
                   <div key={m} className="flex items-center justify-between p-3">
-                    <span className="text-sm">{MODULE_LABELS[m]}</span>
+                    <span className="text-sm">{MODULE_LABELS[m]}{m==='customer_explorer'&&<small className="block text-muted-foreground">Availability follows Explorer Settings. Only HQ Admin can manage the directory.</small>}</span>
                     <Select
                       value={(matrix[r.value]?.[m]) ?? "no_access"}
                       onValueChange={(v) => setCell(m, v as AccessLevel)}
                     >
                       <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {LEVELS.map((lv) => (
+                        {LEVELS.filter(lv=>m!=='customer_explorer'||!r.value.startsWith('partner_')||['no_access','view'].includes(lv)).map((lv) => (
                           <SelectItem key={lv} value={lv}>{LEVEL_LABEL[lv]}</SelectItem>
                         ))}
                       </SelectContent>

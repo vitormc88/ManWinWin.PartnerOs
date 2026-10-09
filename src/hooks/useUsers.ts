@@ -128,7 +128,7 @@ export function useUpdateUser() {
       const { error } = await supabase.from("profiles").update(updates).eq("id", userId);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); toast.success("User updated"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); qc.invalidateQueries({queryKey:['customer-explorer-access']}); toast.success("User updated"); },
     onError: (e: any) => toast.error(mapUserError(e, "Failed to update user")),
   });
 }
@@ -149,7 +149,7 @@ export function useUpdateUserRole() {
       const { error: delErr } = await supabase.from("user_roles").delete().eq("user_id", userId).neq("role", role as any);
       if (delErr) throw delErr;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); toast.success("Role updated"); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["users-management"] }); qc.invalidateQueries({queryKey:['customer-explorer-access']}); toast.success("Role updated"); },
     onError: (e: any) => toast.error(mapUserError(e, "Failed to update role")),
   });
 }
@@ -211,6 +211,7 @@ export function useSavePermissions() {
       qc.invalidateQueries({ queryKey: ["effective-permissions", variables.userId] });
       qc.invalidateQueries({ queryKey: ["my-permissions"] });
       qc.invalidateQueries({ queryKey: ["my-effective-permissions"] });
+      qc.invalidateQueries({ queryKey: ["customer-explorer-access"] });
       toast.success("Permissions saved");
     },
     onError: (e: any) => toast.error(mapUserError(e, "Failed to save permissions")),

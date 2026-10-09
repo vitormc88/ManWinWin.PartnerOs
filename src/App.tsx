@@ -15,6 +15,7 @@ import Tasks from "@/pages/Tasks";
 import Partners from "@/pages/Partners";
 import PartnerDetail from "@/pages/PartnerDetail";
 import ClientsLicenses from "@/pages/ClientsLicenses";
+import CustomerExplorerPage from "@/pages/CustomerExplorer";
 import ClientDetail from "@/pages/ClientDetail";
 import ClientOnboardingWizard from "@/pages/ClientOnboardingWizard";
 import Renewals from "@/pages/Renewals";
@@ -51,6 +52,7 @@ import UserManagement from "@/pages/UserManagement";
 import ResetPassword from "@/pages/ResetPassword";
 import PricingSettings from "@/pages/PricingSettings";
 import Settings, { SettingsComingSoon } from "@/pages/Settings";
+import CustomerExplorerSettings from "@/pages/CustomerExplorerSettings";
 import RolesPermissions from "@/pages/RolesPermissions";
 import NotFound from "@/pages/NotFound";
 import Unsubscribe from "@/pages/Unsubscribe";
@@ -93,6 +95,7 @@ const App = () => (
               <Route path="/partners" element={<Partners />} />
               <Route path="/partners/:id" element={<PartnerDetail />} />
               <Route path="/clients" element={<ClientsLicenses />} />
+              <Route path="/customer-explorer" element={<CustomerExplorerPage />} />
               <Route path="/clients/new" element={<ClientOnboardingWizard />} />
               <Route path="/clients/:id" element={<ClientDetail />} />
               <Route path="/renewals" element={<Renewals />} />
@@ -135,6 +138,7 @@ const App = () => (
               <Route path="/community" element={<Community />} />
               <Route path="/announcements" element={<Announcements />} />
               <Route path="/settings" element={<Settings />}>
+                <Route path="customer-explorer" element={<CustomerExplorerSettings />} />
                 <Route path="general" element={<SettingsComingSoon title="General Settings" />} />
                 <Route path="roles" element={<RolesPermissions />} />
                 <Route path="pricing" element={<PricingSettings />} />

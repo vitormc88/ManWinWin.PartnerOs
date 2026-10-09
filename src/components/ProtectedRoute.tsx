@@ -4,6 +4,7 @@ import { useMyPermissions } from "@/hooks/useUsers";
 import { getFirstAllowedModule, getRouteModule, hasModuleAccess } from "@/lib/module-access";
 import { BrandMark } from "@/components/BrandMark";
 import { getAuthFlowState, getResetPasswordTarget } from "@/lib/auth-flow";
+import { useExplorerAccess } from '@/hooks/useExplorerAccess';
 
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
@@ -23,6 +24,7 @@ const AccessDenied = ({ message }: { message: string }) => (
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, isLoading, isAuthReady, isInviteOrRecoveryFlow, isAdmin, profile } = useAuth();
   const location = useLocation();
+  const explorerAccess = useExplorerAccess(location.pathname === '/customer-explorer');
   const {
     data: myPerms,
     isLoading: permsLoading,
@@ -43,6 +45,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // Force invited users who haven't completed password setup back to /reset-password.
   if (profile?.invitation_status === "pending" && location.pathname !== "/reset-password") {
     return <Navigate to="/reset-password" replace />;
+  }
+
+  // Global directory has its own membership RLS; it does not inherit Knowledge Base permissions.
+  if(location.pathname === '/customer-explorer') {
+    if(!profile?.is_active || (!profile.is_hq&&!profile.partner_id))return <AccessDenied message="An active PartnerOS membership is required."/>;
+    if(explorerAccess.isLoading)return <LoadingSpinner/>;
+    if(!explorerAccess.isError&&explorerAccess.data?.read===true)return <>{children}</>;
+    return <AccessDenied message="Customer Explorer has not been enabled for your account."/>;
   }
 
   if (isAdmin) return <>{children}</>;
