@@ -1,0 +1,31 @@
+name: Partner Growth 4A UI QA (isolated)
+
+on:
+  push:
+    branches:
+      - fix/partner-growth-s4a-hardening-20261010
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  interface-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install repository dependencies
+        run: npm ci
+      - name: Run activation component interaction and task tests
+        run: npx vitest run src/components/partner-growth/__tests__/PartnerActivationReadiness.test.tsx src/lib/__tests__/partner-activation-task.test.ts
+      - name: Type check application
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Build application
+        run: npm run build
