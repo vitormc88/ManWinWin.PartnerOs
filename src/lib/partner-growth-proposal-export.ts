@@ -40,7 +40,7 @@ export async function exportStrategicProposalDocx(
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 750 }, children: [textRun(snapshot.prospect_name + " · " + snapshot.country, 20, false, MUTED)] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [textRun(snapshot.proposal_notice, 18, true, BRAND)] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 600 }, children: [textRun(approved ? "APPROVED FOR HQ USE" : "DRAFT — INTERNAL REVIEW", 20, true, approved ? DARK : BRAND)] }),
-    new Paragraph({ text: "Prepared by ManWinWin Partner Growth", pageBreakBefore: true, spacing: { after: 160 }, children: [] }),
+    new Paragraph({ pageBreakBefore: true, spacing: { after: 160 }, children: [textRun("Prepared by ManWinWin Partner Growth", 20, true, MUTED)] }),
   ];
   for (const s of snapshot.sections) {
     paragraphs.push(new Paragraph({
