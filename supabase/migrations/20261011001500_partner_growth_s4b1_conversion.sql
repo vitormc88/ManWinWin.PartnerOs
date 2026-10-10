@@ -5,6 +5,11 @@ ALTER TABLE public.partners DROP CONSTRAINT IF EXISTS pg_partner_activation_phas
 ALTER TABLE public.partners ADD CONSTRAINT pg_partner_activation_phase_check
   CHECK (activation_phase IN ('legacy_untracked','invitation_pending','activating','commercially_active'));
 
+-- Hard uniqueness for confirmed legal entities; fail on existing collisions rather than merge silently.
+CREATE UNIQUE INDEX IF NOT EXISTS pg_partner_legal_name_unique_normalized_idx
+ ON public.partners (lower(btrim(legal_name)))
+ WHERE legal_name IS NOT NULL AND btrim(legal_name)<>'';
+
 -- Make CMSC an explicit operational level; never map it to Reseller or Strategic Partner.
 INSERT INTO public.partnership_levels(name,code,sort_order,is_active)
 SELECT 'Strategic Connector','STRATEGIC_CONNECTOR',5,true
@@ -235,6 +240,10 @@ BEGIN
  ELSIF v_prospect.proposed_partner_type='CMAI' THEN
   v_partner_type:='Implementer'; v_partner_level:='Implementer';
  ELSE RAISE EXCEPTION 'Strategic Alliances require a separately approved conversion' USING ERRCODE='23514'; END IF;
+
+ -- Serialize concurrent conversion attempts for different prospects (and preserve
+ -- the cross-column legal/trading-name duplicate comparison).
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtext('partner-growth-official-conversion'));
 
  IF EXISTS(
  SELECT 1 FROM public.partners p
