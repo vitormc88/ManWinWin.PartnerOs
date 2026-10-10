@@ -159,8 +159,15 @@ BEGIN
   IF NEW.converted_partner_id IS DISTINCT FROM OLD.converted_partner_id
      OR NEW.converted_at IS DISTINCT FROM OLD.converted_at THEN
     RAISE EXCEPTION 'Conversion is reserved for Activation' USING ERRCODE='23514'; END IF;
-  IF OLD.recruitment_stage='Signed' AND NEW.recruitment_stage <> 'Signed' THEN
-    RAISE EXCEPTION 'Signed prospects cannot be reopened' USING ERRCODE='23514'; END IF;
+  IF OLD.recruitment_stage='Signed' THEN
+    IF NEW.recruitment_stage <> 'Signed' THEN
+      RAISE EXCEPTION 'Signed prospects cannot be reopened' USING ERRCODE='23514';
+    END IF;
+    IF NEW.agreement_reference IS DISTINCT FROM OLD.agreement_reference
+      OR NEW.agreement_signed_on IS DISTINCT FROM OLD.agreement_signed_on THEN
+      RAISE EXCEPTION 'Signed agreement references and execution dates are immutable' USING ERRCODE='23514';
+    END IF;
+  END IF;
   IF NEW.recruitment_stage='Qualified' AND OLD.recruitment_stage IS DISTINCT FROM 'Qualified' THEN
     IF NEW.qualification_decision IS DISTINCT FROM 'Proceed' THEN
       RAISE EXCEPTION 'Qualified requires an explicit Proceed decision' USING ERRCODE='23514'; END IF;
