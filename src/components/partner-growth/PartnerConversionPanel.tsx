@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ArrowRight, ShieldCheck, AlertTriangle, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { PartnerInvitationPanel } from "@/components/partner-growth/PartnerInvitationPanel";
 import { supabase } from "@/integrations/supabase/client";
 import type { PartnerProspect } from "@/hooks/usePartnerGrowth";
 import type { ActivationPlan } from "@/hooks/usePartnerActivation";
@@ -110,7 +111,7 @@ export function PartnerConversionPanel({
     },
   });
 
-  if (convertedId) return <Card>
+  if (convertedId) return <div className="space-y-4"><Card>
     <CardHeader><CardTitle className="flex items-center gap-2 text-base">
       <CheckCircle2 className="h-5 w-5 text-emerald-600"/>Official Partner Created
     </CardTitle></CardHeader>
