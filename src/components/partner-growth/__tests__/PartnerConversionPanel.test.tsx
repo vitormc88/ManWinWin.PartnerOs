@@ -9,6 +9,7 @@ import type { ActivationPlan } from "@/hooks/usePartnerActivation";
 const mock = vi.hoisted(()=>({ rpc: vi.fn(), from:vi.fn() }));
 vi.mock("@/integrations/supabase/client",()=>({ supabase:mock }));
 vi.mock("sonner",()=>({toast:{success:vi.fn(),error:vi.fn()}}));
+vi.mock("@/components/partner-growth/PartnerInvitationPanel",()=>({PartnerInvitationPanel:()=>null}));
 
 const p = (stage="Signed", model="CMSC", converted_partner_id:null|string=null) => ({
   id:"prospect1", company_name:"Example Connector", country:"PT",
