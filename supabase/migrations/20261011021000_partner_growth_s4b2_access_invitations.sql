@@ -173,21 +173,28 @@ RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $fn$
 BEGIN
  IF TG_OP='DELETE' THEN RAISE EXCEPTION 'Invitation audit cannot be deleted' USING ERRCODE='23514'; END IF;
+ IF NEW.prospect_id IS DISTINCT FROM OLD.prospect_id OR
+    NEW.partner_id IS DISTINCT FROM OLD.partner_id OR
+    NEW.contact_id IS DISTINCT FROM OLD.contact_id OR
+    NEW.email IS DISTINCT FROM OLD.email OR
+    NEW.full_name IS DISTINCT FROM OLD.full_name OR
+    NEW.invited_role IS DISTINCT FROM OLD.invited_role THEN
+    RAISE EXCEPTION 'Invitation identity is immutable' USING ERRCODE='23514'; END IF;
+ IF OLD.status='failed' AND NEW.status='reserved'
+    AND auth.uid() IS NOT NULL
+    AND public.has_role(auth.uid(),'hq_admin'::public.app_role)
+    AND EXISTS(SELECT 1 FROM public.profiles p WHERE p.id=auth.uid() AND p.is_hq AND p.is_active)
+    AND NEW.reservation_token IS DISTINCT FROM OLD.reservation_token
+    AND NEW.invited_user_id IS NULL AND NEW.sent_at IS NULL THEN
+   RETURN NEW;
+ END IF;
  IF auth.role() IS DISTINCT FROM 'service_role' THEN
-  RAISE EXCEPTION 'Only secure invitation service may update the invitation ledger' USING ERRCODE='42501'; END IF;
- IF OLD.status<>'reserved' OR NEW.prospect_id IS DISTINCT FROM OLD.prospect_id
-   OR NEW.partner_id IS DISTINCT FROM OLD.partner_id
-   OR NEW.contact_id IS DISTINCT FROM OLD.contact_id
-   OR NEW.email IS DISTINCT FROM OLD.email
-   OR NEW.invited_role IS DISTINCT FROM OLD.invited_role
- THEN RAISE EXCEPTION 'Invitation audit identity is immutable' USING ERRCODE='23514'; END IF;
+   RAISE EXCEPTION 'Secure invitation service required for updates' USING ERRCODE='42501'; END IF;
+ IF OLD.status <> 'reserved' OR NEW.status NOT IN ('sent','failed') THEN
+   RAISE EXCEPTION 'Invitation was already processed' USING ERRCODE='23514'; END IF;
  RETURN NEW;
 END
 $fn$;
--- Note: retries of failed reservations are only permitted through reserve RPC.
--- The client never has table UPDATE privilege. For failed-row retry, the
--- SECURITY DEFINER reserve RPC executes the UPDATE with the caller's role.
--- Leave trigger update guard scoped to sent rows below instead.
 DROP TRIGGER IF EXISTS pg_invitation_guard_before ON public.partner_growth_invitations;
 CREATE TRIGGER pg_invitation_guard_before BEFORE DELETE OR UPDATE
  ON public.partner_growth_invitations FOR EACH ROW EXECUTE FUNCTION public.pg_invitation_guard();
