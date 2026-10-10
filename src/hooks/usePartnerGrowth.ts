@@ -28,7 +28,7 @@ export interface ProspectActivity {
   occurred_at: string; created_by: string;
 }
 export interface ProspectTask {
-  id: string; title: string; due_date: string | null; task_status: string;
+  id: string; title: string; due_date: string | null; task_status: string; status: string;
   related_entity_id: string | null; related_type: string;
   owner_user_id: string | null; priority: string | null;
 }
@@ -85,7 +85,7 @@ export function useProspectTasks(id?: string) {
     queryKey: [...root, "tasks", id ?? "all"],
     queryFn: async () => {
       let query = supabase.from("manual_tasks")
-        .select("id,title,due_date,task_status,related_entity_id,related_type,owner_user_id,priority")
+        .select("id,title,due_date,status,task_status,related_entity_id,related_type,owner_user_id,priority")
         .eq("related_type", "partner_prospect");
       if (id) query = query.eq("related_entity_id", id);
       const { data, error } = await query.order("due_date", { ascending: true });
