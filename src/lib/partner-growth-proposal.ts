@@ -25,6 +25,7 @@ const notices: Record<string, string> = {
 export function getProposalReadiness(input: ProposalInput) {
   const missing: string[] = [];
   if (!input.model) missing.push("Choose an appropriate proposed partnership model");
+  if (input.model && input.prospect.proposed_partner_type !== input.model) missing.push("Confirm this partnership model in Prospect 360° before HQ approval");
   if (!input.prospect.fit_summary?.trim()) missing.push("Confirm and record commercial fit in Prospect 360°");
   if (!input.prospect.interest_evidence?.trim()) missing.push("Record evidence of actual partner interest");
   if (!input.contactNames.length) missing.push("Identify at least one contact");
