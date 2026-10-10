@@ -142,7 +142,6 @@ export default function PartnerProspectDetail() {
   if (isLoading) return <p className="text-muted-foreground">Loading prospect…</p>;
   if (isError || !prospect) return <div role="alert" className="text-destructive">Prospect not found or access restricted.</div>;
   const countryName = COUNTRY_NAME_BY_CODE[prospect.country] ?? prospect.country;
-  const qualified = ["Qualified", "Agreement Pending", "Signed"].includes(prospect.recruitment_stage);
   return (
     <div className="space-y-5 pb-10">
       <Link to="/partner-growth" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Recruitment Pipeline</Link>
