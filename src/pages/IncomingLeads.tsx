@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isPartnerTrainee, PartnerReferralWorkspace } from "@/components/partner-growth/PartnerReferralWorkspace";
 import { useNavigate } from "react-router-dom";
 import { useIncomingLeads, useUpdateIncomingLead, type IncomingLead } from "@/hooks/useIncomingLeads";
 import { usePartners } from "@/hooks/usePartners";
@@ -62,6 +63,12 @@ const defaultForm = {
 };
 
 export default function IncomingLeads() {
+  const {roles}=useAuth();
+  if(isPartnerTrainee(roles)) return <PartnerReferralWorkspace/>;
+  return <IncomingLeadsFull/>;
+}
+
+function IncomingLeadsFull() {
   const { data: leads = [], isLoading } = useIncomingLeads();
   const { data: partners = [] } = usePartners();
   const { isHQ, isAdmin, profile } = useAuth();

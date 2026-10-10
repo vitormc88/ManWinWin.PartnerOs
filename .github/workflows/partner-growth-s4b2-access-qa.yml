@@ -1,0 +1,25 @@
+name: Partner Growth 4B2 Access QA (TEST)
+on:
+  push:
+    branches:
+      - feature/partner-growth-s4b2-invites-academy-test-20261011
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  access-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: 4A / 4B1 / 4B2 UI and role interaction tests
+        run: npx vitest run src/components/partner-growth/__tests__/PartnerGrowthAccess.test.tsx src/components/partner-growth/__tests__/PartnerConversionPanel.test.tsx src/components/partner-growth/__tests__/PartnerActivationReadiness.test.tsx src/lib/__tests__/partner-activation-task.test.ts
+      - name: Application TypeScript
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Vite build
+        run: npm run build
