@@ -86,6 +86,36 @@ BEGIN
       public.has_role(auth.uid(),'hq_admin'::public.app_role) AND
       EXISTS (SELECT 1 FROM public.profiles p WHERE p.id=auth.uid() AND p.is_hq AND p.is_active)
     ) THEN RAISE EXCEPTION 'Only an active HQ Admin can approve a proposal' USING ERRCODE='42501'; END IF;
+    -- A review checkbox is not enough: preflight and supporting evidence must
+    -- still be true in the database when HQ performs the approval.
+    IF jsonb_typeof(NEW.content_snapshot->'missing_inputs') IS DISTINCT FROM 'array'
+      OR jsonb_array_length(NEW.content_snapshot->'missing_inputs')<>0 THEN
+      RAISE EXCEPTION 'Proposal preflight has unresolved requirements' USING ERRCODE='23514';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM public.partner_prospects p
+      WHERE p.id=NEW.prospect_id AND p.proposed_partner_type IS NOT NULL
+        AND p.proposed_partner_type = NEW.content_snapshot->>'model'
+        AND p.company_name = NEW.content_snapshot->>'prospect_name'
+        AND length(btrim(coalesce(p.fit_summary,'')))>=5
+        AND length(btrim(coalesce(p.interest_evidence,'')))>=5
+    ) THEN
+      RAISE EXCEPTION 'Approved document must match a qualified company profile' USING ERRCODE='23514';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM public.partner_prospect_contacts c
+      WHERE c.prospect_id=NEW.prospect_id
+    ) THEN
+      RAISE EXCEPTION 'Partner contact required for approval' USING ERRCODE='23514';
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM public.partner_prospect_research_sources s,
+        jsonb_array_elements(NEW.content_snapshot->'evidence') e
+      WHERE s.prospect_id=NEW.prospect_id AND s.evidence_state='verified_by_hq'
+        AND s.title=e->>'title' AND s.finding=e->>'finding'
+    ) THEN
+      RAISE EXCEPTION 'Approval requires current HQ-verified evidence in the document' USING ERRCODE='23514';
+    END IF;
     NEW.approved_by:=auth.uid(); NEW.approved_at:=now();
   ELSIF NEW.status IS DISTINCT FROM OLD.status OR
     NEW.approved_by IS DISTINCT FROM OLD.approved_by OR
