@@ -14,6 +14,7 @@ import { useProspectQualification, useResearchSources } from "@/hooks/usePartner
 import { useApprovePartnerDocument, usePartnerDocuments, useSavePartnerDocument, type PartnerDocument } from "@/hooks/usePartnerDocuments";
 import { buildStrategicProposalSnapshot, getProposalReadiness, type StrategicProposalSnapshot } from "@/lib/partner-growth-proposal";
 import { exportStrategicProposalDocx, exportStrategicProposalPdf } from "@/lib/partner-growth-proposal-export";
+import logoUrl from "@/assets/manwinwin-logo.png";
 
 const modelLabels: Record<PartnerModel, string> = {
   CMSC: "Strategic Connector (CMSC)", CMAR: "Accredited Reseller (CMAR)",
@@ -172,23 +173,85 @@ export function PartnerDocumentStudio({ prospect, canEdit, isAdmin }: {
           <Button disabled={!canEdit} onClick={()=>{setSelectedId("");setStep("review");setApprovedReview(false);}}>Prepare Document Preview</Button>
         </TabsContent>
         <TabsContent value="review" className="mt-4 space-y-4">
-          <div className="rounded-lg border bg-card p-4 sm:p-6 space-y-4">
-            <div className="border-b pb-4 space-y-2 text-center">
-              <p className="text-base font-black tracking-widest text-red-700">MANWINWIN</p>
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Partnership Development</p>
-              <h3 className="text-xl font-bold">{snapshot.title}</h3>
-              <p className="text-sm text-muted-foreground">{snapshot.subtitle}</p>
-              <Badge variant="outline">{selected?.status==="approved"?"HQ Approved":"DISCUSSION DRAFT · NOT A CONTRACT"}</Badge>
+          <div className="mx-auto max-w-[820px] space-y-4">
+            <div className="overflow-hidden border bg-white px-5 pb-8 pt-7 text-slate-800 shadow-md sm:px-10 sm:pb-10 sm:pt-9">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-600">Strategic Partnership Proposition</p>
+              <div className="mb-6 mt-4 h-0.5 w-full bg-red-600"/>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                <div className="flex min-h-[85px] items-center justify-center bg-slate-100 p-3">
+                  <img src={logoUrl} alt="ManWinWin Software" className="max-h-14 w-full object-contain"/>
+                </div>
+                <span className="text-xl font-bold text-red-600">×</span>
+                <div className="flex min-h-[85px] items-center justify-center bg-slate-800 p-3 text-center text-sm font-bold text-white">
+                  {snapshot.prospect_name}
+                </div>
+              </div>
+              <h2 className="mt-8 text-[clamp(1.5rem,5vw,2.25rem)] font-extrabold leading-tight tracking-tight text-slate-800">
+                STRATEGIC PARTNERSHIP<br/>PROPOSAL
+              </h2>
+              <p className="mt-2 text-sm text-slate-500">{snapshot.subtitle} · {snapshot.country}</p>
+              <div className="mt-7">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-red-600">The collaboration opportunity</p>
+                <p className="mt-2 text-sm leading-relaxed">{snapshot.executive_message || snapshot.objective}</p>
+              </div>
+              <div className="mt-7 grid grid-cols-3 text-center text-[9px] font-extrabold uppercase sm:text-[11px]">
+                <div className="flex min-h-[70px] items-center justify-center bg-red-600 p-2 text-white">Partner insight</div>
+                <div className="flex min-h-[70px] items-center justify-center bg-slate-100 p-2 text-slate-600">Shared customer value</div>
+                <div className="flex min-h-[70px] items-center justify-center bg-slate-800 p-2 text-white">Maintenance action</div>
+              </div>
+              <p className="mt-5 text-xs font-extrabold uppercase tracking-wide text-red-600">
+                From customer opportunity to maintenance impact.
+              </p>
+              <p className="mt-2 text-[10px] uppercase tracking-wide text-slate-400">
+                {selected?.status==="approved" ? "HQ approved proposal" : "Discussion document · HQ review required"}
+              </p>
+              <div className="mt-10 grid grid-cols-3">
+                {[
+                  ["FOCUSED START","One meaningful first opportunity"],
+                  ["CLEAR OWNERSHIP","Responsibilities agreed per case"],
+                  ["ROOM TO EVOLVE","Competency-based progression"],
+                ].map(([headline,caption],i)=><div key={headline}
+                  className={"p-2.5 text-[10px] " +(i===0?"bg-slate-100 text-slate-700":i===1?"bg-slate-800 text-white":"bg-red-600 text-white")}>
+                  <p className="font-bold">{headline}</p><p className="mt-1 opacity-85">{caption}</p>
+                </div>)}
+              </div>
+              <p className="mt-7 text-[10px] font-semibold uppercase tracking-wide text-red-600">Confidential · Not a contract</p>
             </div>
-            {snapshot.sections.map(s=><section key={s.heading} className="space-y-2">
-              <h4 className="border-b border-red-600/40 pb-1 text-sm font-bold">{s.heading}</h4>
-              {s.paragraphs.map((p,i)=><p key={i} className="text-sm leading-relaxed">{p}</p>)}
-              {s.bullets?.length?<ul className="list-disc pl-5 space-y-1 text-sm">{s.bullets.map((b,i)=><li key={i}>{b}</li>)}</ul>:null}
-            </section>)}
-            {snapshot.evidence.length>0 && <section className="space-y-2">
-              <h4 className="text-sm font-bold">Verified source register</h4>
-              {snapshot.evidence.map((e,i)=><p key={i} className="text-xs text-muted-foreground">{i+1}. {e.title} — {e.finding}{e.url? " · "+e.url:""}</p>)}
-            </section>}
+            <div className="border bg-white p-5 text-slate-800 shadow-sm sm:p-9">
+              <div className="mb-6 flex items-center justify-between border-b border-red-600 pb-3">
+                <img src={logoUrl} alt="ManWinWin" className="h-7 w-28 object-contain object-left"/>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Partnership proposal</span>
+              </div>
+              <p className="text-xs font-bold uppercase tracking-wide text-red-600">The partnership in context</p>
+              <h3 className="mb-5 mt-2 text-xl font-extrabold text-slate-800">An opportunity worth exploring.</h3>
+              {snapshot.sections.map(s=><section key={s.heading} className="mb-7 space-y-2">
+                <h4 className="border-b border-red-500 pb-2 text-base font-extrabold text-slate-800">{s.heading}</h4>
+                {s.paragraphs.map((p,i)=><p key={i} className="text-sm leading-relaxed text-slate-700">{p}</p>)}
+                {!!s.bullets?.length && <div className="space-y-2">
+                  {s.bullets.map((b,i)=><div key={i} className="flex gap-2 text-sm text-slate-700">
+                    <span className="font-bold text-red-600">•</span><span>{b}</span>
+                  </div>)}
+                </div>}
+                {s.heading.startsWith("03") && !!snapshot.responsibility_matrix?.length &&
+                  <div className="overflow-x-auto rounded-md border border-slate-200">
+                    <table className="w-full min-w-[420px] text-left text-xs">
+                      <thead className="bg-slate-800 text-white">
+                        <tr><th className="p-2">Activity</th><th className="p-2">{snapshot.prospect_name}</th><th className="p-2">ManWinWin</th></tr>
+                      </thead>
+                      <tbody>{snapshot.responsibility_matrix.map((r,i)=><tr key={i} className="border-t border-slate-200 bg-slate-50">
+                        <td className="p-2 font-semibold">{r.activity}</td><td className="p-2">{r.partner}</td><td className="p-2">{r.manwinwin}</td>
+                      </tr>)}</tbody>
+                    </table>
+                  </div>}
+              </section>)}
+              {!!snapshot.evidence.length && <section className="space-y-2">
+                <h4 className="border-b border-red-500 pb-2 text-base font-bold">Source register · HQ verified</h4>
+                {snapshot.evidence.map((e,i)=><p key={i} className="text-xs text-slate-600">{i+1}. {e.title} — {e.finding}{e.url?" · "+e.url:""}</p>)}
+              </section>}
+              <p className="mt-8 border-t border-slate-200 pt-3 text-[10px] text-slate-400">
+                ManWinWin · Confidential partnership discussion · Version {selected?.version||1}
+              </p>
+            </div>
           </div>
           <div className="rounded-lg bg-muted/50 p-3 space-y-2">
             <p className="font-semibold text-sm">Approval preflight</p>

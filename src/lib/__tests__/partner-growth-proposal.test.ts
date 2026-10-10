@@ -22,7 +22,10 @@ describe("Strategic partnership proposal generator", () => {
     expect(snapshot.title).toContain("Atlas Maintenance Solutions");
     expect(snapshot.subtitle).toContain("CMSC");
     expect(snapshot.sections.length).toBeGreaterThanOrEqual(6);
-    expect(snapshot.sections.find(x=>x.heading.includes("Evidence"))?.bullets).toContain(verified[0].finding);
+    expect(snapshot.sections.flatMap(x=>x.bullets || [])).toContain(verified[0].finding);
+    expect(snapshot.design_version).toBe(2);
+    expect(snapshot.value_pillars).toHaveLength(3);
+    expect(snapshot.responsibility_matrix).toHaveLength(3);
     expect(snapshot.missing_inputs).toHaveLength(0);
     expect(snapshot.proposal_notice).toContain("NOT A CONTRACT");
   });
@@ -52,7 +55,16 @@ describe("Strategic partnership proposal generator", () => {
     });
     expect(snapshot.evidence).toHaveLength(0);
     expect(snapshot.missing_inputs.some(t=>t.includes("Verify"))).toBe(true);
-    expect(snapshot.research_limitations).toContain("internal context");
+    expect(snapshot.research_limitations).toContain("internal working notes");
+    expect(snapshot.sections.flatMap(s=>s.paragraphs).join(" ")).not.toContain("Unverified company market share claim");
+  });
+  it("does not approve a proposal model different from the prospect's recorded model", () => {
+    const result=getProposalReadiness({
+      prospect:partner,qualification:null,contactNames:["Demo Contact"],
+      verifiedSources:verified,model:"CMAR",
+    });
+    expect(result.readyForHQApproval).toBe(false);
+    expect(result.missing.some(s=>s.includes("Confirm this partnership model"))).toBe(true);
   });
   it("preserves the distinct CMAR and CMAI competence gates", () => {
     for (const model of ["CMAR","CMAI"] as const) {
