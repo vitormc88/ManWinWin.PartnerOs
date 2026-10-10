@@ -86,5 +86,28 @@ BEGIN
  EXCEPTION WHEN others THEN IF SQLSTATE NOT IN ('42501','23514') THEN RAISE; END IF; END;
 END;$trainee$;
 RESET ROLE;
+-- Reattach the temporary test principal to an existing TEST partner with clients:
+-- RLS must hide them even if ordinary partner-ownership policies would expose them.
+SELECT set_config('request.jwt.claim.sub','',true);
+DO $client_fixture$
+DECLARE ext uuid;existing_partner uuid;
+BEGIN
+ SELECT id INTO ext FROM public.profiles WHERE is_active AND NOT is_hq AND
+  public.has_role(id,'partner_connector'::public.app_role) ORDER BY id LIMIT 1;
+ SELECT partner_id::uuid INTO existing_partner FROM public.clients
+ WHERE partner_id IS NOT NULL GROUP BY partner_id ORDER BY count(*) DESC LIMIT 1;
+ IF existing_partner IS NULL THEN RAISE EXCEPTION 'No TEST customer fixture for RLS security proof'; END IF;
+ UPDATE public.profiles SET partner_id=existing_partner WHERE id=ext;
+ PERFORM set_config('request.jwt.claim.sub',ext::text,true);
+END;$client_fixture$;
+SET LOCAL ROLE authenticated;
+DO $isolation$
+BEGIN
+ IF NOT public.pg_is_probationary_partner() THEN RAISE EXCEPTION 'FAIL trainee role not detected'; END IF;
+ IF EXISTS(SELECT 1 FROM public.clients) OR EXISTS(SELECT 1 FROM public.deals)
+ OR EXISTS(SELECT 1 FROM public.proposals) OR EXISTS(SELECT 1 FROM public.renewals)
+ THEN RAISE EXCEPTION 'FAIL probationary partner can read protected commercial data'; END IF;
+END;$isolation$;
+RESET ROLE;
 SELECT 'PASS' AS s4b2_roles_and_invitation_qa,
   (SELECT count(*) FROM public.partner_growth_invitations WHERE email='s4b2-rollback@example.invalid') AS transaction_only_invites;
