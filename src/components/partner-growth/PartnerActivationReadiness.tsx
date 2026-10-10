@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, ClipboardCheck, FileCheck2, FileWarning, GraduationCap, LockKeyhole, Rocket, ShieldCheck, Target } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useProspectContacts, useCreateProspectTask, type PartnerModel, type PartnerProspect } from "@/hooks/usePartnerGrowth";
+import { firstValueTaskIssue } from "@/lib/partner-activation-task";
+import { useProspectContacts, useProspectTasks, useCreateProspectTask, type PartnerProspect } from "@/hooks/usePartnerGrowth";
 import {
   useActivationPlan, useApproveActivationHandoff, useApproveLegalReview, useCapabilityPlans,
   useSaveActivationPlan, useSaveCapabilityPlan,
@@ -13,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -43,6 +45,7 @@ export function PartnerActivationReadiness({ prospect, canEdit, isAdmin }: {
   const { data: plan, isLoading, isError } = useActivationPlan(prospect.id);
   const { data: capabilityPlans = [] } = useCapabilityPlans(prospect.id);
   const { data: contacts = [] } = useProspectContacts(prospect.id);
+  const { data: prospectTasks = [], isLoading: tasksLoading } = useProspectTasks(prospect.id);
   const save = useSaveActivationPlan(prospect.id);
   const reviewLegal = useApproveLegalReview(prospect.id);
   const approveHandoff = useApproveActivationHandoff(prospect.id);
@@ -51,6 +54,7 @@ export function PartnerActivationReadiness({ prospect, canEdit, isAdmin }: {
   const [values, setValues] = useState<ActivationInput>(initial);
   const [reviewConfirmed, setReviewConfirmed] = useState(false);
   const [handoffConfirmed, setHandoffConfirmed] = useState(false);
+  const [firstValueDueDate, setFirstValueDueDate] = useState("");
   const [pathStates, setPathStates] = useState<Record<Pathway, PreparationStatus>>({
     CMSC: "not_started", CMAR: "not_started", CMAI: "not_started",
   });
@@ -67,6 +71,7 @@ export function PartnerActivationReadiness({ prospect, canEdit, isAdmin }: {
     });
     setReviewConfirmed(false);
     setHandoffConfirmed(false);
+    setFirstValueDueDate("");
   }, [plan, prospect.id, prospect.proposed_partner_type]);
   useEffect(() => {
     const nextStates: Record<Pathway,PreparationStatus> = { CMSC:"not_started",CMAR:"not_started",CMAI:"not_started" };
@@ -80,9 +85,10 @@ export function PartnerActivationReadiness({ prospect, canEdit, isAdmin }: {
     && !!prospect.agreement_signed_on && !!prospect.agreement_reference;
   const reviewed = plan?.legal_review_status === "approved";
   const ready = plan?.readiness_status === "ready_for_handoff";
-  const modelMatches = !!values.target_model && values.target_model === prospect.proposed_partner_type;
-  const planComplete = modelMatches && !!values.hq_activation_owner
-    && values.kickoff_objective.trim().length >= 5 && values.first_value_milestone.trim().length >= 5;
+  const planComplete = !!plan && !!plan.target_model && plan.target_model === prospect.proposed_partner_type
+    && !!plan.hq_activation_owner && plan.kickoff_objective.trim().length >= 5
+    && plan.first_value_milestone.trim().length >= 5;
+  const taskIssue = firstValueTaskIssue(values.first_value_milestone, firstValueDueDate, prospectTasks);
   const savePlan = async () => {
     try {
       await save.mutateAsync({ values, exists: !!plan });
@@ -114,12 +120,39 @@ export function PartnerActivationReadiness({ prospect, canEdit, isAdmin }: {
     } catch(e) { err(e); }
   };
   const makeTask = async () => {
-    const title = values.first_value_milestone.trim() || "Agree first joint customer opportunity";
+    if (tasksLoading || taskIssue) {
+      toast.error(taskIssue || "Wait for existing tasks to load before creating a new one");
+      return;
+    }
     try {
-      await createTask.mutateAsync({ title: "Partner activation: " + title });
-      toast.success("Follow-up added to existing Tasks");
+      await createTask.mutateAsync({
+        title: "Partner activation: " + values.first_value_milestone.trim(),
+        due_date: firstValueDueDate,
+      });
+      toast.success("Dated first-value task added to existing Tasks");
     } catch(e) { err(e); }
   };
+  const primaryRole = roles.find(r=>r.pathway===prospect.proposed_partner_type);
+  const otherRoles = roles.filter(r=>r.pathway!==prospect.proposed_partner_type);
+  const roleEditor = (r: typeof roles[number]) => (
+    <div className="rounded-xl border p-3 space-y-2" key={r.pathway}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-semibold">{r.pathway} — {r.label}</p>
+        {prospect.proposed_partner_type===r.pathway && <Badge variant="secondary">Proposed path</Badge>}
+      </div>
+      <p className="text-sm text-muted-foreground">{r.intent}</p>
+      <Select disabled={!canEdit} value={pathStates[r.pathway]}
+        onValueChange={v=>setPathStates(st=>({...st,[r.pathway]:v as PreparationStatus}))}>
+        <SelectTrigger aria-label={r.pathway+" preparation status"}><SelectValue/></SelectTrigger>
+        <SelectContent>{readiness.map(st=><SelectItem key={st.id} value={st.id}>{st.name}</SelectItem>)}</SelectContent>
+      </Select>
+      <Input disabled={!canEdit} value={pathNotes[r.pathway]}
+        onChange={e=>setPathNotes(st=>({...st,[r.pathway]:e.target.value}))}
+        placeholder="Evidence or next assessment requirement…"/>
+      {canEdit && <Button size="sm" variant="outline" disabled={savePathway.isPending}
+        onClick={()=>saveCapability(r.pathway)}>Save {r.pathway} preparation</Button>}
+    </div>
+  );
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading activation planning…</p>;
   if (isError) return <p className="text-sm text-destructive" role="alert">Unable to load activation planning.</p>;
   return <div className="space-y-4">
@@ -154,7 +187,7 @@ export function PartnerActivationReadiness({ prospect, canEdit, isAdmin }: {
       <CardContent className="space-y-3">
         <div className="space-y-1"><Label>Proposed partnership model</Label>
           <p className="text-sm text-muted-foreground">{prospect.proposed_partner_type ? roleNames[prospect.proposed_partner_type] : "No model defined in qualification"}</p>
-          <p className="text-xs text-muted-foreground">The activation model must match the qualified model. Change it in Prospect 360° before approval.</p>
+          <p className="text-xs text-muted-foreground">The activation model must match the qualified model. After Signed, changes require a formal contractual review.</p>
         </div>
         <div className="space-y-1"><Label>HQ activation owner</Label>
           <div className="flex flex-wrap items-center gap-2">
@@ -183,32 +216,33 @@ export function PartnerActivationReadiness({ prospect, canEdit, isAdmin }: {
             placeholder="Who follows the first lead, demonstrates, quotes and supports the customer?"/></div>
         <div className="flex flex-wrap gap-2">
           {canEdit && <Button disabled={save.isPending} onClick={savePlan}>Save activation plan</Button>}
-          {canEdit && <Button variant="outline" disabled={createTask.isPending} onClick={makeTask}>
-            <Target className="mr-2 h-4 w-4"/>Create first-value task</Button>}
         </div>
+        {canEdit && <div className="rounded-lg border p-3 space-y-2">
+          <Label htmlFor="first-value-task-date">First-value task due date</Label>
+          <Input id="first-value-task-date" type="date" value={firstValueDueDate}
+            onChange={e=>setFirstValueDueDate(e.target.value)} className="max-w-xs"/>
+          <Button variant="outline" disabled={createTask.isPending || tasksLoading || !!taskIssue} onClick={makeTask}>
+            <Target className="mr-2 h-4 w-4"/>Create first-value task</Button>
+          {taskIssue && <p className="text-xs text-muted-foreground" role="status">{taskIssue}</p>}
+        </div>}
       </CardContent>
     </Card>
     <Card>
       <CardHeader><CardTitle className="flex items-center gap-2 text-base"><GraduationCap className="h-5 w-5"/>Progressive capability preparation</CardTitle>
         <p className="text-sm text-muted-foreground">These are planning markers, <strong>not</strong> Academy completions, skill certificates or granted rights.</p></CardHeader>
-      <CardContent className="grid gap-3">
-        {roles.map(r=><div className="rounded-xl border p-3 space-y-2" key={r.pathway}>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="font-semibold">{r.pathway} — {r.label}</p>
-            {prospect.proposed_partner_type===r.pathway && <Badge variant="secondary">Proposed path</Badge>}
-          </div>
-          <p className="text-sm text-muted-foreground">{r.intent}</p>
-          <Select disabled={!canEdit} value={pathStates[r.pathway]}
-            onValueChange={v=>setPathStates(s=>({...s,[r.pathway]:v as PreparationStatus}))}>
-            <SelectTrigger aria-label={r.pathway+" preparation status"}><SelectValue/></SelectTrigger>
-            <SelectContent>{readiness.map(s=><SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-          </Select>
-          <Input disabled={!canEdit} value={pathNotes[r.pathway]}
-            onChange={e=>setPathNotes(s=>({...s,[r.pathway]:e.target.value}))}
-            placeholder="Evidence or next assessment requirement…"/>
-          {canEdit && <Button size="sm" variant="outline" disabled={savePathway.isPending}
-            onClick={()=>saveCapability(r.pathway)}>Save {r.pathway} preparation</Button>}
-        </div>)}
+      <CardContent className="space-y-3">
+        {primaryRole ? roleEditor(primaryRole) :
+          <p className="text-sm text-muted-foreground">This partnership does not currently have a standard CMSC/CMAR/CMAI pathway. A Strategic Alliance requires a separately approved plan.</p>}
+        <Accordion type="single" collapsible>
+          <AccordionItem value="other" className="rounded-lg border px-3">
+            <AccordionTrigger className="text-sm">
+              Other pathways ({otherRoles.length}) — optional future development
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 pt-2">
+              {otherRoles.map(roleEditor)}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
         <p className="text-xs text-muted-foreground">After authorized partner conversion, use existing PartnerOS Academy and real certification records. No parallel training engine has been created.</p>
       </CardContent>
     </Card>
