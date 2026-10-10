@@ -13,7 +13,8 @@ project_id = "avxxzmoayxzrykwqzoqn"
     verify_jwt = true
 
 [functions.send-transactional-email]
-verify_jwt = true
+# Custom per-environment DB token; anon/user JWTs cannot dispatch emails.
+verify_jwt = false
 
 [functions.preview-transactional-email]
 verify_jwt = false

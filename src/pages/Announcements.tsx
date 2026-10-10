@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Megaphone, Plus, Search, Pin, Pencil, Trash2, Archive, Send, Eye } from "lucide-react";
 import { useAnnouncements, useSaveAnnouncement, useDeleteAnnouncement, ANNOUNCEMENT_CATEGORIES, type Announcement, type AnnouncementInput } from "@/hooks/useAnnouncements";
 import { usePartners, usePartnershipLevels } from "@/hooks/usePartners";
@@ -60,6 +61,13 @@ export default function Announcements() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Announcement | null>(null);
   const [viewing, setViewing] = useState<Announcement | null>(null);
+  const [params, setParams] = useSearchParams();
+  const requestedId = params.get("id");
+  useEffect(() => {
+    if (!requestedId || isLoading) return;
+    const announcement = items.find(a => a.id === requestedId);
+    if (announcement) setViewing(announcement);
+  }, [requestedId, items, isLoading]);
   const [form, setForm] = useState<AnnouncementInput>(emptyForm);
 
   const save = useSaveAnnouncement();
@@ -269,7 +277,7 @@ export default function Announcements() {
       )}
 
       {/* View dialog */}
-      <Dialog open={!!viewing} onOpenChange={o => !o && setViewing(null)}>
+      <Dialog open={!!viewing} onOpenChange={o => { if (!o) { setViewing(null); if (requestedId) { const next = new URLSearchParams(params); next.delete("id"); setParams(next, { replace: true }); } } }}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           {viewing && (
             <>

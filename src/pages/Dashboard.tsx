@@ -728,7 +728,7 @@ export default function Dashboard() {
               ))}
             {!(notificationsQ.data ?? []).some((n) => !n.is_read) && (
               <p className="text-sm text-muted-foreground">
-                No unread alerts among the 50 most recent notifications.
+                No unread notifications.
               </p>
             )}
           </LoadState>

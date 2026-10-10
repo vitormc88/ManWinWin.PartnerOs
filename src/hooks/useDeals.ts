@@ -5,6 +5,7 @@ import { canonicalRenewalComponents, selectActiveCycle, isDerivedComponent, supp
 
 import { withRenewalHistory } from "@/lib/renewal-pipeline";
 import { fetchAllPages } from "@/lib/loss-analysis";
+import { useNotificationInbox } from "@/hooks/useNotificationInbox";
 
 export type Deal = Tables<"deals">;
 
@@ -234,17 +235,6 @@ export function useRenewals(filters?: { status?: string; includeHistory?: boolea
 }
 
 export function useNotifications(enabled: boolean = true) {
-  return useQuery({
-    queryKey: ["notifications"],
-    enabled,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data;
-    },
-  });
+  const query = useNotificationInbox(enabled, { unreadOnly: true, pageSize: 15 });
+  return { ...query, data: query.data?.items };
 }

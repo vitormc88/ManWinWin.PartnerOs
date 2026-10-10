@@ -137,8 +137,18 @@ Deno.serve(async (req) => {
 
   let totalProcessed = 0
 
+  // Internal operational dispatcher processes only its transactional queue;
+  // auth callers retain the existing default and are unaffected.
+  let queues = ['auth_emails', 'transactional_emails']
+  try {
+    const options = await req.json()
+    if (Array.isArray(options.queues) && options.queues.length === 1 && options.queues[0] === 'transactional_emails') {
+      queues = ['transactional_emails']
+    }
+  } catch { /* Existing callers may send an empty body. */ }
+
   // 2. Process auth_emails first (priority), then transactional_emails
-  for (const queue of ['auth_emails', 'transactional_emails']) {
+  for (const queue of queues) {
     const { data: messages, error: readError } = await supabase.rpc('read_email_batch', {
       queue_name: queue,
       batch_size: batchSize,
@@ -252,6 +262,30 @@ Deno.serve(async (req) => {
       }
 
       try {
+        if (payload.notification_id) {
+          // Re-check the kill switch, recipient eligibility and current
+          // assignment immediately before sending a queued notification.
+          const { data: context, error: contextError } = await supabase.rpc('notification_email_context', {
+            _notification_id: payload.notification_id,
+          })
+          if (contextError) throw new Error('Notification eligibility check failed')
+          if (!context) {
+            await moveToDlq(supabase, queue, msg, 'Notification no longer eligible for email')
+            continue
+          }
+          const { data: suppression, error: suppressionError } = await supabase
+            .from('suppressed_emails').select('id').eq('email', String(payload.to).toLowerCase()).maybeSingle()
+          if (suppressionError) throw new Error('Email suppression check failed')
+          if (suppression) {
+            const { error: logError } = await supabase.from('email_send_log').insert({
+              message_id: payload.message_id, template_name: payload.label,
+              recipient_email: payload.to, status: 'suppressed',
+            })
+            if (logError) throw new Error('Could not record email suppression')
+            await supabase.rpc('delete_email', { queue_name: queue, message_id: msg.msg_id })
+            continue
+          }
+        }
         await sendLovableEmail(
           {
             run_id: payload.run_id,

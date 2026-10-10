@@ -1,366 +1,92 @@
 import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
-import { createClient } from 'npm:@supabase/supabase-js@2'
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
+import { createClient } from 'npm:@supabase/supabase-js@2.99.3'
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 
-// Configuration baked in at scaffold time — do NOT change these manually.
-// To update, re-run the email domain setup flow.
-const SITE_NAME = "PartnerOS"
-// SENDER_DOMAIN is the verified sender subdomain FQDN (e.g., "notify.example.com").
-// It MUST match the subdomain delegated to Lovable's nameservers — never the root domain.
-// The email API looks up this exact domain; a mismatch causes "No email domain record found".
-const SENDER_DOMAIN = "notify.partneros.manwinwin.com"
-// FROM_DOMAIN is the domain shown in the From: header (e.g., "example.com").
-// When display_from_root is enabled, this can be the root domain for cleaner branding,
-// even though actual sending uses the subdomain above.
-const FROM_DOMAIN = "partneros.manwinwin.com"
+const SENDER_DOMAIN = 'notify.partneros.manwinwin.com' // Provider-registered domain; validate before changing.
+const FROM_DOMAIN = 'partneros.manwinwin.com'
+const json = (data: Record<string, unknown>, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } })
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-function redactEmail(email: string | null | undefined): string {
-  if (!email) return '***'
-  const [localPart, domain] = email.split('@')
-  if (!localPart || !domain) return '***'
-  return `${localPart[0]}***@${domain}`
-}
-
-// Generate a cryptographically random 32-byte hex token
-function generateToken(): string {
-  const bytes = new Uint8Array(32)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-// Auth note: this function uses verify_jwt = true in config.toml, so Supabase's
-// gateway validates the caller's JWT (anon or service_role) before the request
-// reaches this code. No in-function auth check is needed.
-
-Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+// Custom authentication: only a database-held, per-environment dispatch token
+// is accepted. JWTs/anon keys do not authorize this endpoint. Verification is
+// a service-role-only RPC, and recipients/content are always resolved in DB.
+Deno.serve(async req => {
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+  const token = req.headers.get('X-PartnerOS-Dispatch-Token')
+  if (!token || !/^[0-9a-f]{64}$/.test(token)) return json({ error: 'Unauthorized' }, 401)
+  const url = Deno.env.get('SUPABASE_URL')
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  if (!url || !serviceKey) return json({ error: 'Server configuration error' }, 503)
+  const db = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
+  const { data: authorized, error: authError } = await db.rpc('notification_dispatch_authorized', { _token: token })
+  if (authError || authorized !== true) return json({ error: 'Forbidden' }, 403)
+  let body: Record<string, unknown>
+  try { body = await req.json() } catch { return json({ error: 'Invalid request' }, 400) }
+  if (body.action === 'health') return json({ ready: !!Deno.env.get('LOVABLE_API_KEY'), senderDomain: SENDER_DOMAIN, fromDomain: FROM_DOMAIN })
+  if (body.action === 'process_queue') {
+    if (!Deno.env.get('LOVABLE_API_KEY')) return json({ error: 'Email provider credential missing' }, 503)
+    const response = await fetch(`${url}/functions/v1/process-email-queue`, {
+      method: 'POST', headers: { Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queues: ['transactional_emails'] }),
+    })
+    return new Response(await response.text(), { status: response.status, headers: { 'Content-Type': 'application/json' } })
   }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    console.error('Missing required environment variables')
-    return new Response(
-      JSON.stringify({ error: 'Server configuration error' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  // Parse request body
-  let templateName: string
-  let recipientEmail: string
-  let idempotencyKey: string
-  let messageId: string
-  let templateData: Record<string, any> = {}
+  const notificationId = typeof body.notificationId === 'string' ? body.notificationId : ''
+  if (!uuid.test(notificationId)) return json({ error: 'notificationId is required' }, 400)
   try {
-    const body = await req.json()
-    templateName = body.templateName || body.template_name
-    recipientEmail = body.recipientEmail || body.recipient_email
-    messageId = crypto.randomUUID()
-    idempotencyKey = body.idempotencyKey || body.idempotency_key || messageId
-    if (body.templateData && typeof body.templateData === 'object') {
-      templateData = body.templateData
+    const { data: context, error: contextError } = await db.rpc('notification_email_context', { _notification_id: notificationId })
+    if (contextError) throw new Error('Could not resolve notification')
+    if (!context) {
+      await db.from('notifications').update({ email_status: 'disabled', email_error: 'Notification no longer eligible for email' }).eq('id', notificationId).in('email_status', ['dispatching', 'failed'])
+      return json({ skipped: true })
     }
-  } catch {
-    return new Response(
-      JSON.stringify({ error: 'Invalid JSON in request body' }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  if (!templateName) {
-    return new Response(
-      JSON.stringify({ error: 'templateName is required' }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  // 1. Look up template from registry (early — needed to resolve recipient)
-  const template = TEMPLATES[templateName]
-
-  if (!template) {
-    console.error('Template not found in registry', { templateName })
-    return new Response(
-      JSON.stringify({
-        error: `Template '${templateName}' not found. Available: ${Object.keys(TEMPLATES).join(', ')}`,
-      }),
-      {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  // Resolve effective recipient: template-level `to` takes precedence over
-  // the caller-provided recipientEmail. This allows notification templates
-  // to always send to a fixed address (e.g., site owner from env var).
-  const effectiveRecipient = template.to || recipientEmail
-
-  if (!effectiveRecipient) {
-    return new Response(
-      JSON.stringify({
-        error: 'recipientEmail is required (unless the template defines a fixed recipient)',
-      }),
-      {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  // Create Supabase client with service role (bypasses RLS)
-  const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-  // 2. Check suppression list (fail-closed: if we can't verify, don't send)
-  const { data: suppressed, error: suppressionError } = await supabase
-    .from('suppressed_emails')
-    .select('id')
-    .eq('email', effectiveRecipient.toLowerCase())
-    .maybeSingle()
-
-  if (suppressionError) {
-    console.error('Suppression check failed — refusing to send', {
-      code: suppressionError.code,
-      message: suppressionError.message,
-      recipient_redacted: redactEmail(effectiveRecipient),
-    })
-    return new Response(
-      JSON.stringify({ error: 'Failed to verify suppression status' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  if (suppressed) {
-    // Log the suppressed attempt
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: templateName,
-      recipient_email: effectiveRecipient,
-      status: 'suppressed',
-    })
-
-    console.log('Email suppressed', { templateName, recipient_redacted: redactEmail(effectiveRecipient) })
-    return new Response(
-      JSON.stringify({ success: false, reason: 'email_suppressed' }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  // 3. Get or create unsubscribe token (one token per email address)
-  const normalizedEmail = effectiveRecipient.toLowerCase()
-  let unsubscribeToken: string
-
-  // Check for existing token for this email
-  const { data: existingToken, error: tokenLookupError } = await supabase
-    .from('email_unsubscribe_tokens')
-    .select('token, used_at')
-    .eq('email', normalizedEmail)
-    .maybeSingle()
-
-  if (tokenLookupError) {
-    console.error('Token lookup failed', {
-      code: tokenLookupError.code,
-      message: tokenLookupError.message,
-      email_redacted: redactEmail(normalizedEmail),
-    })
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: templateName,
-      recipient_email: effectiveRecipient,
-      status: 'failed',
-      error_message: 'Failed to look up unsubscribe token',
-    })
-    return new Response(
-      JSON.stringify({ error: 'Failed to prepare email' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  if (existingToken && !existingToken.used_at) {
-    // Reuse existing unused token
-    unsubscribeToken = existingToken.token
-  } else if (!existingToken) {
-    // Create new token — upsert handles concurrent inserts gracefully
-    unsubscribeToken = generateToken()
-    const { error: tokenError } = await supabase
-      .from('email_unsubscribe_tokens')
-      .upsert(
-        { token: unsubscribeToken, email: normalizedEmail },
-        { onConflict: 'email', ignoreDuplicates: true }
-      )
-
-    if (tokenError) {
-      console.error('Failed to create unsubscribe token', {
-        code: tokenError.code,
-        message: tokenError.message,
-      })
-      await supabase.from('email_send_log').insert({
-        message_id: messageId,
-        template_name: templateName,
-        recipient_email: effectiveRecipient,
-        status: 'failed',
-        error_message: 'Failed to create unsubscribe token',
-      })
-      return new Response(
-        JSON.stringify({ error: 'Failed to prepare email' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      )
+    const recipient = context.recipientEmail
+    const { data: suppression, error: suppressionError } = await db.from('suppressed_emails').select('id').eq('email', recipient).maybeSingle()
+    if (suppressionError) throw new Error('Could not verify suppression status')
+    if (suppression) {
+      const { error } = await db.from('email_send_log').insert({ message_id: notificationId, template_name: 'partneros-notification', recipient_email: recipient, status: 'suppressed' })
+      if (error) throw new Error('Could not record suppression')
+      return json({ suppressed: true })
     }
-
-    // If another request raced us, our upsert was silently ignored.
-    // Re-read to get the actual stored token.
-    const { data: storedToken, error: reReadError } = await supabase
-      .from('email_unsubscribe_tokens')
-      .select('token')
-      .eq('email', normalizedEmail)
-      .maybeSingle()
-
-    if (reReadError || !storedToken) {
-      console.error('Failed to read back unsubscribe token after upsert', {
-        code: reReadError?.code,
-        message: reReadError?.message,
-        email_redacted: redactEmail(normalizedEmail),
-      })
-      await supabase.from('email_send_log').insert({
-        message_id: messageId,
-        template_name: templateName,
-        recipient_email: effectiveRecipient,
-        status: 'failed',
-        error_message: 'Failed to confirm unsubscribe token storage',
-      })
-      return new Response(
-        JSON.stringify({ error: 'Failed to prepare email' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      )
+    let { data: tokenRow, error: tokenError } = await db.from('email_unsubscribe_tokens').select('token,used_at').eq('email', recipient).maybeSingle()
+    if (tokenError) throw new Error('Could not prepare preferences link')
+    if (tokenRow?.used_at) {
+      await db.from('email_send_log').insert({ message_id: notificationId, template_name: 'partneros-notification', recipient_email: recipient, status: 'suppressed', error_message: 'Email preferences disable notifications' })
+      return json({ suppressed: true })
     }
-    unsubscribeToken = storedToken.token
-  } else {
-    // Token exists but is already used — email should have been caught by suppression check above.
-    // This is a safety fallback; log and skip sending.
-    console.warn('Unsubscribe token already used but email not suppressed', {
-      email_redacted: redactEmail(normalizedEmail),
-    })
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: templateName,
-      recipient_email: effectiveRecipient,
-      status: 'suppressed',
-      error_message:
-        'Unsubscribe token used but email missing from suppressed list',
-    })
-    return new Response(
-      JSON.stringify({ success: false, reason: 'email_suppressed' }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
-  }
-
-  // 4. Render React Email template to HTML and plain text
-  const html = await renderAsync(
-    React.createElement(template.component, templateData)
-  )
-  const plainText = await renderAsync(
-    React.createElement(template.component, templateData),
-    { plainText: true }
-  )
-
-  // Resolve subject — supports static string or dynamic function
-  const resolvedSubject =
-    typeof template.subject === 'function'
-      ? template.subject(templateData)
-      : template.subject
-
-  // 5. Enqueue the pre-rendered email for async processing by the dispatcher.
-  // The dispatcher (process-email-queue) handles sending, retries, and rate-limit backoff.
-
-  // Log pending BEFORE enqueue so we have a record even if enqueue crashes
-  await supabase.from('email_send_log').insert({
-    message_id: messageId,
-    template_name: templateName,
-    recipient_email: effectiveRecipient,
-    status: 'pending',
-  })
-
-  const { error: enqueueError } = await supabase.rpc('enqueue_email', {
-    queue_name: 'transactional_emails',
-    payload: {
-      message_id: messageId,
-      to: effectiveRecipient,
-      from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
-      sender_domain: SENDER_DOMAIN,
-      subject: resolvedSubject,
-      html,
-      text: plainText,
-      purpose: 'transactional',
-      label: templateName,
-      idempotency_key: idempotencyKey,
-      unsubscribe_token: unsubscribeToken,
-      queued_at: new Date().toISOString(),
-    },
-  })
-
-  if (enqueueError) {
-    console.error('Failed to enqueue email', {
-      code: enqueueError.code,
-      message: enqueueError.message,
-      templateName,
-      recipient_redacted: redactEmail(effectiveRecipient),
-    })
-
-    await supabase.from('email_send_log').insert({
-      message_id: messageId,
-      template_name: templateName,
-      recipient_email: effectiveRecipient,
-      status: 'failed',
-      error_message: 'Failed to enqueue email',
-    })
-
-    return new Response(JSON.stringify({ error: 'Failed to enqueue email' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
-  console.log('Transactional email enqueued', { templateName, recipient_redacted: redactEmail(effectiveRecipient) })
-
-  return new Response(
-    JSON.stringify({ success: true, queued: true }),
-    {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    if (!tokenRow) {
+      const bytes = crypto.getRandomValues(new Uint8Array(32))
+      const newToken = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+      const { error } = await db.from('email_unsubscribe_tokens').upsert({ email: recipient, token: newToken }, { onConflict: 'email', ignoreDuplicates: true })
+      if (error) throw new Error('Could not save preferences link')
+      const reread = await db.from('email_unsubscribe_tokens').select('token,used_at').eq('email', recipient).single()
+      if (reread.error) throw new Error('Could not confirm preferences link')
+      tokenRow = reread.data
     }
-  )
+    if (!tokenRow?.token || tokenRow.used_at) throw new Error('Email preferences are unavailable')
+    const templateName = context.eventType === 'announcement.published' ? 'partneros-announcement' : context.eventType.startsWith('task.') ? 'partneros-task-assigned' : 'partneros-lead-assigned'
+    const template = TEMPLATES[templateName]
+    const props = { ...context, unsubscribeToken: tokenRow.token }
+    const component = React.createElement(template.component, props)
+    const html = await renderAsync(component)
+    const text = await renderAsync(component, { plainText: true })
+    const subject = typeof template.subject === 'function' ? template.subject(props) : template.subject
+    const { data: queued, error: enqueueError } = await db.rpc('enqueue_notification_email', {
+      _notification_id: notificationId,
+      _payload: {
+        message_id: notificationId, to: recipient, from: `ManWinWin PartnerOS <noreply@${FROM_DOMAIN}>`,
+        sender_domain: SENDER_DOMAIN, subject, html, text, purpose: 'transactional', label: templateName,
+        unsubscribe_token: tokenRow.token, queued_at: new Date().toISOString(),
+      },
+    })
+    if (enqueueError) throw new Error('Could not queue notification email')
+    return json({ queued: queued === true, duplicateOrSkipped: queued !== true })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Email preparation failed'
+    // Record a useful stage error without logging tokens, addresses, or content.
+    await db.from('notifications').update({ email_status: 'failed', email_error: message }).eq('id', notificationId).is('email_queued_at', null).in('email_status', ['dispatching', 'failed'])
+    console.error('Notification email preparation failed', { notificationId, stage: message })
+    return json({ error: 'Email preparation failed' }, 500)
+  }
 })
