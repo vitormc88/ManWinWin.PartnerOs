@@ -455,6 +455,7 @@ export const TASK_RELATED_TYPES = [
   "renewal",
   "lead",
   "partner",
+  "partner_prospect",
   "general",
 ] as const;
 export type TaskRelatedType = (typeof TASK_RELATED_TYPES)[number];
@@ -480,6 +481,7 @@ const RELATED_ROUTE: Record<TaskRelatedType, (id: string) => string | null> = {
   renewal: (id) => `/renewals?focus=${id}`,
   lead: (id) => `/incoming-leads/${id}`,
   partner: (id) => `/partners/${id}`,
+  partner_prospect: (id) => `/partner-growth/${id}`,
   general: () => null,
 };
 

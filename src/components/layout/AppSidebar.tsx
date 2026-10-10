@@ -27,6 +27,7 @@ import {
   CheckSquare,
   Target,
   Globe2,
+  Network,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { BrandMark } from "@/components/BrandMark";
@@ -57,6 +58,7 @@ const mainNav: NavItem[] = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
   { title: "Partner Management", url: "/partners", icon: Users },
+  { title: "Partner Growth", url: "/partner-growth", icon: Network },
   { title: "Clients & Licenses", url: "/clients", icon: Building2 },
   { title: "Renewals", url: "/renewals", icon: RefreshCcw },
   { title: "Analytics", url: "/analytics", icon: BarChart3 },
