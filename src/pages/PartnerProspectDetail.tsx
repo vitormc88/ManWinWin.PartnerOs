@@ -9,6 +9,7 @@ import {
   useUpdateProspect, useAddProspectContact, useAddProspectActivity, useCreateProspectTask,
   ALL_STAGES, type PartnerModel, type RecruitmentStage,
 } from "@/hooks/usePartnerGrowth";
+import { QualificationCopilot } from "@/components/partner-growth/QualificationCopilot";
 import { COUNTRY_NAME_BY_CODE } from "@/data/iso-countries";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +20,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const models: PartnerModel[] = ["CMSC", "CMAR", "CMAI", "Strategic Alliance"];
 type FormState = {
   company_name: string; website: string; description: string; source: string;
   proposed_partner_type: PartnerModel | ""; fit_summary: string; interest_evidence: string;
@@ -156,7 +156,7 @@ export default function PartnerProspectDetail() {
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         <TabsList className="grid h-auto w-full grid-cols-4">
           <TabsTrigger value="overview" className="px-1 text-xs sm:text-sm">Overview</TabsTrigger>
-          <TabsTrigger value="qualification" className="px-1 text-xs sm:text-sm">Fit</TabsTrigger>
+          <TabsTrigger value="qualification" className="px-1 text-xs sm:text-sm">Copilot</TabsTrigger>
           <TabsTrigger value="documents" className="px-1 text-xs sm:text-sm">Docs</TabsTrigger>
           <TabsTrigger value="activity" className="px-1 text-xs sm:text-sm">Activity</TabsTrigger>
         </TabsList>
@@ -195,17 +195,7 @@ export default function PartnerProspectDetail() {
           </CardContent></Card>
         </TabsContent>
         <TabsContent value="qualification" className="mt-4 space-y-4">
-          <Card><CardHeader><CardTitle className="text-base">Partner qualification</CardTitle></CardHeader><CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">Record observed facts. Advanced Research / Discovery Copilot arrives in Sprint 2.</p>
-            <div className="space-y-1"><Label>Proposed partnership model</Label>
-              <Select disabled={!canEdit} value={form.proposed_partner_type || "undecided"} onValueChange={(v) => setForm({ ...form, proposed_partner_type: v === "undecided" ? "" : v as PartnerModel })}>
-                <SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="undecided">To be determined</SelectItem>{models.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
-              </Select></div>
-            <div className="space-y-1"><Label>Why does this company fit?</Label><Textarea disabled={!canEdit} rows={3} value={form.fit_summary} onChange={(e) => setForm({ ...form, fit_summary: e.target.value })} placeholder="Relevant market, customer access, technical/commercial value…" /></div>
-            <div className="space-y-1"><Label>Evidence of interest</Label><Textarea disabled={!canEdit} rows={3} value={form.interest_evidence} onChange={(e) => setForm({ ...form, interest_evidence: e.target.value })} placeholder="What did they actually say or agree to?" /></div>
-            {canEdit && <Button disabled={update.isPending} onClick={saveProfile}>Save qualification</Button>}
-            {qualified && <div className="flex items-center gap-2 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4" />Qualified by HQ — {prospect.qualified_at ? new Date(prospect.qualified_at).toLocaleDateString() : "recorded"}</div>}
-          </CardContent></Card>
+          <QualificationCopilot key={prospect.id} prospect={prospect} canEdit={canEdit} />
           <Card><CardHeader><CardTitle className="text-base">Contacts ({contacts.length})</CardTitle></CardHeader><CardContent className="space-y-3">
             {contacts.map((c) => <div className="rounded-lg border p-3" key={c.id}><p className="font-medium">{c.name}</p><p className="text-sm text-muted-foreground">{[c.job_title, c.email, c.phone].filter(Boolean).join(" · ")}</p></div>)}
             {canEdit && <div className="grid gap-2 sm:grid-cols-2">
