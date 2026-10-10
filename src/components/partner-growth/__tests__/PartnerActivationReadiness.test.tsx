@@ -17,6 +17,7 @@ const qa = vi.hoisted(() => ({
   savePath: vi.fn().mockResolvedValue({}),
 }));
 
+vi.mock("@/components/partner-growth/PartnerConversionPanel", () => ({ PartnerConversionPanel: () => null }));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "hq-admin-test" } }),
 }));
