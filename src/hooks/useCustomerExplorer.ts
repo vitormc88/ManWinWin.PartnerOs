@@ -39,11 +39,11 @@ export function useCustomerExplorer(manage=false,enabled=true) {
       }
       for(let offset=0;;offset+=500){
         const {data,error}=await supabase.from('customer_explorer_media' as never)
-          .select('client_key,logo_path,logo_dark,case_study,updated_at').order('client_key').range(offset,offset+499);
+          .select('client_key,logo_path,logo_dark,case_study,updated_at,website_url,website_source,website_reviewed_at').order('client_key').range(offset,offset+499);
         if(error)throw new Error(error.message);
-        for(const media of (data||[]) as unknown as {client_key:string;logo_path:string|null;logo_dark:boolean;case_study:ExplorerCaseStudy|null;updated_at:string}[]){
+        for(const media of (data||[]) as unknown as {client_key:string;logo_path:string|null;logo_dark:boolean;case_study:ExplorerCaseStudy|null;updated_at:string;website_url:string|null;website_source:string|null;website_reviewed_at:string|null}[]){
           const row=rows.find(r=>clientKey(r.client_id)===media.client_key);
-          if(row)Object.assign(row,{logo_path:media.logo_path,logo_dark:media.logo_dark,case_study:media.case_study,media_updated_at:media.updated_at});
+          if(row)Object.assign(row,{logo_path:media.logo_path,logo_dark:media.logo_dark,case_study:media.case_study,media_updated_at:media.updated_at,website_url:media.website_url,website_source:media.website_source,website_reviewed_at:media.website_reviewed_at});
         }
         if(!data||data.length<500)break;
       }
@@ -85,7 +85,7 @@ export function useDirectoryWrites(){
    await saveHq(items.map(r=>hqPayload(r.input,r.existing)));
    await refresh();
  };
- const onMediaSave=async(current:DirectoryClient,patch:{logo_path?:string|null;logo_dark?:boolean;case_study?:ExplorerCaseStudy|null})=>{
+ const onMediaSave=async(current:DirectoryClient,patch:{logo_path?:string|null;logo_dark?:boolean;case_study?:ExplorerCaseStudy|null;website_url?:string|null;website_source?:string|null;website_reviewed_at?:string|null})=>{
    const key=clientKey(current.client_id);
    const payload={client_key:key,logo_path:current.logo_path||null,logo_dark:current.logo_dark||false,case_study:current.case_study||null,...patch};
    if(current.media_updated_at){

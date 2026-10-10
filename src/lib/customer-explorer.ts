@@ -20,6 +20,9 @@ export interface ExplorerClient {
   logo_path?: string | null;
   media_updated_at?: string | null;
   logo_dark?: boolean;
+  website_url?: string | null;
+  website_source?: string | null;
+  website_reviewed_at?: string | null;
   case_study?: ExplorerCaseStudy | null;
   partner: string;
   contact_name: string;
