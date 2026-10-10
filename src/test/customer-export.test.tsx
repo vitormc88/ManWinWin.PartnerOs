@@ -11,7 +11,7 @@ import type {ExplorerClient} from '@/lib/customer-explorer';
 
 vi.mock('@/integrations/supabase/client',()=>({supabase:{storage:{from:()=>({download:vi.fn().mockResolvedValue({data:null,error:new Error('Denied')})})}}}));
 const filters={search:'',sector:'',region:'',country:'',includeHistorical:false};
-const row:ExplorerClient={id:'fixture-one',name:'Novarroz',country:'PT',sector:'Food & Beverage',active:true,partner:'INTERNAL PARTNER',contact_name:'PRIVATE CONTACT',contact_email:'private@example.com'};
+const row:ExplorerClient={id:'fixture-one',name:'Novarroz',country:'PT',sector:'Food & Beverage',active:true,partner:'INTERNAL PARTNER',contact_name:'PRIVATE CONTACT',contact_email:'private@example.com',website_url:'https://www.novarroz.pt/',website_source:'https://www.novarroz.pt/',website_reviewed_at:'2026-10-10'};
 const assets=async(path:string)=>new Uint8Array(readFileSync(resolve('public',path.replace(/^\//,''))));
 const out=resolve('../output/pdf');
 describe('Customer PDF export',()=>{
@@ -25,7 +25,9 @@ describe('Customer PDF export',()=>{
  it('requires reviewed complete case studies and exact website identity',()=>{
   expect(reviewedExportStudy({...row,case_study:{url:'https://www.manwinwin.com/article'} as never})).toBeNull();
   expect(customerWebsite(row)).toBe('https://www.novarroz.pt/');
-  expect(customerWebsite({...row,country:'GH'})).toBeNull();
+  expect(customerWebsite({...row,website_reviewed_at:null})).toBeNull();
+  expect(customerWebsite({...row,website_url:'https://user:secret@example.com/'})).toBeNull();
+  expect(customerWebsite({...row,website_url:'javascript:alert(1)'})).toBeNull();
   expect(exportSummary([row]).websites).toBe(1);
  });
  it('generates a safe date-stamped filename',()=>{

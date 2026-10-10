@@ -2,17 +2,13 @@ import {countryCode,countryGroups,countryName,filterExplorerClients,hasCaseStudy
 
 export type ExportOptions={map:boolean;logos:boolean;websites:boolean;caseStudies:boolean};
 export const DEFAULT_EXPORT_OPTIONS:ExportOptions={map:false,logos:true,websites:true,caseStudies:false};
-// Reviewed public websites. Match name AND country, never an ID reused in TEST.
-const reviewedWebsites:Record<string,string>={
- 'NOVARROZ|PT':'https://www.novarroz.pt/',
- 'QUINTA DOS ACORES|PT':'https://www.quintadosacores.com/',
- 'QUINTA DO VALLADO|PT':'https://www.quintadovallado.com/en/',
- 'HPW FRESH & DRY|GH':'https://www.hpwag.com/en/about-us/hpw-fresh-dry-ghana',
- 'HPW FRESH & DRY LTD|GH':'https://www.hpwag.com/en/about-us/hpw-fresh-dry-ghana',
-};
+export function safeCompanyWebsite(value:unknown){
+ if(typeof value!=='string'||value.length>2000)return null;
+ if(!/^https:\/\/([A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}([/?#][^\s\\]*)?$/.test(value))return null;
+ try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null;}catch{return null;}
+}
 export function customerWebsite(row:ExplorerClient){
- const name=row.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
- return reviewedWebsites[`${name}|${countryCode(row.country)}`]||null;
+ return row.website_reviewed_at&&/^\d{4}-\d{2}-\d{2}$/.test(row.website_reviewed_at)&&safeCompanyWebsite(row.website_source)?safeCompanyWebsite(row.website_url):null;
 }
 export function reviewedExportStudy(row:ExplorerClient){
  const s=row.case_study;

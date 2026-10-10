@@ -4,6 +4,7 @@ import { countryCode, countryGroups, sectorGroups, countryName, filterExplorerCl
 import { CustomerLogo } from './CustomerLogo';
 import { CustomerCaseStudy } from './CustomerCaseStudy';
 import {CustomerExportDialog} from './CustomerExportDialog';
+import {customerWebsite} from '@/lib/customer-export';
 import "./customer-explorer.css";
 
 type World = { features: { properties: { NAME: string; ISO_A2: string }; geometry: { type: string; coordinates: number[][][] | number[][][][] } }[] };
@@ -102,6 +103,7 @@ export function CustomerExplorer({ clients, preview = false, updatedAt, onRefres
       <div className="ce-client-identity"><CustomerLogo client={r}/><h3>{r.name}</h3></div><div className="ce-location"><MapPin size={14}/>{countryName(r.country)}<span>·</span>{regionName(r.country)}</div>
       {r.evidence_status?<small className="ce-sector-evidence">{r.evidence_status==='suggested'?'Sector suggested · needs validation':r.evidence_status==='validated'?'Sector validated by HQ':null}</small>:r.sector_evidence&&<small className="ce-sector-evidence">{r.sector_evidence.startsWith("Suggested")||r.sector_evidence.startsWith("Correction proposed")?"Sector suggested · needs validation":r.sector_evidence.startsWith("Unresolved")?"Sector not identified":r.sector_evidence.startsWith("Web verified")?"Sector verified in supplied workbook":null}</small>}
       <CustomerCaseStudy client={r}/>
+      {customerWebsite(r)&&<a className="ce-website" href={customerWebsite(r)!} target="_blank" rel="noopener noreferrer"><Globe2 size={14}/>Company website<ArrowUpRight size={14}/></a>}
       <div className="ce-contact"><span className="ce-avatar">{(r.contact_email?r.contact_name:"Customer Care").split(/\s+/).slice(0,2).map(s=>s[0]).join("")}</span><div><span>YOUR CONTACT</span><strong>{r.contact_email?r.contact_name:"Customer Care"}</strong><small>{r.contact_email?r.partner:"ManWinWin"}</small></div></div>
       <button className="ce-request" onClick={()=>openRequest(r)}>Ask for information<ArrowUpRight size={16}/></button>
     </article>)}</div>
