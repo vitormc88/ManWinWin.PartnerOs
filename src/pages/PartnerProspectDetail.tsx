@@ -226,7 +226,6 @@ export default function PartnerProspectDetail() {
                 : <div className="flex gap-2 text-sm text-muted-foreground"><ShieldAlert className="h-4 w-4" />Not yet a verified executed agreement</div>}
               <p className="text-xs text-muted-foreground">To verify a signature, choose Signed in Overview. An HQ Admin must confirm the document reference and date. Document generation arrives in Sprint 3.</p>
             </CardContent></Card>
-          </Card>
         </TabsContent>
         <TabsContent value="activity" className="mt-4 space-y-4">
           <Card><CardHeader><CardTitle className="text-base">Relationship history</CardTitle></CardHeader><CardContent className="space-y-3">
