@@ -3,8 +3,7 @@ import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2.99.3'
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
 
-const SENDER_DOMAIN = 'notify.partneros.manwinwin.com' // Provider-registered domain; validate before changing.
-const FROM_DOMAIN = 'partneros.manwinwin.com'
+const FROM_EMAIL = Deno.env.get('NOTIFICATION_FROM_EMAIL')
 const json = (data: Record<string, unknown>, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } })
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -23,9 +22,9 @@ Deno.serve(async req => {
   if (authError || authorized !== true) return json({ error: 'Forbidden' }, 403)
   let body: Record<string, unknown>
   try { body = await req.json() } catch { return json({ error: 'Invalid request' }, 400) }
-  if (body.action === 'health') return json({ ready: !!Deno.env.get('LOVABLE_API_KEY'), senderDomain: SENDER_DOMAIN, fromDomain: FROM_DOMAIN })
+  if (body.action === 'health') return json({ provider: 'resend', ready: !!Deno.env.get('RESEND_API_KEY')?.startsWith('re_'), credentialConfigured: !!Deno.env.get('RESEND_API_KEY'), credentialFormatValid: !!Deno.env.get('RESEND_API_KEY')?.startsWith('re_'), productionSenderConfigured: !!FROM_EMAIL, testSender: 'onboarding@resend.dev' })
   if (body.action === 'process_queue') {
-    if (!Deno.env.get('LOVABLE_API_KEY')) return json({ error: 'Email provider credential missing' }, 503)
+    if (!Deno.env.get('RESEND_API_KEY')) return json({ error: 'Email provider credential missing' }, 503)
     const response = await fetch(`${url}/functions/v1/process-email-queue`, {
       method: 'POST', headers: { Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ queues: ['transactional_emails'] }),
@@ -41,6 +40,10 @@ Deno.serve(async req => {
       await db.from('notifications').update({ email_status: 'disabled', email_error: 'Notification no longer eligible for email' }).eq('id', notificationId).in('email_status', ['dispatching', 'failed'])
       return json({ skipped: true })
     }
+    const { data: notification, error: notificationError } = await db.from('notifications').select('entity_type').eq('id', notificationId).single()
+    if (notificationError) throw new Error('Could not verify notification type')
+    const testOnly = notification.entity_type === 'email_test'
+    if (!FROM_EMAIL && !testOnly) throw new Error('Verified notification sender is not configured')
     const recipient = context.recipientEmail
     const { data: suppression, error: suppressionError } = await db.from('suppressed_emails').select('id').eq('email', recipient).maybeSingle()
     if (suppressionError) throw new Error('Could not verify suppression status')
@@ -75,8 +78,8 @@ Deno.serve(async req => {
     const { data: queued, error: enqueueError } = await db.rpc('enqueue_notification_email', {
       _notification_id: notificationId,
       _payload: {
-        message_id: notificationId, to: recipient, from: `ManWinWin PartnerOS <noreply@${FROM_DOMAIN}>`,
-        sender_domain: SENDER_DOMAIN, subject, html, text, purpose: 'transactional', label: templateName,
+        message_id: notificationId, to: recipient, from: FROM_EMAIL || 'ManWinWin PartnerOS <onboarding@resend.dev>',
+        provider: 'resend', test_only: testOnly, subject, html, text, purpose: 'transactional', label: templateName,
         unsubscribe_token: tokenRow.token, queued_at: new Date().toISOString(),
       },
     })

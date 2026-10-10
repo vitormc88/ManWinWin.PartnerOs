@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
-  if (!apiKey || !supabaseUrl || !supabaseServiceKey) {
+  if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Missing required environment variables')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
   // callers can trigger queue processing.
   const token = authHeader.slice('Bearer '.length).trim()
   const claims = parseJwtClaims(token)
-  if (claims?.role !== 'service_role') {
+  if (token !== supabaseServiceKey && claims?.role !== 'service_role') {
     return new Response(
       JSON.stringify({ error: 'Forbidden' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } }
@@ -273,6 +273,10 @@ Deno.serve(async (req) => {
             await moveToDlq(supabase, queue, msg, 'Notification no longer eligible for email')
             continue
           }
+          if (String(context.recipientEmail).toLowerCase() !== String(payload.to).toLowerCase()) {
+            await moveToDlq(supabase, queue, msg, 'Notification recipient email changed')
+            continue
+          }
           const { data: suppression, error: suppressionError } = await supabase
             .from('suppressed_emails').select('id').eq('email', String(payload.to).toLowerCase()).maybeSingle()
           if (suppressionError) throw new Error('Email suppression check failed')
@@ -286,34 +290,58 @@ Deno.serve(async (req) => {
             continue
           }
         }
-        await sendLovableEmail(
-          {
-            run_id: payload.run_id,
-            to: payload.to,
-            from: payload.from,
-            sender_domain: payload.sender_domain,
-            subject: payload.subject,
-            html: payload.html,
-            text: payload.text,
-            purpose: payload.purpose,
-            label: payload.label,
-            idempotency_key: payload.idempotency_key,
-            unsubscribe_token: payload.unsubscribe_token,
-            message_id: payload.message_id,
-          },
-          // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
-          // falls back to the default Lovable API endpoint (https://api.lovable.dev).
-          // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
-          { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
+        let providerMessageId: string | undefined
+        if (payload.notification_id) {
+          const resendKey = Deno.env.get('RESEND_API_KEY')
+          if (!resendKey?.startsWith('re_')) throw new Error('Resend credential missing or invalid')
+          const from = Deno.env.get('NOTIFICATION_FROM_EMAIL') || (payload.test_only ? 'ManWinWin PartnerOS <onboarding@resend.dev>' : null)
+          if (!from) throw new Error('Verified notification sender is not configured')
+          const response = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json', 'Idempotency-Key': payload.idempotency_key },
+            body: JSON.stringify({ from, to: [payload.to], subject: payload.subject, html: payload.html, text: payload.text, tags: [{ name: 'notification_id', value: payload.notification_id }] }),
+          })
+          const result = await response.json()
+          if (!response.ok) {
+            const providerError = Object.assign(new Error(`Resend HTTP ${response.status}: ${String(result.name || 'send_failed')}`), { status: response.status, retryAfterSeconds: Number(response.headers.get('retry-after')) || 60 })
+            throw providerError
+          }
+          if (typeof result.id !== 'string') throw new Error('Resend did not return a message id')
+          providerMessageId = result.id
+        } else {
+          if (!apiKey) throw new Error('Lovable authentication email credential missing')
+          await sendLovableEmail(
+            {
+              run_id: payload.run_id,
+              to: payload.to,
+              from: payload.from,
+              sender_domain: payload.sender_domain,
+              subject: payload.subject,
+              html: payload.html,
+              text: payload.text,
+              purpose: payload.purpose,
+              label: payload.label,
+              idempotency_key: payload.idempotency_key,
+              unsubscribe_token: payload.unsubscribe_token,
+              message_id: payload.message_id,
+            },
+            // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
+            // falls back to the default Lovable API endpoint (https://api.lovable.dev).
+            // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
+            { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
         )
 
+        }
+
         // Log success
-        await supabase.from('email_send_log').insert({
+        const { error: successLogError } = await supabase.from('email_send_log').insert({
           message_id: payload.message_id,
           template_name: payload.label || queue,
           recipient_email: payload.to,
           status: 'sent',
+          metadata: providerMessageId ? { provider: 'resend', provider_message_id: providerMessageId } : {},
         })
+        if (successLogError) throw new Error('Could not record provider acceptance')
 
         // Delete from queue
         const { error: delError } = await supabase.rpc('delete_email', {
