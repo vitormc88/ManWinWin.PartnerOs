@@ -39,7 +39,7 @@ BEGIN
  IF outid IS NULL OR (SELECT count(*) FROM public.partners)<>prior+1 THEN RAISE EXCEPTION 'FAIL not exactly one partner'; END IF;
  IF NOT EXISTS(SELECT 1 FROM public.partners WHERE id=outid
   AND partner_type='Strategic Connector' AND partnership_level='Strategic Connector'
-  AND activation_phase='invitation_pending' AND onboarding_status='Not Started')
+  AND activation_phase='invitation_pending' AND status='Onboarding' AND onboarding_status='Not Started' AND start_date IS NULL)
  THEN RAISE EXCEPTION 'FAIL commercial type/status mapping'; END IF;
  IF NOT EXISTS(SELECT 1 FROM public.partner_prospect_conversion_receipts WHERE prospect_id=pid
   AND partner_id=outid AND converted_by=auth.uid()) THEN RAISE EXCEPTION 'FAIL immutable receipt'; END IF;
