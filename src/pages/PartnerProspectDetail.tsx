@@ -185,7 +185,7 @@ export default function PartnerProspectDetail() {
               {canEdit && <div className="sm:col-span-2"><Button disabled={update.isPending} onClick={saveProfile}>Save changes</Button></div>}
             </CardContent></Card>
           <Card><CardHeader><CardTitle className="text-base">Next actions</CardTitle></CardHeader><CardContent className="space-y-3">
-            {tasks.filter((t) => t.task_status !== "Completed").map((t) => <div key={t.id} className="flex items-center justify-between rounded-lg border p-3">
+            {tasks.filter((t) => !["Done","Completed","Cancelled","Canceled"].includes(t.status || t.task_status)).map((t) => <div key={t.id} className="flex items-center justify-between rounded-lg border p-3">
               <p className="text-sm font-medium">{t.title}</p><span className="text-xs text-muted-foreground">{t.due_date ? new Date(t.due_date).toLocaleDateString() : "No date"}</span></div>)}
             {tasks.length === 0 && <p className="text-sm text-muted-foreground">No follow-ups assigned yet.</p>}
             {canEdit && <div className="grid gap-2 sm:grid-cols-[1fr_160px_auto]">
