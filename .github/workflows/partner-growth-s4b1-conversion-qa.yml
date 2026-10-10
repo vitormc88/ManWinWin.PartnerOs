@@ -1,0 +1,28 @@
+name: Partner Growth 4B1 Conversion QA (TEST)
+
+on:
+  push:
+    branches:
+      - feature/partner-growth-s4b1-conversion-test-20261011
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conversion-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Partner Growth 4A + 4B1 component tests
+        run: npx vitest run src/components/partner-growth/__tests__/PartnerConversionPanel.test.tsx src/components/partner-growth/__tests__/PartnerActivationReadiness.test.tsx src/lib/__tests__/partner-activation-task.test.ts
+      - name: TypeScript
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Vite build
+        run: npm run build

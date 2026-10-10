@@ -1087,6 +1087,7 @@ export default function PartnerDetail() {
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Onboarding">Onboarding</SelectItem>
                       <SelectItem value="Inactive">Inactive</SelectItem>
                       <SelectItem value="Negotiation">Negotiation</SelectItem>
                     </SelectContent>

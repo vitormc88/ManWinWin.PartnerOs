@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle2, ClipboardCheck, FileCheck2, FileWarning, GraduationCap, LockKeyhole, Rocket, ShieldCheck, Target } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { PartnerConversionPanel } from "@/components/partner-growth/PartnerConversionPanel";
 import { firstValueTaskIssue } from "@/lib/partner-activation-task";
 import { useProspectContacts, useProspectTasks, useCreateProspectTask, type PartnerProspect } from "@/hooks/usePartnerGrowth";
 import {
@@ -283,5 +284,6 @@ export function PartnerActivationReadiness({ prospect, canEdit, isAdmin }: {
         </div>
       </CardContent>
     </Card>
+    <PartnerConversionPanel prospect={prospect} plan={plan} isAdmin={isAdmin} contactsCount={contacts.length}/>
   </div>;
 }
