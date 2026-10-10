@@ -27,6 +27,38 @@ CREATE POLICY pg_probationary_leads_no_update ON public.incoming_leads
       AND r.role::text IN ('partner_connector','partner_reseller_trainee','partner_implementer_trainee')
   ));
 
+-- Existing partner-ownership RLS is broader than training capabilities.
+-- Prevent direct API reads/writes to commercial/customer records for ALL new
+-- probationary roles, even if they also have a legacy role or an old override.
+CREATE OR REPLACE FUNCTION public.pg_is_probationary_partner()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=''
+AS $fn$
+ SELECT EXISTS(SELECT 1 FROM public.user_roles r WHERE r.user_id=auth.uid()
+  AND r.role::text IN ('partner_connector','partner_reseller_trainee','partner_implementer_trainee'));
+$fn$;
+REVOKE ALL ON FUNCTION public.pg_is_probationary_partner() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.pg_is_probationary_partner() TO authenticated;
+
+DO $policy$
+DECLARE tbl text;
+BEGIN
+ FOR tbl IN SELECT unnest(ARRAY[
+  'clients','client_contacts','client_credentials','client_notes','client_audit_logs',
+  'client_revenue_history','deals','deal_contacts','deal_activities','deal_tasks',
+  'deal_registrations','proposals','proposal_items','proposal_status_events',
+  'proposal_templates','renewals','renewal_activities','licenses','licensed_modules',
+  'commissions','partner_certifications','partner_health_scores','partner_notes',
+  'partner_tiers','partner_missions','partner_badges','partner_onboarding','partner_renewal_settings'
+ ]) LOOP
+  EXECUTE format('DROP POLICY IF EXISTS pg_probationary_denied ON public.%I',tbl);
+  EXECUTE format(
+    'CREATE POLICY pg_probationary_denied ON public.%I AS RESTRICTIVE FOR ALL TO authenticated USING (NOT public.pg_is_probationary_partner()) WITH CHECK (NOT public.pg_is_probationary_partner())',
+    tbl
+  );
+ END LOOP;
+END
+$policy$;
+
 CREATE TABLE IF NOT EXISTS public.partner_growth_invitations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   prospect_id uuid NOT NULL REFERENCES public.partner_prospects(id) ON DELETE RESTRICT,
