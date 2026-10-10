@@ -60,6 +60,9 @@ BEGIN
  SELECT id INTO ext FROM public.profiles WHERE is_active AND NOT is_hq ORDER BY id LIMIT 1;
  SELECT converted_partner_id INTO pid FROM public.partner_prospects WHERE company_name='__4B2_INVITATION_ROLLBACK__';
  UPDATE public.profiles SET partner_id=pid WHERE id=ext;
+ -- Simulate a genuinely new invitee, with no legacy roles or overrides.
+ DELETE FROM public.user_module_permissions WHERE user_id=ext;
+ DELETE FROM public.user_roles WHERE user_id=ext;
  INSERT INTO public.user_roles(user_id,role) VALUES(ext,'partner_connector'::public.app_role)
  ON CONFLICT DO NOTHING;
  PERFORM set_config('request.jwt.claim.sub',ext::text,true);
