@@ -19,6 +19,9 @@ describe("Sprint 4A first-value task safeguards", () => {
       expect(firstValueTaskIssue("First qualified opportunity", "2026-11-10", [{...task,task_status: status}])).toBeNull();
     }
   });
+  it("respects the canonical task completion even if legacy task_status is still Open", () => {
+    expect(firstValueTaskIssue("First qualified opportunity", "2026-11-10", [{ ...task, status: "Done", task_status: "Open" }])).toBeNull();
+  });
   it("does not block a different first-value milestone", () => {
     expect(firstValueTaskIssue("First jointly delivered demo", "2026-11-10", [task])).toBeNull();
   });
