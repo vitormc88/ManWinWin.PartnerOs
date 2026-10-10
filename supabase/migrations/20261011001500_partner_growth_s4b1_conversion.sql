@@ -159,7 +159,7 @@ BEGIN
     RAISE EXCEPTION 'Signed requires verified agreement' USING ERRCODE='23514'; END IF;
   RETURN NEW;
 END;
-$function$
+$function$;
 
 REVOKE ALL ON FUNCTION public.pg_prospect_guard() FROM PUBLIC, anon, authenticated;
 
