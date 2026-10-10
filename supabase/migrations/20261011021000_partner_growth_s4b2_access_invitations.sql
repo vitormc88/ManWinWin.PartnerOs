@@ -79,8 +79,8 @@ BEGIN
  IF NOT FOUND OR v_prospect.converted_partner_id IS NULL THEN
   RAISE EXCEPTION 'Official partner conversion required before invitations' USING ERRCODE='23514';
  END IF;
- SELECT * INTO v_receipt FROM public.partner_prospect_conversion_receipts
- WHERE prospect_id=p_prospect_id AND partner_id=v_prospect.converted_partner_id;
+ SELECT * INTO v_receipt FROM public.partner_prospect_conversion_receipts cr
+ WHERE cr.prospect_id=p_prospect_id AND cr.partner_id=v_prospect.converted_partner_id;
  IF NOT FOUND OR NOT EXISTS(SELECT 1 FROM public.partners
   WHERE id=v_receipt.partner_id AND status='Onboarding' AND activation_phase='invitation_pending') THEN
   RAISE EXCEPTION 'Conversion record or invitation lifecycle is not valid' USING ERRCODE='23514';
