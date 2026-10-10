@@ -78,7 +78,7 @@ export function buildStrategicProposalSnapshot(input: ProposalInput): StrategicP
   const objective = input.objective?.trim() || prospect.description?.trim()
     || "Collaboration opportunity to be clarified together.";
   const commercialTerms = input.commercialTerms?.trim()
-    || "Commission rates, renewal treatment, territory and financial conditions are subject to a separate approved written agreement. This discussion document establishes no financial entitlement.";
+    || "Commission rates, renewal treatment, territory and financial conditions are subject to a separate approved written agreement. No commission or renewal entitlement is established by this discussion document.";
   const config = model ? modelConfig[model] : null;
   const country = COUNTRY_NAME_BY_CODE[prospect.country] ?? prospect.country;
   const observations: ProposalReference[] = verifiedSources.map(x => ({
@@ -129,7 +129,7 @@ export function buildStrategicProposalSnapshot(input: ProposalInput): StrategicP
     {
       heading: "03 | Proposed Collaboration Model",
       paragraphs: [
-        config ? "Indicative model: " + config.title + ". " + config.partnerRole + ". ManWinWin would " + config.manwinwinRole.charAt(0).toLowerCase() + config.manwinwinRole.slice(1) + "." : "The collaboration model will be determined jointly.",
+        config ? "Indicative model: " + config.title + ". " + config.partnerRole + ". ManWinWin would " + config.manwinwinRole.charAt(0).toLowerCase() + config.manwinwinRole.slice(1) + ". Subject to explicit HQ validation." : "The collaboration model will be determined jointly.",
         config ? "Enablement and readiness: " + config.enablement + ". These activities do not confer accreditation or rights until explicitly validated." : "Readiness and responsibilities must be agreed in writing.",
       ],
       bullets: [
