@@ -124,7 +124,7 @@ export function PartnerConversionPanel({
         Open operational partner <ArrowRight className="ml-2 h-4 w-4"/>
       </Link></Button>
     </CardContent>
-  </Card>;
+  </Card><PartnerInvitationPanel prospect={prospect} isAdmin={isAdmin}/></div>;
 
   return <Card>
     <CardHeader><CardTitle className="flex items-center gap-2 text-base">
