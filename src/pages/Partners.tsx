@@ -141,7 +141,7 @@ export default function Partners() {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Partner Management</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {partners.filter(p => p.status === "Active").length} active · {partners.filter(p => p.status === "Archived").length} archived
+            {partners.filter(p => p.status === "Active").length} active · {partners.filter(p => p.status === "Onboarding").length} onboarding · {partners.filter(p => p.status === "Archived").length} archived
           </p>
         </div>
         <div className="flex items-center gap-2">
