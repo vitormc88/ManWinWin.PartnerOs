@@ -124,6 +124,13 @@ BEGIN
       RAISE EXCEPTION 'Research source identity is immutable' USING ERRCODE='23514';
     END IF;
     NEW.updated_at:=now();
+    -- A verification cannot survive an amendment to the supported claim or its source.
+    IF NEW.title IS DISTINCT FROM OLD.title
+      OR NEW.finding IS DISTINCT FROM OLD.finding
+      OR NEW.source_url IS DISTINCT FROM OLD.source_url
+      OR NEW.source_kind IS DISTINCT FROM OLD.source_kind THEN
+      NEW.evidence_state:='unverified';
+    END IF;
     IF NEW.evidence_state='verified_by_hq' AND OLD.evidence_state='unverified' THEN
       NEW.verified_by:=auth.uid();
       NEW.verified_at:=now();
