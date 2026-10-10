@@ -257,12 +257,12 @@ BEGIN
   company_name,legal_name,country,website,partner_type,partnership_level,
   status,is_active,activation_phase,onboarding_status,
   primary_contact_name,primary_contact_email,assigned_manager_id,
-  created_by,updated_by,start_date
+  created_by,updated_by
  ) VALUES (
   v_prospect.company_name,v_legal_name,v_prospect.country,v_prospect.website,
   v_partner_type,v_partner_level,'Active',true,'invitation_pending','Not Started',
   v_contact.name,v_contact.email,v_plan.hq_activation_owner,
-  auth.uid(),auth.uid(),v_prospect.agreement_signed_on
+  auth.uid(),auth.uid()
  ) RETURNING id INTO v_partner_id;
  v_converted_at:=clock_timestamp();
 
