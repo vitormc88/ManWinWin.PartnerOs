@@ -82,7 +82,7 @@ BEGIN
   RAISE EXCEPTION 'FAIL referral routing or visibility'; END IF;
  BEGIN
   UPDATE public.incoming_leads SET notes='Tampered' WHERE id=lead_id;
-  RAISE EXCEPTION 'FAIL trainee edited own HQ-managed referral';
+  IF FOUND THEN RAISE EXCEPTION 'FAIL trainee edited own HQ-managed referral'; END IF;
  EXCEPTION WHEN others THEN IF SQLSTATE NOT IN ('42501','23514') THEN RAISE; END IF; END;
 END;$trainee$;
 RESET ROLE;
