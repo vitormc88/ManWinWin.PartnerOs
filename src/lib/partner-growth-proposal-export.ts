@@ -255,61 +255,93 @@ export async function exportStrategicProposalPdf(snapshot: StrategicProposalSnap
     try { embeddedLogo = await pdf.embedPng(logo); } catch { embeddedLogo = null; }
   }
 
-  // Editorial cover: full navy background, vertical red accent, white brand
-  // capsule, restrained type scale, and value pillars. No stock imagery.
+  // Cover follows the existing ManWinWin strategic-partnership design language:
+  // white canvas, bold red rules, partner identity, value-chain graphic and
+  // three compact outcome cards. No guessed partner logo or stock imagery.
   let page = pdf.addPage([A4_WIDTH, A4_HEIGHT]);
-  page.drawRectangle({ x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT, color: navy });
-  page.drawRectangle({ x: 0, y: 0, width: 12, height: A4_HEIGHT, color: brand });
-  page.drawRectangle({ x: MARGIN, y: 735, width: 192, height: 56, color: white });
+  page.drawRectangle({ x: 0, y: 0, width: A4_WIDTH, height: A4_HEIGHT, color: white });
+  page.drawText("STRATEGIC PARTNERSHIP PROPOSITION", {
+    x: MARGIN, y: 796, size: 9, font: bold, color: brand,
+  });
+  page.drawRectangle({ x: MARGIN, y: 771, width: CONTENT, height: 2, color: brand });
+  // Two-party header, using the real ManWinWin identity and the partner's
+  // verified name (never an automatically guessed logo).
+  page.drawRectangle({ x: MARGIN, y: 673, width: 222, height: 80, color: pale });
   if (embeddedLogo) {
-    const scale = Math.min(167 / embeddedLogo.width, 37 / embeddedLogo.height);
-    const w = embeddedLogo.width * scale, h = embeddedLogo.height * scale;
-    page.drawImage(embeddedLogo, { x: MARGIN + (192 - w) / 2, y: 735 + (56 - h) / 2, width: w, height: h });
-  } else page.drawText("MANWINWIN", { x: MARGIN + 15, y: 755, size: 21, font: bold, color: brand });
-  page.drawText("PARTNERSHIP DEVELOPMENT", { x: MARGIN, y: 681, size: 10, font: bold, color: colorRgb("F1A1A5") });
-  page.drawText("STRATEGIC", { x: MARGIN - 2, y: 613, size: 41, font: bold, color: white });
-  page.drawText("PARTNERSHIP", { x: MARGIN - 2, y: 563, size: 40, font: bold, color: white });
-  page.drawText("PROPOSAL", { x: MARGIN - 2, y: 513, size: 40, font: bold, color: white });
-  page.drawRectangle({ x: MARGIN, y: 483, width: 89, height: 5, color: brand });
-  let coverY = 457;
-  const coverLine = (txt: string, size: number, c = white, boldText = false, maxWidth = CONTENT) => {
-    const f = boldText ? bold : regular;
-    for (const line of pdfWrap(txt, f, size, maxWidth)) {
-      page.drawText(line, { x: MARGIN, y: coverY, size, font: f, color: c });
-      coverY -= size * 1.35;
-    }
-  };
-  coverLine("ManWinWin  x  " + snapshot.prospect_name, 20, white, true);
-  coverY -= 8;
-  coverLine(snapshot.subtitle + "  |  " + snapshot.country, 11, colorRgb("C8D4E0"));
-  // Opportunity card — clamp long executive statements to protect title and footer.
-  const opportunityText = short(snapshot.executive_message || snapshot.objective, 240);
-  const opportunityLines = pdfWrap(opportunityText, regular, 12, CONTENT - 48).slice(0, 6);
-  const boxHeight = Math.max(115, 55 + opportunityLines.length * 18);
-  const boxTop = Math.min(370, coverY - 29);
-  const boxBottom = boxTop - boxHeight;
-  page.drawRectangle({ x: MARGIN, y: boxBottom, width: CONTENT, height: boxHeight,
-    color: colorRgb("24405C") });
-  page.drawRectangle({ x: MARGIN, y: boxBottom, width: 4, height: boxHeight, color: brand });
-  page.drawText("THE PARTNERSHIP OPPORTUNITY", { x: MARGIN + 20, y: boxTop - 27, size: 9, font: bold,
-    color: colorRgb("F2ADB2") });
-  opportunityLines.forEach((line, i) => page.drawText(line, {
-    x: MARGIN + 20, y: boxTop - 53 - i * 18, size: 12, font: regular, color: white,
-  }));
-  const pillars = (snapshot.value_pillars ?? []).slice(0, 3);
-  const pillarY = Math.max(116, boxBottom - 69);
-  if (pillars.length) {
-    const w = CONTENT / pillars.length;
-    pillars.forEach((p, i) => {
-      const x = MARGIN + w * i;
-      page.drawRectangle({ x: x, y: pillarY + 23, width: w - 13, height: 3, color: brand });
-      page.drawText(pdfSafe(short(p.label, 26)), { x, y: pillarY + 5, size: 7.5, font: bold, color: colorRgb("F2ADB2") });
-      const line = pdfWrap(p.detail, regular, 8.2, w - 13).slice(0, 3);
-      line.forEach((l, n) => page.drawText(l, { x, y: pillarY - 11 - n * 12, size: 8.2, font: regular, color: white }));
+    const factor = Math.min(187 / embeddedLogo.width, 57 / embeddedLogo.height);
+    const width = embeddedLogo.width * factor, height = embeddedLogo.height * factor;
+    page.drawImage(embeddedLogo, {
+      x: MARGIN + (222 - width) / 2, y: 673 + (80 - height) / 2, width, height,
     });
+  } else {
+    page.drawText("MANWINWIN", { x: MARGIN + 20, y: 704, size: 20, font: bold, color: navy });
   }
-  page.drawText(approved ? "HQ APPROVED PROPOSAL" : "DRAFT - FOR HQ REVIEW", { x: MARGIN, y: 58, size: 9, font: bold, color: colorRgb("F2ADB2") });
-  page.drawText("CONFIDENTIAL  /  NOT A CONTRACT  /  VERSION " + version, { x: MARGIN, y: 40, size: 8, font: regular, color: colorRgb("C8D4E0") });
+  page.drawText("×".replace("×", "x"), { x: MARGIN + 245, y: 702, size: 20, font: bold, color: brand });
+  page.drawRectangle({ x: MARGIN + 280, y: 673, width: CONTENT - 280, height: 80, color: navy });
+  const partnerLines = pdfWrap(snapshot.prospect_name, bold, 14, CONTENT - 309).slice(0, 3);
+  partnerLines.forEach((line, i) => page.drawText(line, {
+    x: MARGIN + 293, y: 714 - i * 18, size: 14, font: bold, color: white,
+  }));
+  page.drawText("STRATEGIC", { x: MARGIN - 1, y: 625, size: 31, font: bold, color: navy });
+  page.drawText("PARTNERSHIP", { x: MARGIN - 1, y: 588, size: 31, font: bold, color: navy });
+  page.drawText("PROPOSAL", { x: MARGIN - 1, y: 551, size: 31, font: bold, color: navy });
+  const subtitleLines = pdfWrap(snapshot.subtitle, regular, 11, CONTENT);
+  subtitleLines.slice(0, 2).forEach((line, i) => page.drawText(line, {
+    x: MARGIN, y: 522 - i * 15, size: 11, font: regular, color: muted,
+  }));
+  page.drawText("THE COLLABORATION OPPORTUNITY", {
+    x: MARGIN, y: 471, size: 9, font: bold, color: brand,
+  });
+  const coverSummary = short(snapshot.executive_message || snapshot.objective, 290);
+  const executiveLines = pdfWrap(coverSummary, regular, 10.8, CONTENT).slice(0, 4);
+  executiveLines.forEach((line, i) => page.drawText(line, {
+    x: MARGIN, y: 452 - i * 16, size: 10.8, font: regular, color: navy,
+  }));
+  const bandTop = 367, bandH = 72;
+  const widths = [CONTENT * 0.38, CONTENT * 0.24, CONTENT * 0.38];
+  const labels = ["PARTNER INSIGHT", "SHARED CUSTOMER VALUE", "MAINTENANCE ACTION"];
+  const bandColors = [brand, pale, navy];
+  let bandX = MARGIN;
+  widths.forEach((w, i) => {
+    page.drawRectangle({ x: bandX, y: bandTop - bandH, width: w, height: bandH, color: bandColors[i] });
+    const lines = pdfWrap(labels[i], bold, i === 1 ? 8 : 10.3, w - 20);
+    const start = bandTop - 29 + (lines.length === 1 ? 0 : 8);
+    lines.forEach((l, j) => page.drawText(l, {
+      x: bandX + 10, y: start - j * 14, size: i === 1 ? 8 : 10.3,
+      font: bold, color: i === 1 ? muted : white,
+    }));
+    bandX += w;
+  });
+  page.drawText("FROM CUSTOMER OPPORTUNITY TO MAINTENANCE IMPACT.", {
+    x: MARGIN, y: 268, size: 12.1, font: bold, color: brand,
+  });
+  page.drawText(approved ? "HQ APPROVED • PROPOSED COMMERCIAL COLLABORATION" : "DISCUSSION DOCUMENT • HQ REVIEW REQUIRED", {
+    x: MARGIN, y: 246, size: 8.6, font: bold, color: muted,
+  });
+  const highlightLabels = [
+    ["FOCUSED START", "One meaningful first opportunity"],
+    ["CLEAR OWNERSHIP", "Responsibilities agreed per case"],
+    ["ROOM TO EVOLVE", "Competency-based progression"],
+  ];
+  const highlightColors = [pale, navy, brand];
+  const w3 = CONTENT / 3;
+  highlightLabels.forEach(([top, caption], i) => {
+    const x = MARGIN + w3 * i;
+    page.drawRectangle({ x, y: 133, width: w3, height: 62, color: highlightColors[i] });
+    page.drawText(top, {
+      x: x + 11, y: 170, size: 8.3, font: bold, color: i === 0 ? navy : white,
+    });
+    const lines = pdfWrap(caption, regular, 8, w3 - 21).slice(0, 2);
+    lines.forEach((l, j) => page.drawText(l, {
+      x: x + 11, y: 151 - j * 11, size: 8, font: regular, color: i === 0 ? ink : white,
+    }));
+  });
+  page.drawText("CONFIDENTIAL  /  NOT A CONTRACT  /  VERSION " + version, {
+    x: MARGIN, y: 83, size: 8.4, font: bold, color: brand,
+  });
+  page.drawText("ManWinWin | Partner Growth | " + snapshot.country, {
+    x: MARGIN, y: 66, size: 8, font: regular, color: muted,
+  });
 
   // Subsequent pages use restrained editorial running headers, page numbers,
   // section bars, whitespace and a role matrix. Automatically flow long content.
