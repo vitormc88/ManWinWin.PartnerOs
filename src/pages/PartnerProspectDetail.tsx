@@ -10,6 +10,7 @@ import {
   ALL_STAGES, type PartnerModel, type RecruitmentStage,
 } from "@/hooks/usePartnerGrowth";
 import { QualificationCopilot } from "@/components/partner-growth/QualificationCopilot";
+import { PartnerDocumentStudio } from "@/components/partner-growth/PartnerDocumentStudio";
 import { COUNTRY_NAME_BY_CODE } from "@/data/iso-countries";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -206,15 +207,7 @@ export default function PartnerProspectDetail() {
           </CardContent></Card>
         </TabsContent>
         <TabsContent value="documents" className="mt-4 space-y-4">
-          <Card><CardHeader><CardTitle className="flex items-center gap-2 text-base"><FileText className="h-5 w-5" />Documents & Agreements</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">Sprint 1 stores only the reference and verification metadata. Confidential documents are not uploaded to the global library.</p>
-              <div className="space-y-1"><Label>Signed agreement reference</Label><Input disabled={!canEdit} value={form.agreement_reference} onChange={(e) => setForm({ ...form, agreement_reference: e.target.value })} placeholder="Verified reference in an authorized repository" /></div>
-              <div className="space-y-1"><Label>Execution date</Label><Input disabled={!canEdit} type="date" value={form.agreement_signed_on} onChange={(e) => setForm({ ...form, agreement_signed_on: e.target.value })} /></div>
-              {prospect.recruitment_stage === "Signed" ? <div className="flex gap-2 text-sm text-emerald-700"><CheckCircle2 className="h-4 w-4" />Verified by HQ Admin</div>
-                : <div className="flex gap-2 text-sm text-muted-foreground"><ShieldAlert className="h-4 w-4" />Not yet a verified executed agreement</div>}
-              <p className="text-xs text-muted-foreground">To verify a signature, choose Signed in Overview. An HQ Admin must confirm the document reference and date. Document generation arrives in Sprint 3.</p>
-            </CardContent></Card>
+          <PartnerDocumentStudio key={prospect.id} prospect={prospect} canEdit={canEdit} isAdmin={isAdmin}/>
         </TabsContent>
         <TabsContent value="activity" className="mt-4 space-y-4">
           <Card><CardHeader><CardTitle className="text-base">Relationship history</CardTitle></CardHeader><CardContent className="space-y-3">
