@@ -11,6 +11,7 @@ import {
 } from "@/hooks/usePartnerGrowth";
 import { QualificationCopilot } from "@/components/partner-growth/QualificationCopilot";
 import { PartnerDocumentStudio } from "@/components/partner-growth/PartnerDocumentStudio";
+import { PartnerActivationReadiness } from "@/components/partner-growth/PartnerActivationReadiness";
 import { COUNTRY_NAME_BY_CODE } from "@/data/iso-countries";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,10 +155,11 @@ export default function PartnerProspectDetail() {
         <Badge variant="secondary">{prospect.recruitment_stage}</Badge>
       </div>
       <Tabs value={tab} onValueChange={setTab} className="w-full">
-        <TabsList className="grid h-auto w-full grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-5">
           <TabsTrigger value="overview" className="px-1 text-xs sm:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="qualification" className="px-1 text-xs sm:text-sm">Copilot</TabsTrigger>
           <TabsTrigger value="documents" className="px-1 text-xs sm:text-sm">Docs</TabsTrigger>
+          <TabsTrigger value="activation" className="px-1 text-xs sm:text-sm">Activate</TabsTrigger>
           <TabsTrigger value="activity" className="px-1 text-xs sm:text-sm">Activity</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -208,6 +210,9 @@ export default function PartnerProspectDetail() {
         </TabsContent>
         <TabsContent value="documents" className="mt-4 space-y-4">
           <PartnerDocumentStudio key={prospect.id} prospect={prospect} canEdit={canEdit} isAdmin={isAdmin}/>
+        </TabsContent>
+        <TabsContent value="activation" className="mt-4 space-y-4">
+          <PartnerActivationReadiness key={prospect.id} prospect={prospect} canEdit={canEdit} isAdmin={isAdmin} />
         </TabsContent>
         <TabsContent value="activity" className="mt-4 space-y-4">
           <Card><CardHeader><CardTitle className="text-base">Relationship history</CardTitle></CardHeader><CardContent className="space-y-3">
