@@ -1,6 +1,7 @@
 export type ExistingProspectTask = {
   title: string;
   task_status: string;
+  status?: string | null;
   due_date: string | null;
 };
 
@@ -19,7 +20,7 @@ export function firstValueTaskIssue(
     return "Choose a valid due date.";
   const title = "Partner activation: " + text;
   const isDuplicate = existing.some(task =>
-    !finalStatuses.has((task.task_status || "").toLowerCase())
+    !finalStatuses.has((task.status || task.task_status || "").toLowerCase())
     && task.title.trim().toLowerCase() === title.toLowerCase()
   );
   if (isDuplicate) return "An open first-value task already exists for this milestone. Complete or update the existing task first.";
