@@ -42,8 +42,10 @@ Validate the existing **Draft** PR #34 migration and its associated code using t
 8. Verify award retry, concurrent award, failure mid-transaction, no orphan Client/License/Contract/Renewal, and exact historical source after approval.
 9. Test legacy rows (new fields remain NULL) and historical Thai Union exception without modifying the legacy Won record.
 10. Compare-mode KeepIT/UseIT remains explicitly **blocked** pending approved selected-option immutable pricing snapshot. Do not remove the block to make tests green.
-11. Check that new financial fields do not create notification, scheduled job, renewal automation, revenue dashboard or lifecycle event regressions.
-12. Export a private evidence receipt containing schema/object counts, passed/failed tests, row-level synthetic reconciliation, permission matrix, migration execution hashes, rollback proof, identified gaps and final **GO/NO-GO** for **TEST only**.
+11. **Financial revenue history:** assert newly Won Deal has exactly one `client_revenue_history.initial_sale` entry with accepted Year-1 value; after closure exactly one separate `renewal` entry with the new period value; check original one-time services are not falsely counted as future recurrence. Retry awards and test imported/historical clients to ensure no duplicate initial sale. Original R1 Thai Union in TEST currently has renewal €393,018.20 but no initial_sale €683,864.20; do not retrospectively update without separate approval.
+12. Compare PROD/TEST triggers and role policies: PROD has discount-limit and initial_sale triggers missing in TEST; TEST has six RESTRICTIVE probationary policies absent in PROD; `renewal_close_readiness` partner permissions differ (module Renewals Admin vs global partner_admin). Exercise both authorized and denied paths.
+13. Check that new financial fields do not create notification, scheduled job, renewal automation, revenue dashboard or lifecycle event regressions.
+14. Export a private evidence receipt containing schema/object counts, passed/failed tests, row-level synthetic reconciliation, permission matrix, migration execution hashes, rollback proof, identified gaps and final **GO/NO-GO** for **TEST only**.
 
 ### What CI has already established
 - GitHub Actions exact draft migration on disposable PostgreSQL 17: applied twice, initial/transitional/future pricing and negative lineage tests green (latest proof run #38175998624).
