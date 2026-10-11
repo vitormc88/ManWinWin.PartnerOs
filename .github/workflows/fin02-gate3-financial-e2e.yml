@@ -78,6 +78,8 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_core_function_patch_assertions.sql
       - name: Install original TEST renewal revenue and lab-only initial sale candidate
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_initial_sale_lab_candidate_and_revenue_triggers.sql
+      - name: Install original TEST Won-date, client-partner and revenue partner guard triggers
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_real_test_won_partner_guard_triggers.sql
       - name: Install official TEST close_renewal wrapper and enforced commercial state guards
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_official_close_and_status_guard_sources.sql
       - name: Seed wholly fictional Business source proposal
