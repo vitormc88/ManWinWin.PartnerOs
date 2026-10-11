@@ -52,6 +52,18 @@ BEGIN
   GET DIAGNOSTICS _n=ROW_COUNT;
   IF _n<>2 THEN RAISE EXCEPTION 'FIN02_HQ_STANDARD_CLIENT_EDIT_REGRESSION'; END IF;
 
+  -- An HQ Standard with explicit effective clients:view downgrade must
+  -- NOT be able to bypass the per-user module override.
+  PERFORM set_config('request.jwt.claim.sub',
+    '00000000-0000-4000-8000-000000000007',true);
+  IF NOT public.has_module_access('clients','view')
+     OR public.has_module_access('clients','edit') THEN
+    RAISE EXCEPTION 'FIN02_HQ_OVERRIDE_TEST_PRECONDITION_FAILED';
+  END IF;
+  UPDATE public.clients SET commercial_name=commercial_name;
+  GET DIAGNOSTICS _n=ROW_COUNT;
+  IF _n<>0 THEN RAISE EXCEPTION 'FIN02_HQ_VIEW_ONLY_OVERRIDE_WRITE_ALLOWED'; END IF;
+
   -- Probationary connector still has no access.
   PERFORM set_config('request.jwt.claim.sub',
     '00000000-0000-4000-8000-000000000006',true);
