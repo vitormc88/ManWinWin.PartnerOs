@@ -34,14 +34,14 @@ ALTER POLICY renewals_insert ON public.renewals WITH CHECK (public.has_module_ac
  (public.is_hq_user(auth.uid()) OR
  (partner_uuid IS NOT NULL AND partner_uuid=public.get_user_partner_id(auth.uid())) OR
  (partner_uuid IS NULL AND partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-  AND partner_id::uuid=public.get_user_partner_id(auth.uid()))));
+  AND (CASE WHEN partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN partner_id::uuid ELSE NULL::uuid END)=public.get_user_partner_id(auth.uid()))));
 ALTER POLICY renewals_update ON public.renewals USING (public.has_module_access('renewals','edit') AND
  (public.is_hq_user(auth.uid()) OR
  (partner_uuid IS NOT NULL AND partner_uuid=public.get_user_partner_id(auth.uid())) OR
  (partner_uuid IS NULL AND partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-  AND partner_id::uuid=public.get_user_partner_id(auth.uid())))) WITH CHECK (public.has_module_access('renewals','edit') AND
+  AND (CASE WHEN partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN partner_id::uuid ELSE NULL::uuid END)=public.get_user_partner_id(auth.uid())))) WITH CHECK (public.has_module_access('renewals','edit') AND
  (public.is_hq_user(auth.uid()) OR
  (partner_uuid IS NOT NULL AND partner_uuid=public.get_user_partner_id(auth.uid())) OR
  (partner_uuid IS NULL AND partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-  AND partner_id::uuid=public.get_user_partner_id(auth.uid()))));
+  AND (CASE WHEN partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' THEN partner_id::uuid ELSE NULL::uuid END)=public.get_user_partner_id(auth.uid()))));
 COMMIT;
