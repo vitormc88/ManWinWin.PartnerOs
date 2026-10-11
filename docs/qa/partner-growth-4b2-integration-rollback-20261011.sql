@@ -60,7 +60,7 @@ BEGIN
  AND i.invited_role='partner_connector'::public.app_role
  AND i.partner_id=partner_id) THEN
   RAISE EXCEPTION 'FAIL: reservation misbound to partner/role'; END IF;
- IF EXISTS(SELECT 1 FROM public.profiles WHERE partner_id=partner_id) THEN
+ IF EXISTS(SELECT 1 FROM public.profiles WHERE public.profiles.partner_id=partner_id) THEN
   RAISE EXCEPTION 'FAIL: conversion/reservation unexpectedly provisioned user'; END IF;
 
  PERFORM set_config('pg_test.prospect',prospect_id::text,true);
