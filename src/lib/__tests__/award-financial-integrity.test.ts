@@ -31,11 +31,12 @@ describe("FIN02 Business award source-item integrity", () => {
     const broken = items.map(i=>({...i,discount_amount:0, net_total:i.gross_total}));
     expect(businessAwardIntegrityBlocker(proposal, broken, lines)).toBe("FIN02_PROPOSAL_HEADER_LINE_MISMATCH");
   });
-  it("fails closed on a Year-1-only Web discount until future contract price is expressible", () => {
+  it("permits a Year-1-only Web discount only with its higher saved renewal baseline", () => {
     const unrenewed = items.map(i=>i.id==="web"?{...i,apply_discount_to_renewal:false}:i);
     const adjusted={...proposal,total_recurring:403811};
-    expect(businessAwardIntegrityBlocker(adjusted, unrenewed, lines))
-      .toBe("FIN02_TEMPORARY_RECURRING_DISCOUNT_NEEDS_CONTRACT_POLICY");
+    expect(businessAwardIntegrityBlocker(adjusted, unrenewed, lines)).toBeNull();
+    expect(businessAwardIntegrityBlocker(proposal, unrenewed, lines))
+      .toBe("FIN02_PROPOSAL_HEADER_LINE_MISMATCH");
   });
   it("requires explicit award snapshot when comparing KeepIT against UseIT", () => {
     expect(businessAwardIntegrityBlocker({...proposal,proposal_mode:"compare_keepit_useit"},items,lines))
