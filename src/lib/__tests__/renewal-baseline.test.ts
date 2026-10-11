@@ -100,7 +100,7 @@ describe("FIN02 next-cycle renewal pricing", () => {
       amount: 231196, renewal_amount: 0, currency: "EUR", billing_frequency: "One-time" },
     { id: "web", line_type: "mww_web", description: "Web / Smart Tag / App user",
       amount: 348967.2, renewal_amount: 359760, currency: "EUR", billing_frequency: "Annual" },
-    { id: "api", line_type: "api", description: "API ManWinWin",
+    { id: "api", line_type: "module", description: "API ManWinWin",
       amount: 600, renewal_amount: 600, currency: "EUR", billing_frequency: "Annual" },
     { id: "sat", line_type: "sat", description: "S&AT gross KeepIT license base",
       amount: 43451, renewal_amount: 43451, currency: "EUR", billing_frequency: "Annual" },
