@@ -67,6 +67,8 @@ jobs:
           done
       - name: Install ORIGINAL TEST contract, renewal and revenue helper SQL
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_original_financial_helpers.sql
+      - name: Install exact TEST ledger, events and activities RLS / reader grants
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_revenue_event_rls_reference.sql
       - name: Install ORIGINAL TEST deal-award and close-renewal SQL
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_original_award_and_renewal_core.sql
       - name: Apply FIN02 migration on original financial SQL
