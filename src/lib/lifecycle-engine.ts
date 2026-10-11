@@ -79,8 +79,6 @@ export interface ConvertOptions {
   existingClientId?: string | null;
   /** Required when the proposal compares KeepIT vs UseIT. */
   awardedMode?: BusinessProposalMode | null;
-  /** Allow overriding the auto-generated contract lines before commit. */
-  contractLines?: ContractLineDraft[];
   /** Notice-period days for the renewal reminder (defaults to 90). */
   noticePeriodDays?: number;
   /** Contract start date (defaults to today). */
@@ -352,7 +350,9 @@ export async function awardProposalAtomically(
   const clientId = opts.existingClientId === undefined
     ? (plan.client.mode === "existing" ? plan.client.record.id : null)
     : opts.existingClientId;
-  const lines = opts.contractLines?.length ? opts.contractLines : plan.contractLines;
+  // Contract monetary lines are derived exclusively from the saved proposal.
+  // The award wizard cannot submit an independent set of negotiated prices.
+  const lines = plan.contractLines;
   // Already-awarded legacy proposals are handled idempotently by the RPC.
   // New awards must match the source items, not merely the grand total.
   if (!(plan.proposal as any).contract_id) {
