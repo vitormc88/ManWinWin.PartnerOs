@@ -44,6 +44,12 @@ INSERT INTO public.role_permission_templates(role,module_key,access_level) VALUE
  ('partner_sales'::public.app_role,'clients','view'),
  ('partner_sales'::public.app_role,'renewals','no_access');
 
+-- Synthetic permission override: an HQ Standard explicitly downgraded from
+-- clients:edit template to clients:view effective access. This exercises the
+-- real TEST get_effective_permissions() override precedence.
+INSERT INTO public.user_module_permissions(user_id,module_key,access_level,is_override)
+VALUES ('00000000-0000-4000-8000-000000000007','clients','view',true);
+
 -- Synthetic finance graph; credentials, tokens and actual customer records absent.
 INSERT INTO public.clients(id,client_code,commercial_name,partner_id,partner_uuid) VALUES
 ('00000000-0000-4000-8000-000000000301','LAB_CLIENT_A','Synthetic A','00000000-0000-4000-8000-000000000101','00000000-0000-4000-8000-000000000101'),
