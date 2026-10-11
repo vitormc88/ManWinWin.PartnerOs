@@ -128,6 +128,19 @@ BEGIN
   END;
   IF NOT _blocked THEN RAISE EXCEPTION 'FAILED: Business source item removed'; END IF;
 
+  _blocked:=false;
+  BEGIN
+    UPDATE public.contract_lines
+       SET source_item_id='00000000-0000-4000-8000-000000009999'
+     WHERE source_item_id=_web;
+  EXCEPTION WHEN others THEN
+    _blocked:=SQLERRM LIKE 'FIN02_SOURCED_CONTRACT_ITEM_NOT_FOUND%';
+    IF NOT _blocked THEN RAISE; END IF;
+  END;
+  IF NOT _blocked THEN
+    RAISE EXCEPTION 'FAILED: nonexistent source item accepted';
+  END IF;
+
   IF (SELECT renewal_amount FROM public.contract_lines
       WHERE source_item_id='00000000-0000-4000-8000-000000000101') <> 0 THEN
     RAISE EXCEPTION 'FAILED: one-time license leaked into renewal';
