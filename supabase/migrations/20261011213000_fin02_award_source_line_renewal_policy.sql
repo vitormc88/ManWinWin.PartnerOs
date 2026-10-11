@@ -223,7 +223,10 @@ BEGIN
   SELECT pg_get_functiondef(
     'public.close_renewal_core(uuid,text,uuid,text,text,date,date)'::regprocedure
   ) INTO _def;
-  IF _def IS NULL OR position('FIN02_RENEWAL_POLICY_V1' IN _def) > 0 THEN RETURN; END IF;
+  IF _def IS NULL THEN
+    RAISE EXCEPTION 'FIN02_RENEWAL_CORE_NOT_FOUND';
+  END IF;
+  IF position('FIN02_RENEWAL_POLICY_V1' IN _def) > 0 THEN RETURN; END IF;
   -- Exactly three recurring aggregations in the known core: prior, current
   -- total, and unrelated recurring. Do not blindly rewrite one-time totals.
   _count := (length(_def) - length(replace(_def, _anchor_old, ''))) /
