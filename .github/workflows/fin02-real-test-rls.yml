@@ -1,0 +1,70 @@
+name: FIN02 Real TEST RLS Role Integration
+on:
+  pull_request:
+    paths:
+      - "tests/sql/fin02/rls_*.sql"
+      - "tests/sql/fin02/real_test_rls_policies_reference.sql"
+      - "tests/sql/fin02/real_financial_prod_columns.sql"
+      - "tests/sql/fin02/real_financial_test_overlay.sql"
+      - ".github/workflows/fin02-real-test-rls.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-test-financial-rls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: fin02_rls
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fin02_rls"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: fin02_rls
+      PGPASSWORD: synthetic-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Verify isolated runner has NO cloud access credentials
+        run: |
+          set -euo pipefail
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          test ! -f supabase/.temp/project-ref
+          echo "Lab: isolated synthetic Postgres; no external Supabase, Auth users or customer data"
+      - name: Create TEST financial catalog-backed tables
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;"
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/real_financial_prod_columns.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/real_financial_test_overlay.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/real_financial_test_column_parity.sql
+      - name: Install synthetic Auth graph and all ten foreign dependencies
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/rls_support_schema.sql
+      - name: Install EXACT current TEST permission helper SQL
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/rls_real_test_helpers.sql
+      - name: Install all 36 actual TEST finance RLS policies
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_test_rls_policies_reference.sql
+      - name: Seed six identities, two fake partners, actual TEST module templates
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/rls_synthetic_financial_roles_and_data.sql
+      - name: Verify HQ Partner cross-tenant anon and probationary RLS behavior
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/rls_access_matrix_assertions.sql
