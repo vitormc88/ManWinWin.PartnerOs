@@ -6,6 +6,8 @@ on:
       - "tests/sql/fin02/real_financial_*"
       - "tests/sql/fin02/real_schema_assertions.sql"
       - "tests/sql/fin02/real_financial_test_column_parity.sql"
+      - "tests/sql/fin02/real_original_award_and_renewal_core.sql"
+      - "tests/sql/fin02/real_core_function_patch_assertions.sql"
       - ".github/workflows/fin02-real-financial-columns.yml"
   workflow_dispatch:
 
@@ -81,3 +83,15 @@ jobs:
             -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
       - name: SQL regression on actual source table layouts / 19 internal FKs
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_schema_assertions.sql
+      - name: Compile the actual PROD/TEST original financial RPC SQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/real_original_award_and_renewal_core.sql
+      - name: Reapply PR34 migration against the actual RPC definitions
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+      - name: Verify actual RPC authorization and renewal semantics preserved in source
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/real_core_function_patch_assertions.sql
