@@ -18,6 +18,15 @@ BEGIN
       RAISE EXCEPTION 'FIN02_SEC37_UNSUPPORTED_REVENUE_COLUMN: %',required_name;
     END IF;
   END LOOP;
+  -- PROD has a different ledger schema and its own initial-sale trigger.
+  -- Block installation on that shape even if the repository is later merged.
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='client_revenue_history'
+        AND column_name='source_deal_id')
+    OR EXISTS (SELECT 1 FROM pg_trigger t
+      WHERE t.tgrelid='public.deals'::regclass
+        AND t.tgname='zz_deal_award_record_revenue' AND NOT t.tgisinternal)
+  THEN RAISE EXCEPTION 'FIN02_SEC37_PROD_SCHEMA_OR_EXISTING_LEDGER_TRIGGER_NO_GO'; END IF;
   IF NOT EXISTS(
     SELECT 1 FROM pg_constraint con JOIN pg_class rel ON rel.oid=con.conrelid
     WHERE rel.oid='public.client_revenue_history'::regclass
