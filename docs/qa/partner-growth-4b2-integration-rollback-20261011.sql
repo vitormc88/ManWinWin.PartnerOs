@@ -37,9 +37,9 @@ BEGIN
  agreement_signed_on=current_date WHERE id=prospect_id;
  UPDATE public.partner_prospect_activation_plans
  SET legal_review_status='approved',legal_review_reference='SIMULATED-LEGAL-ROLLBACK'
- WHERE prospect_id=prospect_id;
+ WHERE public.partner_prospect_activation_plans.prospect_id=prospect_id;
  UPDATE public.partner_prospect_activation_plans
- SET readiness_status='ready_for_handoff' WHERE prospect_id=prospect_id;
+ SET readiness_status='ready_for_handoff' WHERE public.partner_prospect_activation_plans.prospect_id=prospect_id;
 
  partner_id:=public.pg_convert_prospect(
   prospect_id,'Fictional Connector Validation Ltd',
