@@ -3,6 +3,9 @@ name: FIN02 Full Supabase Migration Replay (Diagnostic)
 # Keep this manual to avoid repeatedly consuming hosted CI minutes.
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/fin02-full-migration-replay.yml"
 
 # This diagnostic reproduces Git migrations in a GitHub-hosted LOCAL stack.
 # It is NOT a replica of current Lovable TEST until effective object parity
@@ -64,6 +67,12 @@ jobs:
              +lines[-1]+"\\n")
           print("Skipped one historical verification-only cleanup DELETE block")
           PY
+          # CI-only migration inserted immediately before an old Academy
+          # remediation that expects previously seeded course content.
+          test ! -e supabase/migrations/20260820180000_fin02_ci_only_academy.sql
+          cp tests/sql/fin02/academy_precondition_fixture.sql \
+            supabase/migrations/20260820180000_fin02_ci_only_academy.sql
+          echo "Created temporary synthetic Academy precondition; repository migration files remain unchanged"
       - name: Recreate repository schema in local Supabase stack
         run: |
           set -euo pipefail
