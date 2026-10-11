@@ -11,6 +11,7 @@ SELECT set_config('request.jwt.claim.sub',(
 SET LOCAL ROLE authenticated;
 
 DO $hq_setup$
+#variable_conflict use_variable
 DECLARE prospect_id uuid;contact_id uuid;partner_id uuid;token uuid;
 BEGIN
  INSERT INTO public.partner_prospects (
