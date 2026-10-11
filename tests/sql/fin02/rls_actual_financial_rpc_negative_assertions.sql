@@ -63,6 +63,12 @@ SELECT public.fin02_assert_unauthorized('AWARD_NOT_AUTHORIZED',
   '00000000-0000-4000-8000-000000000004',
   '00000000-0000-4000-8000-000000000401',
   '00000000-0000-4000-8000-000000000501');
+-- HQ Standard with explicit clients:view override is also denied,
+-- even though TEST's clients table RLS currently allows direct UPDATE.
+SELECT public.fin02_assert_unauthorized('AWARD_NOT_AUTHORIZED',
+  '00000000-0000-4000-8000-000000000007',
+  '00000000-0000-4000-8000-000000000401',
+  '00000000-0000-4000-8000-000000000501');
 -- Partner B admin cannot award Partner A's deal.
 SELECT public.fin02_assert_unauthorized('AWARD_NOT_AUTHORIZED',
   '00000000-0000-4000-8000-000000000005',
@@ -82,6 +88,10 @@ SELECT public.fin02_assert_unauthorized('PROPOSAL_NOT_FROM_DEAL',
 -- Partner B admin cannot renew Partner A client's renewal.
 SELECT public.fin02_assert_renewal_unauthorized('NOT_AUTHORIZED',
   '00000000-0000-4000-8000-000000000005',
+  '00000000-0000-4000-8000-000000000601');
+-- HQ Standard with explicit clients:view override is similarly denied.
+SELECT public.fin02_assert_renewal_unauthorized('NOT_AUTHORIZED',
+  '00000000-0000-4000-8000-000000000007',
   '00000000-0000-4000-8000-000000000601');
 -- Partner Sales A is clients VIEW; close requires edit and is denied.
 SELECT public.fin02_assert_renewal_unauthorized('NOT_AUTHORIZED',
