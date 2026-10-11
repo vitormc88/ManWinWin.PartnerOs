@@ -1,3 +1,7 @@
+BEGIN;
+-- Explicitly mark the creation of PRE-VALIDATED synthetic fixture proposals.
+-- This is NOT a simulation of customer acceptance or an API bypass.
+SET LOCAL partneros.proposal_op = 'on';
 -- Gate 3: completely fictional Business KeepIT proposal.
 -- Perpetual software (€1000) and one-time implementation (€50);
 -- recurring Web list €400 less 3% FIRST YEAR ONLY (€388),
@@ -34,3 +38,5 @@ VALUES
   ('00000000-0000-4000-8000-000000000914',
    '00000000-0000-4000-8000-000000000511','Implementation',
    'services','implementation',1,50,'one-time',false,50,0,50,50,false,4);
+
+COMMIT;
