@@ -4,6 +4,9 @@ on:
     paths:
       - "src/components/proposals/CreateProposalDialog.tsx"
       - "src/lib/proposal-business-*"
+      - "src/lib/award-financial-integrity.ts"
+      - "src/lib/__tests__/award-financial-integrity.test.ts"
+      - "src/lib/lifecycle-engine.ts"
       - "src/lib/__tests__/proposal-business-persistence.test.ts"
       - ".github/workflows/business-pricing-integrity-r1.yml"
   workflow_dispatch:
@@ -22,5 +25,7 @@ jobs:
       - run: npm ci
       - name: R1 financial persistence tests
         run: npm test -- src/lib/__tests__/proposal-business-persistence.test.ts
+      - name: FIN02 award integrity tests
+        run: npm test -- src/lib/__tests__/award-financial-integrity.test.ts
       - name: TypeScript check
         run: npx tsc --noEmit -p tsconfig.app.json
