@@ -3,6 +3,8 @@
 -- Test record IDs are wholly fictional and local to GitHub Actions.
 
 -- FIRST RENEWAL: Web discount expires, recurring baseline €400 + S&TA €170.
+BEGIN;
+SET LOCAL partneros.proposal_op = 'on';
 INSERT INTO public.proposals
  (id,client_name,source_type,renewal_id,client_id,contract_id,license_id,
   partner_uuid,product_family,license_model,proposal_mode,status,version,
@@ -26,6 +28,45 @@ VALUES
  ('00000000-0000-4000-8000-000000000922',
   '00000000-0000-4000-8000-000000000512','S&TA',
   'software','sat',1,170,'annual',true,170,0,170,170,true);
+COMMIT;
+
+-- Official enforced close must reject a Ready proposal without acceptance.
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub',
+ '00000000-0000-4000-8000-000000000003',true);
+DO $acceptance_gate$
+DECLARE _r uuid; _blocked boolean:=false;
+BEGIN
+ SELECT r.id INTO _r FROM public.renewals r
+ JOIN public.deals d ON d.client_id=r.client_id
+ WHERE d.id='00000000-0000-4000-8000-000000000411'
+ AND r.previous_renewal_id IS NULL;
+ BEGIN
+  PERFORM public.close_renewal(_r,'renewed',
+   '00000000-0000-4000-8000-000000000512',
+   'Must not close Ready proposal',NULL,'2027-11-01',NULL);
+ EXCEPTION WHEN others THEN
+  _blocked := SQLERRM LIKE 'ACCEPTANCE_REQUIRED%';
+  IF NOT _blocked THEN RAISE EXCEPTION 'FIN02_ACCEPTANCE_GATE_UNEXPECTED: %',SQLERRM; END IF;
+ END;
+ IF NOT _blocked THEN RAISE EXCEPTION 'FIN02_UNACCEPTED_RENEWAL_WRONGLY_CLOSED'; END IF;
+ IF EXISTS (SELECT 1 FROM public.renewals WHERE id=_r AND closed_at IS NOT NULL)
+ OR EXISTS (SELECT 1 FROM public.client_revenue_history WHERE renewal_id=_r)
+ THEN RAISE EXCEPTION 'FIN02_ACCEPTANCE_REJECTION_NOT_ATOMIC'; END IF;
+ RAISE NOTICE 'Gate3 official renewal entry requires Accepted proposal with recorded evidence; Ready-only close denied.';
+END
+$acceptance_gate$;
+COMMIT;
+
+-- Synthetic acceptance data fixture, not an acceptance API test.
+BEGIN;
+SET LOCAL partneros.proposal_op = 'on';
+UPDATE public.proposals
+ SET status='Accepted', acceptance_date='2027-10-15',
+     acceptance_evidence_type='customer_email'
+ WHERE id='00000000-0000-4000-8000-000000000512';
+COMMIT;
 
 BEGIN;
 SET LOCAL ROLE authenticated;
@@ -45,7 +86,7 @@ BEGIN
  AND r.previous_renewal_id IS NULL;
  IF _r IS NULL THEN RAISE EXCEPTION 'GATE3_FIRST_RENEWAL_NOT_FOUND'; END IF;
 
- _res:=public.close_renewal_core(_r,'renewed',
+ _res:=public.close_renewal(_r,'renewed',
     '00000000-0000-4000-8000-000000000512',
     'Gate3 first synthetic renewal',NULL,'2027-11-01',NULL);
  IF _res->>'already_closed' IS DISTINCT FROM 'false'
@@ -74,7 +115,7 @@ BEGIN
      AND previous_renewal_id=_r AND estimated_value=570 AND renewal_date='2028-11-01')<>1
  THEN RAISE EXCEPTION 'FIN02_FIRST_RENEWAL_NEXT_CYCLE_WRONG'; END IF;
 
- _again:=public.close_renewal_core(_r,'renewed',
+ _again:=public.close_renewal(_r,'renewed',
     '00000000-0000-4000-8000-000000000512',
     'Idempotent retry',NULL,'2027-11-01',NULL);
  IF _again->>'already_closed'<>'true' THEN
@@ -88,13 +129,16 @@ END $first$;
 COMMIT;
 
 -- SECOND RENEWAL: preservation of €570 without reinstating temporary discount.
+BEGIN;
+SET LOCAL partneros.proposal_op = 'on';
 INSERT INTO public.proposals
  (id,client_name,source_type,renewal_id,client_id,contract_id,license_id,
  partner_uuid,product_family,license_model,proposal_mode,status,version,
- total_year_1,total_recurring,discount_amount)
+ total_year_1,total_recurring,discount_amount,acceptance_evidence_type,acceptance_date)
 SELECT '00000000-0000-4000-8000-000000000513',
  'FIN02 Fictional Renewal 2028','renewal',r.id,r.client_id,r.contract_id,r.license_id,
- r.partner_uuid,'Business','Perpetual','keepit_only','Ready',1,570,570,0
+ r.partner_uuid,'Business','Perpetual','keepit_only','Accepted',1,570,570,0,
+ 'customer_email','2028-10-15'
 FROM public.renewals r JOIN public.deals d ON d.client_id=r.client_id
 WHERE d.id='00000000-0000-4000-8000-000000000411'
  AND r.previous_renewal_id IS NOT NULL AND r.status='Upcoming';
@@ -109,6 +153,7 @@ VALUES
  ('00000000-0000-4000-8000-000000000924',
   '00000000-0000-4000-8000-000000000513','S&TA',
   'software','sat',1,170,'annual',true,170,0,170,170,true);
+COMMIT;
 
 BEGIN;
 SET LOCAL ROLE authenticated;
@@ -130,18 +175,18 @@ BEGIN
 
  -- Wrong-source proposal must fail atomically and leave renewal untouched.
  BEGIN
-   PERFORM public.close_renewal_core(_r,'renewed',
+   PERFORM public.close_renewal(_r,'renewed',
       '00000000-0000-4000-8000-000000000512',
       'Bad source',NULL,'2028-11-01',NULL);
  EXCEPTION WHEN others THEN
-   _blocked:=SQLERRM LIKE 'PROPOSAL_NOT_LINKED%';
+   _blocked:=SQLERRM LIKE 'PROPOSAL_REQUIRED%';
    IF NOT _blocked THEN RAISE EXCEPTION 'FIN02_SECOND_BAD_SOURCE: %',SQLERRM; END IF;
  END;
  IF NOT _blocked OR EXISTS (SELECT 1 FROM public.renewals
    WHERE id=_r AND closed_at IS NOT NULL) THEN
    RAISE EXCEPTION 'FIN02_SECOND_WRONG_PROPOSAL_NOT_ROLLED_BACK'; END IF;
 
- _res:=public.close_renewal_core(_r,'renewed',
+ _res:=public.close_renewal(_r,'renewed',
     '00000000-0000-4000-8000-000000000513',
     'Second Gate3 synthetic renewal',NULL,'2028-11-01',NULL);
  IF _res->>'already_closed'<>'false'
