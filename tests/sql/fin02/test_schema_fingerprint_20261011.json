@@ -77,5 +77,39 @@
       "column_signature_md5": "d46080fec3cde2adcb9040d3aa8d95e3",
       "columns": 40
     }
+  },
+  "rls_policy_fingerprints": {
+    "clients": {
+      "count": 5,
+      "definition_md5": "e5371050a78dd35657b9fa862eb1d883"
+    },
+    "contract_lines": {
+      "count": 2,
+      "definition_md5": "c72e8af148d6666e83dafd16ab9b9c21"
+    },
+    "contracts": {
+      "count": 4,
+      "definition_md5": "dbcaa774af5a2929262400033b84d882"
+    },
+    "deals": {
+      "count": 5,
+      "definition_md5": "c2091249edddf65ad9db73dcc9ecca4e"
+    },
+    "licenses": {
+      "count": 5,
+      "definition_md5": "bd70f6aec79401dc75bd25f27ec6704b"
+    },
+    "proposal_items": {
+      "count": 5,
+      "definition_md5": "e57cf4807533ec363f9d98562c332a93"
+    },
+    "proposals": {
+      "count": 5,
+      "definition_md5": "bdf64493743c19cf4a6fd6fc6949f3d3"
+    },
+    "renewals": {
+      "count": 5,
+      "definition_md5": "635e4706120392ad6646ab5dc3b26a62"
+    }
   }
 }
