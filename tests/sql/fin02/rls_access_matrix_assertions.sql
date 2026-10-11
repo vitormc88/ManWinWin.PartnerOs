@@ -40,8 +40,7 @@ BEGIN
           '00000000-0000-4000-8000-000000000001'::uuid,
           '00000000-0000-4000-8000-000000000002'::uuid
         ) THEN 2
-        WHEN _who = '00000000-0000-4000-8000-000000000006'::uuid THEN
-          CASE WHEN _t='contracts' THEN 1 ELSE 0 END
+        WHEN _who = '00000000-0000-4000-8000-000000000006'::uuid THEN 0
         ELSE 1 END;
       IF _count <> _expected THEN
         RAISE EXCEPTION 'FIN02_RLS_VISIBILITY_%, ACTOR_%, expected_%, found_%',
@@ -91,19 +90,19 @@ BEGIN
   END IF;
   RAISE NOTICE 'FIN02 SECURITY GAP CONFIRMED BY SOURCE-EXACT TEST RLS: partner_sales (clients:view) can UPDATE own client using direct DML. Requires separate remediation decision.';
 
-  -- Probationary partner sees same-partner contract despite six restrictive
-  -- probationary policies on other financial entities, because contracts
-  -- has no such restrictive policy (and can_view_partner() permits same org).
+  -- A probate partner cannot view contracts either: contract policy
+  -- checks clients via an invoker subquery, and the RESTRICTIVE client RLS
+  -- prevents visibility. This is a correct chained RLS behavior.
   PERFORM set_config('request.jwt.claim.sub',
     '00000000-0000-4000-8000-000000000006',true);
   IF NOT public.pg_is_probationary_partner() THEN
     RAISE EXCEPTION 'FIN02_PROBATIONARY_IDENTITY_NOT_RECOGNIZED';
   END IF;
-  IF (SELECT count(*) FROM public.contracts) <> 1
+  IF (SELECT count(*) FROM public.contracts) <> 0
       OR (SELECT count(*) FROM public.clients) <> 0 THEN
     RAISE EXCEPTION 'FIN02_PROBATIONARY_TEST_RLS_POLICY_BEHAVIOR_DRIFT';
   END IF;
-  RAISE NOTICE 'FIN02 SECURITY GAP: probationary partner can SELECT own contract because TEST contracts policy has no probationary restriction, although six linked commercial tables deny access.';
+  RAISE NOTICE 'FIN02 probationary restriction confirmed across client-linked contracts by nested client RLS; no false-positive contract exposure.';
 
   -- No unrelated partner's contract visible to probationary account.
   IF (SELECT count(*) FROM public.contracts WHERE client_id=_client_b) <> 0 THEN
