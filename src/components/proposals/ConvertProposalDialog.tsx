@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +48,6 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
   const [awarded, setAwarded] = useState<BusinessProposalMode | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [createNew, setCreateNew] = useState(false);
-  const [lines, setLines] = useState<ContractLineDraft[]>([]);
   const [noticeDays, setNoticeDays] = useState<number>(90);
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [result, setResult] = useState<ConversionResult | null>(null);
@@ -61,7 +60,6 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
     setAwarded(null);
     setSelectedClientId(null);
     setCreateNew(false);
-    setLines([]);
     setNoticeDays(90);
     setStartDate(new Date().toISOString().slice(0, 10));
     setResult(null);
@@ -77,7 +75,6 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
         const p = await buildConversionPlan(proposalId, { awardedMode: awarded, pricingRules: rules });
         if (cancelled) return;
         setPlan(p);
-        setLines(p.contractLines);
         if (p.client.mode === "existing") setSelectedClientId(p.client.record.id);
       } catch (e: any) {
         toast.error(e?.message || "Failed to build conversion plan");
@@ -91,7 +88,8 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
   }, [open, proposalId, awarded, rules]);
 
   const needsAwardChoice = !!plan?.licenseDefaults.requires_award_choice;
-  const contractTotal = useMemo(() => lines.reduce((s, l) => s + (l.amount || 0), 0), [lines]);
+  const lines = plan?.contractLines ?? [];
+  const contractTotal = plan?.contractTotal ?? 0;
 
   const canAdvance = (): boolean => {
     if (!plan) return false;
@@ -116,7 +114,6 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
         {
           existingClientId: createNew ? null : selectedClientId,
           awardedMode: awarded,
-          contractLines: lines,
           noticePeriodDays: noticeDays,
           contractStartDate: startDate,
         },
@@ -149,7 +146,7 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
         <DialogHeader>
           <DialogTitle>Convert proposal to customer</DialogTitle>
           <DialogDescription>
-            Auto-generates the client, license, contract, contract lines and renewal from this proposal. You can review each step before confirming.
+            Creates the customer, license, contract and renewal from the approved proposal. Commercial amounts and scope are locked during award; renegotiations require an updated and revalidated proposal version.
           </DialogDescription>
         </DialogHeader>
 
@@ -208,7 +205,6 @@ export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props)
               {step === 3 && (
                 <StepContract
                   lines={lines}
-                  setLines={setLines}
                   contractTotal={contractTotal}
                   noticeDays={noticeDays}
                   setNoticeDays={setNoticeDays}
@@ -416,7 +412,6 @@ function Field({ label, value }: { label: string; value: string }) {
 // ---------- Step 3 ----------
 function StepContract({
   lines,
-  setLines,
   contractTotal,
   noticeDays,
   setNoticeDays,
@@ -424,19 +419,12 @@ function StepContract({
   setStartDate,
 }: {
   lines: ContractLineDraft[];
-  setLines: (l: ContractLineDraft[]) => void;
   contractTotal: number;
   noticeDays: number;
   setNoticeDays: (n: number) => void;
   startDate: string;
   setStartDate: (s: string) => void;
 }) {
-  const updateLine = (i: number, patch: Partial<ContractLineDraft>) => {
-    const next = lines.slice();
-    next[i] = { ...next[i], ...patch };
-    setLines(next);
-  };
-
   return (
     <div className="space-y-4 py-2">
       <div className="grid grid-cols-2 gap-3">
@@ -480,19 +468,10 @@ function StepContract({
                   <tr key={i}>
                     <td className="px-2 py-1.5">{l.line_type}</td>
                     <td className="px-2 py-1.5">
-                      <Input
-                        value={l.description}
-                        onChange={(e) => updateLine(i, { description: e.target.value })}
-                        className="h-7 text-xs"
-                      />
+                      <span className="text-xs">{l.description}</span>
                     </td>
                     <td className="px-2 py-1.5 text-right">
-                      <Input
-                        type="number"
-                        value={l.amount}
-                        onChange={(e) => updateLine(i, { amount: Number(e.target.value) || 0 })}
-                        className="h-7 text-xs text-right w-24 ml-auto"
-                      />
+                      <span className="font-medium tabular-nums">{fmt(l.amount)}</span>
                     </td>
                     <td className="px-2 py-1.5 text-muted-foreground">{l.billing_frequency || "—"}</td>
                   </tr>
@@ -511,7 +490,7 @@ function StepContract({
           </table>
         </div>
         <p className="text-[11px] text-muted-foreground mt-2">
-          Totals are always calculated from the lines. Manual adjustments can be added later from the contract page.
+          Amounts, descriptions and billing rules come from the approved proposal and cannot be changed here. If commercial terms changed, return to the proposal, create or update the appropriate version, and validate it again.
         </p>
       </div>
     </div>
