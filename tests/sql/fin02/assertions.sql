@@ -96,6 +96,38 @@ BEGIN
      _snap->>'apply_discount_to_renewal' <> 'false' THEN
     RAISE EXCEPTION 'FAILED: expiring Web discount snapshot wrong: % / %', _future, _snap;
   END IF;
+  -- A direct SQL UPDATE cannot change a Business source line's next-cycle
+  -- price or provenance independently of the frozen proposal terms.
+  UPDATE public.contract_lines
+     SET renewal_amount=1, pricing_snapshot='{"tampered":true}'::jsonb
+   WHERE source_item_id=_web;
+  SELECT renewal_amount,pricing_snapshot INTO _future,_snap
+    FROM public.contract_lines WHERE source_item_id=_web;
+  IF _future <> 359760 OR _snap->>'snapshot_format' <> 'fin02-v1'
+     OR _snap->>'source_item_id' <> _web::text THEN
+    RAISE EXCEPTION 'FAILED: sourced price/policy direct tampering accepted';
+  END IF;
+
+  _blocked:=false;
+  BEGIN
+    UPDATE public.contract_lines SET source='manual'
+      WHERE source_item_id=_web;
+  EXCEPTION WHEN others THEN
+    _blocked:=SQLERRM LIKE 'FIN02_AWARDED_BUSINESS_LINE_SOURCE_CANNOT_BE_REMOVED%';
+    IF NOT _blocked THEN RAISE; END IF;
+  END;
+  IF NOT _blocked THEN RAISE EXCEPTION 'FAILED: Business source changed to manual'; END IF;
+
+  _blocked:=false;
+  BEGIN
+    UPDATE public.contract_lines SET source_item_id=NULL
+      WHERE source_item_id=_web;
+  EXCEPTION WHEN others THEN
+    _blocked:=SQLERRM LIKE 'FIN02_AWARDED_BUSINESS_LINE_SOURCE_CANNOT_BE_REMOVED%';
+    IF NOT _blocked THEN RAISE; END IF;
+  END;
+  IF NOT _blocked THEN RAISE EXCEPTION 'FAILED: Business source item removed'; END IF;
+
   IF (SELECT renewal_amount FROM public.contract_lines
       WHERE source_item_id='00000000-0000-4000-8000-000000000101') <> 0 THEN
     RAISE EXCEPTION 'FAILED: one-time license leaked into renewal';
