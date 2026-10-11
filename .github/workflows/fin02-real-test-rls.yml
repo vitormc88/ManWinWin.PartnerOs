@@ -83,3 +83,9 @@ jobs:
             -f tests/sql/fin02/rls_clients_write_permission_candidate.sql
           psql -X -v ON_ERROR_STOP=1 \
             -f tests/sql/fin02/rls_clients_write_permission_candidate_assertions.sql
+      - name: Verify LAB-ONLY License Contract Renewal edit-scope policies
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/rls_financial_write_permission_candidate.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/rls_financial_write_permission_candidate_assertions.sql
