@@ -70,7 +70,7 @@ BEGIN
   -- Missing source reference must not pass.
   _blocked := false;
   BEGIN
-    PERFORM public.fin02_assert_business_award(_p,_license,_lines-'0');
+    PERFORM public.fin02_assert_business_award(_p,_license,_lines - 0);
   EXCEPTION WHEN others THEN
     _blocked := SQLERRM LIKE 'FIN02_CONTRACT_LINE_COUNT_MISMATCH%'
       OR SQLERRM LIKE 'FIN02_MISSING_OR_DUPLICATE_SOURCE_ITEM%';
