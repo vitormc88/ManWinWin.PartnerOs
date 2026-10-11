@@ -1496,33 +1496,34 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
       toast.error(renewalReadiness.blockers[0]);
       return;
     }
-    if (planChange.applicable && planChange.blockers.length > 0) {
-      toast.error(planChange.blockers[0]);
+    if (!editingProposal?.id) {
+      toast.error("FIN03_SAVE_REQUIRED: Save the renewal proposal as Draft before generating a document.");
       return;
     }
-    // Generation is a read-only action: it renders the CURRENT dialog state.
-    // It never persists the proposal and never changes its status — saving is
-    // the explicit "Save as Draft" action.
     try {
-      const itemsForDoc = items.map((it, idx) => ({ ...it, sort_order: idx }));
-      const proposalForDoc = {
-        ...(editingProposal || {}),
-        client_name: clientName,
-        project_name: projectName,
-        language,
-        
-        plan: planChange.applicable ? planChange.targetPlan : plan,
-        total_year_1: money.totalYear1,
-        total_recurring: money.totalRecurring,
-      } as unknown as Proposal;
+      // Never build a customer-facing renewal document from unsaved wizard
+      // state. Read the actual version and its items from the database.
+      const { data: stored, error: propError } = await supabase
+        .from("proposals").select("*").eq("id", editingProposal.id).single();
+      if (propError || !stored) throw propError || new Error("Saved renewal proposal not found");
+      if (stored.source_type !== "renewal" || stored.renewal_id !== source.renewal_id) {
+        throw new Error("FIN03_RENEWAL_SOURCE_MISMATCH");
+      }
+      if (stored.status === "Won") {
+        throw new Error("FIN03_FROZEN_RENEWAL_DOCUMENT_REQUIRED: use an archived approved document for a closed renewal.");
+      }
+      const { data: docItems, error: itemsError } = await supabase
+        .from("proposal_items").select("*").eq("proposal_id", stored.id).order("sort_order");
+      if (itemsError) throw itemsError;
+      if (!docItems?.length) throw new Error("FIN03_RENEWAL_HAS_NO_SAVED_LINES");
       await downloadRenewalProposalDocx({
-        proposal: proposalForDoc,
-        items: itemsForDoc as any,
+        proposal: stored as unknown as Proposal,
+        items: docItems as any,
         baseline: renewalBaseline,
-        proposedRecurring: money.totalRecurring,
-        proposedYear1: money.totalYear1,
+        proposedRecurring: Number(stored.total_recurring),
+        proposedYear1: Number(stored.total_year_1),
       });
-      toast.success("Renewal document generated (proposal not modified)");
+      toast.success("Renewal document generated from saved version — unsaved edits were not included");
     } catch (e: any) {
       toast.error("Generation failed: " + (e?.message || ""));
     }
