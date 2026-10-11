@@ -90,6 +90,17 @@ BEGIN
   END IF;
   RAISE NOTICE 'FIN02 SECURITY GAP CONFIRMED BY SOURCE-EXACT TEST RLS: partner_sales (clients:view) can UPDATE own client using direct DML. Requires separate remediation decision.';
 
+  -- TEST clients_insert also omits the clients:edit module threshold.
+  INSERT INTO public.clients(id,client_code,commercial_name,partner_id,partner_uuid)
+    VALUES ('00000000-0000-4000-8000-000000000303',
+            'FIN02_TEST_VIEW_ONLY_INSERT','Synthetic unauthorized new client',
+            '00000000-0000-4000-8000-000000000101',_partner_a);
+  GET DIAGNOSTICS _row_count = ROW_COUNT;
+  IF _row_count <> 1 THEN
+    RAISE EXCEPTION 'FIN02_TEST_CLIENT_INSERT_POLICY_BEHAVIOR_DRIFT';
+  END IF;
+  RAISE NOTICE 'FIN02 SECURITY GAP: partner_sales (clients:view) can also INSERT a new client using direct DML under current TEST policy.';
+
   -- A probate partner cannot view contracts either: contract policy
   -- checks clients via an invoker subquery, and the RESTRICTIVE client RLS
   -- prevents visibility. This is a correct chained RLS behavior.
