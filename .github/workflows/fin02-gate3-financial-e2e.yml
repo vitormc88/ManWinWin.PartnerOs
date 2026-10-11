@@ -122,3 +122,15 @@ jobs:
              GROUP BY revenue_type ORDER BY revenue_type;"
       - name: Capture source-exact migration policy and ledger function fingerprints for rollback
         run: psql -X -At -v ON_ERROR_STOP=1 -f tests/sql/fin02/release_patch_fingerprints.sql
+      - name: Exercise FOUR independently guarded rollback scripts, reverse order
+        run: |
+          set -euo pipefail
+          for f in \
+            tests/sql/fin02/rollbacks/sec38_financial_write_policy.rollback.sql \
+            tests/sql/fin02/rollbacks/sec37_initial_sale_ledger.rollback.sql \
+            tests/sql/fin02/rollbacks/sec36_canonical_partner_reads.rollback.sql \
+            tests/sql/fin02/rollbacks/sec35_clients_write_policy.rollback.sql; do
+              psql -X -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Prove original TEST RLS policy hashes restored and financial history preserved
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/release_rollback_integrity_assertions.sql
