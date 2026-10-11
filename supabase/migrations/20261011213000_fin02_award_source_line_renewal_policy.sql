@@ -85,8 +85,8 @@ BEGIN
 
     IF round(_pi.net_total, 2) > 0 THEN
       SELECT count(*) INTO _valid
-        FROM jsonb_array_elements(_contract_lines) _l
-       WHERE _l->>'source_item_id' = _pi.id::text;
+        FROM jsonb_array_elements(_contract_lines) AS proposed_line(value)
+       WHERE proposed_line.value->>'source_item_id' = _pi.id::text;
       IF _valid <> 1 THEN
         RAISE EXCEPTION 'FIN02_MISSING_OR_DUPLICATE_SOURCE_ITEM: %', _pi.id;
       END IF;
