@@ -80,6 +80,12 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_initial_sale_lab_candidate_and_revenue_triggers.sql
       - name: Seed wholly fictional Business source proposal
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_fictional_award_source.sql
+      - name: Prove original TEST RLS hides newly converted partner UUID-only License and Contract
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_partner_legacy_baseline_assertions.sql
+      - name: Install LAB-ONLY canonical partner read policy candidate
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_partner_canonical_read_rls_candidate.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_partner_canonical_candidate_assertions.sql
       - name: Original award RPC, first-sale ledger, rollback and retry
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_award_and_ledger_assertions.sql
       - name: Original renewal core, 2027 then 2028, with separate commits
