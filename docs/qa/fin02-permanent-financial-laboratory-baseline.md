@@ -18,6 +18,23 @@ A clean replay of all migrations was the wrong requirement for the finance gate:
 - Compare candidate fingerprints with audited TEST snapshot using `tests/sql/fin02/compare_baseline_to_test.py`. A difference does NOT mean PROD is broken; it means it cannot be used unmodified as evidence of TEST parity.
 - Schema-only inventory **alone does not recreate a database**. To run the complete original RPCs, one later needs a privately provided actual schema export (or approved extraction of definitions from live catalog), a compatible Supabase local stack and verified role/grant restoration.
 
+## Implemented 11 Oct — financial catalog-backed CI (Lab B, phase 1)
+The permanent workflow [`fin02-real-financial-columns.yml`](../../.github/workflows/fin02-real-financial-columns.yml) is **running and green** on GitHub Actions, [proof #38178604346](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38178604346).
+
+**Read-only source reference and isolated construction:**
+- `tests/sql/fin02/real_financial_prod_columns.sql`: 320 real PROD catalog column definitions for **eight financial tables**, including types, actual defaults and basic PK/CHECK/UNIQUE constraints; no table contents.
+- `tests/sql/fin02/real_financial_test_overlay.sql`: eight TEST-only Deal sync columns; remove one PROD-only Renewal column; retain 19 foreign keys **between those eight tables** and enable RLS. Ten foreign keys to out-of-scope entities (profiles, partners, catalogs etc.) intentionally omitted.
+- `tests/sql/fin02/real_financial_test_column_parity.sql`: **PASS** for all 327 TEST table fields compared with TEST's read-only canonical name-sorted column signatures (types, nullability, defaults).
+- `tests/sql/fin02/real_schema_assertions.sql`: run synthetic award line/renewal discount/legacy/tamper cases under the 8-table physical column layout and 19 internal FKs.
+- `tests/sql/fin02/real_original_award_and_renewal_core.sql`: frozen SQL definitions for **the actual two financial RPC functions**, whose SQL bodies were verified identical in PROD and TEST before FIN02. No user/customer records or secrets; part of this branch only.
+- `tests/sql/fin02/real_core_function_patch_assertions.sql`: **PASS**: after applying FIN02 to the original SQL definitions, original authorization, row locks, idempotency and future-price markers remain in the function source. This checks SQL compilation/source preservation, **not executable original-RPC side effects/authorization**.
+- Actual PR34 migration applied **twice** in PostgreSQL 17 using a transaction; no cloud DB credentials or external Supabase access in workflow.
+- The first real-FK test correctly rejected an orphan synthetic contract line; fixed the synthetic fixture to reference an existing synthetic contract, not the FK constraint. Green rerun [#38178374614](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38178374614).
+
+**Precisely what is still not reproduced:** ten outbound foreign keys, other table definitions, 36 TEST finance-table RLS policies, complete foreign-table/account/roles data, existing triggers/side effects (including differences in PROD discount caps and revenue ledger), and functional execution of the two original RPCs with authorization contexts and all dependent tables. This is **NOT full SQL-GATE-2**. Do not use the words full TEST replica.
+
+The old full-repository migration replay remains **manual-only / blocked by missing Academy seed data**. The new permanent finance-specific workflow does not depend on it.
+
 ## Immediate, independent next steps (no Work, Lovable or PROD required)
 1. Keep Lab A green and expand SQL negative cases as discovered.
 2. Preserve audited TEST financial fingerprints already in GitHub.
