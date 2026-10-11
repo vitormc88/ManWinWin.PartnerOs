@@ -14,7 +14,9 @@ BEGIN
    ('contracts','contracts_select','330907b1a467be5ab476a615308f8c77'),
    ('renewals','renewals_select','6b69a60063e85df298fff1b954e5534d')
  ) expected(tab, policy, deployed_hash) LOOP
-    SELECT md5(coalesce(qual,'')||'|'||coalesce(with_check,''))
+    SELECT CASE WHEN permissive='PERMISSIVE' AND cmd=upper(split_part(r.policy,'_',2))
+      AND roles::text[]=ARRAY['authenticated']::text[]
+      THEN md5(coalesce(qual,'')||'|'||coalesce(with_check,'')) ELSE NULL END
       INTO actual FROM pg_policies WHERE schemaname='public'
        AND tablename=r.tab AND policyname=r.policy;
     IF actual IS DISTINCT FROM r.deployed_hash THEN
@@ -43,7 +45,9 @@ BEGIN
     ('contracts','contracts_select','f78a701cb6e66f7e8c29530600f85bb0'),
     ('renewals','renewals_select','40304077653ef7169e090d523da6d341')
  ) expected(tab,policy,baseline_hash) LOOP
-  SELECT md5(coalesce(qual,'')||'|'||coalesce(with_check,''))
+  SELECT CASE WHEN permissive='PERMISSIVE' AND cmd=upper(split_part(r.policy,'_',2))
+      AND roles::text[]=ARRAY['authenticated']::text[]
+      THEN md5(coalesce(qual,'')||'|'||coalesce(with_check,'')) ELSE NULL END
     INTO actual FROM pg_policies WHERE schemaname='public'
       AND tablename=r.tab AND policyname=r.policy;
   IF actual IS DISTINCT FROM r.baseline_hash THEN
