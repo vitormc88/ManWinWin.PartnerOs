@@ -11,7 +11,9 @@ BEGIN
     ('clients','clients_insert','d7a91f1c156083c1b180f67150ac937d'),
     ('clients','clients_update','9c6212431a65fefd979fb4d126457188')
   ) expected(tab, policy, original_hash) LOOP
-    SELECT md5(coalesce(qual,'')||'|'||coalesce(with_check,''))
+    SELECT CASE WHEN permissive='PERMISSIVE' AND cmd=upper(split_part(r.policy,'_',2))
+      AND roles::text[]=ARRAY['authenticated']::text[]
+      THEN md5(coalesce(qual,'')||'|'||coalesce(with_check,'')) ELSE NULL END
       INTO actual FROM pg_policies
       WHERE schemaname='public' AND tablename=r.tab AND policyname=r.policy;
     IF actual IS DISTINCT FROM r.original_hash THEN
