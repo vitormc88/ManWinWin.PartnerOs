@@ -7,6 +7,8 @@ INSERT INTO public.clients(id,client_code,commercial_name)
 VALUES ('00000000-0000-4000-8000-000000000301','FIN02_SYNTH_001','FIN02 Synthetic Foods');
 INSERT INTO public.contracts(id,client_id)
 VALUES ('00000000-0000-4000-8000-000000000201',
+        '00000000-0000-4000-8000-000000000301'),
+       ('00000000-0000-4000-8000-000000000205',
         '00000000-0000-4000-8000-000000000301');
 INSERT INTO public.proposals
 (id, deal_id, client_name, product_family, proposal_mode, version,
