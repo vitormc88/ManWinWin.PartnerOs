@@ -101,6 +101,34 @@ BEGIN
   END IF;
   RAISE NOTICE 'FIN02 SECURITY GAP: partner_sales (clients:view) can also INSERT a new client using direct DML under current TEST policy.';
 
+  -- Read-only Partner Sales is also subject to financial table access
+  -- controls. Existing TEST table grants + exact license/contract/renewal
+  -- RLS permit direct no-op UPDATE for its own LEGACY-partner client despite
+  -- clients:view and renewals:no_access. Do not equate this scoped RLS
+  -- behavior with complete live-trigger/HTTP permissions.
+  IF public.has_module_access('renewals','view') THEN
+    RAISE EXCEPTION 'FIN02_PARTNER_SALES_RENEWALS_TEMPLATE_DRIFT';
+  END IF;
+  UPDATE public.licenses SET notes=notes WHERE client_id=_client_a;
+  GET DIAGNOSTICS _row_count=ROW_COUNT;
+  IF _row_count<>1 THEN RAISE EXCEPTION 'FIN02_LEGACY_LICENSE_WRITE_POLICY_BEHAVIOR_DRIFT'; END IF;
+  UPDATE public.contracts SET observations=observations WHERE client_id=_client_a;
+  GET DIAGNOSTICS _row_count=ROW_COUNT;
+  IF _row_count<>1 THEN RAISE EXCEPTION 'FIN02_LEGACY_CONTRACT_WRITE_POLICY_BEHAVIOR_DRIFT'; END IF;
+  UPDATE public.renewals SET notes=notes WHERE client_id=_client_a;
+  GET DIAGNOSTICS _row_count=ROW_COUNT;
+  IF _row_count<>1 THEN RAISE EXCEPTION 'FIN02_LEGACY_RENEWAL_WRITE_POLICY_BEHAVIOR_DRIFT'; END IF;
+  UPDATE public.licenses SET notes=notes WHERE client_id=_client_b;
+  GET DIAGNOSTICS _row_count=ROW_COUNT;
+  IF _row_count<>0 THEN RAISE EXCEPTION 'FIN02_CROSS_PARTNER_LICENSE_UPDATE'; END IF;
+  UPDATE public.contracts SET observations=observations WHERE client_id=_client_b;
+  GET DIAGNOSTICS _row_count=ROW_COUNT;
+  IF _row_count<>0 THEN RAISE EXCEPTION 'FIN02_CROSS_PARTNER_CONTRACT_UPDATE'; END IF;
+  UPDATE public.renewals SET notes=notes WHERE client_id=_client_b;
+  GET DIAGNOSTICS _row_count=ROW_COUNT;
+  IF _row_count<>0 THEN RAISE EXCEPTION 'FIN02_CROSS_PARTNER_RENEWAL_UPDATE'; END IF;
+  RAISE NOTICE 'FIN02 RLS SECURITY GAP: partner_sales (clients:view, renewals:no_access) can directly UPDATE OWN legacy-partner License, Contract and Renewal rows under original TEST policies; cross-partner denied. Further full-trigger test required.';
+
   -- TEST also ignores per-user override: an HQ Standard whose effective
   -- Clients permission was reduced from EDIT to VIEW can still UPDATE.
   PERFORM set_config('request.jwt.claim.sub',
