@@ -1,0 +1,42 @@
+# Credential PRESENCE preflight only: no CLI, no network call to Supabase, no deployment.
+# Workflow lives in an isolated feature branch, never main/PROD.
+name: PartnerOS TEST Supabase Deploy Credential Preflight
+on:
+  push:
+    branches:
+      - chore/partner-growth-s4b2-test-deploy-gate-20261011
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-access-readiness:
+    name: Check TEST deployment credential presence (safe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      TEST_ACCESS_TOKEN: ${{ secrets.SUPABASE_TEST_ACCESS_TOKEN }}
+      GENERIC_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      LEGACY_TEST_TOKEN: ${{ secrets.SUPABASE_TEST_TOKEN }}
+    steps:
+      - name: Report available credential names, never values
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Do not print any secret contents or attempt to use one.
+          if [[ -n "$TEST_ACCESS_TOKEN" ]]; then
+            echo "SUPABASE_TEST_ACCESS_TOKEN: CONFIGURED"
+            echo "test_scoped_token_present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "SUPABASE_TEST_ACCESS_TOKEN: MISSING"
+          fi
+          if [[ -n "$GENERIC_ACCESS_TOKEN" ]]; then
+            echo "SUPABASE_ACCESS_TOKEN: CONFIGURED (scope unverified)"
+          else
+            echo "SUPABASE_ACCESS_TOKEN: MISSING"
+          fi
+          if [[ -n "$LEGACY_TEST_TOKEN" ]]; then
+            echo "SUPABASE_TEST_TOKEN: CONFIGURED (scope unverified)"
+          else
+            echo "SUPABASE_TEST_TOKEN: MISSING"
+          fi
+          echo "NO DEPLOYMENT WAS ATTEMPTED."
