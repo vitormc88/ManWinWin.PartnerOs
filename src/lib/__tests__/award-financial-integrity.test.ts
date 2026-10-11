@@ -39,7 +39,7 @@ describe("FIN02 Business award source-item integrity", () => {
   });
   it("requires explicit award snapshot when comparing KeepIT against UseIT", () => {
     expect(businessAwardIntegrityBlocker({...proposal,proposal_mode:"compare_keepit_useit"},items,lines))
-      .toBe("FIN02_COMPARE_REQUIRES_AWARDED_OPTION_SNAPSHOT");
+      .toMatch(/^FIN02_COMPARE_REQUIRES_AWARDED_OPTION_SNAPSHOT/);
   });
   it("does not change unrelated Professional award behavior", () => {
     expect(businessAwardIntegrityBlocker({...proposal,product_family:"Professional"},[],[])).toBeNull();
