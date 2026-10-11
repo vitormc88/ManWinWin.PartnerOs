@@ -1,0 +1,59 @@
+name: FIN02 Full Supabase Migration Replay (Diagnostic)
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+      - "tests/sql/fin02/**"
+      - ".github/workflows/fin02-full-migration-replay.yml"
+  workflow_dispatch:
+
+# This diagnostic reproduces Git migrations in a GitHub-hosted LOCAL stack.
+# It is NOT a replica of current Lovable TEST until effective object parity
+# has been independently demonstrated.
+permissions:
+  contents: read
+
+jobs:
+  repo-schema-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ""
+      SUPABASE_DB_PASSWORD: ""
+      SUPABASE_PROJECT_ID: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Safety proof — local-only, no credentials or remote link
+        run: |
+          set -euo pipefail
+          test -f supabase/config.toml
+          test ! -f supabase/.temp/project-ref
+          test ! -f supabase/seed.sql
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          echo "LOCAL-ONLY: no linked project, no cloud credentials, no seed or customer data"
+          supabase --version
+      - name: Recreate repository schema in local Supabase stack
+        run: |
+          set -euo pipefail
+          # Uses local Docker on GitHub runner. No --linked, db push or db-url.
+          # Any failing historical migration is a real schema-replay blocker.
+          supabase start -x studio,imgproxy
+          supabase db reset --local
+      - name: Assert full financial functions and FIN02 policy exist locally
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+            -f tests/sql/fin02/full_schema_probe.sql
+      - name: Stop and delete temporary local stack
+        if: always()
+        run: |
+          supabase stop --no-backup || true
