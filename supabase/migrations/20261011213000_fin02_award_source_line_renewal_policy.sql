@@ -142,6 +142,23 @@ DECLARE
   _pi public.proposal_items%ROWTYPE;
   _p public.proposals%ROWTYPE;
 BEGIN
+  -- Once a Business contract line has a verified proposal source, callers
+  -- must not silently remove that lineage by switching to manual/legacy or
+  -- NULLing source_item_id. A separate approved amendment path is required.
+  IF TG_OP = 'UPDATE'
+     AND OLD.source_item_id IS NOT NULL
+     AND OLD.source IN ('proposal','renewal') THEN
+    SELECT p.product_family INTO _p.product_family
+      FROM public.proposal_items pi
+      JOIN public.proposals p ON p.id = pi.proposal_id
+     WHERE pi.id = OLD.source_item_id;
+    IF _p.product_family = 'Business'
+       AND (NEW.source_item_id IS NULL
+            OR NEW.source NOT IN ('proposal','renewal')) THEN
+      RAISE EXCEPTION 'FIN02_AWARDED_BUSINESS_LINE_SOURCE_CANNOT_BE_REMOVED';
+    END IF;
+  END IF;
+
   IF NEW.source_item_id IS NULL OR NEW.source NOT IN ('proposal','renewal') THEN
     RETURN NEW;
   END IF;
@@ -189,7 +206,8 @@ REVOKE ALL ON FUNCTION public.fin02_capture_contract_line_policy()
 
 DROP TRIGGER IF EXISTS trg_fin02_capture_contract_policy ON public.contract_lines;
 CREATE TRIGGER trg_fin02_capture_contract_policy
-BEFORE INSERT OR UPDATE OF amount, source_item_id, billing_frequency, source
+BEFORE INSERT OR UPDATE OF amount, source_item_id, billing_frequency, source,
+  renewal_amount, pricing_snapshot
 ON public.contract_lines
 FOR EACH ROW EXECUTE FUNCTION public.fin02_capture_contract_line_policy();
 
