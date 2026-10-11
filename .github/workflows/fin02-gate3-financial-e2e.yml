@@ -9,8 +9,8 @@ on:
 
 # Original TEST financial RPCs, synthetic roles/tenant data and two simulated
 # annual renewals. Absolutely no access to PROD/TEST cloud databases.
-# The initial-sale revenue trigger is explicitly a LAB-ONLY TEST-compatible
-# candidate because this trigger is missing from live TEST.
+# Source-compatible four independent TEST-targeted migrations staged for
+# disposable CI only. None applied to live TEST/PROD.
 permissions:
   contents: read
 jobs:
@@ -76,20 +76,31 @@ jobs:
           psql -X -v ON_ERROR_STOP=1 --single-transaction \
             -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_core_function_patch_assertions.sql
-      - name: Install original TEST renewal revenue and lab-only initial sale candidate
-        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_initial_sale_lab_candidate_and_revenue_triggers.sql
+      - name: Install original TEST renewal and contract triggers (no lab ledger bridge)
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_original_test_renewal_and_contract_triggers.sql
       - name: Install original TEST Won-date, client-partner and revenue partner guard triggers
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_real_test_won_partner_guard_triggers.sql
       - name: Install official TEST close_renewal wrapper and enforced commercial state guards
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_official_close_and_status_guard_sources.sql
+      - name: Apply independently reviewed SEC35, SEC37 and SEC38 migrations in ephemeral CI
+        run: |
+          set -euo pipefail
+          for f in \
+            supabase/migrations/20261012000100_fin02_sec35_clients_write_policy.sql \
+            supabase/migrations/20261012000300_fin02_sec37_initial_sale_ledger.sql \
+            supabase/migrations/20261012000400_fin02_sec38_financial_write_policy.sql; do
+              psql -X -v ON_ERROR_STOP=1 -f "$f"
+          done
       - name: Seed wholly fictional Business source proposal
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_fictional_award_source.sql
       - name: Prove original TEST RLS hides newly converted partner UUID-only License and Contract
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_partner_legacy_baseline_assertions.sql
-      - name: Install LAB-ONLY canonical partner read policy candidate
+      - name: Apply independent SEC36 TEST-source read migration to disposable CI
         run: |
-          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_partner_canonical_read_rls_candidate.sql
-          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_partner_canonical_candidate_assertions.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -f supabase/migrations/20261012000200_fin02_sec36_canonical_partner_reads.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/gate3_partner_canonical_candidate_assertions.sql
       - name: Original award RPC, first-sale ledger, rollback and retry
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_award_and_ledger_assertions.sql
       - name: Original renewal core, 2027 then 2028, with separate commits
