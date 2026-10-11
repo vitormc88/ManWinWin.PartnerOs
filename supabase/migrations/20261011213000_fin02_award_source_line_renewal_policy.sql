@@ -154,6 +154,7 @@ BEGIN
      WHERE pi.id = OLD.source_item_id;
     IF _p.product_family = 'Business'
        AND (NEW.source_item_id IS NULL
+            OR NEW.source IS NULL
             OR NEW.source NOT IN ('proposal','renewal')) THEN
       RAISE EXCEPTION 'FIN02_AWARDED_BUSINESS_LINE_SOURCE_CANNOT_BE_REMOVED';
     END IF;
@@ -163,7 +164,11 @@ BEGIN
     RETURN NEW;
   END IF;
   SELECT * INTO _pi FROM public.proposal_items WHERE id = NEW.source_item_id;
-  IF NOT FOUND THEN RETURN NEW; END IF;
+  IF NOT FOUND THEN
+    -- A declared proposal/renewal source must actually exist; falling back
+    -- to an unpriced row would silently discard financial provenance.
+    RAISE EXCEPTION 'FIN02_SOURCED_CONTRACT_ITEM_NOT_FOUND';
+  END IF;
   SELECT * INTO _p FROM public.proposals WHERE id = _pi.proposal_id;
   IF NOT FOUND OR _p.product_family <> 'Business' THEN RETURN NEW; END IF;
 
