@@ -1,3 +1,7 @@
+BEGIN;
+-- Explicitly mark the creation of PRE-VALIDATED synthetic fixture proposals.
+-- This is NOT a simulation of customer acceptance or an API bypass.
+SET LOCAL partneros.proposal_op = 'on';
 -- Synthetic standalone deals to test two simultaneous first awards and
 -- a forced late-stage transactional exception.
 INSERT INTO public.deals(id,partner_id,company_name,country,stage,status)
@@ -29,3 +33,5 @@ VALUES
 ('00000000-0000-4000-8000-000000000916',
  '00000000-0000-4000-8000-000000000515',
  'UseIT SaaS Annual','software','license','annual',true,200,0,200,200,true,1,200);
+
+COMMIT;
