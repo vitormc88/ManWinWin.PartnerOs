@@ -14,8 +14,8 @@ BEGIN
    ('licenses','licenses_update','259e5a2d9a31c391017b27b3bc3260b1'),
    ('contracts','contracts_insert','d80318e26704b5a73ab1ec8129777e20'),
    ('contracts','contracts_update','259e5a2d9a31c391017b27b3bc3260b1'),
-   ('renewals','renewals_insert','3903ae7fb0cdf1a86080e09988d4660d'),
-   ('renewals','renewals_update','f3060cc36efa10b197e79ad22394435a')
+   ('renewals','renewals_insert','4f45b7ff545834f3e6af197fa3ce1caf'),
+   ('renewals','renewals_update','f4a70cbd9a78223d8a7ac1e54aca1c56')
  ) expected(tab, policy, deployed_hash) LOOP
     SELECT md5(coalesce(qual,'')||'|'||coalesce(with_check,''))
       INTO actual FROM pg_policies WHERE schemaname='public'
