@@ -10,9 +10,9 @@ DO $rollback_guard$
 DECLARE r record; actual text;
 BEGIN
  FOR r IN SELECT * FROM (VALUES
-   ('licenses','licenses_select','6c4135c4188a85d46e1a9839e31e41af'),
-   ('contracts','contracts_select','70e75b4495b3d785f13fd2122711f876'),
-   ('renewals','renewals_select','e75c44323f5ce3ba6f4b1df689885011')
+   ('licenses','licenses_select','ee669111277e6472860b8c461e4f6cf2'),
+   ('contracts','contracts_select','330907b1a467be5ab476a615308f8c77'),
+   ('renewals','renewals_select','6b69a60063e85df298fff1b954e5534d')
  ) expected(tab, policy, deployed_hash) LOOP
     SELECT md5(coalesce(qual,'')||'|'||coalesce(with_check,''))
       INTO actual FROM pg_policies WHERE schemaname='public'
