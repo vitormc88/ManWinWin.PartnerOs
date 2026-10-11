@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/fin02-full-migration-replay.yml"
+      - "tests/sql/fin02/academy_precondition_fixture.sql"
 
 # This diagnostic reproduces Git migrations in a GitHub-hosted LOCAL stack.
 # It is NOT a replica of current Lovable TEST until effective object parity
