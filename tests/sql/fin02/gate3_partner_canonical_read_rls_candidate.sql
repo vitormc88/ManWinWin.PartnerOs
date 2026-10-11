@@ -33,3 +33,17 @@ ALTER POLICY contracts_select ON public.contracts USING (
      )
  )
 );
+
+-- A new renewal created by the same actual award RPC also has
+-- partner_uuid but no legacy partner_id. Preserve the same fallback.
+ALTER POLICY renewals_select ON public.renewals USING (
+ public.is_hq_user(auth.uid())
+ OR (
+   partner_uuid IS NOT NULL AND public.can_view_partner(partner_uuid)
+ )
+ OR (
+   partner_uuid IS NULL AND partner_id IS NOT NULL
+   AND partner_id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+   AND public.can_view_partner(partner_id::uuid)
+ )
+);
