@@ -80,12 +80,12 @@ jobs:
       - name: Exercise proposed Clients edit guard only within isolated CI
         run: |
           psql -X -v ON_ERROR_STOP=1 \
-            -f tests/sql/fin02/rls_clients_write_permission_candidate.sql
+            -f supabase/migrations/20261012000100_fin02_sec35_clients_write_policy.sql
           psql -X -v ON_ERROR_STOP=1 \
             -f tests/sql/fin02/rls_clients_write_permission_candidate_assertions.sql
       - name: Verify LAB-ONLY License Contract Renewal edit-scope policies
         run: |
           psql -X -v ON_ERROR_STOP=1 \
-            -f tests/sql/fin02/rls_financial_write_permission_candidate.sql
+            -f supabase/migrations/20261012000400_fin02_sec38_financial_write_policy.sql
           psql -X -v ON_ERROR_STOP=1 \
             -f tests/sql/fin02/rls_financial_write_permission_candidate_assertions.sql
