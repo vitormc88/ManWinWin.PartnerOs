@@ -1,0 +1,93 @@
+name: FIN02 Gate3 Synthetic Award to Two Renewals
+on:
+  pull_request:
+    paths:
+      - "tests/sql/fin02/gate3_*.sql"
+      - "supabase/migrations/*fin02*"
+      - ".github/workflows/fin02-gate3-financial-e2e.yml"
+  workflow_dispatch:
+
+# Original TEST financial RPCs, synthetic roles/tenant data and two simulated
+# annual renewals. Absolutely no access to PROD/TEST cloud databases.
+# The initial-sale revenue trigger is explicitly a LAB-ONLY TEST-compatible
+# candidate because this trigger is missing from live TEST.
+permissions:
+  contents: read
+jobs:
+  synthetic-financial-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: fin02_gate3
+          POSTGRES_PASSWORD: synthetic-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fin02_gate3"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: fin02_gate3
+      PGPASSWORD: synthetic-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Assert no remote database connections or customer data
+        run: |
+          set -euo pipefail
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          test ! -f supabase/.temp/project-ref
+          echo "Local GitHub PostgreSQL only. No remote Supabase tokens, customer rows, email or jobs."
+      - name: Rebuild source-backed financial and identity catalog
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;"
+          for f in \
+            tests/sql/fin02/real_financial_prod_columns.sql \
+            tests/sql/fin02/real_financial_test_overlay.sql \
+            tests/sql/fin02/rls_support_schema.sql \
+            tests/sql/fin02/gate3_financial_operational_tables.sql \
+            tests/sql/fin02/real_financial_test_column_parity.sql \
+            tests/sql/fin02/rls_real_test_helpers.sql \
+            tests/sql/fin02/real_test_rls_policies_reference.sql \
+            tests/sql/fin02/rls_synthetic_financial_roles_and_data.sql; do
+              psql -X -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Install ORIGINAL TEST contract, renewal and revenue helper SQL
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_original_financial_helpers.sql
+      - name: Install ORIGINAL TEST deal-award and close-renewal SQL
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_original_award_and_renewal_core.sql
+      - name: Apply FIN02 migration on original financial SQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_core_function_patch_assertions.sql
+      - name: Install original TEST renewal revenue and lab-only initial sale candidate
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_initial_sale_lab_candidate_and_revenue_triggers.sql
+      - name: Seed wholly fictional Business source proposal
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_fictional_award_source.sql
+      - name: Original award RPC, first-sale ledger, rollback and retry
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_award_and_ledger_assertions.sql
+      - name: Original renewal core, 2027 then 2028, with separate commits
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_two_year_renewal_assertions.sql
+      - name: Final financial ledger and no-billing-side-effects recap
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "SELECT revenue_type, count(*) AS entries, sum(amount) AS amount
+             FROM public.client_revenue_history
+             WHERE client_id IN
+              (SELECT client_id FROM public.deals
+               WHERE id='00000000-0000-4000-8000-000000000411')
+             GROUP BY revenue_type ORDER BY revenue_type;"
