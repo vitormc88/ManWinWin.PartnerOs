@@ -150,6 +150,11 @@ BEGIN
   SELECT * INTO _p FROM public.proposals WHERE id = _pi.proposal_id;
   IF NOT FOUND OR _p.product_family <> 'Business' THEN RETURN NEW; END IF;
 
+  IF _pi.gross_total < 0 OR _pi.net_total < 0 OR _pi.discount_amount < 0
+     OR round(_pi.gross_total - _pi.discount_amount, 2)
+          <> round(_pi.net_total, 2) THEN
+    RAISE EXCEPTION 'FIN02_INVALID_APPROVED_RENEWAL_SOURCE_ITEM';
+  END IF;
   IF round(NEW.amount, 2) <> round(_pi.net_total, 2) THEN
     RAISE EXCEPTION 'FIN02_CONTRACT_SOURCE_NET_MISMATCH';
   END IF;
