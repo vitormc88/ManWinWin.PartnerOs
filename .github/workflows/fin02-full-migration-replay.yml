@@ -1,11 +1,7 @@
 name: FIN02 Full Supabase Migration Replay (Diagnostic)
+# Diagnostic only while legacy migrations require app-data preconditions.
+# Keep this manual to avoid repeatedly consuming hosted CI minutes.
 on:
-  pull_request:
-    paths:
-      - "supabase/migrations/**"
-      - "supabase/config.toml"
-      - "tests/sql/fin02/**"
-      - ".github/workflows/fin02-full-migration-replay.yml"
   workflow_dispatch:
 
 # This diagnostic reproduces Git migrations in a GitHub-hosted LOCAL stack.
