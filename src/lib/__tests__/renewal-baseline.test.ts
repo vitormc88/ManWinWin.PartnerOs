@@ -104,7 +104,7 @@ describe("FIN02 next-cycle renewal pricing", () => {
       amount: 600, renewal_amount: 600, currency: "EUR", billing_frequency: "Annual" },
     { id: "sat", line_type: "sat", description: "S&AT gross KeepIT license base",
       amount: 43451, renewal_amount: 43451, currency: "EUR", billing_frequency: "Annual" },
-    { id: "implementation", line_type: "service", description: "Implementation",
+    { id: "implementation", line_type: "implementation", description: "Implementation",
       amount: 59650, renewal_amount: 0, currency: "EUR", billing_frequency: "One-time" },
   ];
 
