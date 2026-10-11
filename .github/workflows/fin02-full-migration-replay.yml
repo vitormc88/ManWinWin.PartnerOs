@@ -53,6 +53,20 @@ jobs:
           p.write_text(original.split(marker)[0]+
             "-- CI ONLY: legacy temporary QA fixture block omitted from schema replay.\\n")
           print("Separated existing August 11 QA fixture from SCHEMA reconstruction, not from the Git source")
+          p2=Path("supabase/migrations/20260813233336_378ea80a-0d49-425f-9ec1-c0d77e362ce9.sql")
+          cleanup=p2.read_text()
+          lines=[ln.strip() for ln in cleanup.splitlines() if ln.strip()]
+          assert len(lines)==8 and sum(ln.startswith("DELETE FROM ") for ln in lines)==7, (
+            "P0 fixture-cleanup migration changed; explicit review needed")
+          assert lines[-1]=="DROP TABLE IF EXISTS public.zzv_p0_results;", (
+            "Unexpected non-fixture DDL in cleanup migration")
+          assert all("0a00" in ln or "0c00" in ln or "0d00" in ln
+                     for ln in lines[:-1]), "Unexpected live table cleanup"
+          # The teardown data DELETE has no meaningful work on a clean database
+          # and trips the last-HQ-admin guard. Keep its temp evidence table DROP.
+          p2.write_text("-- CI ONLY: skipped known August P0 synthetic cleanup rows.\\n"
+             +lines[-1]+"\\n")
+          print("Skipped one historical verification-only cleanup DELETE block")
           PY
       - name: Recreate repository schema in local Supabase stack
         run: |
