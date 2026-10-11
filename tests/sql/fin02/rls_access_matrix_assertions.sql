@@ -111,7 +111,9 @@ BEGIN
   END IF;
   UPDATE public.clients SET commercial_name=commercial_name;
   GET DIAGNOSTICS _row_count=ROW_COUNT;
-  IF _row_count<>2 THEN
+  -- Three rows now exist inside this rollback-only transaction because
+  -- Partner Sales just proved the unauthorized third-client INSERT.
+  IF _row_count<>3 THEN
     RAISE EXCEPTION 'FIN02_TEST_HQ_OVERRIDE_WRITE_BEHAVIOR_DRIFT';
   END IF;
   RAISE NOTICE 'FIN02 SECURITY GAP: TEST clients_update ignores module view-only override on HQ Standard.';
