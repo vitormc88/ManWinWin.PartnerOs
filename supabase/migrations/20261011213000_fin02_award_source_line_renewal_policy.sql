@@ -231,21 +231,44 @@ BEGIN
   IF _count <> 4 THEN
     RAISE EXCEPTION 'FIN02_RENEWAL_CORE_SHAPE_CHANGED_COUNT_%', _count;
   END IF;
+  -- Change exactly the three *recurring* aggregations, never the
+  -- one-time proposal lines (which must keep their first-period amount).
   _def := replace(_def,
-    'coalesce(sum(amount) FILTER (' || chr(10) ||
-    '           WHERE lower(coalesce(billing_frequency,',
-    'coalesce(sum(coalesce(renewal_amount, amount)) FILTER (' || chr(10) ||
-    '           WHERE lower(coalesce(billing_frequency,');
-  -- The next-cycle aggregate uses the same source-of-truth.
+    'sum(amount) FILTER (' || chr(10) ||
+    '           WHERE lower(coalesce(billing_frequency,''annual'')) NOT IN',
+    'sum(coalesce(renewal_amount, amount)) FILTER (' || chr(10) ||
+    '           WHERE lower(coalesce(billing_frequency,''annual'')) NOT IN');
   _def := replace(_def,
-    'coalesce(sum(amount) FILTER (' || chr(10) ||
-    '      WHERE lower(coalesce(billing_frequency,',
-    'coalesce(sum(coalesce(renewal_amount, amount)) FILTER (' || chr(10) ||
-    '      WHERE lower(coalesce(billing_frequency,');
-  -- Do not substitute the unrelated recurring baseline: preserve its
-  -- original meaning, because it is explicitly subtracted from the total.
-  IF position('sum(coalesce(renewal_amount, amount))' IN _def) = 0 THEN
-    RAISE EXCEPTION 'FIN02_RENEWAL_AGGREGATION_PATCH_MISSING';
+    'sum(amount) FILTER (' || chr(10) ||
+    '      WHERE lower(coalesce(billing_frequency,''annual'')) NOT IN',
+    'sum(coalesce(renewal_amount, amount)) FILTER (' || chr(10) ||
+    '      WHERE lower(coalesce(billing_frequency,''annual'')) NOT IN');
+  -- If anything changed upstream, abort the migration atomically.
+  _count := (length(_def) -
+    length(replace(_def, 'sum(coalesce(renewal_amount, amount)) FILTER (', ''))) /
+    length('sum(coalesce(renewal_amount, amount)) FILTER (');
+  IF _count <> 3 THEN
+    RAISE EXCEPTION 'FIN02_RENEWAL_RECURRING_AGGREGATIONS_EXPECTED_3_GOT_%', _count;
+  END IF;
+  IF position('sum(amount) FILTER (' || chr(10) ||
+    '      WHERE lower(coalesce(billing_frequency,''annual'')) IN' IN _def) = 0 THEN
+    RAISE EXCEPTION 'FIN02_ONE_TIME_AGGREGATION_MUST_NOT_CHANGE';
+  END IF;
+
+  -- First-year recurring promotions mean Y1 < next-cycle baseline is
+  -- legitimate. Derive one-time revenue from the approved one-time lines,
+  -- not from Y1 minus the next-cycle recurring amount.
+  _def := replace(_def,
+    '  _one_time := greatest(coalesce(p.total_year_1,0) - _new_recurring, 0);',
+    '  IF p.product_family = ''Business'' THEN' || chr(10) ||
+    '    SELECT coalesce(sum(net_total),0) INTO _one_time' || chr(10) ||
+    '    FROM public.proposal_items' || chr(10) ||
+    '    WHERE proposal_id = p.id AND NOT is_recurring;' || chr(10) ||
+    '  ELSE' || chr(10) ||
+    '    _one_time := greatest(coalesce(p.total_year_1,0) - _new_recurring, 0);' || chr(10) ||
+    '  END IF;');
+  IF position('IF p.product_family = ''Business'' THEN' IN _def) = 0 THEN
+    RAISE EXCEPTION 'FIN02_ONE_TIME_SPLIT_HOOK_MISSING';
   END IF;
   -- Marker used to prevent accidental double application in later migrations.
   _def := replace(_def, '  -- ── Renewed ─',
