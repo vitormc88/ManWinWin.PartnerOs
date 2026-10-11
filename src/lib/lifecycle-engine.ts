@@ -16,6 +16,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { businessAwardIntegrityBlocker } from "./award-financial-integrity";
 import { requireDealProposalId } from "@/lib/proposal-source";
 import { applyPartnerScope, canonicalPartnerScope } from "@/lib/partner-query";
 import { canonicalizeLineTypeForWrite } from "@/lib/contract-line-payload";
@@ -259,11 +260,12 @@ export async function buildConversionPlan(
   if (!proposal) throw new Error("Proposal not found");
   const dealId = requireDealProposalId(proposal);
 
-  const { data: items } = await supabase
+  const { data: items, error: proposalItemsError } = await supabase
     .from("proposal_items")
     .select("*")
     .eq("proposal_id", proposalId)
     .order("sort_order");
+  if (proposalItemsError) throw proposalItemsError;
 
   // Resolve partner from the deal this proposal belongs to.
   const { data: deal, error: dealError } = await supabase
@@ -351,6 +353,12 @@ export async function awardProposalAtomically(
     ? (plan.client.mode === "existing" ? plan.client.record.id : null)
     : opts.existingClientId;
   const lines = opts.contractLines?.length ? opts.contractLines : plan.contractLines;
+  // Already-awarded legacy proposals are handled idempotently by the RPC.
+  // New awards must match the source items, not merely the grand total.
+  if (!(plan.proposal as any).contract_id) {
+    const blocker = businessAwardIntegrityBlocker(plan.proposal, plan.proposalItems, lines);
+    if (blocker) throw new Error(blocker);
+  }
   const rpc = await supabase.rpc("award_deal_proposal" as any, {
     _deal_id: dealId,
     _proposal_id: proposalId,
