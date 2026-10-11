@@ -87,6 +87,7 @@ import {
   BusinessPreviewStep,
 } from "./BusinessSteps";
 import { checkBusinessPricingReadiness } from "@/lib/proposal-business-readiness";
+import { businessDocumentHasUnsavedChanges, businessDocumentSnapshotBlocker, savedBusinessConfig } from "@/lib/business-document-integrity";
 import { buildBusinessProposalItemRows, businessPersistedTotals, assertBusinessProposalTotals } from "@/lib/proposal-business-persistence";
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
@@ -1527,9 +1528,23 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     }
   };
 
+  /** Require a reproducible persisted Business snapshot, not unsaved dialog values. */
+  const assertBusinessDocumentSource = (prop: Proposal, docItems: any[]): BusinessConfig => {
+    const blocker = businessDocumentSnapshotBlocker(prop as any, docItems, rules);
+    if (blocker) throw new Error(blocker);
+    const unsaved = businessDocumentHasUnsavedChanges(prop as any, {
+      business_config: businessConfig, client_name: clientName, project_name: projectName,
+      country, language, proposal_mode: proposalMode, deployment, payment_terms: paymentTerms, notes,
+    });
+    if (unsaved) throw new Error("FIN03_UNSAVED_CHANGES: Save as Draft before generating a commercial document.");
+    const savedCfg = savedBusinessConfig((prop as any).business_config);
+    if (!savedCfg) throw new Error("FIN03_MISSING_SAVED_BUSINESS_CONFIG");
+    return savedCfg;
+  };
+
   const handleGenerateBusinessDocx = () =>
-    generateStoredDocx((prop) =>
-      downloadBusinessProposalDocx({ proposal: prop, cfg: businessConfig, rules }),
+    generateStoredDocx((prop, docItems) =>
+      downloadBusinessProposalDocx({ proposal: prop, cfg: assertBusinessDocumentSource(prop, docItems), rules }),
     );
 
   const handleGenerateBusinessPdf = async () => {
@@ -1546,8 +1561,12 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
         .eq("id", base.id)
         .single();
       if (error || !prop) throw error || new Error("Proposal not found");
-      printBusinessProposal({ proposal: prop as unknown as Proposal, cfg: businessConfig, rules });
-      toast.success("PDF preview opened — use the print dialog to save as PDF");
+      const { data: docItems, error: rowsError } = await supabase
+        .from("proposal_items").select("*").eq("proposal_id", prop.id).order("sort_order");
+      if (rowsError) throw rowsError;
+      const savedCfg = assertBusinessDocumentSource(prop as unknown as Proposal, docItems || []);
+      printBusinessProposal({ proposal: prop as unknown as Proposal, cfg: savedCfg, rules });
+      toast.success("PDF preview opened from saved version — use the print dialog to save as PDF");
     } catch (e: any) {
       toast.error("PDF generation failed: " + (e?.message || ""));
     }
