@@ -31,7 +31,15 @@ BEGIN
     ('00000000-0000-4000-8000-000000002016',m,6,
      'Ephemeral mission 6','mission-6-in-partneros'),
     ('00000000-0000-4000-8000-000000002017',m,0,
-     'Ephemeral checklist','qualification-checklist')
+     'Ephemeral checklist','qualification-checklist'),
+    ('00000000-0000-4000-8000-000000002018',m,0,
+     'Ephemeral module intro','module-introduction'),
+    ('00000000-0000-4000-8000-000000002013',m,3,
+     'Ephemeral T-FORM mission','mission-3-t-form'),
+    ('00000000-0000-4000-8000-000000002014',m,4,
+     'Ephemeral questioning mission','mission-4-better-questions'),
+    ('00000000-0000-4000-8000-000000002019',m,5,
+     'Ephemeral decision mission','mission-5-decision')
   ON CONFLICT (module_id,slug) DO NOTHING;
   SELECT id INTO STRICT mission1 FROM public.academy_missions
     WHERE module_id=m AND slug='mission-1-good-opportunity';
