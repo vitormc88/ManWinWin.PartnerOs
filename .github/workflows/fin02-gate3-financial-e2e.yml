@@ -101,6 +101,8 @@ jobs:
             -f supabase/migrations/20261012000200_fin02_sec36_canonical_partner_reads.sql
           psql -X -v ON_ERROR_STOP=1 \
             -f tests/sql/fin02/gate3_partner_canonical_candidate_assertions.sql
+      - name: Validate legacy malformed partner IDs fail closed after all four migrations
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/release_malformed_legacy_guard_assertions.sql
       - name: Original award RPC, first-sale ledger, rollback and retry
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_award_and_ledger_assertions.sql
       - name: Original renewal core, 2027 then 2028, with separate commits
