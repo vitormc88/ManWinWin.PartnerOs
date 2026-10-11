@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - "tests/sql/fin02/rls_*.sql"
+      - "tests/sql/fin02/real_original_award_and_renewal_core.sql"
+      - "supabase/migrations/*fin02*"
       - "tests/sql/fin02/real_test_rls_policies_reference.sql"
       - "tests/sql/fin02/real_financial_prod_columns.sql"
       - "tests/sql/fin02/real_financial_test_overlay.sql"
@@ -68,3 +70,10 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/rls_synthetic_financial_roles_and_data.sql
       - name: Verify HQ Partner cross-tenant anon and probationary RLS behavior
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/rls_access_matrix_assertions.sql
+      - name: Install original financial RPC SQL and FIN02 migration
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_original_award_and_renewal_core.sql
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+      - name: Test original award/renewal denied paths under RLS and role claims
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/rls_actual_financial_rpc_negative_assertions.sql
