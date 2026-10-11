@@ -19,7 +19,7 @@ No SQL migrations, data fixes, sync to Lovable, Vercel deploy or merge have been
 
 ## Auditable GitHub Actions evidence
 - **Previously fully green** at `cf0c99410116`: [Gate 3 financial E2E + independent negative rollback matrix](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38184964348), plus role integration, real financial column, disposable SQL and pricing gates on the same SHA.
-- **Latest lock-hardening candidate**: `3cf8ea8c76b3`, [Gate 3 run 38185052077](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38185052077); the final result must be confirmed before review is considered complete. Never treat green checks for an older SHA as verification of a changed one.
+- **Final SQL/package lock-hardening commit VERIFIED**: `3cf8ea8c76b3`; all five workflows at this SHA completed **success**: [Gate 3 E2E + independent rollback/drift matrix](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38185052077), [TEST RLS roles](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38185051998), [SQL gate](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38185051948), [real financial columns](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38185052119), [pricing](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38185052023). This is CI PostgreSQL evidence, **not** proof of real TEST deployment/readiness.
 - Negative drift tests deliberately expect SQL errors; a **green** test proves the specific errors were raised and no disallowed rollback succeeded.
 
 ## Remaining release risks and explicit signoffs
