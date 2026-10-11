@@ -52,3 +52,19 @@ jobs:
             -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
       - name: Test SQL invariants, direct RPC guard and legacy behavior
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/assertions.sql
+      - name: Read-only financial inventory SQL smoke test
+        run: |
+          set -euo pipefail
+          psql -X -At -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/read_only_financial_baseline_inventory.sql \
+            > /tmp/fin02-catalog-inventory.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/fin02-catalog-inventory.json',encoding='utf-8') as f:
+              catalog=json.load(f)
+          assert catalog['scope']=='FIN02 read-only financial metadata'
+          assert 'contract_lines' in catalog['tables']
+          assert catalog['tables']['contract_lines']['columns']>=9
+          assert 'client_records' not in catalog
+          print('FIN02 schema-only catalog query passed (synthetic database; no customer records)')
+          PY
