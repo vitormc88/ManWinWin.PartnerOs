@@ -1,0 +1,54 @@
+name: FIN02 Disposable PostgreSQL SQL Gate
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/*fin02*"
+      - "tests/sql/fin02/**"
+      - ".github/workflows/fin02-disposable-postgres.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sql-migration-disposable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fin02-disposable-only
+          POSTGRES_DB: partneros_fin02_disposable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d partneros_fin02_disposable"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: partneros_fin02_disposable
+      PGUSER: postgres
+      PGPASSWORD: fin02-disposable-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Bootstrap disposable SQL fixture (no project data)
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/disposable_schema.sql
+      - name: Apply actual PR34 migration atomically
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+      - name: Replay migration to check idempotency
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+      - name: Test SQL invariants, direct RPC guard and legacy behavior
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/assertions.sql
