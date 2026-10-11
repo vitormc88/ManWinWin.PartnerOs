@@ -20,6 +20,20 @@ Rebuild all PartnerOS TEST schema/function/RLS dependencies on a hosted Supabase
 2. Run #38174893931: `20260813233336_378ea80a-...sql` consists of synthetic P0 user/partner cleanup. Deleting synthetic roles on a clean DB triggers the **correct** "Cannot remove the last active HQ Admin" guard. We excluded **only its seven fixture DELETE statements in the temporary runner copy**, retaining the temp-table DROP; original Git history unchanged.
 3. Run #38175060376: `20260820180353_3aa9cbfe-...sql` is a data-dependent Academy remediation. It requires existing `academy_modules.slug='module-5-qualification'`, mission rows, resource and eight question codes, and explicitly raises if absent. A clean schema replay does not contain those application records. **Stopped here rather than strip additional application semantics**.
 
+## Further bounded attempt — synthetic Academy preconditions
+- Live TEST (read-only) confirms Qualification Module 5 exists, with its two relevant missions and eight target questions; the earlier failure was **missing reference data in a fresh local replay**, not evidence of broken Academy in TEST.
+- Added a **test-only synthetic Academy fixture** at `tests/sql/fin02/academy_precondition_fixture.sql`, injected as a local-only temporary migration into GitHub runner workspace before the historic Aug 20 data remediation. It was not copied to TEST, main or the deployed migration tree.
+- First fixture-backed run #38175601745 progressed beyond the original Module-5 gate but stopped at another August migration requiring four more Module-5 missions.
+- After extending that synthetic fixture, run #38175754060 progressed further and stopped at `20260821104157_58542100-...sql`, which requires a **Module 1 Welcome to ManWinWin** Academy record that was never seeded by the Git migration chain.
+- **Stop criterion reached:** adding synthetic course modules sequentially would produce an increasingly artificial Academy, not a faithful representation of TEST. No further replay bypasses should be added merely to obtain a green check.
+- Replay remains manual. Any green SQL-Gate-1 result is distinct from the blocked schema Gate-2 result.
+
+## Additional SQL integrity hardening
+- New policy trigger tracks UPDATE of `contract_lines.renewal_amount` and `pricing_snapshot`, recomputing financial terms from the linked Business `proposal_item` rather than accepting direct alterations.
+- Existing sourced Business lines can no longer be unlinked by changing `source` to manual/legacy or clearing `source_item_id`. A future approved contract-amendment procedure remains a separate workstream.
+- SQL negative tests exercise attempted price/policy tampering and attempted removal of lineage.
+- Disposable PostgreSQL 17 SQL Gate-1 **run #38175998624 passed**, including re-running the migration and all new negative tests. This is not a claim that TEST schema/RLS Gate-2 has passed.
+
 ## Decision on CI automation
 Full historical replay workflow is **manual (`workflow_dispatch`) pending migration/data-baseline repair**, to avoid repetitive red status checks / wasted CI minutes. The targeted financial CI and disposable PostgreSQL SQL gate remain automated and green. No historical migration has been edited or rebased.
 
