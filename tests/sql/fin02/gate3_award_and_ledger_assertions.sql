@@ -79,7 +79,16 @@ BEGIN
     SELECT 1 FROM public.licenses WHERE id=_license_id AND contract_id=_contract
     AND client_id=_client AND initial_contract_value=1608
     AND recurring_contract_value=570 AND license_model='Perpetual'
-  ) THEN RAISE EXCEPTION 'FIN02_DEAL_OR_LICENSE_AWARD_STATE_INVALID'; END IF;
+  ) THEN
+    RAISE EXCEPTION 'FIN02_DEAL_OR_LICENSE_AWARD_STATE_INVALID: deal=% license=%',
+      (SELECT jsonb_build_object('stage',stage,'status',status,'client_id',client_id,
+         'total_value',total_value) FROM public.deals
+       WHERE id='00000000-0000-4000-8000-000000000411'),
+      (SELECT jsonb_build_object('contract_id',contract_id,'client_id',client_id,
+         'initial',initial_contract_value,'recurring',recurring_contract_value,
+         'model',license_model)
+       FROM public.licenses WHERE id=_license_id);
+  END IF;
 
   SELECT COUNT(*),SUM(amount) INTO _line_count,_sum FROM public.contract_lines
     WHERE contract_id=_contract;
