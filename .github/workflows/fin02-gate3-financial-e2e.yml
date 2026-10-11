@@ -120,3 +120,5 @@ jobs:
               (SELECT client_id FROM public.deals
                WHERE id='00000000-0000-4000-8000-000000000411')
              GROUP BY revenue_type ORDER BY revenue_type;"
+      - name: Capture source-exact migration policy and ledger function fingerprints for rollback
+        run: psql -X -At -v ON_ERROR_STOP=1 -f tests/sql/fin02/release_patch_fingerprints.sql
