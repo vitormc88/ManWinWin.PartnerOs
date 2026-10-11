@@ -19,7 +19,16 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM pg_trigger t
     WHERE t.tgrelid='public.deals'::regclass
       AND t.tgname='fin02_initial_sale_on_won'
-      AND t.tgfoid=f_oid AND NOT t.tgisinternal) THEN
+      AND t.tgfoid=f_oid AND NOT t.tgisinternal
+      AND t.tgenabled='O' AND t.tgtype=17 AND t.tgqual IS NULL
+      AND t.tgattr::smallint[]=ARRAY[
+        (SELECT a.attnum FROM pg_attribute a
+         WHERE a.attrelid='public.deals'::regclass AND a.attname='status'
+           AND NOT a.attisdropped),
+        (SELECT a.attnum FROM pg_attribute a
+         WHERE a.attrelid='public.deals'::regclass AND a.attname='client_id'
+           AND NOT a.attisdropped)
+      ]::smallint[]) THEN
    RAISE EXCEPTION 'FIN02_SEC37_ROLLBACK_TRIGGER_DRIFT';
  END IF;
 END $fin02_guard$;
