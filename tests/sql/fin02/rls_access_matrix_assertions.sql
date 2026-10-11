@@ -101,6 +101,21 @@ BEGIN
   END IF;
   RAISE NOTICE 'FIN02 SECURITY GAP: partner_sales (clients:view) can also INSERT a new client using direct DML under current TEST policy.';
 
+  -- TEST also ignores per-user override: an HQ Standard whose effective
+  -- Clients permission was reduced from EDIT to VIEW can still UPDATE.
+  PERFORM set_config('request.jwt.claim.sub',
+    '00000000-0000-4000-8000-000000000007',true);
+  IF NOT public.has_module_access('clients','view')
+     OR public.has_module_access('clients','edit') THEN
+    RAISE EXCEPTION 'FIN02_SYNTHETIC_HQ_OVERRIDE_NOT_EFFECTIVE';
+  END IF;
+  UPDATE public.clients SET commercial_name=commercial_name;
+  GET DIAGNOSTICS _row_count=ROW_COUNT;
+  IF _row_count<>2 THEN
+    RAISE EXCEPTION 'FIN02_TEST_HQ_OVERRIDE_WRITE_BEHAVIOR_DRIFT';
+  END IF;
+  RAISE NOTICE 'FIN02 SECURITY GAP: TEST clients_update ignores module view-only override on HQ Standard.';
+
   -- A probate partner cannot view contracts either: contract policy
   -- checks clients via an invoker subquery, and the RESTRICTIVE client RLS
   -- prevents visibility. This is a correct chained RLS behavior.
