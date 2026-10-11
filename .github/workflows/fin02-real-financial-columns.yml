@@ -5,6 +5,7 @@ on:
       - "supabase/migrations/*fin02*"
       - "tests/sql/fin02/real_financial_*"
       - "tests/sql/fin02/real_schema_assertions.sql"
+      - "tests/sql/fin02/real_financial_test_column_parity.sql"
       - ".github/workflows/fin02-real-financial-columns.yml"
   workflow_dispatch:
 
@@ -55,6 +56,8 @@ jobs:
         run: |
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_financial_prod_columns.sql
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_financial_test_overlay.sql
+      - name: Prove all source TEST financial column declarations match
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_financial_test_column_parity.sql
       - name: Stage original-shape local SQL function surrogates only
         run: |
           set -euo pipefail
