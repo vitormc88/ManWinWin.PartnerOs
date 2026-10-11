@@ -7,6 +7,17 @@ Business KeepIT S&TA is 17% of the **gross eligible software license base**, bef
 ## Reproduced post-Work problem
 Thai Union R1 v2: proposal header Year 1 EUR 683,864.20, but 23 persisted proposal lines total EUR 714,761.00. Contract after ten manual changes totals EUR 683,864.20, with nine source-linked line prices now differing from the proposal lines. Next-cycle value EUR 393,018.20 was carried to the 2027/2028 renewals, but the Web/App 3% renewing-discount provenance was lost. These are synthetic TEST records. Do not silently backfill historical Won data.
 
+## FIN-02 commercial decision — approved 11 Oct 2026
+**Approved by commercial owner:** The award/convert wizard is **review-only** for prices, line descriptions, quantities, billing frequencies, discounts and monetary totals. No silent manual adjustments. If negotiated terms differ:
+1. Return to the commercial proposal.
+2. If still Draft, update and save it; if Ready/Sent/Accepted, follow the revalidation/versioning workflow and preserve the previously approved/sent version as required.
+3. Validate the resulting proposal and regenerate the matching customer-facing document before award.
+4. Award the saved priced lines without alteration; only operational metadata (e.g. contract start date and notice period) may be set at conversion, subject to its own policies.
+
+**Code staged in PR #31:** ConvertProposalDialog shows read-only priced lines; awardProposalAtomically derives the contract lines from the stored proposal and no longer accepts caller-supplied contract-line overrides. This is frontend/application behavior; the database function still accepts a raw contract-line array and must independently enforce the same rule before release.
+
+**Separate, intentionally unresolved:** Post-signature contract amendments and approved financial exceptions are not authorization to change pricing during award. They need their own audit trail, roles and commercial revision.
+
 ## Invariants
 1. Each proposal line contains price rule, quantity, gross, discount type/rate, net, currency, billing period, applicability to renewal and origin. Gross minus discount equals net at cent precision.
 2. KeepIT S&TA derives from the **gross** eligible license value; software net discounts do not alter its base.
