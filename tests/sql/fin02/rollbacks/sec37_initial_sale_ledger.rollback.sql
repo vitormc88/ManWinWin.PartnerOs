@@ -6,6 +6,8 @@
 -- posting. It can reintroduce an operational history gap. Never use on PROD.
 BEGIN;
 SET LOCAL lock_timeout='5s';
+-- Prevent concurrent policy/trigger DDL between preflight and rollback/patch.
+LOCK TABLE public.deals IN ACCESS EXCLUSIVE MODE;
 DO $fin02_guard$
 DECLARE f_hash text; f_oid oid;
 BEGIN

@@ -4,6 +4,8 @@
 -- for PROD; TEST execution requires separate explicit user approval.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
+-- Prevent concurrent policy/trigger DDL between preflight and rollback/patch.
+LOCK TABLE public.clients IN ACCESS EXCLUSIVE MODE;
 DO $fin02_preflight$
 DECLARE r record; actual text;
 BEGIN

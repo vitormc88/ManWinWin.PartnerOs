@@ -5,6 +5,8 @@
 -- Deployment to live TEST REQUIRES separate explicit user approval.
 BEGIN;
 SET LOCAL lock_timeout = '5s';
+-- Prevent concurrent policy/trigger DDL between preflight and rollback/patch.
+LOCK TABLE public.client_revenue_history, public.deals IN ACCESS EXCLUSIVE MODE;
 DO $fin02_preflight$
 DECLARE required_name text;
 BEGIN

@@ -6,6 +6,8 @@
 -- Never execute against PROD. No data rows updated by this script.
 BEGIN;
 SET LOCAL lock_timeout='5s';
+-- Prevent concurrent policy/trigger DDL between preflight and rollback/patch.
+LOCK TABLE public.contracts, public.licenses, public.renewals IN ACCESS EXCLUSIVE MODE;
 DO $rollback_guard$
 DECLARE r record; actual text;
 BEGIN
