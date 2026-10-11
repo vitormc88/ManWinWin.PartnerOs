@@ -8,6 +8,7 @@ on:
       - "tests/sql/fin02/real_financial_test_column_parity.sql"
       - "tests/sql/fin02/real_original_award_and_renewal_core.sql"
       - "tests/sql/fin02/real_core_function_patch_assertions.sql"
+      - "tests/sql/fin02/real_test_rls_policies_reference.sql"
       - ".github/workflows/fin02-real-financial-columns.yml"
   workflow_dispatch:
 
@@ -54,6 +55,16 @@ jobs:
           test -z "${SUPABASE_DB_PASSWORD:-}"
           test ! -f supabase/.temp/project-ref
           echo "No remote database credentials or client data supplied"
+      - name: Verify the archived TEST financial RLS policy overlay metadata
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/sql/fin02/real_test_rls_policies_reference.sql').read_text()
+          assert p.count('CREATE POLICY ') == 36
+          assert p.count(' AS RESTRICTIVE FOR ALL ') == 6
+          print('36 read-only TEST finance RLS policy definitions tracked, 6 restrictive; not executed without auth dependencies')
+          PY
       - name: Load PROD-catalog real columns and TEST field overlays
         run: |
           psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_financial_prod_columns.sql
