@@ -59,6 +59,14 @@ Read-only line comparison of the actual definitions showed:
 - The corresponding denial messages differ.
 This is an **authorization semantics divergence**, not a harmless formatting difference. No declaration that one should overwrite the other without business/security review.
 
+## Concrete security and revenue findings (follow-up read-only verification)
+- All six `pg_probationary_denied` TEST policies are **RESTRICTIVE** on the `authenticated` role, and not present in PROD on the same sampled tables. This is real authorization structure drift, not merely a naming coincidence; evaluate effective expressions with representative role identities before any merge or promotion.
+- PROD trigger `zz_deal_award_record_revenue` invokes `deal_award_record_revenue()` after a Deal status/client ID change. On a linked Won deal it records positive Year-1 amount as `client_revenue_history.revenue_type='initial_sale'` with `source='deal_award'`, preventing repeated registration by source deal or matched imported entry. It is not a payment/invoice.
+- PROD also enforces per-user software/services maximum discounts at the proposal header and proposal_item level through private trigger functions. These do not currently execute in TEST. **A pricing test passing in TEST may fail in PROD unless its permissions/discount cap are included in the scenario.**
+- Direct read-only inspection of the fictional **Thai Union TEST** client (`71bf1de9-c5ca-44e6-8d8b-3cac8bb6de63`) found **one** `client_revenue_history` record: `renewal` from `renewal_closure` for **€393,018.20**. There was **no `initial_sale` entry** corresponding to Year-1 award of **€683,864.20**. This is **one confirmed synthetic E2E accounting-history gap**, not proof that all deals lack revenue history. Do not backfill without approved audited remediation.
+- **P0 FIN-02 addition:** require exactly one validated `initial_sale` history event for a genuinely newly awarded Deal, preserve later `renewal` event as separate, verify first-year services vs recurring categorization, retry/deduplication and no duplicate across older imported client records. Examine semantics of proposal value/actual deal value before changing triggers; blindly copying a PROD trigger to TEST is not approved.
+- The existing TEST/PROD `award_deal_proposal` and `close_renewal_core` **source bodies remain identical before FIN02**. Divergent triggers and authorizations can still change the effective outcome of those calls.
+
 ## Consequence for Lab B
 **Go as a starting scaffold; NO-GO as a byte-identical clone of TEST.**
 - A *new, approved schema-only PROD snapshot* can eliminate the Academy application-data replay problem; no Academy course rows need to be copied.
