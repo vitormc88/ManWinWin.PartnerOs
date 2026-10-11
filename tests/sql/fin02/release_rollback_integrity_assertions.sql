@@ -2,9 +2,9 @@
 -- 11 TEST RLS policies restored byte-for-byte by normalized pg_policies MD5,
 -- initial-sale trigger/function removed, historic synthetic revenue untouched.
 DO $fin02_after_rollback$
-DECLARE r record; current_hash text; client uuid;
+DECLARE pol record; current_hash text; client uuid;
 BEGIN
- FOR r IN SELECT * FROM (VALUES
+ FOR pol IN SELECT * FROM (VALUES
    ('clients','clients_insert','d7a91f1c156083c1b180f67150ac937d'),
    ('clients','clients_update','9c6212431a65fefd979fb4d126457188'),
    ('contracts','contracts_insert','c89bfbf491687267768132c13e52fa0f'),
@@ -19,9 +19,9 @@ BEGIN
  ) expected(tab,policy,baseline_hash) LOOP
   SELECT md5(coalesce(qual,'')||'|'||coalesce(with_check,''))
     INTO current_hash FROM pg_policies
-    WHERE schemaname='public' AND tablename=r.tab AND policyname=r.policy;
-  IF current_hash IS DISTINCT FROM r.baseline_hash THEN
-    RAISE EXCEPTION 'FIN02_ROLLBACK_NOT_ORIGINAL_TEST: %.%',r.tab,r.policy;
+    WHERE schemaname='public' AND tablename=pol.tab AND policyname=pol.policy;
+  IF current_hash IS DISTINCT FROM pol.baseline_hash THEN
+    RAISE EXCEPTION 'FIN02_ROLLBACK_NOT_ORIGINAL_TEST: %.%',pol.tab,pol.policy;
   END IF;
  END LOOP;
  IF to_regprocedure('public.fin02_record_initial_sale()') IS NOT NULL OR
