@@ -12,7 +12,9 @@ BEGIN
     ('licenses','licenses_select','bfebb8436f0634b4bc6bd8ae92d2853a'),
     ('renewals','renewals_select','40304077653ef7169e090d523da6d341')
   ) expected(tab, policy, original_hash) LOOP
-    SELECT md5(coalesce(qual,'')||'|'||coalesce(with_check,''))
+    SELECT CASE WHEN permissive='PERMISSIVE' AND cmd=upper(split_part(r.policy,'_',2))
+      AND roles::text[]=ARRAY['authenticated']::text[]
+      THEN md5(coalesce(qual,'')||'|'||coalesce(with_check,'')) ELSE NULL END
       INTO actual FROM pg_policies
       WHERE schemaname='public' AND tablename=r.tab AND policyname=r.policy;
     IF actual IS DISTINCT FROM r.original_hash THEN
