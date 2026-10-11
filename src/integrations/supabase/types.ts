@@ -4511,6 +4511,117 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_growth_invitations: {
+        Row: {
+          contact_id: string
+          email: string
+          failed_at: string | null
+          failure_reason_code: string | null
+          full_name: string
+          id: string
+          invited_role: Database["public"]["Enums"]["app_role"]
+          invited_user_id: string | null
+          partner_id: string
+          prospect_id: string
+          requested_at: string
+          requested_by: string
+          reservation_token: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          contact_id: string
+          email: string
+          failed_at?: string | null
+          failure_reason_code?: string | null
+          full_name: string
+          id?: string
+          invited_role: Database["public"]["Enums"]["app_role"]
+          invited_user_id?: string | null
+          partner_id: string
+          prospect_id: string
+          requested_at?: string
+          requested_by: string
+          reservation_token?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          contact_id?: string
+          email?: string
+          failed_at?: string | null
+          failure_reason_code?: string | null
+          full_name?: string
+          id?: string
+          invited_role?: Database["public"]["Enums"]["app_role"]
+          invited_user_id?: string | null
+          partner_id?: string
+          prospect_id?: string
+          requested_at?: string
+          requested_by?: string
+          reservation_token?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_growth_invitations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: true
+            referencedRelation: "partner_prospect_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_growth_invitations_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_growth_invitations_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_growth_invitations_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_growth_invitations_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_growth_invitations_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_growth_invitations_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_growth_invitations_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       partner_health_scores: {
         Row: {
           activity_score: number | null
@@ -4719,6 +4830,965 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_prospect_activation_plans: {
+        Row: {
+          commercial_handoff_notes: string
+          created_at: string
+          created_by: string
+          enablement_plan: string
+          first_value_milestone: string
+          handoff_approved_at: string | null
+          handoff_approved_by: string | null
+          hq_activation_owner: string | null
+          kickoff_objective: string
+          legal_review_reference: string | null
+          legal_review_status: string
+          legal_reviewed_at: string | null
+          legal_reviewed_by: string | null
+          prospect_id: string
+          readiness_status: string
+          target_model: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          commercial_handoff_notes?: string
+          created_at?: string
+          created_by?: string
+          enablement_plan?: string
+          first_value_milestone?: string
+          handoff_approved_at?: string | null
+          handoff_approved_by?: string | null
+          hq_activation_owner?: string | null
+          kickoff_objective?: string
+          legal_review_reference?: string | null
+          legal_review_status?: string
+          legal_reviewed_at?: string | null
+          legal_reviewed_by?: string | null
+          prospect_id: string
+          readiness_status?: string
+          target_model?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          commercial_handoff_notes?: string
+          created_at?: string
+          created_by?: string
+          enablement_plan?: string
+          first_value_milestone?: string
+          handoff_approved_at?: string | null
+          handoff_approved_by?: string | null
+          hq_activation_owner?: string | null
+          kickoff_objective?: string
+          legal_review_reference?: string | null
+          legal_review_status?: string
+          legal_reviewed_at?: string | null
+          legal_reviewed_by?: string | null
+          prospect_id?: string
+          readiness_status?: string
+          target_model?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_activation_plans_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_handoff_approved_by_fkey"
+            columns: ["handoff_approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_handoff_approved_by_fkey"
+            columns: ["handoff_approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_handoff_approved_by_fkey"
+            columns: ["handoff_approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_hq_activation_owner_fkey"
+            columns: ["hq_activation_owner"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_hq_activation_owner_fkey"
+            columns: ["hq_activation_owner"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_hq_activation_owner_fkey"
+            columns: ["hq_activation_owner"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_legal_reviewed_by_fkey"
+            columns: ["legal_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_legal_reviewed_by_fkey"
+            columns: ["legal_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_legal_reviewed_by_fkey"
+            columns: ["legal_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: true
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activation_plans_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      partner_prospect_activities: {
+        Row: {
+          content: string
+          created_at: string
+          created_by: string
+          id: string
+          kind: string
+          occurred_at: string
+          prospect_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          kind: string
+          occurred_at?: string
+          prospect_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          kind?: string
+          occurred_at?: string
+          prospect_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_activities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activities_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_activities_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_prospect_capability_plans: {
+        Row: {
+          pathway: string
+          preparation_status: string
+          prospect_id: string
+          readiness_notes: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          pathway: string
+          preparation_status?: string
+          prospect_id: string
+          readiness_notes?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          pathway?: string
+          preparation_status?: string
+          prospect_id?: string
+          readiness_notes?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_capability_plans_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_capability_plans_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_capability_plans_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_capability_plans_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      partner_prospect_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_primary: boolean
+          job_title: string | null
+          name: string
+          phone: string | null
+          prospect_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          job_title?: string | null
+          name: string
+          phone?: string | null
+          prospect_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          job_title?: string | null
+          name?: string
+          phone?: string | null
+          prospect_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_contacts_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_prospect_conversion_receipts: {
+        Row: {
+          agreement_reference: string
+          agreement_signed_on: string
+          company_name: string
+          converted_at: string
+          converted_by: string
+          country: string
+          hq_activation_owner: string
+          legal_name: string
+          legal_review_reference: string
+          partner_id: string
+          partnership_model: string
+          primary_contact_email: string | null
+          primary_contact_name: string
+          prospect_id: string
+          registered_address: string
+          registration_number: string
+          signatory_name: string
+        }
+        Insert: {
+          agreement_reference: string
+          agreement_signed_on: string
+          company_name: string
+          converted_at?: string
+          converted_by: string
+          country: string
+          hq_activation_owner: string
+          legal_name: string
+          legal_review_reference: string
+          partner_id: string
+          partnership_model: string
+          primary_contact_email?: string | null
+          primary_contact_name: string
+          prospect_id: string
+          registered_address: string
+          registration_number: string
+          signatory_name: string
+        }
+        Update: {
+          agreement_reference?: string
+          agreement_signed_on?: string
+          company_name?: string
+          converted_at?: string
+          converted_by?: string
+          country?: string
+          hq_activation_owner?: string
+          legal_name?: string
+          legal_review_reference?: string
+          partner_id?: string
+          partnership_model?: string
+          primary_contact_email?: string | null
+          primary_contact_name?: string
+          prospect_id?: string
+          registered_address?: string
+          registration_number?: string
+          signatory_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_converted_by_fkey"
+            columns: ["converted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_converted_by_fkey"
+            columns: ["converted_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_converted_by_fkey"
+            columns: ["converted_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_hq_activation_owner_fkey"
+            columns: ["hq_activation_owner"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_hq_activation_owner_fkey"
+            columns: ["hq_activation_owner"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_hq_activation_owner_fkey"
+            columns: ["hq_activation_owner"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: true
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: true
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: true
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_conversion_receipts_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: true
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_prospect_documents: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          content_snapshot: Json
+          created_at: string
+          created_by: string
+          document_group_id: string
+          document_type: string
+          id: string
+          language: string
+          prospect_id: string
+          status: string
+          title: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          content_snapshot: Json
+          created_at?: string
+          created_by?: string
+          document_group_id?: string
+          document_type?: string
+          id?: string
+          language?: string
+          prospect_id: string
+          status?: string
+          title: string
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          content_snapshot?: Json
+          created_at?: string
+          created_by?: string
+          document_group_id?: string
+          document_type?: string
+          id?: string
+          language?: string
+          prospect_id?: string
+          status?: string
+          title?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_documents_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_documents_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_documents_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_documents_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_prospect_qualifications: {
+        Row: {
+          business_viability: string
+          can_implement: string
+          can_introduce: string
+          can_sell: string
+          commercial_reach: string
+          commitment: string
+          complementary_value: string
+          discovery_notes: string
+          last_reviewed_at: string | null
+          last_reviewed_by: string | null
+          market_fit: string
+          prospect_id: string
+          recommended_next_action: string
+          research_summary: string
+          risks_and_gaps: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          business_viability?: string
+          can_implement?: string
+          can_introduce?: string
+          can_sell?: string
+          commercial_reach?: string
+          commitment?: string
+          complementary_value?: string
+          discovery_notes?: string
+          last_reviewed_at?: string | null
+          last_reviewed_by?: string | null
+          market_fit?: string
+          prospect_id: string
+          recommended_next_action?: string
+          research_summary?: string
+          risks_and_gaps?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          business_viability?: string
+          can_implement?: string
+          can_introduce?: string
+          can_sell?: string
+          commercial_reach?: string
+          commitment?: string
+          complementary_value?: string
+          discovery_notes?: string
+          last_reviewed_at?: string | null
+          last_reviewed_by?: string | null
+          market_fit?: string
+          prospect_id?: string
+          recommended_next_action?: string
+          research_summary?: string
+          risks_and_gaps?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_qualifications_last_reviewed_by_fkey"
+            columns: ["last_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_qualifications_last_reviewed_by_fkey"
+            columns: ["last_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_qualifications_last_reviewed_by_fkey"
+            columns: ["last_reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_qualifications_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: true
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_qualifications_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_qualifications_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_qualifications_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      partner_prospect_research_sources: {
+        Row: {
+          created_at: string
+          created_by: string
+          evidence_state: string
+          finding: string
+          id: string
+          prospect_id: string
+          source_kind: string
+          source_url: string | null
+          title: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          evidence_state?: string
+          finding: string
+          id?: string
+          prospect_id: string
+          source_kind?: string
+          source_url?: string | null
+          title: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          evidence_state?: string
+          finding?: string
+          id?: string
+          prospect_id?: string
+          source_kind?: string
+          source_url?: string | null
+          title?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospect_research_sources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_research_sources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_research_sources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_research_sources_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "partner_prospects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_research_sources_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_research_sources_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospect_research_sources_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      partner_prospects: {
+        Row: {
+          agreement_reference: string | null
+          agreement_signed_on: string | null
+          archived_at: string | null
+          company_name: string
+          converted_at: string | null
+          converted_partner_id: string | null
+          country: string
+          created_at: string
+          created_by: string
+          description: string | null
+          fit_summary: string | null
+          hq_owner_user_id: string | null
+          id: string
+          interest_evidence: string | null
+          outcome_reason: string | null
+          proposed_partner_type: string | null
+          qualification_decision: string | null
+          qualified_at: string | null
+          qualified_by: string | null
+          recruitment_stage: string
+          signed_verified_at: string | null
+          signed_verified_by: string | null
+          source: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          agreement_reference?: string | null
+          agreement_signed_on?: string | null
+          archived_at?: string | null
+          company_name: string
+          converted_at?: string | null
+          converted_partner_id?: string | null
+          country: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          fit_summary?: string | null
+          hq_owner_user_id?: string | null
+          id?: string
+          interest_evidence?: string | null
+          outcome_reason?: string | null
+          proposed_partner_type?: string | null
+          qualification_decision?: string | null
+          qualified_at?: string | null
+          qualified_by?: string | null
+          recruitment_stage?: string
+          signed_verified_at?: string | null
+          signed_verified_by?: string | null
+          source?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          agreement_reference?: string | null
+          agreement_signed_on?: string | null
+          archived_at?: string | null
+          company_name?: string
+          converted_at?: string | null
+          converted_partner_id?: string | null
+          country?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          fit_summary?: string | null
+          hq_owner_user_id?: string | null
+          id?: string
+          interest_evidence?: string | null
+          outcome_reason?: string | null
+          proposed_partner_type?: string | null
+          qualification_decision?: string | null
+          qualified_at?: string | null
+          qualified_by?: string | null
+          recruitment_stage?: string
+          signed_verified_at?: string | null
+          signed_verified_by?: string | null
+          source?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_prospects_converted_partner_id_fkey"
+            columns: ["converted_partner_id"]
+            isOneToOne: true
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_converted_partner_id_fkey"
+            columns: ["converted_partner_id"]
+            isOneToOne: true
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_converted_partner_id_fkey"
+            columns: ["converted_partner_id"]
+            isOneToOne: true
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_hq_owner_user_id_fkey"
+            columns: ["hq_owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_hq_owner_user_id_fkey"
+            columns: ["hq_owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_hq_owner_user_id_fkey"
+            columns: ["hq_owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_qualified_by_fkey"
+            columns: ["qualified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_qualified_by_fkey"
+            columns: ["qualified_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_qualified_by_fkey"
+            columns: ["qualified_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_signed_verified_by_fkey"
+            columns: ["signed_verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_signed_verified_by_fkey"
+            columns: ["signed_verified_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "partner_prospects_signed_verified_by_fkey"
+            columns: ["signed_verified_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       partner_renewal_settings: {
         Row: {
           created_at: string
@@ -4806,6 +5876,7 @@ export type Database = {
       partners: {
         Row: {
           account_owner_id: string | null
+          activation_phase: string
           alert_notice_days: number | null
           assigned_manager_id: string | null
           company_name: string
@@ -4844,6 +5915,7 @@ export type Database = {
         }
         Insert: {
           account_owner_id?: string | null
+          activation_phase?: string
           alert_notice_days?: number | null
           assigned_manager_id?: string | null
           company_name: string
@@ -4882,6 +5954,7 @@ export type Database = {
         }
         Update: {
           account_owner_id?: string | null
+          activation_phase?: string
           alert_notice_days?: number | null
           assigned_manager_id?: string | null
           company_name?: string
@@ -7449,6 +8522,50 @@ export type Database = {
       }
       notify_license_expiry: { Args: { _dry_run?: boolean }; Returns: Json }
       notify_overdue_tasks: { Args: { _dry_run?: boolean }; Returns: Json }
+      partner_growth_access: {
+        Args: { required_level?: string }
+        Returns: boolean
+      }
+      pg_complete_partner_invitation: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: undefined
+      }
+      pg_convert_prospect: {
+        Args: {
+          p_confirmed?: boolean
+          p_legal_name: string
+          p_prospect_id: string
+          p_registered_address: string
+          p_registration_number: string
+          p_signatory_name: string
+        }
+        Returns: string
+      }
+      pg_fail_partner_invitation: {
+        Args: { p_reason_code: string; p_token: string }
+        Returns: undefined
+      }
+      pg_is_probationary_partner: { Args: never; Returns: boolean }
+      pg_reserve_partner_invitation: {
+        Args: { p_contact_id: string; p_prospect_id: string }
+        Returns: {
+          contact_email: string
+          contact_name: string
+          partner_id: string
+          reservation_token: string
+          role_name: string
+        }[]
+      }
+      pg_submit_partner_referral: {
+        Args: {
+          p_company_name: string
+          p_contact_name: string
+          p_country: string
+          p_email: string
+          p_notes?: string
+        }
+        Returns: string
+      }
       pipeline_stage_probability: { Args: { _stage: string }; Returns: number }
       preview_sharpspring_opportunity_sync: {
         Args: {
@@ -7607,6 +8724,9 @@ export type Database = {
         | "partner_admin"
         | "partner_sales"
         | "partner_restricted"
+        | "partner_connector"
+        | "partner_reseller_trainee"
+        | "partner_implementer_trainee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7741,6 +8861,9 @@ export const Constants = {
         "partner_admin",
         "partner_sales",
         "partner_restricted",
+        "partner_connector",
+        "partner_reseller_trainee",
+        "partner_implementer_trainee",
       ],
     },
   },
