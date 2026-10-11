@@ -77,3 +77,9 @@ jobs:
             -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
       - name: Test original award/renewal denied paths under RLS and role claims
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/rls_actual_financial_rpc_negative_assertions.sql
+      - name: Exercise proposed Clients edit guard only within isolated CI
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/rls_clients_write_permission_candidate.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/rls_clients_write_permission_candidate_assertions.sql
