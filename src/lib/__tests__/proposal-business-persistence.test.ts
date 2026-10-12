@@ -84,6 +84,41 @@ describe("Business proposal financial persistence — R1 regression", () => {
     expect(() => assertBusinessProposalTotals(rows, option)).not.toThrow();
   });
 
+  it("preserves UseIT promotional license discount expiry and recurring API net price", () => {
+    const option: BusinessOptionTotals = {
+      ...thaiUnionOption(),
+      model: "useit",
+      software: [line({ code: "BUS_USEIT_ANNUAL_LICENSE", category: "module",
+        amount: 400, discountPct: 5, discountAmount: 20,
+        recurring: true, frequency: "yearly", discountAppliesToRenewal: false })],
+      api: line({ code: "BUS_API", category: "api", amount: 100,
+        discountPct: 2, discountAmount: 2,
+        recurring: true, frequency: "yearly", discountAppliesToRenewal: true }),
+      sat: null,
+      services: [line({ code: "Custom UseIT implementation", category: "service",
+        amount: 50, discountPct: 10, discountAmount: 5 })],
+      licenseSubtotal: 400,
+      totalYear1: 523,
+      totalYear2Plus: 498,
+    };
+    const rows = buildBusinessProposalItemRows(option);
+    expect(rows).toHaveLength(3);
+    expect(businessPersistedTotals(rows)).toEqual({
+      year1: 523, year2Plus: 498, discount: 27,
+    });
+    expect(rows.find((row) => row.item_code === "BUS_USEIT_ANNUAL_LICENSE")).toMatchObject({
+      gross_total: 400, net_total: 380, discount_value: 5,
+      apply_discount_to_renewal: false, is_recurring: true,
+    });
+    expect(rows.find((row) => row.item_code === "BUS_API")).toMatchObject({
+      gross_total: 100, net_total: 98, apply_discount_to_renewal: true,
+    });
+    expect(rows.find((row) => row.category === "service")).toMatchObject({
+      gross_total: 50, net_total: 45, is_recurring: false,
+    });
+    expect(() => assertBusinessProposalTotals(rows, option)).not.toThrow();
+  });
+
   it("passes a fully gross 0% discount scenario without accidentally inventing a reduction", () => {
     const option = thaiUnionOption();
     const noDiscount = { ...option,
