@@ -5,6 +5,9 @@ on:
       - "tests/sql/fin02/gate4d_business_draft_*.sql"
       - "tests/sql/fin02/gate4d_business_draft_*.sh"
       - "tests/sql/fin02/gate4d_ui_*.sql"
+      - "tools/fin02/gate4d-ui-form-field-contract.mjs"
+      - "src/components/proposals/CreateProposalDialog.tsx"
+      - "src/lib/proposal-source.ts"
       - ".github/workflows/r1-fin01-gate4d-atomic-draft.yml"
   workflow_dispatch:
 permissions:
@@ -50,6 +53,8 @@ jobs:
           test -z "$SUPABASE_DB_PASSWORD"
           test ! -f supabase/.temp/project-ref
           ! find . \( -name '*.backup' -o -name '*.pgcustom' \) | grep -q .
+      - name: Ensure actual Business wizard payload keys match allowed SQL fields
+        run: node tools/fin02/gate4d-ui-form-field-contract.mjs
       - name: Apply TEST-shaped synthetic source/role fixtures
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_business_draft_synthetic_test_schema.sql
       - name: Install lab-only Security Invoker atomic Draft function
