@@ -76,3 +76,11 @@ There is no confirmed mechanism in our current accessible connectors to produce 
 
 ## Required next access step
 Ask the PartnerOS TEST database administrator/owner to provide a **private schema-only export and migration-ledger technical manifest**, or to run the reviewed local backup procedure on the already established personal Docker environment. Do not request credentials or raw dumps through chat. The archive must be kept solely in a user-authorized isolated machine. Without this input, stop at Gate 4A rather than substitute a stitched synthetic schema for a genuine TEST clone.
+
+
+## Gate 4B continuation — private archive execution kit prepared (12 Oct 2026)
+- [Source-locked Windows client-side export script](../../tools/fin02/Gate4B-Export-TEST-Schema.ps1) committed to DRAFT PR #34. It demands known TEST connection identity, rejects PROD, validates TLS `verify-full`, checks original live 38/38 fingerprints, then exports schema-only `pg_dump`, role metadata without password hashes and version/name migration ledger to restricted LOCAL Windows folder.
+- [Windows AST/negative target gate](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38224082518) **SUCCESS** at code SHA `60900ef441d4`; five other FIN02 Actions at same SHA SUCCESS. These checks did NOT connect to any DB.
+- [Operator private extraction and restore runbook](fin02-gate4b-private-test-export-execution-handoff-20261012.md) documents the locally retained archive, explicit environment/secret controls, source-first parity, private Docker recovery and roles/trigger integration acceptance conditions.
+- Access restriction remains: connected Supabase does not authorize TEST project; Lovable SQL SELECT access is not a backup API. **No TEST archive was generated, no full private TEST schema restored, and no actual TEST FIN02 SQL executed.**
+- Gate 4B retains **NO-GO** until a credentialed TEST administrator performs the script privately and then the source-faithful isolated recovery and E2E. No branch merge, deploy, PROD or TEST writes authorized.
