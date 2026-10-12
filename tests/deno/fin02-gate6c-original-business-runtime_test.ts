@@ -84,6 +84,6 @@ Deno.test("Server rejects missing catalog rule rather than silently falling back
       pricingRules:rules.filter(r=>r.code!=="BUS_USEIT_FACTOR"),
       verifiedLimits:{software:10,services:10},
     });
-  } catch(e){rejected=e instanceof Error && e.message.includes("FIN02_SERVER_PRICING_RULES_INVALID");}
+  } catch(e){rejected=e instanceof Error && "code" in e && e.code === "FIN02_SERVER_PRICING_RULES_INVALID";}
   eq(rejected,true,"source rule required");
 });
