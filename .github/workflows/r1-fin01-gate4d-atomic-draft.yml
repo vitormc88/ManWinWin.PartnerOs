@@ -1,0 +1,56 @@
+name: R1 FIN01 Gate4D Atomic Business Draft LAB
+on:
+  pull_request:
+    paths:
+      - "tests/sql/fin02/gate4d_business_draft_*.sql"
+      - ".github/workflows/r1-fin01-gate4d-atomic-draft.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  atomic-draft-postgres-17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: gate4d_atomic_draft_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gate4d_atomic_draft_lab"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: synthetic-only
+      PGDATABASE: gate4d_atomic_draft_lab
+      SUPABASE_ACCESS_TOKEN: ""
+      SUPABASE_DB_PASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Fail closed if DB points outside disposable local container
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = localhost
+          test "$PGDATABASE" = gate4d_atomic_draft_lab
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test -z "$SUPABASE_DB_PASSWORD"
+          test ! -f supabase/.temp/project-ref
+          ! find . \( -name '*.backup' -o -name '*.pgcustom' \) | grep -q .
+      - name: Apply TEST-shaped synthetic source/role fixtures
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_business_draft_synthetic_test_schema.sql
+      - name: Install lab-only Security Invoker atomic Draft function
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_business_draft_atomic_candidate.sql
+      - name: Run security, financial, idempotent-safe and forced failure SQL tests
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_business_draft_atomic_assertions.sql
