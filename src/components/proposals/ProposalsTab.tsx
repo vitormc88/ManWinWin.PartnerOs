@@ -7,6 +7,7 @@ import { storeProposalDocument } from "@/lib/proposal-document-storage";
 
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
+import { businessDocumentSnapshotBlocker } from "@/lib/business-document-integrity";
 import { printBusinessProposal } from "@/lib/proposal-business-print";
 import { printProposal } from "@/lib/proposal-print";
 import { supabase } from "@/integrations/supabase/client";
@@ -135,6 +136,8 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
     }
     const cfg = buildBusinessCfg(cfgRaw);
     try {
+      const blocker = businessDocumentSnapshotBlocker(res.prop as any, res.items as any, rules);
+      if (blocker) throw new Error(blocker);
       const { blob, fileName } = await downloadBusinessProposalDocx({ proposal: res.prop as Proposal, cfg, rules });
       // Generation is non-mutating: store the document reference only.
       const anchorId = proposalStoragePrefix(readProposalSource(res.prop) ?? dealProposalSource(dealId));
@@ -166,6 +169,8 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
     }
     const cfg = buildBusinessCfg(cfgRaw);
     try {
+      const blocker = businessDocumentSnapshotBlocker(res.prop as any, res.items as any, rules);
+      if (blocker) throw new Error(blocker);
       printBusinessProposal({ proposal: res.prop as Proposal, cfg, rules });
 
     } catch (e: any) {
