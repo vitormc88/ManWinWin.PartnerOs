@@ -61,20 +61,20 @@ BEGIN
  THEN
   RAISE EXCEPTION 'DRAFT_INVALID_SOURCE_OR_SCOPE' USING ERRCODE='42501';
  END IF;
- -- Source+partner coherence belongs to the authorized canonical Deal/Client;
- -- this lab fixture supplies the matching helper. Real TEST permissions and
- -- helpers MUST be rechecked before a versioned migration is written.
- IF _source_type='deal' AND NOT EXISTS (
-    SELECT 1 FROM public.deals d WHERE d.id=_deal
-      AND d.partner_id IS NOT DISTINCT FROM _partner
- ) THEN
-  RAISE EXCEPTION 'DRAFT_DEAL_PARTNER_MISMATCH' USING ERRCODE='42501';
+ -- In actual TEST the legacy deals.partner_id is TEXT, whereas
+ -- proposals.partner_uuid is UUID or NULL (Deal-source UI sends NULL).
+ -- Never cast/compare those unlike identifiers. The source-specific,
+ -- SECURITY DEFINER can_manage_proposal_source() is the authoritative
+ -- privilege + identity check (mocked with matching owners in LAB).
+ -- Only verify the anchored source record exists, without weakening that
+ -- separate source policy.
+ IF _source_type='deal' AND NOT EXISTS(
+    SELECT 1 FROM public.deals d WHERE d.id=_deal) THEN
+   RAISE EXCEPTION 'DRAFT_DEAL_NOT_FOUND' USING ERRCODE='42501';
  END IF;
- IF _source_type='client' AND NOT EXISTS (
-    SELECT 1 FROM public.clients c WHERE c.id=_client
-      AND c.partner_uuid IS NOT DISTINCT FROM _partner
- ) THEN
-  RAISE EXCEPTION 'DRAFT_CLIENT_PARTNER_MISMATCH' USING ERRCODE='42501';
+ IF _source_type='client' AND NOT EXISTS(
+    SELECT 1 FROM public.clients c WHERE c.id=_client) THEN
+   RAISE EXCEPTION 'DRAFT_CLIENT_NOT_FOUND' USING ERRCODE='42501';
  END IF;
  SELECT count(*), count(DISTINCT sort_order),
         count(*) FILTER (WHERE
