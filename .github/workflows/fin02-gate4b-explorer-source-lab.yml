@@ -52,3 +52,5 @@ jobs:
           echo "Original TEST trigger wrapper from sanitized code ONLY; zero customer data."
       - name: Run TEST-source wrapper with SYNTHETIC refresh, race and rollback assertions
         run: bash tests/sql/fin02/gate4b_customer_explorer_negative_lab.sh
+      - name: Rehearse blocking-lock candidate without changing real TEST
+        run: bash tests/sql/fin02/gate4b_customer_explorer_candidate_lab.sh
