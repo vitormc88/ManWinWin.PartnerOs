@@ -17,3 +17,11 @@ INSERT INTO public.licenses(id,client_id) VALUES
 -- The source schema uses text legacy deals.partner_id and canonical
 -- proposals.partner_uuid UUID. Here the original mini-fixture's deal
 -- partner_id UUID represents the same two owners only; no source data copied.
+
+-- Exact TEST-style per-proposal source scope for UPDATE of proposal_items.
+-- A missing policy silently filters matched rows for SECURITY INVOKER!
+CREATE POLICY proposal_items_update ON public.proposal_items FOR UPDATE TO authenticated
+ USING(EXISTS(SELECT 1 FROM public.proposals p WHERE p.id=proposal_id
+  AND public.can_manage_proposal_source(p.source_type,p.deal_id,NULL::uuid,p.client_id,p.partner_uuid)))
+ WITH CHECK(EXISTS(SELECT 1 FROM public.proposals p WHERE p.id=proposal_id
+  AND public.can_manage_proposal_source(p.source_type,p.deal_id,NULL::uuid,p.client_id,p.partner_uuid)));
