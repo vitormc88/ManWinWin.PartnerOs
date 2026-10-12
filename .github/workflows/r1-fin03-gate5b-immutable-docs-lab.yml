@@ -1,0 +1,54 @@
+name: R1 FIN03 Gate5B Immutable Official Document Ledger LAB
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/r1-fin03-gate5b-immutable-docs-lab.yml"
+      - "tests/sql/fin03/gate5b_*.sql"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  snapshot-ledger-postgres-17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: fin03_gate5b_ledger_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fin03_gate5b_ledger_lab"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: fin03_gate5b_ledger_lab
+      PGPASSWORD: synthetic-only
+      SUPABASE_ACCESS_TOKEN: ""
+      SUPABASE_DB_PASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL 17 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Verify absolutely no connected TEST/PROD or real document content
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = localhost
+          test "$PGDATABASE" = fin03_gate5b_ledger_lab
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test -z "$SUPABASE_DB_PASSWORD"
+          test ! -f supabase/.temp/project-ref
+          ! find . \( -name '*.backup' -o -name '*.pgcustom' \) | grep -q .
+      - name: Install fictional source and official document ledger LAB
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin03/gate5b_immutable_official_document_candidate.sql
+      - name: Verify authenticated immutable DOCX/PDF ledger, byte hashes, retries and version preservation
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin03/gate5b_immutable_official_document_assertions.sql
