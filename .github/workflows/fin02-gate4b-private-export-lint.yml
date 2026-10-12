@@ -36,6 +36,7 @@ jobs:
             throw 'TEST identity refusal not proven'
           }
           Write-Host 'PASS: PowerShell syntax, explicit TEST-only identity, PROD block, TLS verification and schema-only export invariants.'
+          $global:LASTEXITCODE=0 # Expected rejected subprocesses returned 1; clear for runner.
       - name: Safety boundary
         shell: pwsh
         run: |
