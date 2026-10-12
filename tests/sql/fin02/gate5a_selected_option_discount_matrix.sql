@@ -134,7 +134,9 @@ BEGIN
   PERFORM public.award_deal_proposal(
    '00000000-0000-4000-8000-000000000421',
    '00000000-0000-4000-8000-000000000523',
-   NULL,_useit_license,_keep_lines,'2026-11-01',90);
+   NULL,_useit_license || jsonb_build_object(
+       'initial_contract_value',1608,'recurring_contract_value',558),
+       _keep_lines,'2026-11-01',90);
  EXCEPTION WHEN OTHERS THEN
   _failed:=SQLERRM LIKE 'FIN02_AWARDED_OPTION_DIFFERS_FROM_SAVED_PROPOSAL%';
   IF NOT _failed THEN RAISE EXCEPTION 'FIN02_SELECTED_MODE_GUARD_ERROR: %',SQLERRM; END IF;
