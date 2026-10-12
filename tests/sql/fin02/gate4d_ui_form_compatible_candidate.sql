@@ -18,6 +18,7 @@ DECLARE
  _next public.proposals%ROWTYPE;
  _thin jsonb;
  _created boolean;
+ _mapped bigint;
 BEGIN
  IF _actor IS NULL OR _proposal_id IS NULL
  OR _payload IS NULL OR pg_catalog.jsonb_typeof(_payload)<>'object'
@@ -186,6 +187,11 @@ BEGIN
     justification text
  )
  WHERE i.proposal_id=_proposal_id AND i.sort_order=j.sort_order;
+ GET DIAGNOSTICS _mapped = ROW_COUNT;
+ IF _mapped IS DISTINCT FROM pg_catalog.jsonb_array_length(_items) THEN
+   RAISE EXCEPTION 'FORM_LINE_METADATA_WRITE_DENIED_OR_MISSING'
+     USING ERRCODE='42501';
+ END IF;
 
  -- Expected deal value is part of the same Draft transaction. This preserves
  -- current CreateProposalDialog semantics without best-effort partial commit.
