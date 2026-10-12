@@ -32,11 +32,17 @@ The target is for a partner to prepare an authorized Business quote and award it
 | Pricing engine | Original code unchanged; PROD/TEST monetary catalog equivalent | **Preserve it**, no overhaul |
 | PROD discounts | Installed; exact source synthetic role replay PASS | No need to recreate PROD guard |
 | TEST discounts | Missing compared with PROD | Align only in private faithful clone, then seek permission for TEST |
-| S&TA can_override | Two differences detected | Owner decides intended rule; no silent editing |
+| S&TA can_override | **Decision approved 12 Oct 2026: preserve PROD behavior** | `BUS_KEEPIT_SAT` and `BUS_USEIT_SAT`: **true** (as in PROD); TEST currently false, alignment only in authorized isolated clone first |
 | FIN01+FIN02 award/2027/28 | Original-source SQL E2E PASS | User-facing TEST session E2E still OPEN |
 | FIN03 docs | Synthetic ledger PASS, real write-once docs not verified | Address only if smoke demonstrates material gap |
 | TEST clone #39 | Original backup available, faithful restore NOT executed | **Sole infrastructural blocker to app-authenticated evidence** |
 | OPS01 Explorer; MEM01; UX01 | Separate R1 workstreams | Not part of this financial test gate |
+
+### Owner decision confirmed — S&TA override semantics (12 October 2026)
+- **Preserve the current PROD configuration** for both Business S&TA price rules: `BUS_KEEPIT_SAT.can_override = true` and `BUS_USEIT_SAT.can_override = true`. No additional change to unit prices, `support_percentage`, rules, gross-base S&TA calculation, or permissions was authorized by this decision.
+- The owner resolved **only** the intended `can_override` setting; a permitted override is **not** a blanket approval for a commercial discount. Existing PROD actor/discount protections remain in force.
+- Future test plan: in a securely recovered private TEST clone, retain original TEST baseline evidence, explicitly overlay the PROD-equivalent two flags **and** existing PROD partner discount limits/functions/triggers, then run representative role and financial acceptance. Review reversibility and drift before proposing any **actual TEST** configuration change. **Do not touch TEST or PROD now.**
+- This product decision is CLOSED; the faithful private clone and signed user journey remain OPEN. No need to redesign the Business calculation engine or add a new feature.
 
 ### Decision / scope control
 - No new pricing schema/features, no new synthetic Gate labels. Single test file + single CI workflow + this factual report.
