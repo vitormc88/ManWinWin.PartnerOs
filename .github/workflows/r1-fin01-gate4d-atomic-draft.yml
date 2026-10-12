@@ -4,6 +4,7 @@ on:
     paths:
       - "tests/sql/fin02/gate4d_business_draft_*.sql"
       - "tests/sql/fin02/gate4d_business_draft_*.sh"
+      - "tests/sql/fin02/gate4d_ui_*.sql"
       - ".github/workflows/r1-fin01-gate4d-atomic-draft.yml"
   workflow_dispatch:
 permissions:
@@ -57,3 +58,11 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_business_draft_atomic_assertions.sql
       - name: Two real concurrent SQL writers must serialize and reject stale-version loser
         run: bash tests/sql/fin02/gate4d_business_draft_two_writer_race.sh
+      - name: Extend isolated tables with actual TEST proposal and item columns
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_ui_test_catalog_columns.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_ui_form_source_extensions.sql
+      - name: Install full-form-compatibility wrapper (lab only)
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_ui_form_compatible_candidate.sql
+      - name: Assert complete Business form Draft fields, comparison and guards
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_ui_form_compat_assertions.sql
