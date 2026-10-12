@@ -76,16 +76,19 @@ describe("FIN02 Gate5C comparison display preparation (NOT a server pricing auth
   it("does not present altered same-total gross/net line pricing as a verified option",()=>{
     const original=option("keepit",true);
     const modified={...original,software:original.software.map(l=>({...l}))};
-    modified.software[0].netAmount+=100;
-    modified.software[0].amount+=100;
-    modified.software[1].netAmount-=100;
-    modified.software[1].amount-=100;
+    // Both are recurring so BOTH Year1 and Year2 totals remain unchanged.
+    // They also retain their individual original discount values.
+    modified.software[1].netAmount+=100;
+    modified.software[1].amount+=100;
+    modified.sat={...modified.sat!,netAmount:modified.sat!.netAmount-100,
+      amount:modified.sat!.amount-100};
     const untrusted = prepareBusinessComparisonPreview({keepit:modified,useit:option("useit")});
     // Total reconciliation alone cannot detect a +100/-100 substitution!
     // This is WHY the verified server option snapshot is mandatory at award.
     expect(untrusted.keepit.total_year_1).toBe(1608);
-    expect(untrusted.keepit.lines[0].gross_total).toBe(1100);
-    expect(untrusted.keepit.lines[1].gross_total).toBe(300);
+    expect(untrusted.keepit.total_recurring).toBe(558);
+    expect(untrusted.keepit.lines.find(l=>l.item_code==="WEB")?.gross_total).toBe(500);
+    expect(untrusted.keepit.lines.find(l=>l.item_code==="SAT")?.gross_total).toBe(70);
   });
 
   it("rejects missing unique price line identifiers and invalid extra renewal flags",()=>{
