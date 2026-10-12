@@ -63,7 +63,7 @@ CREATE FUNCTION public.can_manage_proposal_source(
  SELECT auth.uid() IS NOT NULL AND CASE
    WHEN _source_type='deal' THEN EXISTS(
      SELECT 1 FROM public.deals d WHERE d.id=_deal_id AND d.owner_id=auth.uid()
-       AND d.partner_id IS NOT DISTINCT FROM _partner)
+       AND (_partner IS NULL OR d.partner_id IS NOT DISTINCT FROM _partner))
    WHEN _source_type='client' THEN EXISTS(
      SELECT 1 FROM public.clients c WHERE c.id=_client_id AND c.owner_id=auth.uid()
        AND c.partner_uuid IS NOT DISTINCT FROM _partner)
