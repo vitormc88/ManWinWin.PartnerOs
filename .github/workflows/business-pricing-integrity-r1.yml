@@ -8,6 +8,7 @@ on:
       - "src/lib/business-pricing-source-coverage.ts"
       - "src/lib/fin02-server-business-quote.ts"
       - "src/lib/__tests__/fin02-server-business-quote.test.ts"
+      - "tests/deno/fin02-gate6c-original-business-runtime_test.ts"
       - "src/lib/proposal-business-engine.ts"
       - "src/lib/proposal-business-readiness.ts"
       - "src/lib/proposal-business-persistence.ts"
@@ -58,5 +59,13 @@ jobs:
           ! grep -q 'SUPABASE_SERVICE_ROLE_KEY' supabase/functions/fin02-business-quote/index.ts
           grep -q 'FIN02_SERVER_PREVIEW_ENABLED' supabase/functions/fin02-business-quote/index.ts
           grep -q 'can_manage_deal' supabase/functions/fin02-business-quote/index.ts
+      - name: Install actual Deno runtime (no DB, Docker or deployment)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Gate6C actual Deno runtime smoke for UNCHANGED Business engine
+        run: |
+          deno --version
+          deno test --no-config --no-remote tests/deno/fin02-gate6c-original-business-runtime_test.ts
       - name: TypeScript check
         run: npx tsc --noEmit -p tsconfig.app.json
