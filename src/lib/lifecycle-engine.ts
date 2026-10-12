@@ -16,6 +16,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { businessAwardIntegrityBlocker } from "./award-financial-integrity";
 import { requireDealProposalId } from "@/lib/proposal-source";
 import { applyPartnerScope, canonicalPartnerScope } from "@/lib/partner-query";
 import { canonicalizeLineTypeForWrite } from "@/lib/contract-line-payload";
@@ -78,8 +79,6 @@ export interface ConvertOptions {
   existingClientId?: string | null;
   /** Required when the proposal compares KeepIT vs UseIT. */
   awardedMode?: BusinessProposalMode | null;
-  /** Allow overriding the auto-generated contract lines before commit. */
-  contractLines?: ContractLineDraft[];
   /** Notice-period days for the renewal reminder (defaults to 90). */
   noticePeriodDays?: number;
   /** Contract start date (defaults to today). */
@@ -259,11 +258,12 @@ export async function buildConversionPlan(
   if (!proposal) throw new Error("Proposal not found");
   const dealId = requireDealProposalId(proposal);
 
-  const { data: items } = await supabase
+  const { data: items, error: proposalItemsError } = await supabase
     .from("proposal_items")
     .select("*")
     .eq("proposal_id", proposalId)
     .order("sort_order");
+  if (proposalItemsError) throw proposalItemsError;
 
   // Resolve partner from the deal this proposal belongs to.
   const { data: deal, error: dealError } = await supabase
@@ -350,7 +350,15 @@ export async function awardProposalAtomically(
   const clientId = opts.existingClientId === undefined
     ? (plan.client.mode === "existing" ? plan.client.record.id : null)
     : opts.existingClientId;
-  const lines = opts.contractLines?.length ? opts.contractLines : plan.contractLines;
+  // Contract monetary lines are derived exclusively from the saved proposal.
+  // The award wizard cannot submit an independent set of negotiated prices.
+  const lines = plan.contractLines;
+  // Already-awarded legacy proposals are handled idempotently by the RPC.
+  // New awards must match the source items, not merely the grand total.
+  if (!(plan.proposal as any).contract_id) {
+    const blocker = businessAwardIntegrityBlocker(plan.proposal, plan.proposalItems, lines);
+    if (blocker) throw new Error(blocker);
+  }
   const rpc = await supabase.rpc("award_deal_proposal" as any, {
     _deal_id: dealId,
     _proposal_id: proposalId,
