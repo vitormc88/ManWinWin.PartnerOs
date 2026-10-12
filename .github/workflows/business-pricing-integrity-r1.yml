@@ -24,3 +24,5 @@ jobs:
         run: npm test -- src/lib/__tests__/proposal-business-persistence.test.ts
       - name: TypeScript check
         run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Build current PartnerOS UI (no deploy)
+        run: npm run build
