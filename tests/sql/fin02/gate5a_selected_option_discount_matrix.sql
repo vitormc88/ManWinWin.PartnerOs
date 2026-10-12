@@ -51,7 +51,7 @@ INSERT INTO public.proposal_items
  is_recurring,gross_total,discount_amount,net_total,total,apply_discount_to_renewal,
  discount_type,discount_value,pricing_rule_code,sort_order)
 SELECT
- ('00000000-0000-4000-8000-' || lpad((900+row_number() OVER (ORDER BY p.id,x.sort_order)+0)::text,12,'0'))::uuid,
+ ('00000000-0000-4000-8000-' || lpad((1500+row_number() OVER (ORDER BY p.id,x.sort_order))::text,12,'0'))::uuid,
  p.id, x.item_name,x.category,x.line_type,1,x.gross,x.frequency,
  x.recurring,x.gross,x.discount,x.gross-x.discount,x.gross-x.discount,
  x.renews,x.discount_type,x.discount_value,x.rule,x.sort_order
