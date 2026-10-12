@@ -157,3 +157,49 @@ BEGIN
 END $$;
 SQL
 echo "PASS real full refresh: code normalization collision/repair and atomic rollback."
+
+# Blocking advisory candidate can wait on contention. A bounded statement
+# timeout must fail the CLIENT write atomically instead of disabling Explorer.
+# This is a failure-mode test of the LAB-only candidate, not a production SLO.
+psql -X -v ON_ERROR_STOP=1 -c "BEGIN; SELECT pg_advisory_xact_lock(hashtext('customer-explorer-refresh')); SELECT pg_sleep(4); COMMIT;" >/dev/null 2>&1 &
+locker=$!
+trap 'kill "$locker" 2>/dev/null || true' EXIT
+held=0
+for i in $(seq 1 50); do
+  state="$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT pg_try_advisory_xact_lock(hashtext('customer-explorer-refresh'))")"
+  if [ "$state" = f ]; then held=1; break; fi
+  sleep 0.05
+done
+test "$held" -eq 1 || { echo "Timeout race setup failed"; exit 1; }
+timeout_log="$(mktemp)"
+set +e
+psql -X -v ON_ERROR_STOP=1 -c "SET statement_timeout='500ms';" \
+  -c "INSERT INTO public.clients(id,client_code,commercial_name)
+      VALUES ('00000000-0000-4000-8000-000000000718','47','Fictitious Timed Out Client');" \
+  >"$timeout_log" 2>&1
+failed_rc=$?
+set -e
+if [ "$failed_rc" -eq 0 ]; then
+  rm -f "$timeout_log"
+  echo "UNSAFE: simulated lock timeout completed client INSERT unexpectedly"
+  exit 1
+fi
+if ! grep -q 'canceling statement due to statement timeout' "$timeout_log"; then
+  rm -f "$timeout_log"
+  echo "UNEXPECTED: statement failed for reason other than expected lock timeout"
+  exit 1
+fi
+rm -f "$timeout_log"
+wait "$locker"
+trap - EXIT
+psql -X -v ON_ERROR_STOP=1 <<'SQL'
+DO $$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.clients WHERE client_code='47')
+ OR EXISTS(SELECT 1 FROM public.customer_explorer_directory WHERE client_key='47')
+ OR (SELECT mode FROM private.customer_explorer_rollout WHERE singleton)<>'hq'
+ OR (SELECT count(*) FROM public.customer_explorer_directory)<>5
+ THEN RAISE EXCEPTION 'Timeout caused partial client/Explorer write or bad rollout'; END IF;
+END $$;
+SQL
+echo "PASS lab candidate timeout: cancelled insert rolled back, directory remained consistent, Explorer mode stayed HQ."
