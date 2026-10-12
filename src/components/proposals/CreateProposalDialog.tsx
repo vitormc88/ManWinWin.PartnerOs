@@ -89,6 +89,7 @@ import {
 import { checkBusinessPricingReadiness } from "@/lib/proposal-business-readiness";
 import { buildBusinessProposalItemRows, businessPersistedTotals, assertBusinessProposalTotals } from "@/lib/proposal-business-persistence";
 import { prepareBusinessComparisonPreview } from "@/lib/business-comparison-option-preview";
+import { inspectBusinessPricingSourceCoverage } from "@/lib/business-pricing-source-coverage";
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
 import { LICENSE_ORDER } from "@/lib/license-evolution";
@@ -904,6 +905,16 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
       };
     }
   }, [isBusinessCatalogue, proposalMode, businessResult]);
+
+  // Distinguish a valid on-screen quote from one that has a versioned,
+  // authoritative server pricing history. This never approves a discount.
+  const businessSourceCoverage = useMemo(() => {
+    if (!isBusinessCatalogue) return null;
+    const models: ProposalLicenseModel[] =
+      proposalMode === "keepit_only" ? ["keepit"] :
+      proposalMode === "useit_only" ? ["useit"] : ["keepit", "useit"];
+    return inspectBusinessPricingSourceCoverage(rules, businessConfig, models);
+  }, [isBusinessCatalogue, proposalMode, rules, businessConfig]);
 
   const businessBlocked = (!!businessReadiness && !businessReadiness.ok)
     || (isBusinessCatalogue && proposalMode === "compare_keepit_useit" && !comparisonPreview.value);
@@ -2459,6 +2470,21 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
                     {comparisonPreview.error && (
                       <p role="alert" className="text-sm text-destructive mt-2">
                         Comparison pricing cannot be reconciled: {comparisonPreview.error}
+                      </p>
+                    )}
+                    {businessSourceCoverage && !businessSourceCoverage.shapeCompatible && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Commercial approval will need additional source verification
+                        {businessSourceCoverage.missing.length > 0
+                          ? ` — missing catalogue rules: ${businessSourceCoverage.missing.join(", ")}`
+                          : ""}
+                        {businessSourceCoverage.gaps.includes("SOURCE_ONSITE_RATE_NEEDS_VERSION")
+                          ? " — onsite regional rates require an approved version"
+                          : ""}
+                        {businessSourceCoverage.gaps.includes("SOURCE_CUSTOM_PRICE_NEEDS_APPROVAL")
+                          ? " — custom service prices require HQ validation"
+                          : ""}.
+                        You may keep this as a Draft; it is not an approved price freeze.
                       </p>
                     )}
                   </div>
