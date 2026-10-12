@@ -132,13 +132,13 @@ jobs:
       - name: Verify full original FIN02 finance RPC path keeps synthetic Explorer sync active
         run: |
           psql -X -v ON_ERROR_STOP=1 <<'SQL'
-          DO $
+          DO $$
           BEGIN
             IF (SELECT mode FROM private.customer_explorer_rollout WHERE singleton)<>'hq'
               OR (SELECT count(*) FROM private.gate4_refresh_audit) < 1
               OR EXISTS (SELECT 1 FROM private.customer_explorer_rollout WHERE sync_error_code IS NOT NULL)
             THEN RAISE EXCEPTION 'Gate4B FIN02 award/renewal path disabled Explorer under candidate'; END IF;
-          END $;
+          END $$;
           SQL
       - name: Final financial ledger and no-billing-side-effects recap
         run: |
