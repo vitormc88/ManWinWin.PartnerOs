@@ -67,6 +67,8 @@ JOIN private.fin02_verified_quote_lines_lab _v ON
 
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true);
+RESET ROLE;
+-- Privileged lab diagnostics call internal helper; real callers use the award RPC.
 DO $before_freeze$
 DECLARE _failed boolean:=false;
 BEGIN
@@ -75,10 +77,12 @@ BEGIN
  EXCEPTION WHEN check_violation THEN _failed:=SQLERRM LIKE 'FIN02_SELECTED_OPTION_NOT_FROZEN%'; END;
  IF NOT _failed THEN RAISE EXCEPTION 'FIN02_PRE_FREEZE_AWARD_NOT_BLOCKED'; END IF;
 END $before_freeze$;
+SET LOCAL ROLE authenticated;
 
 -- One authorized database call freezes BOTH alternatives at same Ready revision.
 SELECT public.fin02_freeze_compared_options_lab('00000000-0000-4000-8000-000000000571');
 SELECT public.fin02_freeze_compared_options_lab('00000000-0000-4000-8000-000000000573');
+RESET ROLE;
 DO $check_both$
 DECLARE _again jsonb;
 BEGIN
@@ -89,7 +93,6 @@ BEGIN
  OR (_again->>'keepit') IS NULL OR (_again->>'useit') IS NULL THEN
   RAISE EXCEPTION 'FIN02_FREEZE_BOTH_OPTIONS_NOT_ATOMIC_OR_IDEMPOTENT'; END IF;
 END $check_both$;
-RESET ROLE;
 
 -- Privileged synthetic catalog changes AFTER freeze must not rewrite frozen.
 UPDATE private.fin02_verified_quote_lines_lab
@@ -119,8 +122,8 @@ END $immutability$;
 -- An altered line but UNCHANGED proposal and contract TOTALS must be denied.
 -- Changing label and synchronously changing contract text would pass the
 -- old per-line award validation; frozen source fixes this risk.
-SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true);
+-- Internal helper intentionally has NO direct authenticated EXECUTE.
+-- Privileged fixture tests call it directly; award below tests real actor.
 DO $tamper$
 DECLARE
  _item uuid;_old text;_failed boolean:=false;
@@ -151,6 +154,7 @@ BEGIN
  PERFORM public.fin02_assert_frozen_chosen_lab('00000000-0000-4000-8000-000000000572');
  PERFORM public.fin02_assert_frozen_chosen_lab('00000000-0000-4000-8000-000000000574');
 END $tamper$;
+SET LOCAL ROLE authenticated;
 
 -- Original REAL RPC now has the new backend freeze assertion injected, in
 -- addition to actual license option and FIN02 net/gross source validation.
