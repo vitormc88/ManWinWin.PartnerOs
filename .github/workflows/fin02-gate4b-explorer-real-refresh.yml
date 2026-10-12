@@ -1,0 +1,51 @@
+name: FIN02 Gate4B Real TEST Explorer Refresh Rehearsal
+on:
+  pull_request:
+    paths:
+      - "tests/sql/fin02/gate4b_explorer_actual_source_refresh.sql"
+      - "tests/sql/fin02/gate4b_explorer_real_refresh_lab.sh"
+      - "tests/sql/fin02/gate4b_customer_explorer_serialized_candidate.sql"
+      - ".github/workflows/fin02-gate4b-explorer-real-refresh.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-explorer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: gate4b_original_refresh
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gate4b_original_refresh"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: gate4b_original_refresh
+      PGPASSWORD: synthetic-only
+      SUPABASE_ACCESS_TOKEN: ""
+      SUPABASE_DB_PASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client locally on runner
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Reject backup files or live database credentials
+        run: |
+          test -z "$SUPABASE_DB_PASSWORD"
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test ! -f supabase/.temp/project-ref
+          ! find . \( -name '*.backup' -o -name '*.pgcustom' \) | grep -q .
+      - name: Run original TEST full refresh function plus exact sync wrapper, rollback and concurrency
+        run: bash tests/sql/fin02/gate4b_explorer_real_refresh_lab.sh
