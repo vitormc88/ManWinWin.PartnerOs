@@ -4,6 +4,7 @@ on:
     paths:
       - "tests/sql/fin02/gate3_*.sql"
       - "tests/sql/fin02/gate5a_selected_option_discount_matrix.sql"
+      - "tests/sql/fin02/gate5c_pair_freeze_backend_*.sql"
       - "tests/sql/fin02/gate4_*.sh"
       - "tests/sql/fin02/release_*.sql"
       - "tests/sql/fin02/release_*.sh"
@@ -114,6 +115,10 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_two_year_renewal_assertions.sql
       - name: FIN02 Gate5A original award validates frozen KeepIT/UseIT and both discount renewal policies
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate5a_selected_option_discount_matrix.sql
+      - name: Gate5C install LAB-only trusted dual-option freeze and original backend chosen-source guard
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate5c_pair_freeze_backend_candidate.sql
+      - name: Gate5C source-backed finance test of frozen KeepIT/UseIT, tamper and retry
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate5c_pair_freeze_backend_assertions.sql
       - name: Seed independent synthetic deals for concurrency and deep rollback
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_concurrency_and_failure_fixture.sql
       - name: Execute TWO parallel original award RPCs with a coordinator row lock
