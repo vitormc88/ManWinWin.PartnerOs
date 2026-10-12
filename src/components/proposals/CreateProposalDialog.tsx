@@ -88,6 +88,7 @@ import {
 } from "./BusinessSteps";
 import { checkBusinessPricingReadiness } from "@/lib/proposal-business-readiness";
 import { buildBusinessProposalItemRows, businessPersistedTotals, assertBusinessProposalTotals } from "@/lib/proposal-business-persistence";
+import { prepareBusinessComparisonPreview } from "@/lib/business-comparison-option-preview";
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
 import { LICENSE_ORDER } from "@/lib/license-evolution";
@@ -887,13 +888,38 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     });
   }, [isBusinessCatalogue, rules, businessConfig, proposalMode, rulesLoading, rulesError]);
 
-  const businessBlocked = !!businessReadiness && !businessReadiness.ok;
+  // FIN02 — both priced options are rendered from the same engine result as
+  // the final wizard. This is DISPLAY/RECONCILIATION ONLY: it does not
+  // authenticate catalog rules, freeze prices or authorize award.
+  const comparisonPreview = useMemo(() => {
+    if (!isBusinessCatalogue || proposalMode !== "compare_keepit_useit" || !businessResult) {
+      return { value: null, error: null as string | null };
+    }
+    try {
+      return { value: prepareBusinessComparisonPreview(businessResult), error: null as string | null };
+    } catch (e) {
+      return {
+        value: null,
+        error: e instanceof Error ? e.message : "Incomplete Business comparison.",
+      };
+    }
+  }, [isBusinessCatalogue, proposalMode, businessResult]);
 
-  /** Fail-closed guard used before any Business persist/export path. */
+  const businessBlocked = (!!businessReadiness && !businessReadiness.ok)
+    || (isBusinessCatalogue && proposalMode === "compare_keepit_useit" && !comparisonPreview.value);
+
+  /** Fail closed before Business save or export, including BOTH compared models. */
   const assertBusinessPricingReady = (): boolean => {
-    if (!isBusinessCatalogue || !businessReadiness || businessReadiness.ok) return true;
-    toast.error(businessReadiness.message);
-    return false;
+    if (!isBusinessCatalogue) return true;
+    if (businessReadiness && !businessReadiness.ok) {
+      toast.error(businessReadiness.message);
+      return false;
+    }
+    if (proposalMode === "compare_keepit_useit" && !comparisonPreview.value) {
+      toast.error(comparisonPreview.error || "Both KeepIT and UseIT prices must reconcile before saving.");
+      return false;
+    }
+    return true;
   };
 
   // We materialize Services discount % onto each service line (above), so we
@@ -2407,10 +2433,32 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
                     <p className="text-sm text-muted-foreground mt-1">
                       {productFamily} · {deployment === "saas" ? "SaaS" : "On-Premise"} · {language}
                     </p>
-                    {businessHeadline && (
+                    {comparisonPreview.value ? (
+                      <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-left" aria-label="KeepIT and UseIT comparison prices">
+                          {([comparisonPreview.value.keepit, comparisonPreview.value.useit]).map((option) => (
+                            <div key={option.mode} className="rounded-md border p-3 text-sm">
+                              <p className="font-semibold">{option.mode === "keepit" ? "KeepIT" : "UseIT"}</p>
+                              <p>Year 1: <strong>{formatPrice(option.total_year_1)}</strong></p>
+                              <p>Year 2+: <strong>{formatPrice(option.total_recurring)}/yr</strong></p>
+                              <p className="text-xs text-muted-foreground">{option.lines.length} priced lines · discount {formatPrice(option.discount_amount)}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Comparison preview only — saving a Draft does not freeze either option or authorize an award.
+                          A separately approved single-option proposal is required before conversion.
+                        </p>
+                      </>
+                    ) : businessHeadline && (
                       <p className="text-sm text-muted-foreground mt-1">
                         Year 1 (headline): <strong>{formatPrice(businessHeadline.totalYear1)}</strong>
                         {" · "}Year 2+: <strong>{formatPrice(businessHeadline.totalYear2Plus)}/yr</strong>
+                      </p>
+                    )}
+                    {comparisonPreview.error && (
+                      <p role="alert" className="text-sm text-destructive mt-2">
+                        Comparison pricing cannot be reconciled: {comparisonPreview.error}
                       </p>
                     )}
                   </div>
