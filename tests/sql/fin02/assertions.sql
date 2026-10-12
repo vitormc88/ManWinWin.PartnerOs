@@ -220,3 +220,27 @@ BEGIN
     RAISE EXCEPTION 'FAILED: legacy award definer changed'; END IF;
 END
 $fin02_permission_tests$;
+
+-- A NULL discount must fail closed instead of propagating NULL through sums
+-- and silently skipping PL/pgSQL IF comparisons (original source guard gap).
+UPDATE public.proposals SET proposal_mode='keepit_only' WHERE id='00000000-0000-4000-8000-000000000001';
+UPDATE public.proposal_items SET discount_amount=NULL WHERE id='00000000-0000-4000-8000-000000000102';
+DO $fin02_null_guard$
+DECLARE
+  blocked boolean := false;
+BEGIN
+  BEGIN
+    PERFORM public.fin02_assert_business_award(
+      '00000000-0000-4000-8000-000000000001',
+      '{"proposal_mode":"KeepIT","initial_contract_value":683864.20,"recurring_contract_value":393018.20}'::jsonb,
+      (SELECT jsonb_agg(jsonb_build_object('source_item_id',id,'description',item_name,
+        'amount',net_total,'billing_frequency',CASE WHEN is_recurring THEN 'Annual' ELSE 'One-time' END))
+       FROM public.proposal_items WHERE proposal_id='00000000-0000-4000-8000-000000000001')
+    );
+  EXCEPTION WHEN others THEN
+    blocked := SQLERRM LIKE 'FIN02_INVALID_SOURCE_ITEM%';
+    IF NOT blocked THEN RAISE; END IF;
+  END;
+  IF NOT blocked THEN RAISE EXCEPTION 'FAILED: NULL source discount bypassed award policy'; END IF;
+END
+$fin02_null_guard$;
