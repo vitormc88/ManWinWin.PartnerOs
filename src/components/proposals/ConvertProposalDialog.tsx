@@ -36,7 +36,7 @@ const STEPS: { id: Step; label: string; icon: any }[] = [
 ];
 
 const fmt = (n: number) =>
-  new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n || 0);
+  new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
 export function ConvertProposalDialog({ open, onOpenChange, proposalId }: Props) {
   const qc = useQueryClient();
