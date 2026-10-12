@@ -16,13 +16,16 @@ const jsBlock = (txt,begin,end) => {
   if (j<0) throw new Error("UI/source end anchor missing: "+end);
   return txt.slice(i+begin.length,j);
 };
-const fields = (chunk) => [...chunk.matchAll(/^\s*([a-z][a-z0-9_]*):/gm)].map(m=>m[1]);
+const fields = (chunk) => [
+ ...[...chunk.matchAll(/^\s*([a-z][a-z0-9_]*):/gm)].map(m=>m[1]),
+ ...[...chunk.matchAll(/^\s*([a-z][a-z0-9_]*),\s*$/gm)].map(m=>m[1]),
+];
 const insert = jsBlock(ui,"const insertData: any = {","\n      };");
 const sourcePayload = jsBlock(source,"export function buildProposalSourcePayload","/** Storage folder");
 const returnBlock=jsBlock(sourcePayload,"  return {","\n  };");
 const expected=new Set([...fields(insert),...fields(returnBlock)]);
 const allow=jsBlock(sql,"WHERE k NOT IN (",")) THEN");
-const actual=new Set([...allow.matchAll(/'([a-z_]+)'/g)].map(m=>m[1]));
+const actual=new Set([...allow.matchAll(/'([a-z0-9_]+)'/g)].map(m=>m[1]));
 const missing=[...expected].filter(k=>!actual.has(k)).sort();
 const unnecessary=[...actual].filter(k=>!expected.has(k)).sort();
 if(missing.length||unnecessary.length){
