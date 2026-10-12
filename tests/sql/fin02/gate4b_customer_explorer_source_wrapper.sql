@@ -66,6 +66,6 @@ BEGIN
   ) THEN RAISE EXCEPTION 'Gate4B original TEST sync trigger missing'; END IF;
   IF NOT EXISTS (
     SELECT 1 FROM pg_proc WHERE oid='private.sync_customer_explorer_directory()'::regprocedure
-      AND prosecdef AND proconfig @> ARRAY['search_path=']::text[]
+      AND prosecdef AND EXISTS (SELECT 1 FROM unnest(proconfig) setting WHERE setting LIKE 'search_path=%')
   ) THEN RAISE EXCEPTION 'Gate4B original sync wrapper permissions/config missing'; END IF;
 END $$;
