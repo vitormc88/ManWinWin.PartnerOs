@@ -70,7 +70,8 @@ BEGIN
   FOR _pi IN
     SELECT * FROM public.proposal_items WHERE proposal_id = _p.id
   LOOP
-    IF _pi.gross_total < 0 OR _pi.net_total < 0 OR _pi.discount_amount < 0
+    IF _pi.gross_total IS NULL OR _pi.net_total IS NULL OR _pi.discount_amount IS NULL
+       OR _pi.gross_total < 0 OR _pi.net_total < 0 OR _pi.discount_amount < 0
        OR round(_pi.gross_total - _pi.discount_amount, 2)
           <> round(_pi.net_total, 2) THEN
       RAISE EXCEPTION 'FIN02_INVALID_SOURCE_ITEM: %', _pi.id;
@@ -172,7 +173,8 @@ BEGIN
   SELECT * INTO _p FROM public.proposals WHERE id = _pi.proposal_id;
   IF NOT FOUND OR _p.product_family <> 'Business' THEN RETURN NEW; END IF;
 
-  IF _pi.gross_total < 0 OR _pi.net_total < 0 OR _pi.discount_amount < 0
+  IF _pi.gross_total IS NULL OR _pi.net_total IS NULL OR _pi.discount_amount IS NULL
+       OR _pi.gross_total < 0 OR _pi.net_total < 0 OR _pi.discount_amount < 0
      OR round(_pi.gross_total - _pi.discount_amount, 2)
           <> round(_pi.net_total, 2) THEN
     RAISE EXCEPTION 'FIN02_INVALID_APPROVED_RENEWAL_SOURCE_ITEM';
