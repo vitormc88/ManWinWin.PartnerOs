@@ -94,6 +94,47 @@ describe("renewal baseline — real contract evidence", () => {
   });
 });
 
+describe("FIN02 next-cycle renewal pricing", () => {
+  const keepItLines = [
+    { id: "bo", line_type: "license", description: "Business KeepIT core",
+      amount: 231196, renewal_amount: 0, currency: "EUR", billing_frequency: "One-time" },
+    { id: "web", line_type: "mww_web", description: "Web / Smart Tag / App user",
+      amount: 348967.2, renewal_amount: 359760, currency: "EUR", billing_frequency: "Annual" },
+    { id: "api", line_type: "module", description: "API ManWinWin",
+      amount: 600, renewal_amount: 600, currency: "EUR", billing_frequency: "Annual" },
+    { id: "sat", line_type: "sat", description: "S&AT gross KeepIT license base",
+      amount: 43451, renewal_amount: 43451, currency: "EUR", billing_frequency: "Annual" },
+    { id: "implementation", line_type: "implementation", description: "Implementation",
+      amount: 59650, renewal_amount: 0, currency: "EUR", billing_frequency: "One-time" },
+  ];
+
+  it("preserves Year 1 billed price while carrying an expiring Web discount into the gross renewal price", () => {
+    const b = build({ contractLines: keepItLines });
+    expect(b.currentRecurring).toBe(403811);
+    expect(b.historicalOneTime).toBe(290846);
+    expect(b.recurringLines.find(l => l.label.includes("Web"))?.amount).toBe(359760);
+    const items = buildBaselineProposalItems(b);
+    expect(items.reduce((total, item) => total + item.net_total, 0)).toBe(403811);
+  });
+
+  it("keeps the 3 percent discount at renewal if it was negotiated as recurring", () => {
+    const lines = keepItLines.map(l => l.id === "web"
+      ? { ...l, renewal_amount: 348967.2 } : l);
+    const b = build({ contractLines: lines });
+    expect(b.currentRecurring).toBe(393018.2);
+  });
+
+  it("retains legacy pricing without guessing a missing discount rule", () => {
+    const lines = keepItLines.map(l => {
+      const { renewal_amount: _unused, ...legacy } = l;
+      return legacy;
+    });
+    const b = build({ contractLines: lines });
+    expect(b.currentRecurring).toBe(393018.2);
+    expect(b.historicalOneTime).toBe(290846);
+  });
+});
+
 describe("module vocabulary rules", () => {
   it("ignores employee accesses", () => {
     expect(isIgnoredModuleName("Employee Accesses")).toBe(true);

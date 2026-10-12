@@ -5,8 +5,8 @@
  * Never drop those computed discounts while materializing the commercial contract.
  * This projection is intentionally pure and shared with reconciliation tests.
  */
-import type { BusinessLineItem, BusinessOptionTotals } from "./proposal-business-engine";
-import type { ProposalItem } from "@/types/proposal";
+import type { BusinessLineItem, BusinessOptionTotals } from "./proposal-business-engine.ts";
+import type { ProposalItem } from "../types/proposal.ts";
 
 const toCents = (value: number): number => Math.round((Number(value) + Number.EPSILON) * 100);
 const fromCents = (cents: number): number => cents / 100;

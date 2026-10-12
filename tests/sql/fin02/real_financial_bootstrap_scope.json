@@ -1,0 +1,22 @@
+{
+  "source": "catalog-derived eight-table financial bootstrap, production structural source with explicit TEST overlays",
+  "date": "2026-10-11",
+  "prod_columns": 320,
+  "test_columns": 327,
+  "prod_constraints": 47,
+  "test_constraints": 46,
+  "test_overlay_add_columns": 8,
+  "test_overlay_drop_columns": 1,
+  "changed_common_columns": 0,
+  "external_fk_out_of_scope": 10,
+  "internal_fk_retained": 19,
+  "limitations": [
+    "Excludes external FK parent tables/profiles/partners, original business triggers and RLS policy definitions, so it is NOT Gate2 full clone",
+    "No data, auth rows, secrets or Academy content",
+    "Column physical order may differ"
+  ],
+  "files": [
+    "tests/sql/fin02/real_financial_prod_columns.sql",
+    "tests/sql/fin02/real_financial_test_overlay.sql"
+  ]
+}

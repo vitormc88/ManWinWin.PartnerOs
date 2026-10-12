@@ -1,0 +1,51 @@
+name: R1 PROD Discount Source Replay (Fictional PG17 Only)
+on:
+  pull_request:
+    paths:
+      - "tests/sql/fin02/prod_discount_source_readonly_replay.sql"
+      - ".github/workflows/r1-prod-discount-source-replay.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-prod-guards-synthetic-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: partneros_prod_guard_replay
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d partneros_prod_guard_replay"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: partneros_prod_guard_replay
+      PGPASSWORD: synthetic-only
+      SUPABASE_ACCESS_TOKEN: ""
+      SUPABASE_DB_PASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install local PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Assert isolated synthetic database / never ship private backup
+        run: |
+          test "$PGDATABASE" = partneros_prod_guard_replay
+          test "$PGHOST" = 127.0.0.1
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test -z "$SUPABASE_DB_PASSWORD"
+          test ! -f supabase/.temp/project-ref
+          ! find . -name '*.backup' | grep -q .
+      - name: Execute EXISTING PROD discount protection source (no migrations)
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/prod_discount_source_readonly_replay.sql

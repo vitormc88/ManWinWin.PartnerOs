@@ -1,0 +1,108 @@
+name: FIN02 Real Financial Columns SQL Gate
+on:
+  pull_request:
+    paths:
+      - "supabase/migrations/*fin02*"
+      - "tests/sql/fin02/real_financial_*"
+      - "tests/sql/fin02/real_schema_assertions.sql"
+      - "tests/sql/fin02/real_financial_test_column_parity.sql"
+      - "tests/sql/fin02/real_original_award_and_renewal_core.sql"
+      - "tests/sql/fin02/real_core_function_patch_assertions.sql"
+      - "tests/sql/fin02/real_test_rls_policies_reference.sql"
+      - ".github/workflows/fin02-real-financial-columns.yml"
+  workflow_dispatch:
+
+# This runs on temporary Docker PostgreSQL in GitHub, without database tokens.
+# Eight real PROD column layouts + exact TEST-only field overlays, with source
+# PK/CHECK and internal FKs. Authorization routines remain LOCAL SURROGATES.
+permissions:
+  contents: read
+
+jobs:
+  catalog-backed-finance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_DB: fin02_catalog
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fin02_catalog"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: fin02_catalog
+      PGPASSWORD: synthetic-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Confirm no cloud Supabase / client-data access
+        run: |
+          set -euo pipefail
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          test ! -f supabase/.temp/project-ref
+          echo "No remote database credentials or client data supplied"
+      - name: Verify the archived TEST financial RLS policy overlay metadata
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tests/sql/fin02/real_test_rls_policies_reference.sql').read_text()
+          assert p.count('CREATE POLICY ') == 36
+          assert p.count(' AS RESTRICTIVE FOR ALL ') == 6
+          print('36 read-only TEST finance RLS policy definitions tracked, 6 restrictive; not executed without auth dependencies')
+          PY
+      - name: Load PROD-catalog real columns and TEST field overlays
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_financial_prod_columns.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_financial_test_overlay.sql
+      - name: Prove all source TEST financial column declarations match
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_financial_test_column_parity.sql
+      - name: Stage original-shape local SQL function surrogates only
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;"
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('tests/sql/fin02/disposable_schema.sql').read_text()
+          anchor = 'CREATE OR REPLACE FUNCTION public.award_deal_proposal('
+          assert source.count(anchor) == 1
+          Path('/tmp/fin02-local-function-shapes.sql').write_text(source[source.index(anchor):])
+          print('Only source-compatible surrogate functions, no remote RPCs, staged.')
+          PY
+          psql -X -v ON_ERROR_STOP=1 -f /tmp/fin02-local-function-shapes.sql
+      - name: Apply actual PR34 migration in single transaction
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+      - name: Replay migration to prove idempotency
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+      - name: SQL regression on actual source table layouts / 19 internal FKs
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_schema_assertions.sql
+      - name: Compile the actual PROD/TEST original financial RPC SQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/real_original_award_and_renewal_core.sql
+      - name: Reapply PR34 migration against the actual RPC definitions
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+      - name: Verify actual RPC authorization and renewal semantics preserved in source
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/real_core_function_patch_assertions.sql

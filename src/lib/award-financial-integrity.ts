@@ -65,12 +65,9 @@ export function businessAwardIntegrityBlocker(
       positive.set(item.id, net);
     }
     if (item.is_recurring) {
-      // A temporary Year-1 reduction is NOT the recurring baseline. The
-      // current contract_lines table cannot persist a separate next-cycle
-      // amount. Block such awards until that data model is available.
-      if (!item.apply_discount_to_renewal && gross !== net) {
-        return "FIN02_TEMPORARY_RECURRING_DISCOUNT_NEEDS_CONTRACT_POLICY";
-      }
+      // FIN02 contract_lines now carries renewal_amount separately from the
+      // first-period amount. A temporary Year-1 reduction is permitted so
+      // long as the saved header reconciles to the undiscounted next cycle.
       nextRecurring += item.apply_discount_to_renewal ? net : gross;
     }
   }

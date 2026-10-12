@@ -283,8 +283,18 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
 
   const { modules, plugins } = normalizeLicensedItems(licensedModules);
 
-  const classified = classifyContractLines((contractLines || []) as ClassifiableLine[]);
-  const financials = computeContractFinancials((contractLines || []) as ClassifiableLine[]);
+  // FIN-02: a contract line may have a Year-1 promotional price and a
+  // different agreed next-cycle price. Renewal preview must use the latter.
+  // Legacy rows with no snapshot retain their original amount unchanged.
+  const nextCycleLines = (contractLines || []).map((line: any) => ({
+    ...line,
+    amount: line.renewal_amount == null ? line.amount : line.renewal_amount,
+  })) as ClassifiableLine[];
+  const classified = classifyContractLines(nextCycleLines);
+  const financials = computeContractFinancials(nextCycleLines);
+  // One-time implementation was billed in the original first period, not
+  // carried into the recurring future baseline.
+  const historicalFinancials = computeContractFinancials((contractLines || []) as ClassifiableLine[]);
 
   const recurringLines: BaselineRecurringLine[] = classified
     .filter((c) => isRecurringClassifiedLine(c))
@@ -303,7 +313,7 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
     if (currentRecurring == null) unmapped.push("current_recurring_value");
   }
 
-  const historicalOneTime = recurringLines.length ? financials.oneTimeValue : null;
+  const historicalOneTime = recurringLines.length ? historicalFinancials.oneTimeValue : null;
 
   const billingFrequency =
     str(license?.periodicity) ??

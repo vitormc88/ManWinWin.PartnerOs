@@ -1,0 +1,42 @@
+# PartnerOS R1 — Gate 6A: Integrating existing Business wizard with the FIN02 pricing contract
+**12 Oct 2026 | UI code + pure pricing-source checks + source-backed SQL CI PASS | No live TEST deploy**
+
+## Why this is the next R1 step
+The agreed destination is a partner independently preparing and converting an approved, priced proposal; PartnerOS must preserve coherent Client, License, Contract, initial revenue, immutable official documents and two renewals without manual database corrections. Gate6A is INTEGRATION of existing Business pricing, not another feature module. Customer Explorer stays OPS01 #40/#42, not part of adjudication.
+
+## Real source audit — current TEST and repository
+- The live Lovable TEST catalog was **read-only** inspected: **38 active Business pricing rows / 38 unique codes / 0 active-code duplicates**. Six required core codes existed: BUS_KEEPIT_MAINTENANCE_MODULE, BUS_BASE_SAT_DAY, BUS_BASE_DEFAULT_WEB, BUS_USEIT_FACTOR, BUS_KEEPIT_SAT and BUS_USEIT_SAT. No actual values, user rows, discounts, auth profiles or secrets were exported to GitHub.
+- TEST pricing_rules is mutable and currently has no independently audited immutable rule-version/approved exception ledger in the inspected schema. Current Business TypeScript engine contains fallback values **490/240/37** for included S&TA/Web and UseIT factor. They are valid display behavior but unacceptable as silent source-of-truth for an official frozen server quote.
+- Backend Gate5D's five-rule catalogue is a protected MOCK; it does NOT reproduce all 38 actual rules, derived UseIT, modules, plugins, API, SaaS hosting, RCI, onsite region or custom services. Current TEST lacks the table partner_discount_limits and named discount guard triggers found in review-only scripts. Treat any server discount authorization claim as **NOT YET INSTALLED**.
+- Existing BusinessPreviewStep already shows the two options earlier in the wizard. The final save step formerly showed only the headline KeepIT price, even when the commercial mode was a comparison. The source Draft persistence still saves **only headline proposal_items plus business_config**, not independently immutable KeepIT and UseIT snapshots. This Gate6A UI change does NOT solve that backend limitation.
+
+## Changes committed to DRAFT PR #34 (no migration)
+1. [CreateProposalDialog.tsx](../../src/components/proposals/CreateProposalDialog.tsx): on the existing final Business wizard step, renders **both** KeepIT and UseIT as read-only prices with Year1, Year2+, discount and line count; labels it unapproved comparison Draft. Uses the **same Business engine result**, so no second pricing formula or browser-selected trust path was introduced. Compares/reconciles both complete option projections and FAILS CLOSED for invalid compared data before saving/exporting, while preserving Professional/renewal routes and pre-existing single-option path.
+2. [business-comparison-option-preview.ts](../../src/lib/business-comparison-option-preview.ts): adjusted the existing conservative duplicate-code check so multiple legitimate separately priced custom-services rows (same code "custom", distinct sort_order and labels) are retained; all other duplicated catalog item codes remain rejected.
+3. [business-pricing-source-coverage.ts](../../src/lib/business-pricing-source-coverage.ts): read-only source-compatibility checklist from the existing requiredBusinessRuleCodes computation, adding the previously optional 490/240/37 active rules for server authority. Flags missing/inactive sources, repeated active codes, non-EUR/invalid rates, unversioned Onsite rates, custom negotiated service prices requiring approval, and mandatory immutable catalog revision. It **never** signs prices, derives server authorization or claims a live frozen offer.
+4. The final wizard displays contextual warnings for missing source rules, unversioned onsite rates or custom prices, without blocking legitimate **Draft** preparation. It does not present these figures as approved. The absence of an official server price history remains an explicit release blocker.
+5. Added [pure source contract Vitest suite](../../src/lib/__tests__/business-pricing-source-coverage.test.ts) and extended [comparison projection Vitest](../../src/lib/__tests__/business-comparison-option-preview.test.ts) with multiple custom rows. The current pricing engine and [Business Pricing Integrity R1 CI](../../.github/workflows/business-pricing-integrity-r1.yml) are reused, not replaced.
+
+## Executed proof
+- [Business pricing integrity #38268227155](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38268227155) **PASS**, including all existing FIN01/FIN02 pricing tests, six comparison preview unit cases, five source compatibility cases and the TypeScript compile.
+- [Original PostgreSQL finance, awards and 2027/2028 renewal regression #38268227228](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38268227228) **PASS**, including Gates 5A, 5C, 5D, original authorization and forced rollback scenarios.
+- **13/13 GitHub Actions PASS** at tested source SHA `68c1ade7789f4f1666a45aaff3a4618414a3276b`. Documentation/comments committed after that tested SHA do not modify executable sources.
+- **Not tested**: rendered end-to-end in browser with a real Supabase signed session, full TEST-auth/RLS/trigger restore, real price freeze, actual downloaded documents or customer transactions. No TEST/PROD writes, PR merges, deployments, actual client rows or Lovable/Work agent credits used.
+
+## Production integration contract — next engineering task
+1. **Server price authority**: extract/reuse the existing TypeScript Business engine logic in a trusted backend execution path (or prove mathematically identical SQL parity) and load fresh server-side pricing_rules. Enumerate all selected dependencies, disallow display-only fallbacks, validate the complete source configuration/currency/region, signed actor roles and per-partner/approved discounts. Persist immutable rule-version/override evidence. Do NOT accept values/hashes from browser as official prices.
+2. **Lifecycle & freezing**: bind approved Ready comparison revision to two independently priced immutable KeepIT and UseIT arrays with server fingerprints, then mint one single-model source revision for customer acceptance. Atomic locking/idempotent concurrent freeze must be verified. Saved comparison cannot directly award. Original award_deal_proposal still validates per-line source and never edits negotiated money.
+3. **Actual TEST compatibility**: reconcile missing TEST discount enforcement vs reviewed PROD, full original TEST backup/private restore #39, Role/JWT and RLS, source deal/partner association; integrate FIN01 single-call Draft save (#43), then FIN02 chosen option (#44), with negative tests. Explicit owner approval before migrations and frontend cutover.
+4. **FIN03 + QA01**: bind selected frozen price and approved commercial version to official append-only genuine DOCX/PDF and signed Storage (#45), then run all application steps Thai Union 2026→2028 as real synthetic TEST actor sessions without any emergency SQL intervention.
+5. OPS01 Explorer trigger safety remains separate deployment preflight, not a reason to hold FIN01/FIN02 engineering. MEM01/UX01 development remains in the original project roadmap.
+
+## Summary status
+| Milestone | Proven | Still open |
+|---|---|---|
+| FIN01 Gate4D | Transaction/discount/role LAB | Actual client persistence + server request-id idempotency and full TEST |
+| FIN02 Gate5A/5C/5D | Original financial backend, freeze and discount-policy MOCK lab | Actual full server pricing_rules, approval and dual immutable alternative storage |
+| **FIN02 Gate6A** | **Existing wizard final step + exact rule coverage audit + CI PASS** | Actual approved backend API connection / source immutable rule ledger |
+| FIN03 Gate5B | Append-only document ledger with fake bytes LAB | Actual real DOCX/PDF write-once storage, signed URLs |
+| QA01 Gate8 | Acceptance matrix | Fully integrated Thai Union original-role E2E to 2028, zero database repairs |
+
+**Verdict: Gate6A code/contract tests PASS. Complete live Business pricing authority and TEST integration NO-GO.**

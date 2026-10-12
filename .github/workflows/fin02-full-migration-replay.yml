@@ -1,0 +1,101 @@
+name: FIN02 Full Supabase Migration Replay (Diagnostic)
+# Diagnostic only while legacy migrations require app-data preconditions.
+# Keep this manual to avoid repeatedly consuming hosted CI minutes.
+on:
+  workflow_dispatch:
+
+# This diagnostic reproduces Git migrations in a GitHub-hosted LOCAL stack.
+# It is NOT a replica of current Lovable TEST until effective object parity
+# has been independently demonstrated.
+permissions:
+  contents: read
+
+jobs:
+  repo-schema-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_ACCESS_TOKEN: ""
+      SUPABASE_DB_PASSWORD: ""
+      SUPABASE_PROJECT_ID: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Safety proof — local-only, no credentials or remote link
+        run: |
+          set -euo pipefail
+          test -f supabase/config.toml
+          test ! -f supabase/.temp/project-ref
+          test ! -f supabase/seed.sql
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          echo "LOCAL-ONLY: no linked project, no cloud credentials, no seed or customer data"
+          supabase --version
+      - name: Isolate known August 11 verification fixture from schema replay
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("supabase/migrations/20260811135135_abf9a6fc-3290-4dcc-927b-c7b8b7d6c056.sql")
+          original=p.read_text()
+          marker="-- 3. fixtures + runs"
+          assert original.count(marker)==1, "Known verification migration changed; review required"
+          assert "ISOLATED VERIFICATION RUN" in original, "Unexpected migration content; review required"
+          # CI workspace only! Preserve DDL + function, skip the historical QA
+          # block that inserts fixtures with an absent partner reference.
+          # The checked-in migration itself remains unchanged.
+          p.write_text(original.split(marker)[0]+
+            "-- CI ONLY: legacy temporary QA fixture block omitted from schema replay.\\n")
+          print("Separated existing August 11 QA fixture from SCHEMA reconstruction, not from the Git source")
+          p2=Path("supabase/migrations/20260813233336_378ea80a-0d49-425f-9ec1-c0d77e362ce9.sql")
+          cleanup=p2.read_text()
+          lines=[ln.strip() for ln in cleanup.splitlines() if ln.strip()]
+          assert len(lines)==8 and sum(ln.startswith("DELETE FROM ") for ln in lines)==7, (
+            "P0 fixture-cleanup migration changed; explicit review needed")
+          assert lines[-1]=="DROP TABLE IF EXISTS public.zzv_p0_results;", (
+            "Unexpected non-fixture DDL in cleanup migration")
+          assert all("0a00" in ln or "0c00" in ln or "0d00" in ln
+                     for ln in lines[:-1]), "Unexpected live table cleanup"
+          # The teardown data DELETE has no meaningful work on a clean database
+          # and trips the last-HQ-admin guard. Keep its temp evidence table DROP.
+          p2.write_text("-- CI ONLY: skipped known August P0 synthetic cleanup rows.\\n"
+             +lines[-1]+"\\n")
+          print("Skipped one historical verification-only cleanup DELETE block")
+          PY
+          # CI-only migration inserted immediately before an old Academy
+          # remediation that expects previously seeded course content.
+          test ! -e supabase/migrations/20260820180000_fin02_ci_only_academy.sql
+          cp tests/sql/fin02/academy_precondition_fixture.sql \
+            supabase/migrations/20260820180000_fin02_ci_only_academy.sql
+          echo "Created temporary synthetic Academy precondition; repository migration files remain unchanged"
+      - name: Recreate repository schema in local Supabase stack
+        run: |
+          set -euo pipefail
+          # Uses local Docker on GitHub runner. No --linked, db push or db-url.
+          # Any failing historical migration is a real schema-replay blocker.
+          supabase start -x studio,imgproxy
+          supabase db reset --local
+      - name: Assert full financial functions and FIN02 policy exist locally
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+            -f tests/sql/fin02/full_schema_probe.sql
+      - name: Compare replayed financial schema and RLS against read-only TEST fingerprint
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -X -At -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+            -f tests/sql/fin02/local_schema_fingerprint.sql \
+            > /tmp/fin02-local-schema-fingerprint.json
+          python3 tests/sql/fin02/compare_live_test_to_local.py
+      - name: Stop and delete temporary local stack
+        if: always()
+        run: |
+          supabase stop --no-backup || true

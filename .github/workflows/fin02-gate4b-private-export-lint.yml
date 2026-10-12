@@ -1,0 +1,44 @@
+name: FIN02 Gate4B Private TEST Export Guard (No DB)
+on:
+  pull_request:
+    paths:
+      - "tools/fin02/Gate4B-Export-TEST-Schema.ps1"
+      - ".github/workflows/fin02-gate4b-private-export-lint.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  private-script-safety:
+    runs-on: windows-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: PowerShell AST parser and fail-closed connection identity checks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $f='tools/fin02/Gate4B-Export-TEST-Schema.ps1'
+          $tokens=$null
+          $errors=$null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f).Path,[ref]$tokens,[ref]$errors)
+          if ($errors.Count -ne 0) { $errors | Format-List | Out-String | Write-Error; throw 'PowerShell syntax invalid' }
+          $text=Get-Content $f -Raw
+          foreach ($phrase in @('verify-full','--schema-only','--no-role-passwords','38','176','avxxzmoayxzrykwqzoqn','qownzparzsaeoyccgwuj','--no-subscriptions')) {
+            if (-not $text.Contains($phrase)) { throw "Missing hard-gate: $phrase" }
+          }
+          if ($text -match 'db push|db reset --linked|CREATE ROLE.*PASSWORD|--data-only') { throw 'Disallowed live-write/data flag' }
+          $out=& pwsh -NoProfile -File $f -PgBin 'C:\no-postgres' -DbHost 'db.qownzparzsaeoyccgwuj.supabase.co' -TestUser 'postgres.qownzparzsaeoyccgwuj' -CaCert 'C:\nonexistent.crt' 2>&1
+          if ($LASTEXITCODE -eq 0 -or (($out | Out-String) -notmatch 'HARD STOP: PROD forbidden')) {
+            throw 'PROD refusal not proven'
+          }
+          $out=& pwsh -NoProfile -File $f -PgBin 'C:\no-postgres' -DbHost 'db.example.org' -TestUser 'postgres.avxxzmoayxzrykwqzoqn' -CaCert 'C:\nonexistent.crt' 2>&1
+          if ($LASTEXITCODE -eq 0 -or (($out | Out-String) -notmatch 'HARD STOP: TEST connection identity mismatch')) {
+            throw 'TEST identity refusal not proven'
+          }
+          Write-Host 'PASS: PowerShell syntax, explicit TEST-only identity, PROD block, TLS verification and schema-only export invariants.'
+          $global:LASTEXITCODE=0 # Expected rejected subprocesses returned 1; clear for runner.
+      - name: Safety boundary
+        shell: pwsh
+        run: |
+          if ($env:SUPABASE_ACCESS_TOKEN -or $env:SUPABASE_DB_PASSWORD) { throw 'Cloud credentials must not be present' }
+          Write-Host 'This workflow NEVER calls pg_dump or any cloud database; TEST export stays local and private.'

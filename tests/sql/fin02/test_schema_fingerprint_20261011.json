@@ -1,0 +1,115 @@
+{
+  "source": "Lovable-connected read-only TEST Supabase introspection",
+  "captured_date": "2026-10-11",
+  "project_ref": "avxxzmoayxzrykwqzoqn",
+  "scope": "structure only — no personal data, passwords or customer rows; MD5 is drift detection, not security authentication",
+  "parity_rule": "compare unchanged columns and function definitions; award_deal_proposal and close_renewal_core are expected to differ AFTER FIN02 migration",
+  "counts": {
+    "public_functions": 175,
+    "public_tables": 107,
+    "rls_policies": 344,
+    "user_triggers": 94
+  },
+  "functions": {
+    "award_deal_proposal": {
+      "definition_md5": "1378fed27046f50394e62175ee3cf915",
+      "security_definer": true
+    },
+    "close_renewal": {
+      "definition_md5": "7a1b8b7108ace4366b09e750a0df0742",
+      "security_definer": true
+    },
+    "close_renewal_core": {
+      "definition_md5": "bf1a0fb67af994be49f47acb55e56ae1",
+      "security_definer": true
+    },
+    "contract_lines_refresh_total": {
+      "definition_md5": "ff282e9a4e4fed3f9d0437d05ae62901",
+      "security_definer": true
+    },
+    "proposal_contract_recurring": {
+      "definition_md5": "cc3bede8bc0be977ec3a121c0eb43b44",
+      "security_definer": true
+    },
+    "renewal_close_readiness": {
+      "definition_md5": "50796db32eb1654f3208083c77415e2b",
+      "security_definer": true
+    },
+    "renewal_line_class": {
+      "definition_md5": "a85d089a1eedd657c18b9b8e1039ac89",
+      "security_definer": false
+    },
+    "renewal_line_type_for": {
+      "definition_md5": "c80bdb761956381867e721a769ffcd9a",
+      "security_definer": false
+    }
+  },
+  "tables": {
+    "clients": {
+      "column_signature_md5": "8a3cb062069b39979638da36b2a96760",
+      "columns": 40
+    },
+    "contract_lines": {
+      "column_signature_md5": "44a9fdccb48e18589796dc00fc93c643",
+      "columns": 18
+    },
+    "contracts": {
+      "column_signature_md5": "9ff53ca2a8cb0d450680065440a1a369",
+      "columns": 26
+    },
+    "deals": {
+      "column_signature_md5": "8e2d1cb19af0afea4b6d7aa6657256cd",
+      "columns": 43
+    },
+    "licenses": {
+      "column_signature_md5": "1a27e51621090dffc8126770a71e06f1",
+      "columns": 44
+    },
+    "proposal_items": {
+      "column_signature_md5": "b0e5b2b140a89eb9b452e33195eab9d3",
+      "columns": 36
+    },
+    "proposals": {
+      "column_signature_md5": "3174f9be988e370bef347190728a1328",
+      "columns": 80
+    },
+    "renewals": {
+      "column_signature_md5": "d46080fec3cde2adcb9040d3aa8d95e3",
+      "columns": 40
+    }
+  },
+  "rls_policy_fingerprints": {
+    "clients": {
+      "count": 5,
+      "definition_md5": "e5371050a78dd35657b9fa862eb1d883"
+    },
+    "contract_lines": {
+      "count": 2,
+      "definition_md5": "c72e8af148d6666e83dafd16ab9b9c21"
+    },
+    "contracts": {
+      "count": 4,
+      "definition_md5": "dbcaa774af5a2929262400033b84d882"
+    },
+    "deals": {
+      "count": 5,
+      "definition_md5": "c2091249edddf65ad9db73dcc9ecca4e"
+    },
+    "licenses": {
+      "count": 5,
+      "definition_md5": "bd70f6aec79401dc75bd25f27ec6704b"
+    },
+    "proposal_items": {
+      "count": 5,
+      "definition_md5": "e57cf4807533ec363f9d98562c332a93"
+    },
+    "proposals": {
+      "count": 5,
+      "definition_md5": "bdf64493743c19cf4a6fd6fc6949f3d3"
+    },
+    "renewals": {
+      "count": 5,
+      "definition_md5": "635e4706120392ad6646ab5dc3b26a62"
+    }
+  }
+}

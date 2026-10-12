@@ -4,10 +4,25 @@ on:
     paths:
       - "src/components/proposals/CreateProposalDialog.tsx"
       - "src/lib/proposal-business-*"
+      - "src/lib/business-comparison-option-preview.ts"
+      - "src/lib/business-pricing-source-coverage.ts"
+      - "src/lib/fin02-server-business-quote.ts"
+      - "src/lib/__tests__/fin02-server-business-quote.test.ts"
+      - "tests/deno/fin02-gate6c-original-business-runtime_test.ts"
+      - "src/lib/proposal-business-engine.ts"
+      - "src/lib/proposal-business-readiness.ts"
+      - "src/lib/proposal-business-persistence.ts"
+      - "supabase/functions/fin02-business-quote/**"
+      - "src/lib/__tests__/business-pricing-source-coverage.test.ts"
+      - "src/lib/__tests__/business-comparison-option-preview.test.ts"
       - "src/lib/award-financial-integrity.ts"
+      - "src/lib/renewal-baseline.ts"
+      - "src/lib/__tests__/renewal-baseline.test.ts"
+      - "supabase/migrations/*fin02*"
       - "src/lib/__tests__/award-financial-integrity.test.ts"
       - "src/lib/lifecycle-engine.ts"
       - "src/lib/__tests__/proposal-business-persistence.test.ts"
+      - "src/lib/__tests__/r1-pricing-to-award-seam.test.ts"
       - ".github/workflows/business-pricing-integrity-r1.yml"
   workflow_dispatch:
 
@@ -27,5 +42,30 @@ jobs:
         run: npm test -- src/lib/__tests__/proposal-business-persistence.test.ts
       - name: FIN02 award integrity tests
         run: npm test -- src/lib/__tests__/award-financial-integrity.test.ts
+      - name: FIN01 to FIN02 saved pricing/award R1 seam
+        run: npm test -- src/lib/__tests__/r1-pricing-to-award-seam.test.ts
+      - name: FIN02 Gate5C two-alternative deterministic UI preview and negative tests
+        run: npm test -- src/lib/__tests__/business-comparison-option-preview.test.ts
+      - name: FIN02 source parity required pricing rules and unapproved Onsite/Custom safeguards
+        run: npm test -- src/lib/__tests__/business-pricing-source-coverage.test.ts
+      - name: FIN02 renewal price and legacy regression tests
+        run: npm test -- src/lib/__tests__/renewal-baseline.test.ts
+      - name: FIN02 Gate6B shared real Business engine server parity and strict authorization
+        run: npm test -- src/lib/__tests__/fin02-server-business-quote.test.ts
+      - name: Gate6B Edge candidate imports real Business engine successfully (build only, NO deployment)
+        run: |
+          ./node_modules/.bin/esbuild supabase/functions/fin02-business-quote/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:https://esm.sh/* --outfile=/tmp/fin02-quote-edge-bundle.js
+          test -s /tmp/fin02-quote-edge-bundle.js
+          ! grep -q 'SUPABASE_SERVICE_ROLE_KEY' supabase/functions/fin02-business-quote/index.ts
+          grep -q 'FIN02_SERVER_PREVIEW_ENABLED' supabase/functions/fin02-business-quote/index.ts
+          grep -q 'can_manage_deal' supabase/functions/fin02-business-quote/index.ts
+      - name: Install actual Deno runtime (no DB, Docker or deployment)
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Gate6C actual Deno runtime smoke for UNCHANGED Business engine
+        run: |
+          deno --version
+          deno test --no-config --no-remote tests/deno/fin02-gate6c-original-business-runtime_test.ts
       - name: TypeScript check
         run: npx tsc --noEmit -p tsconfig.app.json

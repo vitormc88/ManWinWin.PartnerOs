@@ -1,0 +1,192 @@
+name: OPS01 Gate4C Financial Award + Async Explorer Queue
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ops01-gate4c-finance-async-e2e.yml"
+      - "tests/sql/fin02/gate4c_explorer_async_candidate.sql"
+      - "tests/sql/fin02/gate4b_explorer_actual_source_refresh.sql"
+      - "tests/sql/fin02/gate4b_financial_explorer_bridge.sql"
+      - "tests/sql/fin02/gate4b_customer_explorer_*.sql"
+      - "tests/sql/fin02/gate4b_customer_explorer_*.sh"
+      - ".github/workflows/fin02-gate4b-financial-explorer-bridge.yml"
+      - "tests/sql/fin02/gate4_*.sh"
+      - "tests/sql/fin02/release_*.sql"
+      - "tests/sql/fin02/release_*.sh"
+      - "tests/sql/fin02/rollbacks/*.sql"
+      - "supabase/migrations/*fin02*"
+      - ".github/workflows/fin02-gate3-financial-e2e.yml"
+  workflow_dispatch:
+
+# Original TEST financial RPCs, synthetic roles/tenant data and two simulated
+# annual renewals. Absolutely no access to PROD/TEST cloud databases.
+# Source-compatible four independent TEST-targeted migrations staged for
+# disposable CI only. None applied to live TEST/PROD.
+permissions:
+  contents: read
+jobs:
+  isolated-financial-async-explorer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: fin02_gate3
+          POSTGRES_PASSWORD: synthetic-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fin02_gate3"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: fin02_gate3
+      PGPASSWORD: synthetic-only
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Assert no remote database connections or customer data
+        run: |
+          set -euo pipefail
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          test ! -f supabase/.temp/project-ref
+          echo "Local GitHub PostgreSQL only. No remote Supabase tokens, customer rows, email or jobs."
+      - name: Rebuild source-backed financial and identity catalog
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c "CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN;"
+          for f in \
+            tests/sql/fin02/real_financial_prod_columns.sql \
+            tests/sql/fin02/real_financial_test_overlay.sql \
+            tests/sql/fin02/rls_support_schema.sql \
+            tests/sql/fin02/gate3_financial_operational_tables.sql \
+            tests/sql/fin02/real_financial_test_column_parity.sql \
+            tests/sql/fin02/rls_real_test_helpers.sql \
+            tests/sql/fin02/real_test_rls_policies_reference.sql \
+            tests/sql/fin02/rls_synthetic_financial_roles_and_data.sql; do
+              psql -X -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Install ORIGINAL TEST contract, renewal and revenue helper SQL
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_original_financial_helpers.sql
+      - name: Install exact TEST ledger, events and activities RLS / reader grants
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_revenue_event_rls_reference.sql
+      - name: Install ORIGINAL TEST deal-award and close-renewal SQL
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_original_award_and_renewal_core.sql
+      - name: Apply FIN02 migration on original financial SQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 --single-transaction \
+            -f supabase/migrations/20261011213000_fin02_award_source_line_renewal_policy.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/real_core_function_patch_assertions.sql
+      - name: Install original TEST renewal and contract triggers (no lab ledger bridge)
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_original_test_renewal_and_contract_triggers.sql
+      - name: Install original TEST Won-date, client-partner and revenue partner guard triggers
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_real_test_won_partner_guard_triggers.sql
+      - name: Install official TEST close_renewal wrapper and enforced commercial state guards
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_official_close_and_status_guard_sources.sql
+      - name: Install original TEST full refresh + original wrapper then LAB async queue candidate
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4b_financial_explorer_bridge.sql
+          awk '/^-- BEGIN EXACT ORIGINAL TEST REFRESH/{copy=1;next} /^-- END EXACT ORIGINAL REFRESH/{copy=0} copy {print}' \
+            tests/sql/fin02/gate4b_explorer_actual_source_refresh.sql \
+            | psql -X -v ON_ERROR_STOP=1
+          awk '/^-- BEGIN SOURCE-EXACT/{copy=1;next} /^-- END SOURCE-EXACT/{copy=0} copy {print}' \
+            tests/sql/fin02/gate4b_customer_explorer_source_wrapper.sql \
+            | psql -X -v ON_ERROR_STOP=1
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/gate4c_explorer_async_candidate.sql
+      - name: Apply independently reviewed SEC35, SEC37 and SEC38 migrations in ephemeral CI
+        run: |
+          set -euo pipefail
+          for f in \
+            supabase/migrations/20261012000100_fin02_sec35_clients_write_policy.sql \
+            supabase/migrations/20261012000300_fin02_sec37_initial_sale_ledger.sql \
+            supabase/migrations/20261012000400_fin02_sec38_financial_write_policy.sql; do
+              psql -X -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Seed wholly fictional Business source proposal
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_fictional_award_source.sql
+      - name: Prove original TEST RLS hides newly converted partner UUID-only License and Contract
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_partner_legacy_baseline_assertions.sql
+      - name: Apply independent SEC36 TEST-source read migration to disposable CI
+        run: |
+          psql -X -v ON_ERROR_STOP=1 \
+            -f supabase/migrations/20261012000200_fin02_sec36_canonical_partner_reads.sql
+          psql -X -v ON_ERROR_STOP=1 \
+            -f tests/sql/fin02/gate3_partner_canonical_candidate_assertions.sql
+      - name: Validate legacy malformed partner IDs fail closed after all four migrations
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/release_malformed_legacy_guard_assertions.sql
+      - name: Original award RPC, first-sale ledger, rollback and retry
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_award_and_ledger_assertions.sql
+      - name: Original renewal core, 2027 then 2028, with separate commits
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_two_year_renewal_assertions.sql
+      - name: Seed independent synthetic deals for concurrency and deep rollback
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_concurrency_and_failure_fixture.sql
+      - name: Execute TWO parallel original award RPCs with a coordinator row lock
+        run: bash tests/sql/fin02/gate3_run_concurrent_awards.sh
+      - name: Force AFTER-WON failure after initial revenue writes and prove atomic rollback
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate3_forced_late_atomic_rollback.sql
+      - name: Verify original financial RPC awards commit with Explorer queued (not synchronously rebuilt)
+        run: |
+          psql -X -v ON_ERROR_STOP=1 <<'SQL'
+          DO $$
+          BEGIN
+            IF (SELECT mode FROM private.customer_explorer_rollout WHERE singleton)<>'hq'
+             OR (SELECT requested_generation <= applied_generation FROM private.explorer_refresh_queue WHERE singleton)
+             OR EXISTS(SELECT 1 FROM public.customer_explorer_directory WHERE client_key='889')
+             OR NOT EXISTS(SELECT 1 FROM public.clients WHERE source_deal_id IS NOT NULL AND client_code !~ '^[0-9]+$')
+            THEN RAISE EXCEPTION 'FIN02 async source award failed or Explorer refreshed synchronously'; END IF;
+          END $$;
+          SET ROLE service_role;
+          SELECT private.explorer_refresh_run();
+          RESET ROLE;
+          DO $$
+          BEGIN
+           IF (SELECT mode FROM private.customer_explorer_rollout WHERE singleton)<>'hq'
+            OR EXISTS(SELECT 1 FROM private.customer_explorer_rollout WHERE sync_error_code IS NOT NULL)
+            OR (SELECT requested_generation <> applied_generation FROM private.explorer_refresh_queue WHERE singleton)
+            OR NOT EXISTS(SELECT 1 FROM public.customer_explorer_directory WHERE client_key='889' AND source_kind='hq')
+           THEN RAISE EXCEPTION 'Actual TEST refresh failed to drain FIN02 async queue'; END IF;
+           IF EXISTS(SELECT 1 FROM public.customer_explorer_directory d
+             JOIN public.clients c ON c.id=d.id
+             WHERE c.source_deal_id IS NOT NULL AND c.client_code !~ '^[0-9]+$')
+           THEN RAISE EXCEPTION 'Unapproved Explorer source-eligibility expansion'; END IF;
+           RAISE NOTICE 'Gate4C original award / 2 renewals / source async coalesced full directory refresh PASS';
+          END $$;
+          SQL
+      - name: Final financial ledger and no-billing-side-effects recap
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -c \
+            "SELECT revenue_type, count(*) AS entries, sum(amount) AS amount
+             FROM public.client_revenue_history
+             WHERE client_id IN
+              (SELECT client_id FROM public.deals
+               WHERE id='00000000-0000-4000-8000-000000000411')
+             GROUP BY revenue_type ORDER BY revenue_type;"
+      - name: Capture source-exact migration policy and ledger function fingerprints for rollback
+        run: psql -X -At -v ON_ERROR_STOP=1 -f tests/sql/fin02/release_patch_fingerprints.sql
+      - name: Gate4 SYNTHETIC-only PostgreSQL 17 custom backup and fresh restore rehearsal
+        run: bash tests/sql/fin02/gate4_synthetic_backup_restore_drill.sh
+      - name: Exercise FOUR independently guarded rollback scripts, reverse order
+        run: |
+          set -euo pipefail
+          for f in \
+            tests/sql/fin02/rollbacks/sec38_financial_write_policy.rollback.sql \
+            tests/sql/fin02/rollbacks/sec37_initial_sale_ledger.rollback.sql \
+            tests/sql/fin02/rollbacks/sec36_canonical_partner_reads.rollback.sql \
+            tests/sql/fin02/rollbacks/sec35_clients_write_policy.rollback.sql; do
+              psql -X -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Prove original TEST RLS policy hashes restored and financial history preserved
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/release_rollback_integrity_assertions.sql
+      - name: Independently apply and revert each migration; reject policy, role, trigger and schema drift
+        run: bash tests/sql/fin02/release_independent_rollback_matrix.sh
