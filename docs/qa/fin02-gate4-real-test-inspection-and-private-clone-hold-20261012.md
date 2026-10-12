@@ -6,7 +6,7 @@
 - Do not read this document as authorization for live TEST writes, Lovable sync, PR merge, Vercel release or PROD changes.
 - Source TEST: Lovable project `09e44188-ec64-4ec3-8add-b3b54882408c`, Supabase ref recorded in prior read-only handoff `avxxzmoayxzrykwqzoqn`. **Not** PROD `qownzparzsaeoyccgwuj`.
 - All database queries in this investigation were **SELECT-only** catalog/migration metadata, never business/PII data, auth credentials or secret values.
-- The linked Supabase account currently lists only PROD; the TEST database is accessible for safe catalog SELECT through the Lovable database query connector. This interface has **no verified pg_dump/export or restorable snapshot endpoint**. An SQL metadata query is NOT a database archive.
+- The linked Supabase account currently lists only PROD; a direct TEST Supabase project/branches lookup was explicitly denied by the connected account permissions. The TEST database remains accessible for safe catalog SELECT through the Lovable database query connector. This interface has **no verified pg_dump/export or restorable snapshot endpoint**. An SQL metadata query is NOT a database archive.
 - Previous complete repository migration replay stopped at real historical Academy module data prerequisites; **do not** bypass data invariants and claim an authentic TEST clone.
 
 ## Gate 4A — validated against live TEST
@@ -49,7 +49,7 @@ Other actual schema dependencies (separate from public): `private` four tables a
 - Existing Customer Explorer client-sync trigger function signature matches inspected live TEST and is a NEW integration boundary for the next gate.
 
 ### Live TEST trigger graph gap
-The actual TEST clients table has a **statement-level AFTER INSERT/DELETE/UPDATE** `customer_explorer_clients_sync` trigger to `private.sync_customer_explorer_directory()`. This privileged function attempts an advisory lock and `private.refresh_customer_explorer()`, catches errors and can switch the rollout mode to `off`; this means a financially successful award *could* leave Explorer synchronization disabled under untested conditions. This is a **testable risk, NOT a demonstrated failure**. Other live triggers include revenue total synchronization, partner active-client counts and renewal assignment/closure guards. Their complete original interaction is not yet reproduced by the synthetic financial lab.
+The actual TEST clients table has a **statement-level AFTER INSERT/DELETE/UPDATE** `customer_explorer_clients_sync` trigger to `private.sync_customer_explorer_directory()`. This privileged function attempts an advisory lock and `private.refresh_customer_explorer()`, catches errors and can switch the rollout mode to `off`; this means a financially successful award *could* leave Explorer synchronization disabled under untested conditions. Current read-only TEST rollout status was `mode='hq'`, `sync_failed_at IS NULL`, `sync_error_code IS NULL`. This is a **testable risk, NOT a demonstrated failure**. Other live triggers include revenue total synchronization, partner active-client counts and renewal assignment/closure guards. Their complete original interaction is not yet reproduced by the synthetic financial lab.
 - Full private-TEST clone must assert successful Explorer refresh and no undesired `mode='off'` transition after award, retry, forced rollback and concurrent award.
 - Review transactional rollback semantics, side effects, `cron`/`pg_net`, protected `private` functions, Storage/notifications and authenticated API sessions. Do not invoke these on live TEST merely to test.
 
