@@ -4,7 +4,7 @@
  * Computes KeepIT and UseIT option totals for a Business proposal config.
  * Independent from the Professional engine — must NOT alter Professional logic.
  */
-import type { PricingRule, ProposalDeployment, ProposalLicenseModel } from "@/types/proposal";
+import type { PricingRule, ProposalDeployment, ProposalLicenseModel } from "../types/proposal.ts";
 
 export type OnsiteRegion = "Portugal" | "International" | "Western Europe";
 
