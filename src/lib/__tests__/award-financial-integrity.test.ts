@@ -31,11 +31,31 @@ describe("FIN02 Business award source-item integrity", () => {
     const broken = items.map(i=>({...i,discount_amount:0, net_total:i.gross_total}));
     expect(businessAwardIntegrityBlocker(proposal, broken, lines)).toBe("FIN02_PROPOSAL_HEADER_LINE_MISMATCH");
   });
-  it("fails closed on a Year-1-only Web discount until future contract price is expressible", () => {
+  it("permits a Year-1-only Web discount only with its higher saved renewal baseline", () => {
     const unrenewed = items.map(i=>i.id==="web"?{...i,apply_discount_to_renewal:false}:i);
     const adjusted={...proposal,total_recurring:403811};
-    expect(businessAwardIntegrityBlocker(adjusted, unrenewed, lines))
-      .toBe("FIN02_TEMPORARY_RECURRING_DISCOUNT_NEEDS_CONTRACT_POLICY");
+    expect(businessAwardIntegrityBlocker(adjusted, unrenewed, lines)).toBeNull();
+    expect(businessAwardIntegrityBlocker(proposal, unrenewed, lines))
+      .toBe("FIN02_PROPOSAL_HEADER_LINE_MISMATCH");
+  });
+  it("preserves the R1 FIN01 v2 Web promotion: EUR 465.60 now, EUR 480 on renewal", () => {
+    // Isolated arithmetic regression: aggregate synthetic other lines, NOT
+    // a claim to reproduce all six actual proposal_items in TEST.
+    const v2 = { product_family: "Business", proposal_mode: "keepit_only",
+      total_year_1: 13461.60, total_recurring: 3206 };
+    const priced = [
+      { id: "web", net_total: 465.60, gross_total: 480, discount_amount: 14.40,
+        is_recurring: true, apply_discount_to_renewal: false },
+      { id: "other-recurring", net_total: 2726, gross_total: 2726, discount_amount: 0,
+        is_recurring: true, apply_discount_to_renewal: false },
+      { id: "other-one-time", net_total: 10270, gross_total: 10270, discount_amount: 0,
+        is_recurring: false, apply_discount_to_renewal: false },
+    ];
+    const contract = priced.map((i) => ({ source_item_id: i.id, amount: i.net_total }));
+    expect(businessAwardIntegrityBlocker(v2, priced, contract)).toBeNull();
+    expect(businessAwardIntegrityBlocker(v2, priced, contract.map((l) =>
+      l.source_item_id === "web" ? { ...l, amount: 480 } : l
+    ))).toBe("FIN02_CONTRACT_LINE_VALUE_MISMATCH");
   });
   it("requires explicit award snapshot when comparing KeepIT against UseIT", () => {
     expect(businessAwardIntegrityBlocker({...proposal,proposal_mode:"compare_keepit_useit"},items,lines))
