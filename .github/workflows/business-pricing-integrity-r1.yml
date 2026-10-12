@@ -29,3 +29,5 @@ jobs:
         run: npm test -- src/lib/__tests__/award-financial-integrity.test.ts
       - name: TypeScript check
         run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Build current PartnerOS UI (FIN02 candidate only, no deployment)
+        run: npm run build
