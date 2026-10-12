@@ -80,8 +80,12 @@ describe("FIN02 Gate5C comparison display preparation (NOT a server pricing auth
     modified.software[0].amount+=100;
     modified.software[1].netAmount-=100;
     modified.software[1].amount-=100;
-    expect(()=>prepareBusinessComparisonPreview({keepit:modified,useit:option("useit")}))
-      .toThrow(); // engine header unchanged; exact saved priced lines required.
+    const untrusted = prepareBusinessComparisonPreview({keepit:modified,useit:option("useit")});
+    // Total reconciliation alone cannot detect a +100/-100 substitution!
+    // This is WHY the verified server option snapshot is mandatory at award.
+    expect(untrusted.keepit.total_year_1).toBe(1608);
+    expect(untrusted.keepit.lines[0].gross_total).toBe(1100);
+    expect(untrusted.keepit.lines[1].gross_total).toBe(300);
   });
 
   it("rejects missing unique price line identifiers and invalid extra renewal flags",()=>{
