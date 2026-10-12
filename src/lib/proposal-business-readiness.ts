@@ -7,8 +7,8 @@
  *
  * Pure/deterministic: no data fetching, no pricing values changed.
  */
-import type { PricingRule, Proposal, ProposalLicenseModel, ProposalMode } from "@/types/proposal";
-import type { BusinessConfig, BusinessEngineOutput } from "./proposal-business-engine";
+import type { PricingRule, Proposal, ProposalLicenseModel, ProposalMode } from "../types/proposal.ts";
+import type { BusinessConfig, BusinessEngineOutput } from "./proposal-business-engine.ts";
 
 /** Always required: both KeepIT and derived UseIT depend on the base license. */
 export const BUSINESS_BASE_RULE_CODE = "BUS_KEEPIT_MAINTENANCE_MODULE";
