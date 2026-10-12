@@ -1,0 +1,54 @@
+name: FIN02 Gate4B TEST-Source Explorer Concurrency Lab
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fin02-gate4b-explorer-source-lab.yml"
+      - "tests/sql/fin02/gate4b_customer_explorer_*.sql"
+      - "tests/sql/fin02/gate4b_customer_explorer_*.sh"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-source-wrapper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: fin02_explorer_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fin02_explorer_lab"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: synthetic-only
+      PGDATABASE: fin02_explorer_lab
+      SUPABASE_ACCESS_TOKEN: ""
+      SUPABASE_DB_PASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install local PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Safety — no TEST/PROD connections, archive, tokens or network jobs
+        run: |
+          set -euo pipefail
+          test -z "${SUPABASE_ACCESS_TOKEN:-}"
+          test -z "${SUPABASE_DB_PASSWORD:-}"
+          test ! -f supabase/.temp/project-ref
+          if find . -name '*.backup' -o -name '*.pgcustom' | grep -q .; then
+            echo "Private backup must NEVER be in repo or CI"; exit 1
+          fi
+          echo "Original TEST trigger wrapper from sanitized code ONLY; zero customer data."
+      - name: Run TEST-source wrapper with SYNTHETIC refresh, race and rollback assertions
+        run: bash tests/sql/fin02/gate4b_customer_explorer_negative_lab.sh
