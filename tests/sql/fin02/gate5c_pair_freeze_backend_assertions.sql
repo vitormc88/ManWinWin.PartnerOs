@@ -65,6 +65,27 @@ FROM (VALUES
 JOIN private.fin02_verified_quote_lines_lab _v ON
  _v.comparison_id=_p.compare_id AND _v.option=_p.option;
 
+-- Deliberate missing-UseIT comparison, to prove atomic dual-option freeze
+-- does not leave a partial KeepIT row after failing on the second option.
+INSERT INTO public.deals(id,partner_id,company_name,country,stage,status)
+VALUES('00000000-0000-4000-8000-000000000479',
+'00000000-0000-4000-8000-000000000101','Fictitious Missing UseIT Quote','PT','Proposal','Open');
+INSERT INTO public.proposals(id,client_name,source_type,deal_id,partner_uuid,product_family,
+ proposal_mode,license_model,status,version,total_year_1,total_recurring,discount_amount)
+VALUES('00000000-0000-4000-8000-000000000579','Fictitious Incomplete Comparison',
+'deal','00000000-0000-4000-8000-000000000479',
+'00000000-0000-4000-8000-000000000101','Business','compare_keepit_useit',
+NULL,'Ready',1,1608,558,12);
+INSERT INTO private.fin02_verified_quote_lines_lab(
+comparison_id,option,sort_order,item_code,item_name,line_type,qty,unit_price,
+frequency,gross_total,discount_amount,net_total,recurring,discount_renews,
+pricing_rule_code,pricing_rule_version,approved_override_id)
+SELECT '00000000-0000-4000-8000-000000000579',option,sort_order,item_code,item_name,
+line_type,qty,unit_price,frequency,gross_total,discount_amount,net_total,recurring,
+discount_renews,pricing_rule_code,pricing_rule_version,approved_override_id
+FROM private.fin02_verified_quote_lines_lab
+WHERE comparison_id='00000000-0000-4000-8000-000000000571' AND option='keepit';
+
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true);
 RESET ROLE;
@@ -77,6 +98,36 @@ BEGIN
  EXCEPTION WHEN check_violation THEN _failed:=SQLERRM LIKE 'FIN02_SELECTED_OPTION_NOT_FROZEN%'; END;
  IF NOT _failed THEN RAISE EXCEPTION 'FIN02_PRE_FREEZE_AWARD_NOT_BLOCKED'; END IF;
 END $before_freeze$;
+SET LOCAL ROLE authenticated;
+
+-- Wrong partner/actor cannot freeze. On partial price book (missing
+-- UseIT), the already-written KeepIT snapshot must be rolled back.
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000999',true);
+DO $unauthorized$
+DECLARE _denied boolean:=false;
+BEGIN
+ BEGIN
+  PERFORM public.fin02_freeze_compared_options_lab('00000000-0000-4000-8000-000000000571');
+ EXCEPTION WHEN insufficient_privilege THEN _denied:=true; END;
+ IF NOT _denied THEN RAISE EXCEPTION 'FIN02_UNRELATED_ACTOR_COULD_FREEZE_PRICES'; END IF;
+END $unauthorized$;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000003',true);
+DO $missing_second$
+DECLARE _failed boolean:=false;
+BEGIN
+ BEGIN
+  PERFORM public.fin02_freeze_compared_options_lab('00000000-0000-4000-8000-000000000579');
+ EXCEPTION WHEN check_violation THEN
+  _failed:=SQLERRM LIKE 'FIN02_VERIFIED_OPTION_INVALID_OR_MISSING_useit%'; END;
+ IF NOT _failed THEN RAISE EXCEPTION 'FIN02_MISSING_SECOND_ALTERNATIVE_WAS_FROZEN'; END IF;
+END $missing_second$;
+RESET ROLE;
+DO $missing_pair_assert$
+BEGIN
+ IF EXISTS(SELECT 1 FROM private.fin02_frozen_option_lab
+           WHERE comparison_id='00000000-0000-4000-8000-000000000579')
+ THEN RAISE EXCEPTION 'FIN02_PARTIAL_KEEPIT_PAIR_COMMITTED_AFTER_USEIT_FAILURE'; END IF;
+END $missing_pair_assert$;
 SET LOCAL ROLE authenticated;
 
 -- One authorized database call freezes BOTH alternatives at same Ready revision.
