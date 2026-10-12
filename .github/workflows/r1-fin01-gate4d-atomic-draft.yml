@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "tests/sql/fin02/gate4d_business_draft_*.sql"
+      - "tests/sql/fin02/gate4d_business_draft_*.sh"
       - ".github/workflows/r1-fin01-gate4d-atomic-draft.yml"
   workflow_dispatch:
 permissions:
@@ -54,3 +55,5 @@ jobs:
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_business_draft_atomic_candidate.sql
       - name: Run security, financial, idempotent-safe and forced failure SQL tests
         run: psql -X -v ON_ERROR_STOP=1 -f tests/sql/fin02/gate4d_business_draft_atomic_assertions.sql
+      - name: Two real concurrent SQL writers must serialize and reject stale-version loser
+        run: bash tests/sql/fin02/gate4d_business_draft_two_writer_race.sh
