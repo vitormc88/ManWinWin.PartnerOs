@@ -8,9 +8,9 @@
  *
  * The server must fetch its OWN active pricing_rules and immutable revisions.
  */
-import type { PricingRule, ProposalLicenseModel } from "@/types/proposal";
-import type { BusinessConfig } from "./proposal-business-engine";
-import { requiredBusinessRuleCodes } from "./proposal-business-readiness";
+import type { PricingRule, ProposalLicenseModel } from "../types/proposal.ts";
+import type { BusinessConfig } from "./proposal-business-engine.ts";
+import { requiredBusinessRuleCodes } from "./proposal-business-readiness.ts";
 
 export type BusinessSourceGap =
   | "SOURCE_RULE_MISSING_OR_INACTIVE"
