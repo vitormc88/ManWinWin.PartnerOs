@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "tests/sql/fin02/gate3_*.sql"
+      - "tests/sql/fin02/gate4_*.sh"
       - "tests/sql/fin02/release_*.sql"
       - "tests/sql/fin02/release_*.sh"
       - "tests/sql/fin02/rollbacks/*.sql"
@@ -127,6 +128,8 @@ jobs:
              GROUP BY revenue_type ORDER BY revenue_type;"
       - name: Capture source-exact migration policy and ledger function fingerprints for rollback
         run: psql -X -At -v ON_ERROR_STOP=1 -f tests/sql/fin02/release_patch_fingerprints.sql
+      - name: Gate4 SYNTHETIC-only PostgreSQL 17 custom backup and fresh restore rehearsal
+        run: bash tests/sql/fin02/gate4_synthetic_backup_restore_drill.sh
       - name: Exercise FOUR independently guarded rollback scripts, reverse order
         run: |
           set -euo pipefail
