@@ -66,7 +66,7 @@ SELECT jsonb_build_object(
   AND NOT is_override),
  'expected',(SELECT expected_value FROM public.deals WHERE id='00000000-0000-4000-8000-000000000101')
 ) AS debug_fictional_only;
-DO $
+DO $$
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.proposals p
    WHERE id='00000000-0000-4000-8000-000000000911'
