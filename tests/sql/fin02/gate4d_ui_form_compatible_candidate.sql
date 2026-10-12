@@ -147,7 +147,7 @@ BEGIN
  -- 2026-10-12 UI line metadata on those same sort_order rows.
  UPDATE public.proposal_items i SET
     description = j.description,
-    is_override = pg_catalog.coalesce(j.is_override,false),
+    is_override = coalesce(j.is_override,false),
     pricing_rule_code = j.pricing_rule_code,
     pricing_rule_id = j.pricing_rule_id,
     source_plan = j.source_plan,
