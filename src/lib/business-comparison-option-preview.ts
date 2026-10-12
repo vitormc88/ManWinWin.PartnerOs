@@ -56,8 +56,17 @@ function projectOption(option: BusinessOptionTotals, mode: "keepit" | "useit"): 
   const rows = buildBusinessProposalItemRows(option);
   assertBusinessProposalTotals(rows,option);
   const totals = businessPersistedTotals(rows);
-  if (!rows.length || new Set(rows.map(row => row.item_code)).size !== rows.length) {
-    throw new Error("FIN02_DUPLICATE_OR_MISSING_PRICE_RULE");
+  // Multiple legitimately negotiated Custom Services share the engine code
+  // "custom", but each is a distinct commercial line (different sort_order).
+  // Reject repeated catalogue codes; never collapse or overwrite custom rows.
+  const distinctCatalogCodes = new Set<string>();
+  for (const row of rows) {
+    const code = row.item_code || "";
+    if (!code || (code === "custom" && row.category !== "service") ||
+        (code !== "custom" && distinctCatalogCodes.has(code))) {
+      throw new Error("FIN02_DUPLICATE_OR_MISSING_PRICE_RULE");
+    }
+    if (code !== "custom") distinctCatalogCodes.add(code);
   }
   const lines: ComparableOptionLine[] = rows.map((row,i) => ({
     sort_order: i,
