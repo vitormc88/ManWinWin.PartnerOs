@@ -171,3 +171,53 @@ BEGIN
 END $$;
 RESET ROLE;
 SELECT 'FIN01 Gate4D v2 PASS — full UI header/line field preservation, compare draft, linked client, RLS and forbidden lifecycle mutation' AS result;
+
+-- Negative after-the-last-step failure: Deal expected_value update is made
+-- AFTER header and all item writes. Its failure must undo the entire request.
+CREATE FUNCTION public.gate4d_fail_deal_expected_value() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+ IF current_setting('gate4d.fail_deal_expected',true)='on' THEN
+   RAISE EXCEPTION 'GATE4D_TEST_ONLY_DEAL_EXPECTED_FAILURE' USING ERRCODE='P0001';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER gate4d_fail_deal_expected_value
+ BEFORE UPDATE OF expected_value ON public.deals FOR EACH ROW
+ EXECUTE FUNCTION public.gate4d_fail_deal_expected_value();
+
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000301',false);
+DO $$
+DECLARE
+ _before jsonb;
+ _after jsonb;
+ _stamp timestamptz;
+ _blocked boolean := false;
+BEGIN
+ SELECT updated_at INTO _stamp FROM public.proposals
+ WHERE id='00000000-0000-4000-8000-000000000911';
+ SELECT jsonb_build_object(
+   'header',(SELECT to_jsonb(p) FROM public.proposals p WHERE id='00000000-0000-4000-8000-000000000911'),
+   'items',(SELECT jsonb_agg(to_jsonb(i) ORDER BY sort_order) FROM public.proposal_items i WHERE proposal_id='00000000-0000-4000-8000-000000000911'),
+   'deal',(SELECT expected_value FROM public.deals WHERE id='00000000-0000-4000-8000-000000000101'))
+ INTO _before;
+ BEGIN
+   PERFORM set_config('gate4d.fail_deal_expected','on',true);
+   PERFORM public.save_business_draft_form_candidate(
+    '00000000-0000-4000-8000-000000000911',_stamp,
+    public.gate4d_ui_payload('keepit_only') ||
+      '{"notes":"THIS MUST NOT SURVIVE FAILED DEAL UPDATE"}'::jsonb,
+    public.gate4d_ui_items(false));
+ EXCEPTION WHEN SQLSTATE 'P0001' THEN _blocked:=true;
+ END;
+ SELECT jsonb_build_object(
+   'header',(SELECT to_jsonb(p) FROM public.proposals p WHERE id='00000000-0000-4000-8000-000000000911'),
+   'items',(SELECT jsonb_agg(to_jsonb(i) ORDER BY sort_order) FROM public.proposal_items i WHERE proposal_id='00000000-0000-4000-8000-000000000911'),
+   'deal',(SELECT expected_value FROM public.deals WHERE id='00000000-0000-4000-8000-000000000101'))
+ INTO _after;
+ IF NOT _blocked OR _before IS DISTINCT FROM _after
+ THEN RAISE EXCEPTION 'DEAL_EXPECTED_WRITE_FAILURE_LEFT_PARTIAL_HEADER_OR_ITEMS'; END IF;
+END $$;
+RESET ROLE;
+SELECT 'FIN01 Gate4D v2 PASS — final-step Deal value failure rolls back whole previous Draft and item set' AS result;
