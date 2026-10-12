@@ -91,6 +91,22 @@ describe("FIN02 Gate5C comparison display preparation (NOT a server pricing auth
     expect(untrusted.keepit.lines.find(l=>l.item_code==="SAT")?.gross_total).toBe(70);
   });
 
+  it("preserves two independently negotiated custom service rows without merging by catalogue code",()=>{
+    const keepit = option("keepit", true);
+    keepit.services = [
+      ...keepit.services,
+      {...line("custom",120,0,false,false,"service"),label:"Custom installation A"},
+      {...line("custom",200,0,false,false,"service"),label:"Custom data migration B"},
+    ];
+    keepit.totalYear1 += 320;
+    const preview = prepareBusinessComparisonPreview({keepit,useit:option("useit")});
+    const custom = preview.keepit.lines.filter(row=>row.item_code==="custom");
+    expect(custom.map(row=>row.item_name)).toEqual(["Custom installation A","Custom data migration B"]);
+    expect(custom.map(row=>row.net_total)).toEqual([120,200]);
+    expect(custom[0].sort_order).not.toBe(custom[1].sort_order);
+    expect(preview.keepit.total_year_1).toBe(1928);
+  });
+
   it("rejects missing unique price line identifiers and invalid extra renewal flags",()=>{
     const dup=option("keepit",true);
     dup.software[1]={...dup.software[1],code:"CORE"};
