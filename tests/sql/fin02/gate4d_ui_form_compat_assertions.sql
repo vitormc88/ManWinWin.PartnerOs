@@ -52,7 +52,21 @@ SELECT set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000301'
 SELECT public.save_business_draft_form_candidate(
  '00000000-0000-4000-8000-000000000911',NULL,
  public.gate4d_ui_payload(),public.gate4d_ui_items(false));
-DO $$
+SELECT jsonb_build_object(
+ 'header',(SELECT jsonb_build_object(
+ 'mode',proposal_mode,'model',license_model,'version',version,'language',language,
+ 'lead_match',(lead_id=deal_id),'creator_match',(created_by=auth.uid()),
+ 'project',project_name,'validity',validity_days,'payment',payment_terms,
+ 'include_requests',include_requests_module,'web_users',web_users)
+ FROM public.proposals WHERE id='00000000-0000-4000-8000-000000000911'),
+ 'items',(SELECT count(*) FROM public.proposal_items WHERE proposal_id='00000000-0000-4000-8000-000000000911'),
+ 'priced_source',(SELECT count(*) FROM public.proposal_items
+  WHERE proposal_id='00000000-0000-4000-8000-000000000911'
+  AND pricing_rule_code='SYNTHETIC_RULE' AND description='Synthetic priced line'
+  AND NOT is_override),
+ 'expected',(SELECT expected_value FROM public.deals WHERE id='00000000-0000-4000-8000-000000000101')
+) AS debug_fictional_only;
+DO $
 BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.proposals p
    WHERE id='00000000-0000-4000-8000-000000000911'
