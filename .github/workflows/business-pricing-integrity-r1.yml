@@ -11,6 +11,7 @@ on:
       - "src/lib/__tests__/award-financial-integrity.test.ts"
       - "src/lib/lifecycle-engine.ts"
       - "src/lib/__tests__/proposal-business-persistence.test.ts"
+      - "src/lib/__tests__/r1-pricing-to-award-seam.test.ts"
       - ".github/workflows/business-pricing-integrity-r1.yml"
   workflow_dispatch:
 
@@ -30,6 +31,8 @@ jobs:
         run: npm test -- src/lib/__tests__/proposal-business-persistence.test.ts
       - name: FIN02 award integrity tests
         run: npm test -- src/lib/__tests__/award-financial-integrity.test.ts
+      - name: FIN01 to FIN02 saved pricing/award R1 seam
+        run: npm test -- src/lib/__tests__/r1-pricing-to-award-seam.test.ts
       - name: FIN02 renewal price and legacy regression tests
         run: npm test -- src/lib/__tests__/renewal-baseline.test.ts
       - name: TypeScript check
