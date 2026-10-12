@@ -177,6 +177,6 @@ BEGIN
  RETURN public.fin02_freeze_compared_options_lab(_comparison);
 END $fn$;
 REVOKE ALL ON FUNCTION public.fin02_authorize_and_freeze_lab(uuid)
- FROM PUBLIC,anon,service_role;
+ FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.fin02_authorize_and_freeze_lab(uuid)
  TO authenticated;
