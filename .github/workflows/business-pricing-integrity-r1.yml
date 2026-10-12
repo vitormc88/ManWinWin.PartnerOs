@@ -6,6 +6,12 @@ on:
       - "src/lib/proposal-business-*"
       - "src/lib/business-comparison-option-preview.ts"
       - "src/lib/business-pricing-source-coverage.ts"
+      - "src/lib/fin02-server-business-quote.ts"
+      - "src/lib/__tests__/fin02-server-business-quote.test.ts"
+      - "src/lib/proposal-business-engine.ts"
+      - "src/lib/proposal-business-readiness.ts"
+      - "src/lib/proposal-business-persistence.ts"
+      - "supabase/functions/fin02-business-quote/**"
       - "src/lib/__tests__/business-pricing-source-coverage.test.ts"
       - "src/lib/__tests__/business-comparison-option-preview.test.ts"
       - "src/lib/award-financial-integrity.ts"
@@ -43,5 +49,14 @@ jobs:
         run: npm test -- src/lib/__tests__/business-pricing-source-coverage.test.ts
       - name: FIN02 renewal price and legacy regression tests
         run: npm test -- src/lib/__tests__/renewal-baseline.test.ts
+      - name: FIN02 Gate6B shared real Business engine server parity and strict authorization
+        run: npm test -- src/lib/__tests__/fin02-server-business-quote.test.ts
+      - name: Gate6B Edge candidate imports real Business engine successfully (build only, NO deployment)
+        run: |
+          ./node_modules/.bin/esbuild supabase/functions/fin02-business-quote/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:https://esm.sh/* --outfile=/tmp/fin02-quote-edge-bundle.js
+          test -s /tmp/fin02-quote-edge-bundle.js
+          ! grep -q 'SUPABASE_SERVICE_ROLE_KEY' supabase/functions/fin02-business-quote/index.ts
+          grep -q 'FIN02_SERVER_PREVIEW_ENABLED' supabase/functions/fin02-business-quote/index.ts
+          grep -q 'can_manage_deal' supabase/functions/fin02-business-quote/index.ts
       - name: TypeScript check
         run: npx tsc --noEmit -p tsconfig.app.json
