@@ -47,7 +47,7 @@ export function parseServerBusinessConfig(value: unknown): BusinessConfig {
   }
   if (!finite(value.additionalBackoffice,0,100000,true) ||
       !finite(value.additionalWebUsers,0,100000,true) ||
-      (value.deployment !== "saas" && value.deployment !== "onprem")) {
+      (value.deployment !== "saas" && value.deployment !== "on_premise")) {
     throw new Fin02QuoteError("FIN02_INVALID_QUOTE_QUANTITY_OR_DEPLOYMENT");
   }
   const impl=value.implementation;
