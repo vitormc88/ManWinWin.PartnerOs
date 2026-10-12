@@ -1,0 +1,28 @@
+name: Business pricing integrity R1
+on:
+  pull_request:
+    paths:
+      - "src/components/proposals/CreateProposalDialog.tsx"
+      - "src/lib/proposal-business-*"
+      - "src/lib/__tests__/proposal-business-persistence.test.ts"
+      - ".github/workflows/business-pricing-integrity-r1.yml"
+  workflow_dispatch:
+
+jobs:
+  financial-regression:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: R1 financial persistence tests
+        run: npm test -- src/lib/__tests__/proposal-business-persistence.test.ts
+      - name: TypeScript check
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Build current PartnerOS UI (no deploy)
+        run: npm run build
