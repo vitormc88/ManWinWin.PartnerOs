@@ -5,6 +5,8 @@ on:
       - "src/components/proposals/CreateProposalDialog.tsx"
       - "src/lib/proposal-business-*"
       - "src/lib/business-comparison-option-preview.ts"
+      - "src/lib/business-pricing-source-coverage.ts"
+      - "src/lib/__tests__/business-pricing-source-coverage.test.ts"
       - "src/lib/__tests__/business-comparison-option-preview.test.ts"
       - "src/lib/award-financial-integrity.ts"
       - "src/lib/renewal-baseline.ts"
@@ -37,6 +39,8 @@ jobs:
         run: npm test -- src/lib/__tests__/r1-pricing-to-award-seam.test.ts
       - name: FIN02 Gate5C two-alternative deterministic UI preview and negative tests
         run: npm test -- src/lib/__tests__/business-comparison-option-preview.test.ts
+      - name: FIN02 source parity required pricing rules and unapproved Onsite/Custom safeguards
+        run: npm test -- src/lib/__tests__/business-pricing-source-coverage.test.ts
       - name: FIN02 renewal price and legacy regression tests
         run: npm test -- src/lib/__tests__/renewal-baseline.test.ts
       - name: TypeScript check
