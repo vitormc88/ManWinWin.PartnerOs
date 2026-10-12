@@ -44,3 +44,14 @@ Open independently of this release: FIN-03 immutable official document evidence;
 2. Run read-only full inventory, migration-ledger preflight, authentic role/API and trigger integration in that clone; demonstrate restore from backup.
 3. Resolve accounting semantics and security business-signoff, and document any drift or compatibility exception.
 4. Only then request **separate explicit approval** for installation in real TEST, never PROD.
+
+---
+
+## Gate 4A update — 12 October 2026 (real read-only TEST + synthetic recovery)
+**NO CHANGE to release decision: still NO-GO for real TEST.** The isolated Gate 3 four-migration tests are complete, and follow-on work added:
+- [Versioned 38-check READ-ONLY live TEST catalog preflight](../../tests/sql/fin02/gate4_live_test_catalog_preflight.sql), actually executed via Lovable database metadata query: **38/38 PASS, 0 drift**. Current TEST still has 107 public tables, 344 public policies, 94 public non-internal triggers, 175 public functions and 176 recorded migration entries. All 327 finance-column shapes, eleven original finance RLS policies, eight original financial function hashes match their pre-FIN02 baseline. FIN-02 patches not installed.
+- [PostgreSQL 17 **synthetic-only** backup/custom archive/fresh-database restore drill](../../tests/sql/fin02/gate4_synthetic_backup_restore_drill.sh) passed with ledger/fingerprint parity in [CI run #38220869551](https://github.com/vitormc88/ManWinWin.PartnerOs/actions/runs/38220869551), code SHA `f597aa43182d`. This does **not** prove a real TEST database restore.
+- **New integration dependency:** actual TEST `public.clients` has Customer Explorer statement-level sync trigger into `private.sync_customer_explorer_directory()`. It can mark Explorer rollout `off` after a handled refresh error; no failure observed, but original cross-domain behavior is outside synthetic Gate 3. Tracked [#40](https://github.com/vitormc88/ManWinWin.PartnerOs/issues/40).
+- **Full TEST clone remains unavailable:** connected Supabase dashboard access exposes PROD but not TEST; Lovable TEST SQL query is metadata read-only and not a pg_dump/restore channel. Historical migration-only replay cannot faithfully rebuild Academy app data. Tracked [#39](https://github.com/vitormc88/ManWinWin.PartnerOs/issues/39). Need authorized, isolated source-faithful TEST schema recovery, roles/grants and technical migration ledger before Gate 4B execution.
+
+[Full Gate 4 receipt and private-clone handoff](fin02-gate4-real-test-inspection-and-private-clone-hold-20261012.md). Neither real TEST nor PROD has been modified, and no merge/deploy/Lovable message was performed.
