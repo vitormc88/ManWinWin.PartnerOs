@@ -24,7 +24,7 @@
 | public indexes | 294 |
 | recorded Supabase schema migrations | 176 |
 
-Other actual schema dependencies (separate from public): `private` four tables and 17 functions; `auth` 27 tables, `storage` eight tables/20 policies, `cron` two tables and seven policies? **Correct actual cron value is 2 policies**; `net` two tables/12 functions. See source inspection below for authoritative numbers. Count of only public objects cannot constitute full TEST parity.
+Other actual schema dependencies (separate from public): `private` four tables and 17 functions; `auth` 27 tables; `storage` eight tables, 20 policies and seven triggers; `cron` two tables and two policies; `net` two tables and 12 functions. Count of only public objects cannot constitute full TEST parity.
 
 ### Live catalog fingerprint manifest — metadata only
 | Inventory scope | Count | MD5 signature |
