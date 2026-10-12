@@ -1,0 +1,53 @@
+name: OPS01 Gate4C Async Explorer Queue LAB
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ops01-gate4c-async-explorer-lab.yml"
+      - "tests/sql/fin02/gate4c_explorer_async_*.sql"
+      - "tests/sql/fin02/gate4c_explorer_async_*.sh"
+      - "tests/sql/fin02/gate4b_explorer_actual_source_refresh.sql"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  disposable-pg17:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      pg:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-only
+          POSTGRES_DB: gate4c_async_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d gate4c_async_lab"
+          --health-interval 4s
+          --health-timeout 4s
+          --health-retries 15
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGDATABASE: gate4c_async_lab
+      PGPASSWORD: synthetic-only
+      SUPABASE_ACCESS_TOKEN: ""
+      SUPABASE_DB_PASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+      - name: Prove disposable-only DB, no backup/secret/live connection
+        run: |
+          set -euo pipefail
+          test -z "$SUPABASE_ACCESS_TOKEN"
+          test -z "$SUPABASE_DB_PASSWORD"
+          test ! -f supabase/.temp/project-ref
+          ! find . \( -name '*.backup' -o -name '*.pgcustom' \) | grep -q .
+          echo "Only disposable PostgreSQL 17 and synthetic client data; no connected TEST/PROD or cron/email."
+      - name: Transactional queue and real TEST refresh, concurrency and recovery
+        run: bash tests/sql/fin02/gate4c_explorer_async_lab.sh
