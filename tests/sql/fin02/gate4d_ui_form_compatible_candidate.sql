@@ -137,6 +137,7 @@ BEGIN
     implementation_justification = _next.implementation_justification,
     contract_id = _next.contract_id,
     license_id = _next.license_id,
+    lead_id = CASE WHEN _source='deal' THEN _deal ELSE NULL::uuid END,
     version = CASE WHEN _created THEN _next.version ELSE _orig.version END,
     proposal_mode = _mode,
     updated_at = pg_catalog.clock_timestamp()
@@ -146,7 +147,7 @@ BEGIN
  -- 2026-10-12 UI line metadata on those same sort_order rows.
  UPDATE public.proposal_items i SET
     description = j.description,
-    is_override = j.is_override,
+    is_override = pg_catalog.coalesce(j.is_override,false),
     pricing_rule_code = j.pricing_rule_code,
     pricing_rule_id = j.pricing_rule_id,
     source_plan = j.source_plan,
