@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1979,11 +1979,9 @@ export type Database = {
           id: string
           line_type: string
           notes: string | null
-          pricing_snapshot: Json | null
           related_license_id: string | null
           related_module_id: string | null
           related_plugin_id: string | null
-          renewal_amount: number | null
           source: string
           source_item_id: string | null
           start_date: string | null
@@ -2001,11 +1999,9 @@ export type Database = {
           id?: string
           line_type: string
           notes?: string | null
-          pricing_snapshot?: Json | null
           related_license_id?: string | null
           related_module_id?: string | null
           related_plugin_id?: string | null
-          renewal_amount?: number | null
           source?: string
           source_item_id?: string | null
           start_date?: string | null
@@ -2023,11 +2019,9 @@ export type Database = {
           id?: string
           line_type?: string
           notes?: string | null
-          pricing_snapshot?: Json | null
           related_license_id?: string | null
           related_module_id?: string | null
           related_plugin_id?: string | null
-          renewal_amount?: number | null
           source?: string
           source_item_id?: string | null
           start_date?: string | null
@@ -8347,10 +8341,6 @@ export type Database = {
         }
         Returns: Json
       }
-      convert_target_account_to_lead: {
-        Args: { _account_id: string; _notes?: string }
-        Returns: string
-      }
       customer_explorer_access: { Args: never; Returns: Json }
       customer_explorer_configure: {
         Args: { new_mode: string; pilot_ids?: string[] }
@@ -8369,10 +8359,6 @@ export type Database = {
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
-      }
-      fin02_assert_business_award: {
-        Args: { _contract_lines: Json; _license: Json; _proposal_id: string }
-        Returns: undefined
       }
       generate_partner_code: {
         Args: { _company_name: string; _country_code: string }
@@ -8588,10 +8574,6 @@ export type Database = {
           target_user_id?: string
         }
         Returns: Json
-      }
-      promote_lead_to_deal: {
-        Args: { _deal: Json; _lead_id: string; _override?: Json }
-        Returns: string
       }
       proposal_contract_recurring: {
         Args: { _proposal_id: string }
