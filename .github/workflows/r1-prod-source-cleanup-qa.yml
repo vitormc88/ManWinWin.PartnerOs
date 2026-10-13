@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   candidate-merged-tree:
-    name: Verify unintended Drizzle scaffold gone and PR49 preserved
+    name: Verify Lovable scaffold gone; PR49 and PR51 preserved
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
@@ -37,6 +37,10 @@ jobs:
           test -f src/components/BrandMark.tsx
           test -f src/components/BrandMark.test.tsx
           test -f src/pages/Auth.tsx
+          # PR51: transparent vector for static branding + favicon must survive the merge.
+          test -f public/partneros-mark.svg
+          grep -Fq '/partneros-mark.svg?v=2' index.html
+          grep -Fq '"/partneros-mark.svg"' src/components/BrandMark.tsx
           test -f tests/sql/fin02/fin02_test_dual_journal_preflight.sql
           test -f tests/sql/fin02/fin02_test_dual_journal_postflight.sql
           python3 - <<'PY'
@@ -46,7 +50,7 @@ jobs:
           deps={**package.get("dependencies",{}),**package.get("devDependencies",{})}
           unexpected={"drizzle-kit","drizzle-orm","postgres"}&deps.keys()
           assert not unexpected, f"Unexpected Lovable migration tool dependencies: {unexpected}"
-          print("PASS: Unrequested Lovable scaffold removed; PR49 brand files remain")
+          print("PASS: Unrequested Lovable scaffold removed; PR49 loading and PR51 transparent branding retained")
           PY
   frontend-regression:
     name: TypeScript, auth brand regression and Vite build
