@@ -15,6 +15,13 @@
       "when": 1791904233761,
       "tag": "0001_fin02_sec36_canonical_partner_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791904257294,
+      "tag": "0002_fin02_sec38_financial_write_policy",
+      "breakpoints": true
     }
   ]
 }
