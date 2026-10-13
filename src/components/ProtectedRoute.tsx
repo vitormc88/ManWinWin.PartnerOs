@@ -8,7 +8,10 @@ import { useExplorerAccess } from '@/hooks/useExplorerAccess';
 
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center bg-background">
-    <BrandMark className="h-12 w-12" />
+    <div role="status" aria-live="polite">
+      <BrandMark animated className="h-12 w-12" />
+      <span className="sr-only">Loading PartnerOS…</span>
+    </div>
   </div>
 );
 

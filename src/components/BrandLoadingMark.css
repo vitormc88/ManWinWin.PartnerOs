@@ -1,0 +1,30 @@
+.partneros-loading-mark {
+  overflow: visible;
+  --partneros-orbit-outer: #263544;
+  --partneros-orbit-inner: #7d8797;
+}
+.dark .partneros-loading-mark,
+.partneros-loading-mark--reverse {
+  --partneros-orbit-outer: #f5f7f8;
+  --partneros-orbit-inner: #aeb7c0;
+}
+.partneros-loading-outer { fill: var(--partneros-orbit-outer); }
+.partneros-loading-inner { fill: var(--partneros-orbit-inner); }
+.partneros-loading-red { fill: #e30719; }
+.partneros-loading-orbit,
+.partneros-loading-counter,
+.partneros-loading-core {
+  transform-box: view-box;
+  transform-origin: 627px 627px;
+}
+.partneros-loading-orbit { animation: partneros-orbit 6s linear infinite; }
+.partneros-loading-counter { animation: partneros-counter 8.4s linear infinite; }
+.partneros-loading-core { animation: partneros-pulse 2.4s ease-in-out infinite; }
+@keyframes partneros-orbit { to { transform: rotate(360deg); } }
+@keyframes partneros-counter { to { transform: rotate(-360deg); } }
+@keyframes partneros-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.09); } }
+@media (prefers-reduced-motion: reduce) {
+  .partneros-loading-orbit,
+  .partneros-loading-counter,
+  .partneros-loading-core { animation: none; transform: none; }
+}
