@@ -39,7 +39,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'TEST_ONLY' && github.ref == 'refs/heads/main' }}
     needs: source-and-contract
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 22
     env:
       GATE3_QA_TEST_ONLY_ACK: TEST_ONLY
       GATE3_TEST_SUPABASE_URL: https://avxxzmoayxzrykwqzoqn.supabase.co
@@ -59,3 +59,17 @@ jobs:
       - run: npm ci
       - name: Authenticate three dedicated QA users and assert RLS isolation
         run: node qa/gate3/authenticated-readonly.mjs
+      - name: Install headless Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Serve TEST-only PartnerOS frontend on localhost
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/gate3-vite.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:4173/auth; then exit 0; fi
+            sleep 2
+          done
+          echo "BLOCKED: localhost TEST frontend failed to start"
+          exit 1
+      - name: Verify three genuine browser sessions and protected Clients page
+        run: npx playwright test qa/gate3/browser-login.spec.mjs --reporter=line --workers=1 --retries=0
