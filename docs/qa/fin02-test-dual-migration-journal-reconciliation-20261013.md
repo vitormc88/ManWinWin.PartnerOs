@@ -1,3 +1,15 @@
+> **STATUS UPDATE — 13 October 2026: TEST LEDGER RECONCILIATION COMPLETED.** This document records both the original diagnostic and the now-completed authorized metadata-only repair. The original numbered instructions below are retained as historical release planning, **not** as pending work. Do not rerun the reconciliation installer: all five FIN02-related versions are now stamped in TEST.
+>
+> Executed only through Lovable-linked TEST database project `09e44188-ec64-4ec3-8add-b3b54882408c` after verifying original GitHub blob SHA for SEC35/36/38 and all 11 live policy fingerprints. The transaction-guarded source is `tests/sql/fin02/ops/sec35_sec36_sec38_test_ledger_reconcile_DO_NOT_AUTODEPLOY.sql` on [Draft PR #50](https://github.com/vitormc88/ManWinWin.PartnerOs/pull/50); first executed identically with `ROLLBACK` and independently proved no target-version rows persisted; only then committed `INSERT` of three `supabase_migrations.schema_migrations` metadata rows. No `ALTER POLICY`, no business data writes, no extra migrations or Lovable agent credits.
+>
+> **Independent postflight:** `tests/sql/fin02/fin02_test_dual_journal_postflight.sql` reported all TRUE: 11/11 installed policy fingerprints, three exact original SQL archive MD5 values, 3/3 native Drizzle rows, 5/5 financial source versions in Supabase (FIN02, SEC35, SEC36, SEC37, SEC38), 4/4 protected tables RLS, both expected financial triggers enabled, 130 existing contract lines and 5 revenue history rows unchanged. Original GitHub source full-byte equality independently validated after commit (SEC35 2956 bytes, SEC36 3004, SEC38 3692).
+>
+> **Remaining migration governance:** choose ONE owner for future schema rollouts and preserve a searchable mapping between Supabase canonical source and Lovable Drizzle journal. Never replay SEC35/36/38 (or SEC37). A future Lovable migration must retain existing Drizzle journal and its original version chain, even after PR #50 reverts unrequested generated application scaffolding from main.
+>
+> **Concurrent change observation:** during this follow-up, PR #49 ("Animate PartnerOS mark during app and sign-in loading") merged into main as `87a0cbca1a99bbe0cdb3dfd16c94a7ffe79e6fed`, leading to a new READY production Vercel deployment. This is an external code change, not part of the ledger reconciliation; do not overwrite or rollback PR #49 without separate authorization. PR #50 must preserve its content when eventually merged and only reverse the unrequested Lovable Drizzle application-scaffold changes.
+>
+---
+
 # FIN02 R1 — TEST dual migration journal reconciliation (13 Oct 2026)
 
 ## Scope and confirmed evidence
