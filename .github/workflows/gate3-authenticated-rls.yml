@@ -1,0 +1,61 @@
+# PRs run ONLY offline validation. Auth credentials never enter PR jobs.
+# Real signed-session QA is manually dispatched from reviewed main only.
+name: PartnerOS Gate 3 TEST signed-JWT isolation
+
+on:
+  pull_request:
+    paths:
+      - 'qa/gate3/**'
+      - '.github/workflows/gate3-authenticated-rls.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Confirm TEST-only signed QA login'
+        required: true
+        type: choice
+        options: [CANCEL, TEST_ONLY]
+        default: CANCEL
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-contract:
+    name: Fail-closed TEST/JWT contract (offline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node --test qa/gate3/contract.test.mjs
+      - run: node --check qa/gate3/authenticated-readonly.mjs
+
+  actual-test-jwts:
+    name: Real JWT and read-only RLS in Supabase TEST
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.confirm == 'TEST_ONLY' && github.ref == 'refs/heads/main' }}
+    needs: source-and-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GATE3_QA_TEST_ONLY_ACK: TEST_ONLY
+      GATE3_TEST_SUPABASE_URL: https://avxxzmoayxzrykwqzoqn.supabase.co
+      GATE3_TEST_SUPABASE_ANON_KEY: ${{ secrets.GATE3_TEST_SUPABASE_ANON_KEY }}
+      GATE3_QA_SALES_EMAIL: ${{ secrets.GATE3_QA_SALES_EMAIL }}
+      GATE3_QA_SALES_PASSWORD: ${{ secrets.GATE3_QA_SALES_PASSWORD }}
+      GATE3_QA_ADMIN_EMAIL: ${{ secrets.GATE3_QA_ADMIN_EMAIL }}
+      GATE3_QA_ADMIN_PASSWORD: ${{ secrets.GATE3_QA_ADMIN_PASSWORD }}
+      GATE3_QA_HQ_EMAIL: ${{ secrets.GATE3_QA_HQ_EMAIL }}
+      GATE3_QA_HQ_PASSWORD: ${{ secrets.GATE3_QA_HQ_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Authenticate three dedicated QA users and assert RLS isolation
+        run: node qa/gate3/authenticated-readonly.mjs
