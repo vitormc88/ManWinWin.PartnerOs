@@ -6,6 +6,18 @@ const css = readFileSync("src/components/BrandLoadingMark.css", "utf8");
 
 afterEach(cleanup);
 describe("PartnerOS loading mark", () => {
+  it("uses the transparent vector for normal and compatibility variants", () => {
+    const { rerender } = render(<BrandMark />);
+    expect(screen.getByRole("img", { name: "PartnerOS" })).toHaveAttribute("src", "/partneros-mark.svg");
+    rerender(<BrandMark transparent />);
+    expect(screen.getByRole("img", { name: "PartnerOS" })).toHaveAttribute("src", "/partneros-mark.svg");
+    const vector = readFileSync("public/partneros-mark.svg", "utf8");
+    expect(vector).not.toMatch(/<(rect|image)\b/);
+    expect(vector.match(/<path /g)).toHaveLength(4);
+    const html = readFileSync("index.html", "utf8");
+    expect(html).toContain('href="/partneros-mark.svg?v=2" type="image/svg+xml"');
+    expect(html).not.toContain('href="/favicon.png"');
+  });
   it("keeps existing navigation branding static by default", () => {
     render(<BrandMark transparent className="h-6 w-6" />);
     expect(screen.getByRole("img", { name: "PartnerOS" }).tagName).toBe("IMG");
@@ -32,3 +44,4 @@ describe("PartnerOS loading mark", () => {
     expect(css).toMatch(/@media[\s\S]*\.partneros-loading-orbit,[\s\S]*\.partneros-loading-counter,[\s\S]*\.partneros-loading-core\s*\{ animation: none; transform: none; \}/);
   });
 });
+

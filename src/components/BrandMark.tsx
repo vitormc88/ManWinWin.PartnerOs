@@ -1,17 +1,14 @@
-import symbol from "@/assets/partneros-symbol.png";
-import symbolTransparent from "@/assets/partneros-symbol-transparent.png";
 import symbolReverse from "@/assets/partneros-symbol-reverse.svg";
 import { cn } from "@/lib/utils";
 import { BrandLoadingMark } from "./BrandLoadingMark";
 
 export function BrandMark({
   className,
-  transparent = false,
   reverse = false,
   animated = false,
 }: {
   className?: string;
-  /** Transparent-background raster variant (light backgrounds). */
+  /** Compatibility option; the normal vector mark is always transparent. */
   transparent?: boolean;
   /** PartnerOS Reverse Mark — same geometry, recolored for dark backgrounds. */
   reverse?: boolean;
@@ -19,7 +16,7 @@ export function BrandMark({
   animated?: boolean;
 }) {
   if (animated) return <BrandLoadingMark className={className} reverse={reverse} />;
-  const src = reverse ? symbolReverse : transparent ? symbolTransparent : symbol;
+  const src = reverse ? symbolReverse : "/partneros-mark.svg";
   return (
     <img
       src={src}
@@ -32,3 +29,4 @@ export function BrandMark({
     />
   );
 }
+
