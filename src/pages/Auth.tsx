@@ -19,7 +19,10 @@ export default function Auth() {
   if (isLoading || !isAuthReady) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <BrandMark className="h-12 w-12" />
+        <div role="status" aria-live="polite">
+          <BrandMark animated className="h-12 w-12" />
+          <span className="sr-only">Loading PartnerOS…</span>
+        </div>
       </div>
     );
   }
@@ -66,7 +69,7 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <BrandMark className="h-14 w-14 mx-auto mb-4" />
+          <BrandMark animated={loading} className="h-14 w-14 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-foreground">PartnerOS</h1>
           <p className="text-sm text-muted-foreground mt-1 leading-snug">
             Powering Partners.
