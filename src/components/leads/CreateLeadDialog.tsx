@@ -9,6 +9,7 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { usePartners, usePartner } from "@/hooks/usePartners";
 import { usePartnerUsers } from "@/hooks/usePartnerUsers";
+import { useAssignableUsers } from "@/hooks/useAssignableUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -59,7 +60,10 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
   const [creating, setCreating] = useState(false);
   // HQ users pick from the partner list; partner users never load the full table.
   const { data: partners = [] } = usePartners(undefined, { enabled: isHQ });
-  const { data: partnerUsers = [] } = usePartnerUsers(form.partner_id || userPartnerId || null);
+  const selectedPartnerId = lockedPartnerId || userPartnerId || form.partner_id || null;
+  const isHQDirect = isHQ && !selectedPartnerId;
+  const { data: partnerUsers = [] } = usePartnerUsers(selectedPartnerId);
+  const { data: assignableUsers = [] } = useAssignableUsers();
   // Scoped single-partner read (RLS) — used only to derive the default country.
   const { data: linkedPartner } = usePartner(effectivePartnerId || undefined);
   const queryClient = useQueryClient();
@@ -72,7 +76,9 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
 
   // Ensure the authenticated user is always selectable as owner.
   const ownerOptions = (() => {
-    const list = [...partnerUsers];
+    const list = isHQDirect
+      ? assignableUsers.filter(u => u.is_hq)
+      : [...partnerUsers];
     if (profile?.id && !list.some(u => u.id === profile.id)) {
       list.unshift({ id: profile.id, full_name: profile.full_name, email: profile.email } as any);
     }
@@ -87,7 +93,7 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
         partner_id: effectivePartnerId,
         ...(applyPartnerDefaults
           ? { assigned_to: partnerDefaults.assignedUserId, country: partnerDefaults.country }
-          : {}),
+          : { assigned_to: profile?.id || "", lead_source: "" }),
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,6 +113,7 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
 
   const handleCreate = async () => {
     if (!form.company_name) { toast.error("Company Name is required"); return; }
+    if (!isHQ && !selectedPartnerId) { toast.error("An active partner membership is required"); return; }
     setCreating(true);
     try {
       const assignedUser = ownerOptions.find(u => u.id === form.assigned_to);
@@ -123,7 +130,8 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
         probability: getStageProbability("Open Lead"),
         assigned_user_id: assignedId,
         assigned_salesperson: assignedName,
-        lead_source: form.lead_source || "Partner (Outbound)",
+        // Acquisition source is independent of channel; don't invent inbound/outbound.
+        lead_source: form.lead_source || null,
         notes: form.notes || null,
         status: "Open",
         contact_email: form.contact_email || null,
@@ -154,7 +162,7 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
     } finally { setCreating(false); }
   };
 
-  const isPartnerLocked = !!lockedPartnerId || !!userPartnerId;
+  const isPartnerLocked = !isHQ || !!lockedPartnerId || !!userPartnerId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -173,11 +181,11 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
               </div>
             ) : (
               <div>
-                <Label>Linked Partner</Label>
-                <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({ ...f, partner_id: v === "none" ? "" : v, assigned_to: "" }))}>
+                <Label>Sales channel</Label>
+                <Select value={form.partner_id || "none"} onValueChange={v => setForm(f => ({ ...f, partner_id: v === "none" ? "" : v, assigned_to: v === "none" ? profile?.id || "" : "" }))}>
                   <SelectTrigger><SelectValue placeholder="Select partner" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">— None —</SelectItem>
+                    <SelectItem value="none">ManWinWin HQ — Direct sale</SelectItem>
                     {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -188,9 +196,9 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
               <Select
                 value={form.assigned_to || "none"}
                 onValueChange={v => setForm(f => ({ ...f, assigned_to: v === "none" ? "" : v }))}
-                disabled={!form.partner_id && !userPartnerId && !lockedPartnerId}
+                disabled={!isHQ && !selectedPartnerId}
               >
-                <SelectTrigger><SelectValue placeholder={!form.partner_id && !userPartnerId && !lockedPartnerId ? "Select a partner first" : "Select user"} /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— None —</SelectItem>
                   {ownerOptions.length === 0 && (form.partner_id || userPartnerId || lockedPartnerId) && (
@@ -214,7 +222,7 @@ export function CreateLeadDialog({ open, onOpenChange, lockedPartnerId, lockedPa
             <div>
               <Label>Lead Source</Label>
               <Select value={form.lead_source} onValueChange={v => setForm(f => ({ ...f, lead_source: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder="Select acquisition source (optional)" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Partner (Outbound)">Partner (Outbound)</SelectItem>
                   <SelectItem value="HQ (Inbound)">HQ (Inbound)</SelectItem>
