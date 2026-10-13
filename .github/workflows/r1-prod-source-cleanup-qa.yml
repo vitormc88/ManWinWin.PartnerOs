@@ -1,0 +1,68 @@
+# QA of candidate merge for R1 cleanup only. This workflow never deploys or
+# connects to TEST/PROD, and is not a substitute for a production release gate.
+name: R1 PROD source cleanup QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/r1-prod-source-cleanup-qa.yml'
+      - 'drizzle/**'
+      - 'drizzle.config.ts'
+      - 'package.json'
+      - 'bun.lock'
+      - 'src/**'
+      - 'tests/sql/fin02/**'
+      - 'docs/qa/fin02-test-dual-migration-journal-reconciliation-20261013.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-merged-tree:
+    name: Verify Lovable scaffold gone; PR49 and PR51 preserved
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check merged candidate tree without secrets or DB calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -f drizzle.config.ts
+          test ! -d drizzle/migrations
+          test ! -f drizzle/schema.ts
+          test -f src/components/BrandLoadingMark.tsx
+          test -f src/components/BrandLoadingMark.css
+          test -f src/components/BrandMark.tsx
+          test -f src/components/BrandMark.test.tsx
+          test -f src/pages/Auth.tsx
+          # PR51: transparent vector for static branding + favicon must survive the merge.
+          test -f public/partneros-mark.svg
+          grep -Fq '/partneros-mark.svg?v=2' index.html
+          grep -Fq '"/partneros-mark.svg"' src/components/BrandMark.tsx
+          test -f tests/sql/fin02/fin02_test_dual_journal_preflight.sql
+          test -f tests/sql/fin02/fin02_test_dual_journal_postflight.sql
+          python3 - <<'PY'
+          import json
+          with open("package.json", encoding="utf-8") as f:
+              package=json.load(f)
+          deps={**package.get("dependencies",{}),**package.get("devDependencies",{})}
+          unexpected={"drizzle-kit","drizzle-orm","postgres"}&deps.keys()
+          assert not unexpected, f"Unexpected Lovable migration tool dependencies: {unexpected}"
+          print("PASS: Unrequested Lovable scaffold removed; PR49 loading and PR51 transparent branding retained")
+          PY
+  frontend-regression:
+    name: TypeScript, auth brand regression and Vite build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit -p tsconfig.app.json
+      - run: npm test -- src/components/BrandMark.test.tsx
+      - run: npm run build
