@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791904208866,
+      "tag": "0000_fin02_sec35_clients_write_policy",
+      "breakpoints": true
+    }
+  ]
+}
