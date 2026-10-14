@@ -6,7 +6,7 @@ import type { ExplorerClient } from "@/lib/customer-explorer";
 const state=vi.hoisted(()=>({create:vi.fn()}));
 vi.mock("@/lib/customer-export-pdf",()=>({createCustomerPdf:(...args:any[])=>state.create(...args)}));
 const filters={search:'',sector:'',region:'',country:'',includeHistorical:false};
-const rows=[{id:'test',name:'Test customer',country:'PT',active:true,visible:true}] as ExplorerClient[];
+const rows:ExplorerClient[]=[{id:'test',name:'Test customer',country:'PT',sector:null,active:true,partner:'HQ',contact_name:'Customer Care',contact_email:null}];
 beforeEach(()=>{state.create.mockReset();});
 afterEach(()=>{cleanup();vi.restoreAllMocks();});
 describe("Customer PDF download loading",()=>{
