@@ -17,13 +17,7 @@ import { toast } from "sonner";
 import { getStageProbability } from "@/data/pipeline-stages";
 import { resolvePartnerLeadDefaults } from "@/lib/lead-defaults";
 
-const JOB_ROLE_OPTIONS = [
-  "Maintenance Manager",
-  "Plant Manager",
-  "General Manager",
-  "IT Manager",
-  "Unknown",
-];
+import { JOB_ROLE_OPTIONS } from "@/data/client-field-options";
 const ASSET_RANGE_OPTIONS = ["1–100", "101–250", "+250"];
 const TEAM_SIZE_OPTIONS = ["1–3", "4 or more", "Unknown"];
 

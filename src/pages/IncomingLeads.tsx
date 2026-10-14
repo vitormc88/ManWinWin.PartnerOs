@@ -20,13 +20,7 @@ import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { LIFECYCLE_STATUSES, normalizeLifecycle, engagementLabel } from "@/lib/qualification";
 
-const JOB_ROLE_OPTIONS = [
-  "Maintenance Manager",
-  "Plant Manager",
-  "General Manager",
-  "IT Manager",
-  "Unknown",
-];
+import { JOB_ROLE_OPTIONS } from "@/data/client-field-options";
 const ASSET_RANGE_OPTIONS = ["1–100", "101–250", "+250"];
 const TEAM_SIZE_OPTIONS = ["1–3", "4 or more", "Unknown"];
 

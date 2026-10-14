@@ -47,3 +47,5 @@ export const COUNTRY_LIST = [
   "Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States",
   "Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe",
 ] as const;
+/** Shared by lead creation and editing; do not duplicate these choices. */
+export const JOB_ROLE_OPTIONS = ["Maintenance Manager", "Plant Manager", "General Manager", "IT Manager", "Unknown"] as const;
