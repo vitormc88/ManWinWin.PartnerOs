@@ -11,7 +11,7 @@ type AuthView = "login" | "forgot";
 
 export default function Auth() {
   const { session, isLoading, isAuthReady, isInviteOrRecoveryFlow } = useAuth();
-  const [view, setView] = useState<AuthView>("login");
+  const [view, setView] = useState<AuthView>(() => new URLSearchParams(window.location.search).get("forgot") === "1" ? "forgot" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export default function Auth() {
     return <Navigate to={getResetPasswordTarget()} replace />;
   }
 
-  if (session) return <Navigate to="/" replace />;
+  if (session && view !== "forgot") return <Navigate to="/" replace />;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,8 +58,8 @@ export default function Auth() {
       if (error) throw error;
       toast.success("If an account exists with that email, you will receive a password reset link.");
     } catch (error: any) {
-      // Generic message to not expose user existence
-      toast.success("If an account exists with that email, you will receive a password reset link.");
+      // Keep account existence private, but do not report a failed request as success.
+      toast.error("Could not request a recovery email. Try again shortly or contact your administrator.");
     } finally {
       setLoading(false);
     }

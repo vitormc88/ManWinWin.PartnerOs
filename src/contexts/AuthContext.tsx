@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
 import { useQueryClient } from "@tanstack/react-query";
-import { getAuthFlowState } from "@/lib/auth-flow";
+import { getAuthFlowState, initialAuthFlow, clearInitialAuthFlow } from "@/lib/auth-flow";
 import { setQueryScope } from "@/lib/query-scope";
 
 
@@ -52,7 +52,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [isInviteOrRecoveryFlow, setIsInviteOrRecoveryFlow] = useState(false);
+  const [isInviteOrRecoveryFlow, setIsInviteOrRecoveryFlow] = useState(initialAuthFlow.shouldForcePasswordSetup);
+  const passwordSetupFlow = useRef(initialAuthFlow.shouldForcePasswordSetup);
   const queryClient = useQueryClient();
 
   const fetchProfile = async (userId: string) => {
@@ -81,7 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const syncAuthFlow = () => {
       const flow = getAuthFlowState();
-      setIsInviteOrRecoveryFlow(flow.shouldForcePasswordSetup);
+      passwordSetupFlow.current ||= flow.shouldForcePasswordSetup;
+      setIsInviteOrRecoveryFlow(passwordSetupFlow.current);
       return flow;
     };
 
@@ -89,7 +91,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        const flow = syncAuthFlow();
+        if (event === "SIGNED_OUT") {
+          clearInitialAuthFlow();
+          passwordSetupFlow.current = false;
+          setIsInviteOrRecoveryFlow(false);
+        } else {
+          if (event === "PASSWORD_RECOVERY") passwordSetupFlow.current = true;
+          syncAuthFlow();
+        }
         // Synchronously discard every cache entry + derived state belonging to
         // the previous identity BEFORE the next protected render happens.
         const scopeChanged = setQueryScope(session?.user?.id ?? null, queryClient);
@@ -111,28 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               fetchRoles(session.user.id),
             ]);
 
-            // Safety net: if a user signs in with an active session (not in
-            // the middle of a password recovery / invite flow) but their
-            // profile is still marked "pending", flip it to "active". This
-            // covers the manual-creation bug where the profile timestamp
-            // wasn't stamped at create time.
-            if (event === "SIGNED_IN" && !flow.shouldForcePasswordSetup && !window.location.pathname.startsWith("/reset-password")) {
-              const { data: p } = await supabase
-                .from("profiles")
-                .select("invitation_status")
-                .eq("id", session.user.id)
-                .single();
-              if (p && p.invitation_status === "pending") {
-                await supabase
-                  .from("profiles")
-                  .update({
-                    invitation_status: "active",
-                    invitation_accepted_at: new Date().toISOString(),
-                  })
-                  .eq("id", session.user.id);
-                await fetchProfile(session.user.id);
-              }
-            }
+            // Activation is stamped only after successful password setup.
+            // A SIGNED_IN event from opening an invite is not proof of completion.
 
             setIsLoading(false);
             setIsAuthReady(true);
@@ -186,6 +175,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     // Reset scoped state first so nothing from this identity can be rendered
     // (or refetched) while the sign-out request is in flight.
+    clearInitialAuthFlow();
+    passwordSetupFlow.current = false;
+    setIsInviteOrRecoveryFlow(false);
     setProfile(null);
     setRoles([]);
     setSession(null);

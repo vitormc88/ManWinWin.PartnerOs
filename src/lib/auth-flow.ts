@@ -43,3 +43,11 @@ export function getAuthFlowState(url: Pick<Location, "hash" | "search"> = window
 export function getResetPasswordTarget(): string {
   return `/reset-password${window.location.search || ""}${window.location.hash || ""}`;
 }
+// Capture provenance before supabase-js consumes and removes URL tokens.
+export const initialAuthFlow = typeof window === "undefined"
+  ? { hasTokens: false, hasCodeExchange: false, isInviteFlow: false, isRecoveryFlow: false, shouldForcePasswordSetup: false }
+  : getAuthFlowState();
+
+export function clearInitialAuthFlow(): void {
+  Object.assign(initialAuthFlow, { hasTokens: false, hasCodeExchange: false, isInviteFlow: false, isRecoveryFlow: false, shouldForcePasswordSetup: false });
+}
