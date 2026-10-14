@@ -6,6 +6,8 @@ import {
 } from "@/hooks/useIncomingLeads";
 import { usePartners } from "@/hooks/usePartners";
 import { useAuth } from "@/contexts/AuthContext";
+import { useModuleAccess } from "@/hooks/useModuleAccess";
+import { EditLeadDialog } from "@/components/leads/EditLeadDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,6 +176,8 @@ export default function LeadDetail() {
   const updateLead = useUpdateIncomingLead();
   const deleteLead = useDeleteIncomingLead();
   const { isHQ, isAdmin } = useAuth();
+  const moduleAccess = useModuleAccess();
+  const canEditDetails = (isHQ || isAdmin) && moduleAccess.canEdit("incoming_leads");
 
   const isHQUser = isHQ || isAdmin;
   const activePartners = partners.filter(
@@ -189,6 +193,7 @@ export default function LeadDetail() {
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showConvert, setShowConvert] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [showConvertGate, setShowConvertGate] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showLogContact, setShowLogContact] = useState(false);
@@ -519,6 +524,9 @@ export default function LeadDetail() {
 
           {/* Row 2: action buttons + stage progression */}
           <div className="flex items-center gap-1 flex-wrap">
+            {canEditDetails && (
+              <Button size="sm" variant="outline" className="h-8" onClick={() => setShowEdit(true)} disabled={isConverted || dirty || updateLead.isPending} title={isConverted ? "Already converted: edit the opportunity instead" : dirty ? "Wait for pending changes to save" : "Correct company and contact details"}>Edit lead</Button>
+            )}
             {draft.phone && (
               <Button size="sm" variant="outline" className="h-8" asChild>
                 <a href={`tel:${draft.phone}`}>
@@ -1656,6 +1664,7 @@ export default function LeadDetail() {
       </div>
 
       {/* Dialogs */}
+      {showEdit && <EditLeadDialog lead={lead} canEdit={canEditDetails} onClose={() => setShowEdit(false)} />}
       {lead && (
         <ConvertToOpportunityDialog
           open={showConvert}
