@@ -27,6 +27,7 @@ vi.mock("@/hooks/usePartners", () => ({ usePartners: () => ({ data: [] }) }));
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ isHQ: state.hq, isAdmin: false }),
 }));
+vi.mock("@/hooks/useModuleAccess", () => ({ useModuleAccess: () => ({ canEdit: () => state.hq }) }));
 vi.mock("@/hooks/useLeadContactAttempts", () => ({
   useLeadContactAttempts: () => ({ data: [] }),
   OUTCOME_LABEL: {},

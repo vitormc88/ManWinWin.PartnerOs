@@ -53,11 +53,13 @@ export function useIncomingLead(id: string | undefined) {
 export function useUpdateIncomingLead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Tables<"incoming_leads">>) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ id, requireUnconverted = false, ...updates }: { id: string; requireUnconverted?: boolean } & Partial<Tables<"incoming_leads">>) => {
+      let query = supabase
         .from("incoming_leads")
         .update(updates)
-        .eq("id", id)
+        .eq("id", id);
+      if (requireUnconverted) query = query.is("converted_to_deal_id", null);
+      const { data, error } = await query
         .select()
         .single();
       if (error) throw error;
