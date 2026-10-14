@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { Packer } from "docx";
+import { inflateRawSync } from "node:zlib";
+import { generateBusinessProposalDocx } from "@/lib/proposal-business-docx";
 import type { PricingRule, Proposal } from "@/types/proposal";
 import {
   computeBusinessOptions,
@@ -102,6 +105,46 @@ const proposal = {
 } as Proposal;
 
 describe("Business proposal document transparency", () => {
+  it("includes saved commercial text in the actual Word document XML", async () => {
+    let zip: Buffer | undefined;
+    const spy = vi.spyOn(Packer, "toBlob").mockImplementation(async document => {
+      zip = await Packer.toBuffer(document);
+      return new Blob();
+    });
+    try {
+      await generateBusinessProposalDocx({ proposal: { ...proposal, payment_terms: "25% after order\n75% after acceptance", notes: "Special support condition\nSecond condition" }, cfg: config, rules });
+      let xml = "";
+      for (let offset = 0; zip && offset < zip.length - 46; offset++) {
+        if (zip.readUInt32LE(offset) !== 0x02014b50) continue;
+        const nameLength = zip.readUInt16LE(offset + 28);
+        if (zip.toString("utf8", offset + 46, offset + 46 + nameLength) !== "word/document.xml") continue;
+        const local = zip.readUInt32LE(offset + 42);
+        const start = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+        const bytes = zip.subarray(start, start + zip.readUInt32LE(offset + 20));
+        xml = (zip.readUInt16LE(offset + 10) === 8 ? inflateRawSync(bytes) : bytes).toString("utf8");
+        break;
+      }
+      expect(xml).toContain("25% after order");
+      expect(xml).toContain("75% after acceptance");
+      expect(xml).toContain("Special support condition");
+      expect(xml).toContain("Second condition");
+      expect(xml).not.toContain("50% invoice");
+    } finally { spy.mockRestore(); }
+  });
+  it("renders entered payment terms and multiline special conditions without conflicting defaults", () => {
+    const html = buildBusinessProposalPrintHtml({ proposal: { ...proposal, payment_terms: "25% after order\n75% after acceptance", notes: "Special <condition> & support\nSecond condition" }, cfg: config, rules });
+    expect(html).toContain("25% after order");
+    expect(html).toContain("75% after acceptance");
+    expect(html).toContain("Special &lt;condition&gt; &amp; support\nSecond condition");
+    expect(html).toContain("Notes / Special Conditions");
+    expect(html).toContain("white-space:pre-wrap");
+    expect(html).not.toContain("50% invoice");
+  });
+  it("omits blank notes and retains default conditions when none are entered", () => {
+    const html = buildBusinessProposalPrintHtml({ proposal: { ...proposal, notes: "  " }, cfg: config, rules });
+    expect(html).not.toContain("Notes / Special Conditions");
+    expect(html).toContain("50% invoice");
+  });
   it("shows gross values before separate discount rows while retaining net engine totals", () => {
     const output = computeBusinessOptions(rules, config, ["keepit", "useit"]);
     expect(output.keepit?.totalYear1).toBe(31_244);
