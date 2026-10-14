@@ -36,6 +36,7 @@ import { buildInvestmentSummaryRows, type SummaryRow } from "./proposal-business
 import { tBusiness, type BusinessStrings } from "./proposal-business-i18n";
 import { formatEuro } from "./proposal-i18n";
 import { proposalDocumentTitle, proposalFileName, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
+import { businessPaymentSection, businessNotesTitle } from "./proposal-business-terms";
 
 const RED = "E01F2C";
 const DARK = "2C3E50";
@@ -677,11 +678,14 @@ export async function generateBusinessProposalDocx(opts: BusinessDocxOptions): P
   body.push(investmentSummaryTable(rows, s, showKeepit, showUseit, lang));
 
   body.push(sectionHeading(s.billingHeader));
-  body.push(p(s.standardTerms, { bold: true }));
-  body.push(bullet(s.paymentLine1));
-  body.push(bullet(s.paymentLine2));
-  body.push(p(s.footnote1, { italic: true, color: SUBTLE, size: 18 }));
-  body.push(p(s.footnote2, { italic: true, color: SUBTLE, size: 18 }));
+  const payment = businessPaymentSection(proposal.payment_terms, s);
+  if (payment.heading) body.push(p(payment.heading, { bold: true }));
+  payment.lines.forEach(line => body.push(bullet(line)));
+  payment.footnotes.forEach(line => body.push(p(line, { italic: true, color: SUBTLE, size: 18 })));
+  if (proposal.notes?.trim()) {
+    body.push(sectionHeading(businessNotesTitle(proposal.language)));
+    proposal.notes.split(/\r?\n/).forEach(line => body.push(p(line)));
+  }
 
   body.push(sectionHeading(s.otherInfo));
   body.push(bullet(s.vatNote));

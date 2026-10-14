@@ -16,6 +16,7 @@ import { tBusiness } from "./proposal-business-i18n";
 import { formatEuro } from "./proposal-i18n";
 import { assertBusinessOptionsComputable } from "./proposal-business-readiness";
 import { proposalDocumentTitle, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
+import { businessPaymentSection, businessNotesTitle } from "./proposal-business-terms";
 
 const esc = (v: any) =>
   String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -56,6 +57,7 @@ export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOpt
 export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: BusinessPrintOptions): string {
   const lang = proposal.language as any;
   const s = tBusiness(lang);
+  const payment = businessPaymentSection(proposal.payment_terms, s);
   const models = resolveModels(proposal);
   const out = computeBusinessOptions(rules, cfg, models);
   assertBusinessOptionsComputable(out, { cfg, rules, models });
@@ -318,10 +320,10 @@ ${optionsHtml}
 </section>
 
 <h2>${esc(s.billingHeader)}</h2>
-<p><strong>${esc(s.standardTerms)}</strong></p>
-<ul><li>${esc(s.paymentLine1)}</li><li>${esc(s.paymentLine2)}</li></ul>
-<p class="muted small">${esc(s.footnote1)}</p>
-<p class="muted small">${esc(s.footnote2)}</p>
+${payment.heading ? `<p><strong>${esc(payment.heading)}</strong></p>` : ""}
+<ul style="overflow-wrap:anywhere">${payment.lines.map(line => `<li>${esc(line)}</li>`).join("")}</ul>
+${payment.footnotes.map(line => `<p class="muted small">${esc(line)}</p>`).join("")}
+${proposal.notes?.trim() ? `<h2>${esc(businessNotesTitle(proposal.language))}</h2><p style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(proposal.notes)}</p>` : ""}
 
 <h2>${esc(s.otherInfo)}</h2>
 <ul>

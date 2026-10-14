@@ -57,6 +57,7 @@ import { storeProposalDocument, signProposalDocument } from "@/lib/proposal-docu
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
 import { printBusinessProposal } from "@/lib/proposal-business-print";
+import { withCurrentBusinessDocumentText, assertSavedBusinessDocumentText } from "@/lib/proposal-business-terms";
 import type {
   ProposalLanguage,
   ProposalPlan,
@@ -1541,9 +1542,10 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
   };
 
   const handleGenerateBusinessDocx = () =>
-    generateStoredDocx((prop) =>
-      downloadBusinessProposalDocx({ proposal: prop, cfg: businessConfig, rules }),
-    );
+    generateStoredDocx((prop) => {
+      assertSavedBusinessDocumentText(prop, paymentTerms, notes);
+      return downloadBusinessProposalDocx({ proposal: prop, cfg: businessConfig, rules });
+    });
 
   const handleGenerateBusinessPdf = async () => {
     const existingId = editingProposal?.id || generatedProposalIdRef.current;
@@ -1559,7 +1561,7 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
         .eq("id", base.id)
         .single();
       if (error || !prop) throw error || new Error("Proposal not found");
-      printBusinessProposal({ proposal: prop as unknown as Proposal, cfg: businessConfig, rules });
+      printBusinessProposal({ proposal: withCurrentBusinessDocumentText(prop as unknown as Proposal, paymentTerms, notes), cfg: businessConfig, rules });
       toast.success("PDF preview opened — use the print dialog to save as PDF");
     } catch (e: any) {
       toast.error("PDF generation failed: " + (e?.message || ""));
