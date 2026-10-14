@@ -1,0 +1,31 @@
+name: Account access recovery QA
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/pages/*Recovery*'
+      - 'src/pages/Auth.tsx'
+      - 'src/pages/UserManagement*'
+      - 'src/contexts/AuthContext.tsx'
+      - 'src/lib/auth-flow.ts'
+      - 'src/lib/app-url.ts'
+      - 'src/lib/__tests__/account-recovery.test.ts'
+      - 'src/integrations/supabase/client.ts'
+      - 'supabase/functions/admin-create-user/**'
+      - '.github/workflows/account-access-recovery-qa.yml'
+permissions:
+  contents: read
+jobs:
+  recovery-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test -- src/lib/__tests__/account-recovery.test.ts src/pages/AccountRecovery.test.tsx src/pages/UserManagement.recovery.test.tsx src/lib/__tests__/supabase-env.test.ts src/components/BrandMark.test.tsx src/test/protected-route.test.tsx
+      - run: npx tsc --noEmit -p tsconfig.app.json
+      - run: npm run build
