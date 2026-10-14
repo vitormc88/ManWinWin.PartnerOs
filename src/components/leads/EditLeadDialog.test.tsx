@@ -20,10 +20,10 @@ describe("Edit lead details", () => {
     render(<EditLeadDialog lead={lead} canEdit onClose={vi.fn()} />);
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Job role" }), { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["— None —", ...JOB_ROLE_OPTIONS]);
-    fireEvent.click(screen.getByRole("option", { name: "Plant Manager", exact: true }));
+    fireEvent.click(screen.getByRole("option", { name: "Plant Manager" }));
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Sector" }), { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["— None —", ...SECTOR_OPTIONS]);
-    fireEvent.click(screen.getByRole("option", { name: "Energy", exact: true }));
+    fireEvent.click(screen.getByRole("option", { name: "Energy" }));
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
     expect(state.mutate.mock.calls[0][0]).toEqual({ id: "test-lead", requireUnconverted: true, job_role: "Plant Manager", sector: "Energy" });
   });
