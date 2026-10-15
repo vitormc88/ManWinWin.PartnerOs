@@ -409,7 +409,7 @@ export default function KnowledgeBase() {
                 <FolderOpen className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground font-medium">No resources found</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {isAdmin ? "Click '+ Resource' to add the first document." : "Resources will appear here once published by HQ."}
+                  Try clearing filters or choosing another category. This selection does not remove resources from the library.
                 </p>
               </CardContent>
             </Card>
