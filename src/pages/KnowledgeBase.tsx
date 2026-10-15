@@ -38,6 +38,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { RESOURCE_LANGUAGES, resourceLanguage, resourceYear } from '@/lib/ux-discovery';
+
+function ResourceMetadata({ doc }: { doc: {title?:string|null;file_name?:string|null;tags?:string[]|null} }) {
+  const language = resourceLanguage(doc);
+  const year = resourceYear(doc);
+  return <p className="text-xs text-muted-foreground mt-1 whitespace-normal">{language==='unconfirmed'?'Language unconfirmed':`${RESOURCE_LANGUAGES[language as keyof typeof RESOURCE_LANGUAGES]} · inferred from name/tags`}{year?` · Name mentions ${year}`:''}{doc.file_name && <span className="block break-all">File: {doc.file_name}</span>}</p>;
+}
 
 const ICON_MAP: Record<string, React.ElementType> = {
   BookOpen, FileText, Code, Shield, Image, Rocket, Monitor, HelpCircle, Briefcase, FolderOpen,
@@ -92,9 +99,11 @@ export default function KnowledgeBase() {
   const { isAdmin, user, profile, roles } = useAuth();
   const { data: categories = [], isLoading: catLoading } = useCategories();
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const { data: documents = [], isLoading: docLoading } = useDocuments(selectedCategoryId);
+  const { data: documents = [], isLoading: docLoading, isError: docError, refetch: retryDocuments } = useDocuments(selectedCategoryId);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [languageFilter,setLanguageFilter] = useState('all');
+  const [yearFilter,setYearFilter] = useState('all');
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [showCatDialog, setShowCatDialog] = useState(false);
   const [editingCat, setEditingCat] = useState<any>(null);
@@ -119,10 +128,13 @@ export default function KnowledgeBase() {
     if (search) {
       const s = search.toLowerCase();
       const match = d.title?.toLowerCase().includes(s) ||
+        d.file_name?.toLowerCase().includes(s) ||
         d.description?.toLowerCase().includes(s) ||
         d.tags?.some((t: string) => t.toLowerCase().includes(s));
       if (!match) return false;
     }
+    if (languageFilter!=='all' && resourceLanguage(d)!==languageFilter) return false;
+    if (yearFilter!=='all' && (resourceYear(d)||'unconfirmed')!==yearFilter) return false;
     if (typeFilter !== "all") {
       if (typeFilter === "other") {
         return !["pdf", "link", "doc", "docx", "video", "mp4"].includes(d.file_type?.toLowerCase());
@@ -194,9 +206,10 @@ export default function KnowledgeBase() {
         )}
       </div>
 
-      <div className="flex gap-6">
+      <p className="text-sm text-muted-foreground">Choose by purpose, language and version before sharing. Language and year hints below come from names/tags, not content review. A recent upload or a year in the title does not confirm that a resource is the current approved version.</p>
+      <div className="flex flex-col md:flex-row gap-6">
         {/* Left: Collapsible category sidebar */}
-        <div className="w-60 shrink-0">
+        <div className="w-full md:w-60 shrink-0">
           <button
             onClick={() => setSelectedCategoryId(null)}
             className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors mb-1 ${
@@ -230,7 +243,7 @@ export default function KnowledgeBase() {
                       {isAdmin && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
+                            <button aria-label={`Manage category ${cat.name}`} className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
                               <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
                           </DropdownMenuTrigger>
@@ -261,7 +274,7 @@ export default function KnowledgeBase() {
                       {isAdmin && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
+                            <button aria-label={`Manage category ${cat.name}`} className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
                               <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
                           </DropdownMenuTrigger>
@@ -290,7 +303,7 @@ export default function KnowledgeBase() {
                               {isAdmin && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <button className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
+                                    <button aria-label={`Manage category ${sub.name}`} className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 rounded hover:bg-muted transition-opacity">
                                       <MoreVertical className="h-3 w-3 text-muted-foreground" />
                                     </button>
                                   </DropdownMenuTrigger>
@@ -313,15 +326,15 @@ export default function KnowledgeBase() {
         </div>
 
         {/* Right: Resource area */}
-        <div className="flex-1 space-y-4">
+        <div className="flex-1 min-w-0 space-y-4">
           {/* Search + Filters + View Toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search resources…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input aria-label="Search resources" placeholder="Search title, filename or tags…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-[130px]">
+              <SelectTrigger aria-label="Resource type" className="w-[130px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -330,12 +343,16 @@ export default function KnowledgeBase() {
                 ))}
               </SelectContent>
             </Select>
+            <select aria-label="Resource language hint" className="text-sm border rounded-md bg-background p-2" value={languageFilter} onChange={e=>setLanguageFilter(e.target.value)}><option value="all">All language hints</option>{Object.entries(RESOURCE_LANGUAGES).map(([key,name])=><option key={key} value={key}>{name} (name/tags)</option>)}<option value="unconfirmed">Language unconfirmed</option></select>
+            <select aria-label="Year mentioned in resource name" className="text-sm border rounded-md bg-background p-2" value={yearFilter} onChange={e=>setYearFilter(e.target.value)}><option value="all">Any year in name</option>{[...new Set(documents.map(resourceYear).filter(Boolean))].sort().reverse().map(year=><option key={year} value={year}>{year}</option>)}<option value="unconfirmed">No single year in name</option></select>
+            {(search||languageFilter!=='all'||yearFilter!=='all'||typeFilter!=='all')&&<Button variant="ghost" onClick={()=>{setSearch('');setLanguageFilter('all');setYearFilter('all');setTypeFilter('all')}}>Clear resource filters</Button>}
             <div className="flex border rounded-md">
               <Button
                 variant={viewMode === "list" ? "default" : "ghost"}
                 size="icon"
                 className="h-9 w-9 rounded-r-none"
                 onClick={() => setViewMode("list")}
+                aria-label="List view" aria-pressed={viewMode==='list'}
               >
                 <LayoutList className="h-4 w-4" />
               </Button>
@@ -344,6 +361,7 @@ export default function KnowledgeBase() {
                 size="icon"
                 className="h-9 w-9 rounded-l-none"
                 onClick={() => setViewMode("grid")}
+                aria-label="Grid view" aria-pressed={viewMode==='grid'}
               >
                 <LayoutGrid className="h-4 w-4" />
               </Button>
@@ -369,6 +387,8 @@ export default function KnowledgeBase() {
 
           {docLoading ? (
             <div className="py-12 text-center text-muted-foreground">Loading resources…</div>
+          ) : docError ? (
+            <div role="alert" className="rounded-lg border p-5"><p>Unable to load resources. This does not mean the category is empty.</p><Button variant="outline" className="mt-3" onClick={()=>void retryDocuments()}>Retry resources</Button></div>
           ) : filteredDocs.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
@@ -404,7 +424,8 @@ export default function KnowledgeBase() {
                               {isLink ? <Link className="h-4 w-4 text-primary" /> : <File className="h-4 w-4 text-primary" />}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-medium truncate">{doc.title}</p>
+                              <button className="text-sm font-medium text-primary text-left hover:underline focus-visible:underline" onClick={e=>{e.stopPropagation();handleOpenDoc(doc)}} aria-label={`Open resource ${doc.title}`}>{doc.title}</button>
+                              <ResourceMetadata doc={doc}/>
                               {doc.description && <p className="text-xs text-muted-foreground truncate">{doc.description}</p>}
                             </div>
                           </div>
@@ -432,6 +453,7 @@ export default function KnowledgeBase() {
                                 variant="ghost" size="icon" className="h-7 w-7"
                                 onClick={() => isLink ? handleOpenDoc(doc) : handleDownloadDoc(doc)}
                                 title={isLink ? "Open link" : "Download file"}
+                                aria-label={`${isLink?'Open link':'Download file'}: ${doc.title}`}
                               >
                                 {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
                               </Button>
@@ -443,7 +465,7 @@ export default function KnowledgeBase() {
                             {isAdmin && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button aria-label={`Manage resource ${doc.title}`} variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity">
                                     <MoreVertical className="h-3.5 w-3.5" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -475,7 +497,8 @@ export default function KnowledgeBase() {
                           {isLink ? <Link className="h-4 w-4 text-primary" /> : <File className="h-4 w-4 text-primary" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{doc.title}</p>
+                          <button className="text-sm font-medium text-primary text-left hover:underline focus-visible:underline" onClick={e=>{e.stopPropagation();handleOpenDoc(doc)}} aria-label={`Open resource ${doc.title}`}>{doc.title}</button>
+                          <ResourceMetadata doc={doc}/>
                           {doc.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.description}</p>}
                         </div>
                       </div>
@@ -490,7 +513,7 @@ export default function KnowledgeBase() {
                         </span>
                         <div className="flex gap-1">
                           {doc.file_url ? (
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => isLink ? handleOpenDoc(doc) : handleDownloadDoc(doc)}>
+                            <Button aria-label={`${isLink?'Open link':'Download file'}: ${doc.title}`} variant="ghost" size="icon" className="h-7 w-7" onClick={() => isLink ? handleOpenDoc(doc) : handleDownloadDoc(doc)}>
                               {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
                             </Button>
                           ) : (
@@ -501,7 +524,7 @@ export default function KnowledgeBase() {
                           {isAdmin && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                <Button aria-label={`Manage resource ${doc.title}`} variant="ghost" size="icon" className="h-7 w-7">
                                   <MoreVertical className="h-3.5 w-3.5" />
                                 </Button>
                               </DropdownMenuTrigger>

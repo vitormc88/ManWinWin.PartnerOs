@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { displayCountry } from '@/lib/ux-presentation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { ClientsKPIBar } from "@/components/clients/ClientsKPIBar";
@@ -75,7 +76,7 @@ export default function ClientsLicenses() {
     list = list.filter(c => showArchived ? c.status === "Archived" : c.status !== "Archived");
     if (search) {
       const q = search.trim().toLowerCase();
-      list = list.filter(c => c.commercial_name.toLowerCase().includes(q) || (c.short_name || "").toLowerCase().includes(q) || c.client_code.toLowerCase().includes(q) || (c.country || "").toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q));
+      list = list.filter(c => c.commercial_name.toLowerCase().includes(q) || (c.short_name || "").toLowerCase().includes(q) || c.client_code.toLowerCase().includes(q) || (c.country || "").toLowerCase().includes(q) || displayCountry(c.country).toLowerCase().includes(q) || (c.email || "").toLowerCase().includes(q));
     }
     if (partnerFilter !== "all") {
       list = list.filter(c => matchesPartnerFilter(c as any, partnerFilter));
@@ -312,7 +313,7 @@ export default function ClientsLicenses() {
                   <TableCell className="font-mono text-xs text-muted-foreground">{c.client_code}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 min-w-[160px]">
-                      <span className="font-medium text-foreground">{c.short_name || c.commercial_name}</span>
+                      <button type="button" className="font-medium text-primary text-left underline-offset-4 hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label={`Open client ${c.short_name || c.commercial_name}`} onClick={e => { e.stopPropagation(); handleOpenClient(c.id); }}>{c.short_name || c.commercial_name}</button>
                       {c.is_premium && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600 bg-amber-50">Premium</Badge>}
                     </div>
                   </TableCell>
@@ -334,7 +335,7 @@ export default function ClientsLicenses() {
                       );
                     })()}
                   </TableCell>}
-                  <TableCell className="text-sm">{c.country}</TableCell>
+                  <TableCell className="text-sm">{displayCountry(c.country)}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.sector}</TableCell>
                   <TableCell><Badge variant="secondary" className="text-xs font-normal">{getLicenseDisplay(c.license_type)}</Badge></TableCell>
                   <TableCell className="text-xs tabular-nums">{c.current_version}</TableCell>

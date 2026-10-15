@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { formatAuditMoney, AWARDED_REVENUE_NOTE } from "@/lib/ux-presentation";
+import { conversionSample } from '@/lib/ux-discovery';
+import { formatAuditMoney, AWARDED_REVENUE_NOTE, displayCountry } from "@/lib/ux-presentation";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
@@ -735,7 +736,7 @@ function SalesCockpit({
   const byConversion = [...sales]
     .filter(r => r.won_count + r.lost_count >= 2)
     .sort((a, b) => b.conversion - a.conversion)
-    .map(r => ({ key: r.sales_key, name: r.sales_name, value: r.conversion, display: `${r.conversion}%` }));
+    .map(r => ({ key: r.sales_key, name: r.sales_name, value: r.conversion, display: `${r.conversion}% · ${conversionSample(r.won_count,r.lost_count)}` }));
 
   // Top / flag sets for badges
   const topRevenueKey = byRevenue[0]?.key;
@@ -825,7 +826,7 @@ function SalesCockpit({
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <RankCard title="Top Won Deal Value" icon={Trophy} rows={byRevenue} onPick={openPicker} emptyHint="No won deals yet." />
         <RankCard title="Highest Pipeline" icon={Rocket} rows={byPipeline} onPick={openPicker} emptyHint="No open pipeline." />
-        <RankCard title="Best Conversion" icon={TargetIcon} rows={byConversion} onPick={openPicker} emptyHint="Not enough closed deals." />
+        <RankCard title="Highest Conversion · ≥2 Closed" icon={TargetIcon} rows={byConversion} onPick={openPicker} emptyHint="Not enough closed deals." />
       </div>
 
       {/* Health + Coaching */}
@@ -908,7 +909,7 @@ function SalesCockpit({
                 const badges: { label: string; cls: string }[] = [];
                 if (s.sales_key === topRevenueKey) badges.push({ label: "🏆 Top Won Value", cls: "bg-amber-50 text-amber-700 border-amber-200" });
                 if (s.sales_key === topPipelineKey) badges.push({ label: "🚀 Pipeline Leader", cls: "bg-blue-50 text-blue-700 border-blue-200" });
-                if (s.sales_key === topConversionKey) badges.push({ label: "🎯 Best Conversion", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" });
+                if (s.sales_key === topConversionKey && s.won_count+s.lost_count>=5) badges.push({ label: "🎯 Highest Conversion", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" });
                 if (coachingKeys.has(s.sales_key)) badges.push({ label: "⚠ Needs Attention", cls: "bg-amber-50 text-amber-700 border-amber-200" });
 
                 const rowHighlight =
@@ -937,9 +938,10 @@ function SalesCockpit({
                     <td className="px-5 py-3 text-right tabular-nums">{s.won_count}</td>
                     <td className="px-5 py-3 text-right tabular-nums">{s.lost_count}</td>
                     <td className="px-5 py-3 text-right">
-                      <span className={`tabular-nums font-medium ${s.conversion >= 50 ? "text-emerald-600" : s.sales_key === lowestConvKey ? "text-destructive" : "text-foreground"}`}>
+                      <span className={`tabular-nums font-medium ${s.won_count+s.lost_count<5?'text-foreground':s.conversion >= 50 ? "text-emerald-600" : s.sales_key === lowestConvKey ? "text-destructive" : "text-foreground"}`}>
                         {s.won_count + s.lost_count > 0 ? `${s.conversion}%` : "—"}
                       </span>
+                      <small className="block text-xs text-muted-foreground whitespace-nowrap">{conversionSample(s.won_count,s.lost_count)}</small>
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{fmtEuro(s.weighted_pipeline)}</td>
                   </tr>
@@ -1240,7 +1242,7 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
                     className={`cursor-pointer transition-colors ${band.row}`}
                   >
                     <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">{r.company_name}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{r.country || "—"}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">{displayCountry(r.country)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums font-medium">{fmtEuro(r.revenue)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{fmtEuro(r.billed_revenue_ytd)}</td>
                     <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">

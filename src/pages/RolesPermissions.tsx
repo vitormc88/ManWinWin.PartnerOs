@@ -4,18 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { MODULE_KEYS_LIST, MODULE_LABELS } from "@/lib/module-access";
 import { ROLE_OPTIONS, type AccessLevel } from "@/lib/permissions";
-import { useRoleTemplates, useSaveRoleTemplate, useApplyRoleTemplate } from "@/hooks/useRoleTemplates";
-import { Save, RotateCcw, Users } from "lucide-react";
+import { useRoleTemplates, useSaveRoleTemplate } from "@/hooks/useRoleTemplates";
+import { Save, RotateCcw } from "lucide-react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { RoleApplyReview } from '@/components/users/RoleApplyReview';
 
 const LEVELS: AccessLevel[] = ["no_access", "view", "edit", "admin"];
 const LEVEL_LABEL: Record<AccessLevel, string> = {
@@ -30,10 +25,8 @@ export default function RolesPermissions() {
   const isAdmin = roles.includes("hq_admin");
   const { data: templates } = useRoleTemplates();
   const save = useSaveRoleTemplate();
-  const apply = useApplyRoleTemplate();
   const [activeRole, setActiveRole] = useState<string>("hq_admin");
   const [matrix, setMatrix] = useState<Record<string, Record<string, AccessLevel>>>({});
-  const [overwrite, setOverwrite] = useState(false);
 
   useEffect(() => {
     if (!templates) return;
@@ -98,7 +91,7 @@ export default function RolesPermissions() {
                       value={(matrix[r.value]?.[m]) ?? "no_access"}
                       onValueChange={(v) => setCell(m, v as AccessLevel)}
                     >
-                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                      <SelectTrigger aria-label={`${MODULE_LABELS[m]} access for ${r.label}`} className="w-36"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {LEVELS.filter(lv=>m!=='customer_explorer'||!r.value.startsWith('partner_')||['no_access','view'].includes(lv)).map((lv) => (
                           <SelectItem key={lv} value={lv}>{LEVEL_LABEL[lv]}</SelectItem>
@@ -110,32 +103,8 @@ export default function RolesPermissions() {
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={!templates}>
-                      <Users className="h-4 w-4 mr-2" /> Apply to existing users
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Apply template to existing {ROLE_OPTIONS.find((x) => x.value === activeRole)?.label} users?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        New users automatically inherit this template. Use this to push changes to existing users.
-                        By default, custom per-user overrides are preserved.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <label className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={overwrite} onCheckedChange={(v) => setOverwrite(!!v)} />
-                      Also overwrite users that have custom overrides
-                    </label>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => apply.mutate({ role: activeRole, overwriteOverrides: overwrite })}>
-                        Apply
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <RoleApplyReview role={activeRole} label={r.label} disabled={!templates || dirty || save.isPending} />
+                {dirty && <p className="text-sm text-muted-foreground">Save or discard edits before reviewing application to existing users.</p>}
 
                 <Button variant="outline" size="sm" onClick={() => {
                   // reset to stored

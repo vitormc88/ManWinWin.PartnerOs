@@ -157,6 +157,7 @@ export default function Prospecting() {
         ))}
       </div>
 
+      <p className="text-sm text-muted-foreground">Research completeness measures recorded research fields, not commercial qualification, verified accuracy or purchase probability. Readiness for outreach is a separate assessment.</p>
       <div className="flex flex-wrap gap-2">
         <div className="relative min-w-[240px] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

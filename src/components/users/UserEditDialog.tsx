@@ -225,11 +225,12 @@ export function UserEditDialog({ user, open, onClose }: { user: UserProfile | nu
                       <span className="text-[11px] text-muted-foreground">
                         Inherited: <span className="capitalize">{inherited.replace("_", " ")}</span>
                       </span>
+                      <span className="text-xs text-muted-foreground">Currently effective (saved): {eff ? eff.access_level.replace(/_/g,' ') : 'Loading / unavailable'}. The selector is your draft until saved.</span>
                     </div>
                     <div className="flex items-center gap-2">
                       {isOverride && <Badge variant="outline" className="bg-warning/10 text-warning-foreground">Override</Badge>}
                       <Select value={current} onValueChange={v => setPerms(prev => ({ ...prev, [key]: v }))}>
-                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectTrigger aria-label={`${MODULE_LABELS[key]} draft access`} className="w-32"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {ACCESS_LEVELS.filter(a=>key!=='customer_explorer'||!isPartnerRole||['no_access','view'].includes(a.value)).map(a => (
                             <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>

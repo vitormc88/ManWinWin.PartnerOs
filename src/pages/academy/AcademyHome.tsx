@@ -31,14 +31,16 @@ export default function Onboarding() {
   const { data: phases = [], isLoading: phasesLoading } = useAcademyPhases();
   const { data: modules = [], isLoading: modulesLoading } = useAcademyModules();
   const { data: missions = [], isLoading: missionsLoading } = useAcademyMissions();
-  const { data: missionProgress = [] } = useMyMissionProgress();
+  const { data: missionProgress = [], isLoading: progressLoading } = useMyMissionProgress();
 
   const completedIds = useMemo(
     () => new Set(missionProgress.filter((p) => p.is_completed).map((p) => p.mission_id)),
     [missionProgress]
   );
 
-  const loading = phasesLoading || modulesLoading || missionsLoading;
+  const loading = phasesLoading || modulesLoading || missionsLoading || progressLoading;
+  const overallMissions = missions.filter(m=>m.status==='published' && !m.is_locked);
+  const overallCompleted = overallMissions.filter(m=>completedIds.has(m.id)).length;
 
   const moduleStats = useMemo(() => {
     const map = new Map<string, { pct: number; missionCount: number }>();
@@ -91,6 +93,7 @@ export default function Onboarding() {
         <Button asChild size="sm" className="self-start">
           <Link to={`/academy/modules/${mod.slug}`}>{stats.pct === 0 ? "Start Module" : actionLabel(stats.pct)}</Link>
         </Button>
+        <p className="text-xs text-muted-foreground">{countableMissions(missions.filter(m=>m.module_id===mod.id)).filter(m=>completedIds.has(m.id)).length} of {stats.missionCount} required published missions completed · certification excluded</p>
       </div>
     );
   };
@@ -125,7 +128,7 @@ export default function Onboarding() {
               </div>
               <div>
                 <p className="text-xl font-bold tabular-nums text-foreground">{loading ? "—" : `${overallPct}%`}</p>
-                <p className="text-xs text-muted-foreground">Overall progress</p>
+                <p className="text-xs text-muted-foreground">Overall mission progress</p>
               </div>
             </div>
             <div className="flex-1">
@@ -148,6 +151,7 @@ export default function Onboarding() {
             )}
           </div>
 
+          <p className="text-sm text-muted-foreground">{loading?'Loading progress…':`${overallCompleted} of ${overallMissions.length} unlocked published missions completed.`} Overall includes optional missions and published certification items when unlocked; module cards count required published missions, excluding certification. These percentages measure different scopes.</p>
           {loading ? (
             <div className="text-sm text-muted-foreground">Loading academy content…</div>
           ) : modules.length === 0 ? (

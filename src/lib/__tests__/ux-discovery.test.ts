@@ -1,0 +1,13 @@
+import { describe,it,expect } from 'vitest';
+import { resourceLanguage,resourceYear,conversionSample,labelledTestNotification,matchesUserFilters } from '../ux-discovery';
+import { displayCountry,displayDate } from '../ux-presentation';
+describe('UX discovery — conservative presentation',()=>{
+  it.each([['Mn_PWeb_EN_03.pdf','en'],['brochure pt','pt'],['English brochure','en'],['equipment','unconfirmed'],['EN PT brochure','unconfirmed']])('language hint for %s', (title,language)=>expect(resourceLanguage({title})).toBe(language));
+  it('looks at file names and tags without claiming editorial approval',()=>{expect(resourceLanguage({title:'Brochure',file_name:'MWW-es.pdf'})).toBe('es');expect(resourceLanguage({tags:['French']})).toBe('fr');});
+  it('does not treat upload date as a resource version',()=>{expect(resourceYear({title:'Price list 2023'})).toBe('2023');expect(resourceYear({title:'Prices 2023 and 2026'})).toBe('');expect(resourceYear({title:'Price list'})).toBe('');});
+  it('shows sample size, including an explicit small-sample qualifier',()=>{expect(conversionSample(1,0)).toBe('1 won / 1 closed · small sample');expect(conversionSample(5,1)).toBe('5 won / 6 closed');expect(conversionSample(0,0)).toBe('0 won / 0 closed');});
+  it('marks only explicit test prefixes',()=>{expect(labelledTestNotification('[TEST] delivery')).toBe(true);expect(labelledTestNotification('Test: welcome')).toBe(true);expect(labelledTestNotification('Customer testing phase')).toBe(false);expect(labelledTestNotification('Latest update')).toBe(false);});
+  it('combines user filters without confusing invitation and account status',()=>{const u={is_hq:false,is_active:false,invitation_status:'pending',partner_id:'p1',roles:['partner_sales']};expect(matchesUserFilters(u,{role:'partner_sales',partner:'p1',status:'pending'})).toBe(true);expect(matchesUserFilters(u,{role:'all',partner:'all',status:'active'})).toBe(false);expect(matchesUserFilters(u,{role:'all',partner:'hq',status:'all'})).toBe(false);expect(matchesUserFilters({...u,partner_id:null},{role:'all',partner:'unassigned',status:'inactive'})).toBe(true);});
+  it.each([['RO','Romania'],['SA','Saudi Arabia'],['romania','Romania'],['Unknown source','Unknown source'],[null,'—']])('displays country %s without rewriting source', (value,expected)=>expect(displayCountry(value)).toBe(expected));
+  it('uses an unambiguous calendar date and handles missing or invalid dates',()=>{expect(displayDate('2026-10-15')).toBe('15 Oct 2026');expect(displayDate(null)).toBe('—');expect(displayDate('bad')).toBe('—');expect(displayDate('2026-02-31')).toBe('—');});
+});

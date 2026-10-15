@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, ExternalLink, Building2, Plus, Inbox } from "lucide-react";
 import { format } from "date-fns";
+import { displayCountry } from '@/lib/ux-presentation';
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -78,7 +79,7 @@ export default function IncomingLeads() {
   const activePartners = partners.filter(p => p.is_active);
 
   const filtered = leads.filter(lead => {
-    const matchesSearch = !search || [lead.company_name, lead.contact_name, lead.email, lead.country]
+    const matchesSearch = !search || [lead.company_name, lead.contact_name, lead.email, lead.country, displayCountry(lead.country)]
       .filter(Boolean).some(v => v!.toLowerCase().includes(search.toLowerCase()));
     const matchesOwner = filterOwner === "all" || lead.lead_owner_type === filterOwner;
     const matchesPartner = filterPartner === "all" || lead.linked_partner_id === filterPartner;
@@ -258,7 +259,7 @@ export default function IncomingLeads() {
                         {lead.contact_name || "—"}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {lead.country || "—"}
+                        {displayCountry(lead.country)}
                       </td>
                       <td className="px-4 py-3">
                         {lead.partners ? (

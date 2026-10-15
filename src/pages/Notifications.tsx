@@ -5,6 +5,7 @@ import { useNotificationInbox, useNotificationUnreadCount, useMarkNotificationsR
 import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { labelledTestNotification } from '@/lib/ux-discovery';
 
 const typeIcons: Record<string, typeof Info> = { warning: AlertTriangle, danger: XCircle, info: Info, success: CheckCircle2, task: CheckCircle2 };
 const emailLabels: Record<string, string> = { dispatching: "Email pending", queued: "Email queued", sent: "Email sent", delivered: "Email delivered", failed: "Email failed", bounced: "Email bounced", suppressed: "Email blocked", disabled: "Email inactive" };
@@ -38,6 +39,7 @@ export default function Notifications() {
         {!!unread.data && <Button variant="outline" size="sm" disabled={markRead.isPending} onClick={() => markRead.mutate(null)}><Check className="h-4 w-4 mr-1" />{markRead.isPending ? "Saving…" : "Mark all read"}</Button>}
       </div>
     </div>
+    <p className="text-sm text-muted-foreground">Assignments, reminders and platform updates. Open the linked record for context and next steps. Explicitly test-labelled messages are marked below and retained in history; unread counts still include them.</p>
     {isHQ && <div className="rounded-xl border bg-card p-4 text-sm">
       <p className="font-medium mb-1">Operational email delivery</p>
       {health.isError ? <p role="alert" className="text-destructive">Email delivery status unavailable. <button onClick={() => void health.refetch()} className="underline">Try again</button></p> : !health.data ? <p className="text-muted-foreground">Checking delivery status…</p> : <>
@@ -54,6 +56,7 @@ export default function Notifications() {
           <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0"><Icon className="h-4 w-4 text-muted-foreground" /></div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-start justify-between gap-2"><p className={`text-sm ${!n.is_read ? "font-semibold" : "font-medium text-foreground/80"}`}>{n.title}</p><time className="text-[11px] text-muted-foreground" dateTime={n.created_at}>{new Date(n.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</time></div>
+            {labelledTestNotification(n.title)&&<p className="text-xs font-medium text-muted-foreground mt-1">Test-labelled message · retained for reference</p>}
             <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line break-words">{n.message}</p>
             <div className="flex flex-wrap items-center gap-3 mt-2">
               {n.action_url && <Link to={n.action_url} onClick={() => { if (!n.is_read) markRead.mutate(n.id); }} className="text-xs font-medium text-primary hover:underline">View details →</Link>}

@@ -1,4 +1,18 @@
+import { ISO_COUNTRIES } from '@/data/iso-countries';
 /** Presentation only: never changes commercial amounts, probabilities or access. */
+export function displayCountry(value: string | null | undefined): string {
+  const raw = value?.trim();
+  if (!raw) return '—';
+  const key = raw.toUpperCase();
+  return ISO_COUNTRIES.find(country=>country.code===key || country.name.toUpperCase()===key)?.name ?? raw;
+}
+export function displayDate(value: string | null | undefined): string {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value) && date.toISOString().slice(0,10)!==value) return '—';
+  return date.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',...(/^\d{4}-\d{2}-\d{2}$/.test(value)?{timeZone:'UTC'}:{})});
+}
 export function formatAuditMoney(value: number, compact = false): string {
   if (!Number.isFinite(value)) return "Unavailable";
   if (compact && Math.abs(value) >= 1000) {

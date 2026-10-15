@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { partnerClientScope, formatAuditMoney } from "@/lib/ux-presentation";
+import { partnerClientScope, formatAuditMoney, displayDate } from "@/lib/ux-presentation";
 import { usePartner, useUpdatePartner, useArchivePartner, usePartnershipLevels } from "@/hooks/usePartners";
 import { useClients, useCreateClient } from "@/hooks/useClients";
 import { useDeals } from "@/hooks/useDeals";
@@ -420,7 +420,7 @@ export default function PartnerDetail() {
             </div>
             <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
               <span>{countryName}</span>
-              {partner.start_date && <span>Since {partner.start_date}</span>}
+              {partner.start_date && <span>Since {displayDate(partner.start_date)}</span>}
               <Badge variant="outline" className="font-normal">{partner.partnership_level}</Badge>
               <span className="font-mono text-xs">{partner.partner_code}</span>
             </div>

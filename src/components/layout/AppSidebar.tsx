@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useExplorerAccess } from '@/hooks/useExplorerAccess';
 import { useMyPermissions } from "@/hooks/useUsers";
@@ -95,6 +96,7 @@ const communityNav = [
 ];
 
 export function AppSidebar() {
+  const [navigationSearch, setNavigationSearch] = useState("");
   const { profile, roles, signOut } = useAuth();
   const explorerAccess = useExplorerAccess();
   const { data: myPerms } = useMyPermissions();
@@ -102,6 +104,7 @@ export function AppSidebar() {
   const { state, toggleSidebar, setOpenMobile, isMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  useEffect(()=>setNavigationSearch(''),[location.pathname,collapsed]);
   const isAdmin = roles.includes("hq_admin");
   const isPartnerUser = profile?.is_hq !== true;
 
@@ -126,7 +129,9 @@ export function AppSidebar() {
   }, [location.pathname, isMobile]);
 
   const renderGroup = (label: string, items: NavItem[]) => {
-    const visible = items.filter(item => canSee(item.url));
+    const query = navigationSearch.trim().toLowerCase();
+    const matches = (item: NavItem) => !query || item.title.toLowerCase().includes(query);
+    const visible = items.filter(item => canSee(item.url) && (matches(item) || item.children?.some(child => canSee(child.url) && matches(child))));
     if (visible.length === 0) return null;
     return (
       <SidebarGroup>
@@ -138,12 +143,13 @@ export function AppSidebar() {
         <SidebarGroupContent>
           <SidebarMenu>
             {visible.map((item) => {
-              const childItems = (item.children ?? []).filter((child) => canSee(child.url));
+              const childItems = (item.children ?? []).filter((child) => canSee(child.url) && (matches(item) || matches(child)));
               return (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
                     <NavLink
                       to={item.url}
+                      aria-label={item.title}
                       end={item.url === "/" || childItems.length > 0}
                       className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
                       activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
@@ -193,6 +199,7 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <button
+              aria-label="Collapse navigation"
               onClick={toggleSidebar}
               className="text-sidebar-muted hover:text-sidebar-foreground transition-colors"
             >
@@ -203,6 +210,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="min-h-0 flex-1 px-1.5">
+        {!collapsed && <div className="px-3 pt-1 pb-2"><Input aria-label="Find a module" placeholder="Find a module…" value={navigationSearch} onChange={e => setNavigationSearch(e.target.value)} className="h-9 bg-sidebar-accent text-sidebar-foreground placeholder:text-sidebar-muted border-sidebar-border" />{navigationSearch && <button className="mt-1 text-xs text-sidebar-foreground underline" onClick={() => setNavigationSearch('')}>Clear navigation search</button>}<p className="text-xs text-sidebar-muted mt-1">Filters menu items you can access.</p></div>}
         {renderGroup("Main", mainNav)}
         {renderGroup("Sales CRM", salesNav)}
         {renderGroup("Partner Ops", partnerOpsNav)}
