@@ -99,11 +99,12 @@ export function PartnerBriefCard({ brief, variant = "default" }: PartnerBriefCar
             {brief.confidence} confidence
           </Badge>
           <Badge variant="outline" className={`gap-1 font-normal ${meta.className}`}>
-            <Icon className="h-3 w-3" /> {meta.label}
+            <Icon className="h-3 w-3" /> Momentum: {meta.label}
           </Badge>
         </div>
       </div>
 
+      <p className="text-xs text-muted-foreground">Commercial momentum from recorded activity, not the overall health score or the manual relationship status. {brief.momentumHint}</p>
       {/* Executive summary — concise */}
       <p className="text-[13px] leading-snug text-foreground/90">{brief.summary}</p>
 

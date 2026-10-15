@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { formatAuditMoney, AWARDED_REVENUE_NOTE } from "@/lib/ux-presentation";
 import { useNavigate } from "react-router-dom";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell,
@@ -88,8 +89,8 @@ function ExecCard({
   );
 }
 
-const fmtEuro = (v: number) => `€${v.toLocaleString()}`;
-const fmtEuroK = (v: number) => `€${(v / 1000).toFixed(0)}k`;
+const fmtEuro = (v: number) => formatAuditMoney(v);
+const fmtEuroK = (v: number) => formatAuditMoney(v, true);
 
 export default function Analytics() {
   const [tab, setTab] = useState("overview");
@@ -235,11 +236,11 @@ export default function Analytics() {
             {/* Sales metrics — deal-derived */}
             <KPI label={WON_DEAL_VALUE_LABEL} value={fmtEuroK(wonDealTotal)} sub={`${wonOutcomes.length} won deal${wonOutcomes.length !== 1 ? "s" : ""} · new business`} />
             <KPI label="Pipeline Value (Open)" value={fmtEuroK(totalPipelineValue)} sub={`${totalOpenDeals} open deal${totalOpenDeals !== 1 ? "s" : ""}`} />
-            <KPI label="Weighted Pipeline" value={fmtEuroK(totalWeightedPipeline)} sub="Probability-adjusted" />
+            <KPI label="Weighted Pipeline" value={fmtEuroK(totalWeightedPipeline)} sub="All open · not a dated forecast" />
             <KPI label="Conversion Rate" value={`${conversionRate}%`} sub={`${wonOutcomes.length} won / ${lostOutcomes.length} lost`} trend={conversionRate >= 50 ? "up" : conversionRate > 0 ? "down" : "neutral"} />
           </div>
 
-          <p className="text-xs text-muted-foreground">Revenue follows commercial awards, not invoices or payments. Imported history retains its original dates and values; Won Deal Value is a separate sales metric and is not added to revenue.</p>
+          <p className="text-sm text-muted-foreground">{AWARDED_REVENUE_NOTE} YTD = 1 January {currentYear} through today. Won Deal Value covers recorded won opportunities across all dates and is not added to awarded revenue. Pipeline covers currently open opportunities visible to your account.</p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Card 1 — Revenue by Country (billed revenue, not won deals) */}
             <ExecCard title="Revenue by Country" icon={Globe2} onClick={() => setTab("partners")}>
@@ -482,7 +483,7 @@ function PipelineCockpit({
   }
   const big = openDeals.filter((d: any) => authDealValue(d) >= 25000);
   if (big.length > 0) insights.push(`${big.length} opportunit${big.length === 1 ? "y exceeds" : "ies exceed"} €25k.`);
-  if (highConfidence.length > 0) insights.push(`${highConfidence.length} high-confidence deal${highConfidence.length !== 1 ? "s" : ""} expected to convert.`);
+  if (highConfidence.length > 0) insights.push(`${highConfidence.length} open deal${highConfidence.length !== 1 ? "s have" : " has"} recorded base probability ≥ 70%; this is not a commitment.`);
   const topInsights = insights.slice(0, 5);
 
   // Largest opportunities
@@ -568,28 +569,30 @@ function PipelineCockpit({
 
 
         {/* Forecast */}
-        <ExecCard title="Forecast" icon={Gauge} onClick={() => navigate("/pipeline")}>
+        <ExecCard title="Pipeline Potential · Not a Dated Forecast" icon={Gauge}>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
             <div>
-              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Expected revenue</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Weighted opportunity value</p>
               <p className="font-bold text-foreground mt-0.5 tabular-nums">{fmtEuroK(expectedRevenue)}</p>
-              <p className="text-xs text-muted-foreground">Weighted pipeline</p>
+              <p className="text-xs text-muted-foreground">All open dates · probability-adjusted, not committed revenue</p>
             </div>
             <div>
               <p className="text-[11px] text-muted-foreground uppercase tracking-wide">High-confidence deals</p>
               <p className="font-bold text-foreground mt-0.5 tabular-nums">{highConfidence.length}</p>
-              <p className="text-xs text-muted-foreground">≥ 70% probability</p>
+              <p className="text-xs text-muted-foreground">≥ 70% base probability</p>
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Average probability</p>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Average base probability</p>
               <p className="font-bold text-foreground mt-0.5 tabular-nums">{avgProb}%</p>
             </div>
             <div>
-              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Closes this quarter</p>
+              <p className="text-[11px] text-muted-foreground uppercase tracking-wide">Dated for rest of this quarter</p>
               <p className="font-bold text-foreground mt-0.5 tabular-nums">{closesThisQuarter}</p>
               {missingCloseDates > 0 && <p className="text-[11px] text-muted-foreground">{missingCloseDates} without close date (unknown)</p>}
             </div>
           </div>
+          <p className="text-sm text-muted-foreground mt-3">{missingCloseDates > 0 ? `${missingCloseDates} open opportunities have no expected close date. A complete dated forecast is unavailable.` : "Dates are recorded; probability-weighted value remains an estimate, not a commitment."}</p>
+          {missingCloseDates > 0 && <button type="button" className="text-sm text-primary underline mt-2" onClick={() => navigate("/pipeline?dashboard=undated")}>Review opportunities missing close date</button>}
         </ExecCard>
 
         {/* Insights */}
@@ -1141,14 +1144,15 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
       {/* KPI Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KPI label="Active Partners" value={String(activeCount)} sub={`${activeCount} active of ${rows.length} total`} />
-        <KPI label="Billed Revenue" value={fmtEuroK(totalRevenue)} sub="Invoiced to date" />
+        <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(totalRevenue)} sub="All recorded dates · visible partner rows" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="Across all partners" />
-        <KPI label="Average Partner Health" value={`${avgHealth}/100`} sub="Network average" trend={avgHealth >= 70 ? "up" : avgHealth >= 50 ? "neutral" : "down"} />
+        <KPI label="Average Partner Health" value={`${avgHealth}/100`} sub={`Calculated · all ${rows.length} listed partners, including archived`} trend={avgHealth >= 70 ? "up" : avgHealth >= 50 ? "neutral" : "down"} />
       </div>
+      <p className="text-sm text-muted-foreground">{AWARDED_REVENUE_NOTE} YTD = current calendar year through today. Rankings and health include all listed partner rows; Active Partners is a separate subset.</p>
 
       {/* Top Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ExecCard title="Top Billed Revenue" icon={Trophy}>
+        <ExecCard title="Top Awarded Revenue · Lifetime" icon={Trophy}>
           <RankList items={topRevenue.map(r => ({ id: r.partner_id, name: r.company_name, value: fmtEuroK(r.revenue) }))} navigate={navigate} />
         </ExecCard>
         <ExecCard title="Highest Pipeline" icon={Rocket}>
@@ -1214,8 +1218,8 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
               <tr className="border-b bg-secondary/50">
                 <SortHeader label="Partner" k="company_name" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
                 <SortHeader label="Country" k="country" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="left" />
-                <SortHeader label="Billed Revenue" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
-                <SortHeader label="Revenue YTD" k="billed_ytd" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Awarded · Lifetime" k="revenue" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
+                <SortHeader label="Awarded · YTD" k="billed_ytd" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Won New Business" k="won_new_business" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Pipeline" k="pipeline" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />
                 <SortHeader label="Clients" k="client_count" sortKey={sortKey} dir={sortDir} onClick={toggleSort} align="right" />

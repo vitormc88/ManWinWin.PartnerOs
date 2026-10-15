@@ -1,4 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { partnerClientScope, formatAuditMoney } from "@/lib/ux-presentation";
 import { usePartner, useUpdatePartner, useArchivePartner, usePartnershipLevels } from "@/hooks/usePartners";
 import { useClients, useCreateClient } from "@/hooks/useClients";
 import { useDeals } from "@/hooks/useDeals";
@@ -63,7 +64,7 @@ export default function PartnerDetail() {
   const { isAdmin } = useAuth();
 
   const { data: partner, isLoading } = usePartner(id);
-  const { data: clients = [] } = useClients({ partner_uuid: id });
+  const { data: clients = [], isLoading: clientsLoading, isError: clientsError } = useClients({ partner_uuid: id });
   const { data: deals = [] } = useDeals({ partner_id: id });
   const { data: renewals = [] } = useRenewals();
   const { data: metricsMap = {} } = usePartnerMetrics();
@@ -373,7 +374,7 @@ export default function PartnerDetail() {
 
   const revenue = metrics?.revenue ?? 0;
   const pipeline = metrics?.pipeline ?? 0;
-  const clientCount = metrics?.clients ?? clients.length;
+  const clientScope = partnerClientScope(clients);
 
   const certStatus = (c: any) => {
     if (!c.expiry_date) return { label: "Valid", variant: "success" as const };
@@ -390,7 +391,7 @@ export default function PartnerDetail() {
   const lostDeals = deals.filter(d => d.status === "Lost");
   const accountOwner = hqUsers.find((u: any) => u.id === (partner as any).account_owner_id);
   const countryName = partner.country ? (COUNTRY_NAME_BY_CODE[partner.country] ?? partner.country) : "—";
-  const relStatus = (partner as any).relationship_status || "Healthy";
+  const relStatus = (partner as any).relationship_status || "";
   const daysUntilMeeting = (partner as any).next_meeting_date
     ? Math.ceil((new Date((partner as any).next_meeting_date).getTime() - Date.now()) / 86400000)
     : null;
@@ -436,9 +437,9 @@ export default function PartnerDetail() {
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 animate-reveal-up stagger-1">
         {[
-          { label: "Revenue", value: `€${revenue.toLocaleString()}` },
-          { label: "Pipeline", value: `€${pipeline.toLocaleString()}` },
-          { label: "Clients", value: clientCount },
+          { label: "Won Opportunity Value · All dates", value: formatAuditMoney(revenue) },
+          { label: "Pipeline · Open", value: formatAuditMoney(pipeline) },
+          { label: "Clients · All linked", value: clientsLoading ? "Loading…" : clientsError ? "Unavailable" : clients.length },
           { label: "Open Leads", value: openDeals.length },
         ].map(kpi => (
           <div key={kpi.label} className="bg-card rounded-xl border p-5 shadow-sm">
@@ -449,6 +450,7 @@ export default function PartnerDetail() {
       </div>
 
       <Tabs defaultValue="overview" className="animate-reveal-up stagger-2">
+        <p className="text-sm text-muted-foreground mb-3">{!clientsLoading && !clientsError ? `Client scope: ${clients.length} linked records · ${clientScope.active} active · ${clientScope.current - clientScope.active} other current · ${clientScope.archived} archived. ` : "Client counts are being loaded or are unavailable. "}Won opportunity value is deal-derived, not awarded revenue history or invoices. Commercial momentum, calculated health and the manually recorded relationship are separate assessments; they may differ.</p>
         <div className="sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border">
           <TabsList className="h-12 p-0 bg-transparent gap-1 rounded-none w-full justify-start overflow-x-auto no-scrollbar flex-nowrap">
             {[
@@ -576,7 +578,7 @@ export default function PartnerDetail() {
                   <dt className="text-muted-foreground">Country</dt>
                   <dd className="text-foreground">{countryName}</dd>
                   <dt className="text-muted-foreground">Onboarding</dt>
-                  <dd className="text-foreground">{partner.onboarding_status || "—"}</dd>
+                  <dd className="text-foreground">{partner.onboarding_status || "Not recorded"}<p className="text-xs text-muted-foreground mt-1">Recorded setup status, not relationship age. For longstanding partners, historical onboarding may not have been recorded.</p></dd>
                 </dl>
               </div>
 
@@ -629,10 +631,11 @@ export default function PartnerDetail() {
                   variant={relStatus === "Healthy" || relStatus === "Growing" ? "success" : relStatus === "At Risk" ? "destructive" : "secondary"}
                   className="text-[10px] font-normal"
                 >
-                  {relStatus}
+                  {relStatus || "Not assessed"}
                 </Badge>
               </div>
 
+              <p className="text-xs text-muted-foreground">Manually recorded relationship assessment, not the calculated health score. Assessment author/date are not recorded separately; the latest interaction below provides context.</p>
               <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
                 <div>
                   <Label className="text-[11px] text-muted-foreground font-normal">Account Owner</Label>
@@ -655,9 +658,9 @@ export default function PartnerDetail() {
                   </Select>
                 </div>
                 <div className="col-span-2">
-                  <Label className="text-[11px] text-muted-foreground font-normal">Relationship Status</Label>
+                  <Label className="text-[11px] text-muted-foreground font-normal">Relationship Status · Manual</Label>
                   <Select value={relStatus} onValueChange={v => updatePartner.mutate({ id: partner.id, relationship_status: v } as any)}>
-                    <SelectTrigger className="h-8 mt-1 text-[13px]"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-8 mt-1 text-[13px]"><SelectValue placeholder="Not assessed" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Healthy">Healthy</SelectItem>
                       <SelectItem value="Growing">Growing</SelectItem>

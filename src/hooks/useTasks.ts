@@ -206,6 +206,7 @@ export function useWorkload(userId?: string) {
         completedThisWeek: completedRows.length,
         avgCompletionHours: avgMs / (1000 * 60 * 60),
         openCount: openRows.length,
+        dueTodayCount: openRows.filter(r => isSameLocalDay(r.due_date)).length,
         overdueCount: overdue,
       };
     },

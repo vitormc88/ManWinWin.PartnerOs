@@ -26,10 +26,19 @@ describe('Renewals Pipeline interactions', () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date(2026, 9, 9, 12)); fixtures.editable = true; fixtures.error = false; });
   afterEach(() => { cleanup(); vi.useRealTimers(); });
   it('shows Deadline client as critical and overdue while its proposal is validated', () => {
-    show(); const row = screen.getByText('Deadline client-code').closest('tr')!;
+    show(); fireEvent.click(screen.getByRole('button', { name: 'All columns' })); const row = screen.getByText('Deadline client-code').closest('tr')!;
     expect(within(row).getByText('Critical')).toBeInTheDocument();
     expect(within(row).getByText('Overdue')).toBeInTheDocument();
     expect(within(row).getByText('Proposal validated')).toBeInTheDocument();
+  });
+  it('starts with essential columns and an explicit read-only opening action', () => {
+    fixtures.editable = false;
+    show();
+    expect(screen.queryByRole('columnheader', {name:'Priority'})).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', {name:'Owner'})).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', {name:'Open renewal for Deadline client'}));
+    expect(screen.queryByText('Proposal write actions')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', {name:'Close Renewal'})).not.toBeInTheDocument();
   });
   it('hides archived partner choices until requested', () => {
     show(); expect(screen.queryByRole('option', { name: 'Retired partner (archived)' })).not.toBeInTheDocument();

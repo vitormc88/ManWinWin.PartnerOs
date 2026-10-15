@@ -20,8 +20,8 @@
  */
 
 /** Canonical UI labels — asserted by tests so the separation cannot silently regress. */
-export const LIFETIME_REVENUE_LABEL = "Lifetime Revenue";
-export const REVENUE_YTD_LABEL = "Total Revenue YTD";
+export const LIFETIME_REVENUE_LABEL = "Awarded Revenue · Lifetime";
+export const REVENUE_YTD_LABEL = "Awarded Revenue YTD";
 export const NB_YTD_LABEL = "New Business YTD";
 export const RENEWALS_YTD_LABEL = "Renewals YTD";
 export const WON_DEAL_VALUE_LABEL = "Won Deal Value";

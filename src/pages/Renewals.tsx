@@ -85,6 +85,7 @@ export default function Renewals() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showProposal, setShowProposal] = useState(false);
   const [showClose, setShowClose] = useState(false);
+  const [showAllColumns, setShowAllColumns] = useState(false);
   const { canEdit } = useModuleAccess();
   const { data: profilesMap } = useAllProfilesMap();
   const { data: assignableUsers = [] } = useAssignableUsers();
@@ -243,7 +244,8 @@ export default function Renewals() {
 
       {loadError && <div role="alert" className="rounded-lg border border-destructive/40 p-4 text-sm">Could not load the complete renewal pipeline. <Button variant="outline" size="sm" onClick={() => { refetch(); qc.invalidateQueries({ queryKey: ["clients"] }); qc.invalidateQueries({ queryKey: ["partners"] }); qc.invalidateQueries({ queryKey: ["proposal"] }); }}>Retry</Button></div>}
       {["31-60", "61-90"].includes(dashboardDeadline || "") && <p className="text-sm">Dashboard range: {dashboardDeadline} days. <button className="text-primary underline" onClick={() => { const next = new URLSearchParams(searchParams); next.delete("deadline"); setSearchParams(next); }}>Clear range</button></p>}
-      <p className="text-xs text-muted-foreground">Indicators show open renewals matching the filters below. Commercial stages follow proposal actions: Validate → Mark Sent → Record acceptance. Renewed/Lost are recorded through Close Renewal. Priority is calculated from the renewal date: overdue = Critical, up to 30 days = High, up to 90 days = Medium, later = Low.</p>
+      <p className="text-sm text-muted-foreground">Open a renewal to review its proposal and next action. Indicators count open renewals matching the current filters.</p>
+      <details className="text-sm text-muted-foreground"><summary className="cursor-pointer">How stages and priorities work</summary><p className="mt-2">Validate → Mark Sent → Record acceptance → Close Renewal. Renewed/Lost are outcomes, not deadlines. Priority is calculated from the date: overdue = Critical, up to 30 days = High, up to 90 days = Medium, later = Low. All details remain available for each renewal.</p></details>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 animate-reveal-up stagger-1">
         {[
           { label: "Clients", value: stats.total, color: "text-foreground" },
@@ -296,37 +298,40 @@ export default function Renewals() {
       <p className="text-xs text-muted-foreground">{filtered.length} cycles shown · {activeRenewals.length} open · {filtered.length - activeRenewals.length} closed. Select All dates to include every future cycle. {activeRenewals.some(r => r.estimated_value == null) && "Some open renewals have no estimated value and are excluded from Pipeline Value."}</p>
 
       <div className="bg-card rounded-xl border shadow-sm overflow-hidden animate-reveal-up stagger-3">
+        <div className="px-4 py-3 border-b flex flex-wrap justify-between items-center gap-3"><span className="text-sm font-medium">{filtered.length} renewals in this selection</span><Button variant="outline" size="sm" aria-pressed={showAllColumns} onClick={() => setShowAllColumns(v => !v)}>{showAllColumns ? "Essential columns" : "All columns"}</Button></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-secondary/50">
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>
+              {showAllColumns && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>}
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
               {!partnerScoped && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Partner</th>}
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Renewal Date</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Days</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Deadline</th>
+              {showAllColumns && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Days</th>}
+              {showAllColumns && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Deadline</th>}
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Commercial Stage</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Result</th>
+              {showAllColumns && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Result</th>}
               <th className="text-right px-4 py-3 font-medium text-muted-foreground">Value</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Owner</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Next step</th>
             </tr></thead>
             <tbody className="divide-y">
               {isLoading ? (
-                <tr><td colSpan={partnerScoped ? 9 : 10} className="px-4 py-8 text-center text-muted-foreground">Loading renewals...</td></tr>
+                <tr><td colSpan={(showAllColumns ? 11 : 7) - (partnerScoped ? 1 : 0)} className="px-4 py-8 text-center text-muted-foreground">Loading renewals...</td></tr>
               ) : loadError ? (
-                <tr><td colSpan={partnerScoped ? 9 : 10} className="px-4 py-8 text-center text-destructive">Pipeline unavailable. Please retry.</td></tr>
+                <tr><td colSpan={(showAllColumns ? 11 : 7) - (partnerScoped ? 1 : 0)} className="px-4 py-8 text-center text-destructive">Pipeline unavailable. Please retry.</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={partnerScoped ? 9 : 10} className="px-4 py-8 text-center text-muted-foreground">No renewals found.</td></tr>
+                <tr><td colSpan={(showAllColumns ? 11 : 7) - (partnerScoped ? 1 : 0)} className="px-4 py-8 text-center text-muted-foreground">No renewals found.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id} className="hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => setSelectedId(r.id)}>
-                  <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityColors[r.priority || "Medium"] || ""}`}>{r.priority}</span></td>
+                  {showAllColumns && <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityColors[r.priority || "Medium"] || ""}`}>{r.priority}</span></td>}
                   <td className="px-4 py-3"><Link to={`/clients/${r.client_id}`} className="font-medium text-foreground hover:text-primary" onClick={e => e.stopPropagation()}>{r.clientCode}</Link><p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.clientName}</p></td>
                   {!partnerScoped && <td className="px-4 py-3 text-muted-foreground text-xs">{r.partnerName}</td>}
-                  <td className="px-4 py-3 tabular-nums text-xs">{formatDateOnly(r.renewal_date)}</td>
-                  <td className="px-4 py-3"><span className={`tabular-nums text-xs font-semibold ${r.daysUntil !== null && r.daysUntil < 0 ? "text-destructive" : r.daysUntil !== null && r.daysUntil <= 30 ? "text-amber-600" : "text-muted-foreground"}`}>{isClosedRenewal(r) ? "Closed" : r.daysUntil !== null && r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : r.daysUntil === null ? "—" : `${r.daysUntil}d`}</span></td>
-                  <td className="px-4 py-3"><Badge variant={r.deadline === "Overdue" ? "destructive" : "outline"}>{r.deadline}</Badge></td><td className="px-4 py-3 text-xs">{r.stage}</td><td className="px-4 py-3 text-xs">{r.result}</td>
+                  <td className="px-4 py-3 tabular-nums text-xs">{formatDateOnly(r.renewal_date)}{!showAllColumns && <p className={`mt-1 font-medium ${r.deadline === "Overdue" ? "text-destructive" : "text-muted-foreground"}`}>{isClosedRenewal(r) ? r.result : r.daysUntil === null ? "Date missing" : r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `In ${r.daysUntil}d`}</p>}</td>
+                  {showAllColumns && <td className="px-4 py-3"><span className="tabular-nums text-xs">{isClosedRenewal(r) ? "Closed" : r.daysUntil === null ? "—" : `${r.daysUntil}d`}</span></td>}
+                  {showAllColumns && <td className="px-4 py-3"><Badge variant={r.deadline === "Overdue" ? "destructive" : "outline"}>{r.deadline}</Badge></td>}<td className="px-4 py-3 text-xs">{r.stage}</td>{showAllColumns && <td className="px-4 py-3 text-xs">{r.result}</td>}
                   <td className="px-4 py-3 text-right tabular-nums font-medium">{r.estimated_value == null ? "Not set" : formatMoney(isClosedRenewal(r) ? r.final_value ?? r.estimated_value : r.estimated_value)}</td>
                   <td className="px-4 py-3 text-xs"><span className={r.isUnassigned ? "text-destructive font-medium" : "text-muted-foreground"}>{r.ownerName}</span></td>
+                  <td className="px-4 py-3"><Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); setSelectedId(r.id); }}>Open renewal<span className="sr-only"> for {r.clientName}</span></Button></td>
                 </tr>
               ))}
             </tbody>
