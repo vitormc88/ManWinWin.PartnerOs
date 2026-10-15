@@ -42,11 +42,11 @@ export function PartnerHealthCard({ score, summary, factors }: PartnerHealthCard
       {/* ── Score header ─────────────────────────────────────────── */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-foreground text-sm">Partner Health</h3>
+          <h3 className="font-semibold text-foreground text-sm">Partner Health · Calculated</h3>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button type="button" className="text-muted-foreground hover:text-foreground">
+                <button type="button" aria-label="How partner health is calculated" className="text-muted-foreground hover:text-foreground">
                   <Info className="h-3.5 w-3.5" />
                 </button>
               </TooltipTrigger>
@@ -88,7 +88,7 @@ export function PartnerHealthCard({ score, summary, factors }: PartnerHealthCard
 
       {/* ── Causal: what's pulling the score down ────────────────── */}
       <FactorSection
-        title={band === "healthy" ? "Score is held back by:" : "Health decreased because:"}
+        title="Current factors holding the score back:"
         tone="negative"
         items={negatives.map((f) => f.label)}
         emptyText="No factors are currently pulling the score down."

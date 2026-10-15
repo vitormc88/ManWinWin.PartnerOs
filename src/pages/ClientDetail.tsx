@@ -879,8 +879,8 @@ export default function ClientDetail() {
         </Breadcrumb>
 
         {/* Prev / Title / Next */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+        <div className="flex flex-col lg:flex-row items-start justify-between gap-4">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-w-0 w-full flex-1">
             <Button
               variant="outline"
               size="sm"
@@ -888,13 +888,13 @@ export default function ClientDetail() {
               disabled={!prevId}
               aria-label="Previous client (←)"
               title="Previous client (←)"
-              className="shrink-0"
+              className="shrink-0 order-2 sm:order-none"
             >
               <ChevronLeft className="h-4 w-4 mr-1" /> Previous
             </Button>
-            <div className="min-w-0 flex-1 px-2">
+            <div className="min-w-0 basis-full sm:basis-auto sm:flex-1 sm:px-2 order-first sm:order-none">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight truncate">{client.commercial_name}</h1>
+                <h1 className="text-2xl font-bold text-foreground tracking-tight leading-tight break-words">{client.commercial_name}</h1>
                 {client.is_premium && <Badge variant="outline" className="border-amber-300 text-amber-600 bg-amber-50 gap-1"><Star className="h-3 w-3" /> Premium</Badge>}
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground/80 mt-0.5 flex-wrap">
@@ -912,12 +912,12 @@ export default function ClientDetail() {
               disabled={!nextId}
               aria-label="Next client (→)"
               title="Next client (→)"
-              className="shrink-0"
+              className="shrink-0 order-2 sm:order-none"
             >
               Next <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <Badge variant={client.status === "Active" ? "default" : "secondary"}>{client.status}</Badge>
             {licenses && licenses.length === 0 && client.status === "Active" && (
               <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50 gap-1">
@@ -1002,7 +1002,7 @@ export default function ClientDetail() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="animate-reveal-up" style={{ animationDelay: "80ms" }}>
-        <TabsList className="grid w-full grid-cols-6 h-10">
+        <TabsList aria-label="Client sections" className="flex w-full justify-start overflow-x-auto h-auto min-h-10 [&>button]:shrink-0 [&>button]:min-h-9 lg:[&>button]:flex-1">
           <TabsTrigger value="overview" className="gap-1.5 text-xs"><Building2 className="h-3.5 w-3.5" /> Overview</TabsTrigger>
           <TabsTrigger value="commercial" className="gap-1.5 text-xs"><Sparkles className="h-3.5 w-3.5" /> Commercial</TabsTrigger>
           <TabsTrigger value="licensing" className="gap-1.5 text-xs"><Shield className="h-3.5 w-3.5" /> Licensing</TabsTrigger>

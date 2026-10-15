@@ -480,10 +480,10 @@ export default function DealDetail() {
                     <h3 className="text-sm font-semibold text-foreground">Pipeline Metrics</h3>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { label: "Probability", value: `${resolvedProb}%`, color: resolvedProb >= 60 ? "text-emerald-600" : "text-foreground" },
-                        { label: "Expected Value", value: expectedValue > 0 ? `€${expectedValue.toLocaleString()}` : "—", color: "text-foreground" },
+                        { label: "Base Probability", value: `${resolvedProb}%`, color: resolvedProb >= 60 ? "text-emerald-600" : "text-foreground" },
+                        { label: "Opportunity Value", value: expectedValue > 0 ? `€${expectedValue.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—", color: "text-foreground" },
                         { label: "Expected Close", value: deal.expected_close_date ? new Date(deal.expected_close_date).toLocaleDateString("en-GB") : "—", color: "text-foreground" },
-                        { label: "Weighted Value", value: weightedValue > 0 ? `€${weightedValue.toLocaleString()}` : "—", color: "text-foreground" },
+                        { label: "Weighted · Base Probability", value: weightedValue > 0 ? `€${weightedValue.toLocaleString("en-GB", { maximumFractionDigits: 2 })}` : "—", color: "text-foreground" },
                       ].map(m => (
                         <div key={m.label} className="bg-secondary/50 rounded-lg p-3 text-center">
                           <p className={`text-lg font-bold tabular-nums ${m.color}`}>{m.value}</p>

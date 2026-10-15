@@ -20,6 +20,7 @@ import { useAssignableUsers } from "@/hooks/useAssignableUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { EntityCombobox } from "@/components/tasks/EntityCombobox";
 import { deriveWorkGuidance } from "@/lib/task-guidance";
+import { selectFocusContexts } from "@/lib/task-focus-context";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -164,6 +165,8 @@ function groupTasks(rows: UnifiedTask[], key: GroupKey) {
 
 function TodaysFocus() {
   const { data } = useTodaysFocus();
+  const { profile, roles } = useAuth();
+  const teamScope = roles.includes("hq_admin") || profile?.is_hq === true;
   const items = [
     { label: "Open", value: data?.total ?? 0, tone: "text-foreground" },
     { label: "Critical", value: data?.critical ?? 0, tone: "text-destructive" },
@@ -175,7 +178,7 @@ function TodaysFocus() {
     <Card>
       <div className="flex items-center gap-4 px-4 py-2.5 overflow-x-auto">
         <span className="text-[10px] font-semibold text-muted-foreground tracking-[0.12em] uppercase shrink-0">
-          Today
+          {teamScope ? "Team · All open" : "My · All open"}
         </span>
         <div className="flex items-center gap-5 flex-1">
           {items.map((it, i) => (
@@ -194,15 +197,14 @@ function TodaysFocus() {
 
 function WorkloadCard() {
   const { data } = useWorkload();
-  const { data: today } = useTodaysFocus();
   return (
     <Card>
       <CardHeader className="pb-2 pt-3 px-4">
-        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">My Workload</CardTitle>
+        <CardTitle className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">My Workload · Assigned to me</CardTitle>
       </CardHeader>
       <CardContent className="space-y-1.5 text-sm px-4 pb-3">
         <Row label="Open" value={data?.openCount ?? 0} />
-        <Row label="Due today" value={today?.dueToday ?? 0} />
+        <Row label="Due today" value={data?.dueTodayCount ?? 0} />
         <Row label="Overdue" value={data?.overdueCount ?? 0} tone={data?.overdueCount ? "text-destructive font-medium" : ""} />
         <Row label="Completed this week" value={data?.completedThisWeek ?? 0} />
       </CardContent>
@@ -1017,7 +1019,7 @@ function recommendWorkMode(tasks: UnifiedTask[]): { label: string; tone: "danger
 function PriorityFocus({ tasks }: { tasks: UnifiedTask[] }) {
   const open = useMemo(() => tasks.filter((t) => t.status !== "done"), [tasks]);
   const top = useMemo(
-    () => open.map(scoreTask).sort((a, b) => b.score - a.score).slice(0, 3),
+    () => selectFocusContexts(open.map(scoreTask)),
     [open],
   );
   const mode = useMemo(() => recommendWorkMode(open), [open]);
@@ -1032,11 +1034,11 @@ function PriorityFocus({ tasks }: { tasks: UnifiedTask[] }) {
 
   return (
     <Card>
-      <div className="flex items-center justify-between gap-3 px-4 py-2 border-b">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b">
+        <div className="flex flex-wrap items-center gap-2">
           <Target className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-[11px] font-semibold text-muted-foreground tracking-[0.12em] uppercase">
-            Priority Focus
+            Start here · Priority Focus
           </span>
           <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded border", toneClass)}>
             <Compass className="h-2.5 w-2.5" />
@@ -1044,20 +1046,23 @@ function PriorityFocus({ tasks }: { tasks: UnifiedTask[] }) {
           </span>
         </div>
         {open.length > 3 && (
-          <span className="text-[11px] text-muted-foreground">{open.length - 3} more in list</span>
+          <span className="text-xs text-muted-foreground">{open.length} open tasks in this selection · full list below</span>
         )}
       </div>
       <ol className="divide-y divide-border/60">
-        {top.map(({ task }, i) => {
+        {top.map(({ task, reason, relatedCount }) => {
           const due = formatDue(task.due_date);
           const Body = (
-            <div className="flex items-center gap-2.5 px-4 py-1.5 group">
+            <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 group">
               <span
                 aria-hidden
                 className={cn("h-1.5 w-1.5 rounded-full shrink-0", PRIORITY_ACCENT[task.priority])}
               />
-              <span className="text-sm font-medium text-foreground truncate flex-1 min-w-0">{task.title}</span>
-              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 shrink-0 tabular-nums">
+              <div className="text-sm flex-1 min-w-[180px]">
+                <p className="font-semibold text-foreground">{task.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">{reason} · Owner: {task.owner_name || "Unassigned"}{relatedCount > 1 ? ` · ${relatedCount} related tasks (kept in the list)` : ""}</p>
+              </div>
+              <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-1.5 tabular-nums">
                 {task.company_name && (
                   <>
                     <span className="font-medium text-foreground/80 truncate max-w-[140px]">{task.company_name}</span>
@@ -1080,7 +1085,7 @@ function PriorityFocus({ tasks }: { tasks: UnifiedTask[] }) {
                 </span>
               </div>
               {task.related_route && (
-                <ArrowRight className="h-3 w-3 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                <span className="text-xs font-medium text-primary inline-flex items-center gap-1">Open next step <ArrowRight className="h-3 w-3" /></span>
               )}
             </div>
           );
@@ -1134,6 +1139,7 @@ export default function Tasks() {
   const [priority, setPriority] = useState<TaskPriority | "all">("all");
   const [groupBy, setGroupBy] = useState<GroupKey>("priority");
   const [search, setSearch] = useState("");
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [ownerId, setOwnerId] = useState<string>("all");
   const [relatedType, setRelatedTypeFilter] = useState<string>("all");
   const [taskTypeFilter, setTaskTypeFilter] = useState<string>("all");
@@ -1306,6 +1312,7 @@ export default function Tasks() {
       </div>
 
       <TodaysFocus />
+      <p className="text-xs text-muted-foreground">Summary above: all open tasks within your access, before list filters. Priority Focus below: current selection. Task amounts can repeat and are not a revenue forecast.</p>
       {!isLoading && tasks.length > 0 && view !== "completed" && <PriorityFocus tasks={tasks} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
@@ -1356,6 +1363,8 @@ export default function Tasks() {
                   )}
                 </div>
               </div>
+              <div className="px-3 py-2"><Button variant="outline" size="sm" aria-expanded={filtersExpanded} aria-controls="task-list-filters" onClick={() => setFiltersExpanded(v => !v)}>{filtersExpanded ? "Hide filters & layout" : "Filters & layout"}{activeFilters.length > 0 ? ` (${activeFilters.length} active)` : ""}</Button></div>
+              <div id="task-list-filters" hidden={!filtersExpanded}>
               <div className="flex items-center gap-2 flex-wrap text-sm px-3 py-2">
                 <ListFilter className="h-3.5 w-3.5 text-muted-foreground" />
                 <Select value={source} onValueChange={(v: any) => setSource(v)}>
@@ -1458,6 +1467,7 @@ export default function Tasks() {
               </div>
 
               {/* Active filter chips + result summary */}
+              </div>
               {(activeFilters.length > 0 || !isLoading) && (
                 <div className="flex items-center gap-2 flex-wrap px-3 pb-2 -mt-1">
                   {activeFilters.map((f) => (

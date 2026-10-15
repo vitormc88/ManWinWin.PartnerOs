@@ -255,6 +255,7 @@ export default function ClientsLicenses() {
       </div>
 
       <div className="animate-reveal-up" style={{ animationDelay: "60ms" }}>
+        <p className="text-sm text-muted-foreground mb-2">Indicators for the current selection · {filtered.length} matching clients. Search, partner, status and archive filters apply to these totals; access restrictions still apply.</p>
         <ClientsKPIBar active={activeCount} total={filtered.length} premium={premiumCount} contractValues={contractValues} renewals30={renewals30} overdue={overdue} loading={kpisLoading} error={!!kpisError} />
       </div>
 
