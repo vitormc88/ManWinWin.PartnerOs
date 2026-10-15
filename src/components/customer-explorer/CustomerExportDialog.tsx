@@ -40,7 +40,7 @@ export function CustomerExportDialog({rows,filters,onClose,prepare,validate}:{ro
  <fieldset disabled={busy}><legend>Optional content</legend>{([
  ['map','Include map'],['logos',`Include available logos (${summary.logos})`],['websites',`Include reviewed websites (${summary.websites})`],['caseStudies',`Add reviewed case studies (${summary.caseStudies})`],
  ] as [keyof ExportOptions,string][]).map(([key,label])=><label key={key}><input type="checkbox" checked={options[key]} onChange={e=>setOptions(v=>({...v,[key]:e.target.checked}))}/>{label}</label>)}</fieldset>
- <p role="status"><strong>{summary.customers} customers · {summary.countries} countries · {summary.caseStudies} reviewed case studies available</strong></p>
+ <p role="status"><strong>{summary.customers} {summary.customers===1?'customer':'customers'} · {summary.countries} {summary.countries===1?'country':'countries'} · {summary.caseStudies} reviewed {summary.caseStudies===1?'case study':'case studies'} available</strong></p>
  <small>Missing logos, websites and case studies are omitted. Customer presence does not imply availability for a reference call.</small>
  {error&&<p role="alert">{error}</p>}<div className="ce-export-actions"><button disabled={busy} onClick={onClose}>Cancel</button>{reloadRequired&&<button disabled={busy} onClick={()=>window.location.reload()}>Reload Explorer</button>}<button disabled={busy||!selected.length} onClick={generate}>{busy?'Preparing PDF…':'Download PDF'}</button></div>
  </DialogContent></Dialog>;

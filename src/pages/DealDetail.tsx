@@ -275,7 +275,7 @@ export default function DealDetail() {
           {editing ? (
             <div className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-foreground">Edit Lead</h3>
+                <h3 className="text-sm font-semibold text-foreground">Edit opportunity</h3>
                 <div className="flex gap-2">
                   <Button size="sm" variant="ghost" onClick={() => setEditing(false)}><X className="h-4 w-4 mr-1" />Cancel</Button>
                   <Button size="sm" onClick={saveEdit}><Save className="h-4 w-4 mr-1" />Save</Button>

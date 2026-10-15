@@ -196,7 +196,7 @@ export default function AcademyAnalytics() {
                 ) : (
                   <>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                      <Kpi label="Active learners" value={overview.data!.total_active_learners} hint={`${overview.data!.total_learners} in scope`} />
+                      <Kpi label="Learners with recorded activity" value={overview.data!.total_active_learners} hint={`${overview.data!.total_learners} in scope · activity at any date`} />
                       <Kpi label="Modules started" value={overview.data!.modules_started} />
                       <Kpi label="Modules completed" value={overview.data!.modules_completed} />
                       <Kpi label="Certifications passed" value={overview.data!.certifications_passed} />
@@ -204,11 +204,12 @@ export default function AcademyAnalytics() {
                       <Kpi label="Average score" value={formatPct(overview.data!.average_score)} />
                       <Kpi label="Avg attempts to pass" value={overview.data!.average_attempts_before_passing} />
                       <Kpi
-                        label="Inactive learners"
+                        label="No activity for 14+ days"
                         value={overview.data!.inactive_14}
                         hint={`7d ${overview.data!.inactive_7} · 30d ${overview.data!.inactive_30}`}
                       />
                     </div>
+                    <p className="text-sm text-muted-foreground">Activity uses the latest recorded Academy progress or attempt at any date, not account activation. Inactivity includes learners without activity and is independent of the date range; that range filters module progress updates, submitted attempts and certificates. Completion and certification are separate measures.</p>
 
                     <Card>
                       <CardHeader className="flex-row items-center justify-between space-y-0">

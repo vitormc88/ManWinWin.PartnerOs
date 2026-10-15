@@ -139,6 +139,7 @@ export default function Community() {
         )}
       </div>
 
+      <div className="rounded-xl border bg-card p-4 text-sm space-y-2"><p className="font-medium">Share experience with the partner network</p><p className="text-muted-foreground">Discuss implementation practices, sales approaches, integrations or product feedback. For example: “How do you structure maintenance training for a new customer?”</p><p className="text-muted-foreground">Do not post passwords or private customer information. Community is a discussion space, not a support ticket or an urgent response channel. Use your established ManWinWin support contact for support; official platform news is published in Announcements.</p></div>
       <div className="flex flex-col sm:flex-row gap-2 animate-reveal-up stagger-1">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
