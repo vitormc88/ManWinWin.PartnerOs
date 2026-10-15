@@ -3,13 +3,15 @@ import * as XLSX from 'xlsx';
 import { CustomerLogo } from './CustomerLogo';
 import {DirectoryMediaEditor,type MediaPatch} from './DirectoryMediaEditor';
 import { ISO_COUNTRIES } from '@/data/iso-countries';
+import { SECTOR_CATALOGUE } from '@/data/sector-catalogue';
+import { SectorCatalogueReview } from './SectorCatalogueReview';
 import { countryCode, countryName } from '@/lib/customer-explorer';
 import { clientKey, reviewDirectoryImport, validateDirectoryInput, type DirectoryClient, type DirectoryInput, type ImportReview } from '@/lib/customer-directory';
 
 const empty: DirectoryInput={client_id:'',name:'',country:'PT',sector:null,active:null,visible:true,evidence_status:'unconfirmed',evidence_note:null};
 export function DirectoryManager({rows,onSave,onImport,onClose,onLogoChange,onMediaSave,onKeepSector,preview=false}:{rows:DirectoryClient[];onSave:(input:DirectoryInput,current?:DirectoryClient)=>Promise<void>;onImport:(items:ImportReview[])=>Promise<void>;onClose:()=>void;onLogoChange?:(id:string,url:string|null,dark?:boolean)=>void;onMediaSave?:(client:DirectoryClient,patch:MediaPatch)=>Promise<void>;onKeepSector?:(client:DirectoryClient)=>Promise<void>;preview?:boolean}) {
  const [search,setSearch]=useState(''),[filter,setFilter]=useState('all'),[current,setCurrent]=useState<DirectoryClient>(),[form,setForm]=useState<DirectoryInput>(),[review,setReview]=useState<ImportReview[]>(),[error,setError]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
- const sectors=useMemo(()=>[...new Set(rows.map(r=>r.sector).filter(Boolean))].sort() as string[],[rows]);
+ const sectors=useMemo(()=>[...SECTOR_CATALOGUE,...(form?.sector&&!SECTOR_CATALOGUE.some(s=>s===form.sector)?[form.sector]:[])].sort(),[form?.sector]);
  const logoClient=current?rows.find(r=>r.id===current.id)||current:undefined;
  const uploadLogo=async(file?:File)=>{if(!file||!current||!onLogoChange)return;setError('');try{if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>256_000)throw new Error('Choose a PNG, JPEG or WebP logo up to 256 KB.');const url=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('Unable to read logo.'));reader.readAsDataURL(file);});onLogoChange(current.id,url);setMessage('Logo updated in the local demo. Reloading resets these changes.');}catch(e){setError(e instanceof Error?e.message:'Unable to read logo.');}};
  const filtered=rows.filter(r=>(!search||[r.name,r.client_id,r.country,countryName(r.country),countryCode(r.country)].some(v=>v?.toLowerCase().includes(search.trim().toLowerCase())))&&(filter==='all'||filter==='hq'&&r.source_kind==='hq'||filter==='missing'&&!r.sector||filter==='review'&&r.evidence_status!=='validated'||filter==='hidden'&&!r.visible||filter==='source_changed'&&r.source_sector_changed));
@@ -21,6 +23,7 @@ export function DirectoryManager({rows,onSave,onImport,onClose,onLogoChange,onMe
  return <section className="ce-manager"><div className="ce-manager-heading"><div><h1>Manage customer directory</h1><p>HQ administration · partner source records stay in their existing module.{preview?' Local demo: changes stay in this browser session.':''}</p></div><button onClick={onClose}>Back to map</button></div>
  <div className="ce-manager-tools"><button onClick={()=>edit()}>Add HQ customer</button><label className="ce-import-button">Review Excel / CSV<input type="file" accept=".xlsx,.csv" onChange={e=>{readFile(e.target.files?.[0]);e.target.value='';}}/></label><input aria-label="Search directory" placeholder="Search name, ID or country" value={search} onChange={e=>setSearch(e.target.value)}/><select aria-label="Review filter" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All customers</option><option value="hq">HQ customers</option><option value="missing">Missing sector</option><option value="review">Needs sector validation</option><option value="source_changed">Source sector changed</option><option value="hidden">Hidden from Explorer</option></select></div>
  <p>Partner identity and country follow Clients &amp; Licenses. An Explorer sector override takes priority; it does not change the partner source.</p>
+ <SectorCatalogueReview rows={rows}/>
  {rows.some(r=>r.source_sector_changed)&&<p role="status" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950">{rows.filter(r=>r.source_sector_changed).length} source sector changes need HQ review. The Explorer classifications have been preserved. <button onClick={()=>{setFilter('source_changed');setSearch('');}}>Review source changes</button></p>}
  {error&&<p role="alert" className="ce-manager-error">{error}</p>}{message&&<p role="status">{message}</p>}
  {form&&logoClient&&onMediaSave&&!preview&&<DirectoryMediaEditor client={logoClient} onSave={onMediaSave}/>}

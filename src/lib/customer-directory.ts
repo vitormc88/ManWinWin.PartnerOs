@@ -1,4 +1,5 @@
 import { countryCode, countryInfo, type ExplorerClient } from './customer-explorer';
+import { isKnownSector } from '@/data/sector-catalogue';
 export type EvidenceStatus = 'unconfirmed' | 'suggested' | 'validated';
 export type DirectoryClient = ExplorerClient & {
   source_kind: 'partner' | 'hq';
@@ -31,6 +32,7 @@ export function validateDirectoryInput(input: DirectoryInput) {
   if(!input.name.trim()||!input.country.trim())throw new Error('Company name and country are required.');
   if(!countryInfo(input.country))throw new Error('Choose a recognized country.');
   if(input.evidence_status==='validated'&&!input.sector?.trim())throw new Error('Choose a sector before validating it.');
+  if(!isKnownSector(input.sector))throw new Error('Sector is not in the shared catalogue. Choose an existing sector or leave it empty for HQ review.');
   return {...input,client_id:input.client_id.trim(),name:input.name.trim(),country:countryCode(input.country),sector:input.sector?.trim()||null,evidence_note:input.evidence_note?.trim()||null};
 }
 export type ImportReview = { input: DirectoryInput; action: 'new' | 'update' | 'skip' | 'error'; message: string; existing?: DirectoryClient; row: number };
