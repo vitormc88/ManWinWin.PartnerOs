@@ -3,7 +3,7 @@ import { cleanup,fireEvent,render,screen } from '@testing-library/react';
 import KnowledgeBase from '@/pages/KnowledgeBase';
 const state=vi.hoisted(()=>({error:false}));
 vi.mock('@/contexts/AuthContext',()=>({useAuth:()=>({isAdmin:false,user:null,profile:null,roles:[]})}));
-vi.mock('@/hooks/useKnowledgeBase',()=>({useCategories:()=>({data:[],isLoading:false}),useDocuments:()=>({data:[{id:'1',title:'Brochure EN 2026',file_name:'brochure-en-2026.pdf',file_type:'pdf',tags:[]},{id:'2',title:'Price list PT 2023',file_name:'prices-pt-2023.pdf',file_type:'pdf',tags:[]}],isLoading:false,isError:state.error,refetch:vi.fn()}),useCreateCategory:()=>({}),useUpdateCategory:()=>({}),useDeleteCategory:()=>({}),useCreateDocument:()=>({}),useUpdateDocument:()=>({}),useDeleteDocument:()=>({})}));
+vi.mock('@/hooks/useKnowledgeBase',()=>({useSaveResourceReview:()=>({}),useCategories:()=>({data:[],isLoading:false}),useDocuments:()=>({data:[{id:'1',title:'Brochure EN 2026',file_name:'brochure-en-2026.pdf',file_type:'pdf',tags:[]},{id:'2',title:'Price list PT 2023',file_name:'prices-pt-2023.pdf',file_type:'pdf',tags:[]}],isLoading:false,isError:state.error,refetch:vi.fn()}),useCreateCategory:()=>({}),useUpdateCategory:()=>({}),useDeleteCategory:()=>({}),useCreateDocument:()=>({}),useUpdateDocument:()=>({}),useDeleteDocument:()=>({})}));
 vi.mock('@/integrations/supabase/client',()=>({supabase:{}}));
 afterEach(()=>{cleanup();state.error=false});
 describe('Resource discovery',()=>{

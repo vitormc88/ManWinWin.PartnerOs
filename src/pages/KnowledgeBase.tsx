@@ -8,7 +8,7 @@ import {
   useDeleteCategory,
   useCreateDocument,
   useUpdateDocument,
-  useDeleteDocument,
+  useSaveResourceReview,
 } from "@/hooks/useKnowledgeBase";
 import { supabase } from "@/integrations/supabase/client";
 import { extractStorageReference, signFileUrl } from "@/lib/storage-url";
@@ -39,11 +39,15 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { RESOURCE_LANGUAGES, resourceLanguage, resourceYear } from '@/lib/ux-discovery';
+import { ResourceReviewDialog } from '@/components/knowledge/ResourceReviewDialog';
+import { reviewOf, resourceTitle, duplicateFilenameCounts, RESOURCE_PURPOSES, type ResourceRecord } from '@/lib/resource-governance';
 
-function ResourceMetadata({ doc }: { doc: {title?:string|null;file_name?:string|null;tags?:string[]|null} }) {
-  const language = resourceLanguage(doc);
+function ResourceMetadata({ doc }: { doc: ResourceRecord }) {
+  const review=reviewOf(doc);
+  const language = review.language || resourceLanguage(doc);
   const year = resourceYear(doc);
-  return <p className="text-xs text-muted-foreground mt-1 whitespace-normal">{language==='unconfirmed'?'Language unconfirmed':`${RESOURCE_LANGUAGES[language as keyof typeof RESOURCE_LANGUAGES]} · inferred from name/tags`}{year?` · Name mentions ${year}`:''}{doc.file_name && <span className="block break-all">File: {doc.file_name}</span>}</p>;
+  const languageName=RESOURCE_LANGUAGES[language as keyof typeof RESOURCE_LANGUAGES]||language;
+  return <div className="mt-1 space-y-1"><Badge variant="outline">{review.status==='recommended'?'Recommended by HQ':review.status==='archived'?'Editorial archive':'Needs editorial review'}</Badge><p className="text-xs text-muted-foreground whitespace-normal">{language==='unconfirmed'?'Language unconfirmed':`${languageName} · ${review.language?'recorded by HQ':'inferred from name/tags'}`}{year?` · Name mentions ${year}`:''}{review.product&&` · ${review.product}`}{review.purpose&&` · ${review.purpose}`}{review.version_label&&` · ${review.version_label}`}{review.reviewed_at&&<span className="block">HQ review: {new Date(review.reviewed_at).toLocaleDateString('en-GB')}</span>}{doc.file_name && <span className="block break-all">File: {doc.file_name}</span>}</p></div>;
 }
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -104,6 +108,10 @@ export default function KnowledgeBase() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [languageFilter,setLanguageFilter] = useState('all');
   const [yearFilter,setYearFilter] = useState('all');
+  const [editorialFilter,setEditorialFilter]=useState('current');
+  const [purposeFilter,setPurposeFilter]=useState('all');
+  const [reviewingDoc,setReviewingDoc]=useState<any>(null);
+  const saveReview=useSaveResourceReview();
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [showCatDialog, setShowCatDialog] = useState(false);
   const [editingCat, setEditingCat] = useState<any>(null);
@@ -119,21 +127,24 @@ export default function KnowledgeBase() {
   const deleteCategory = useDeleteCategory();
   const createDocument = useCreateDocument();
   const updateDocument = useUpdateDocument();
-  const deleteDocument = useDeleteDocument();
+  const duplicateNames=duplicateFilenameCounts(documents);
 
   const topCategories = categories.filter((c: any) => !c.parent_category_id);
   const getSubcategories = (parentId: string) => categories.filter((c: any) => c.parent_category_id === parentId);
 
   const filteredDocs = documents.filter((d: any) => {
+    const editorial=reviewOf(d);
+    if(editorialFilter==='current'?editorial.status==='archived':editorialFilter!=='all'&&editorial.status!==editorialFilter)return false;
+    if(purposeFilter!=='all'&&editorial.purpose!==purposeFilter)return false;
     if (search) {
       const s = search.toLowerCase();
-      const match = d.title?.toLowerCase().includes(s) ||
+      const match = resourceTitle(d)?.toLowerCase().includes(s) || d.title?.toLowerCase().includes(s) ||
         d.file_name?.toLowerCase().includes(s) ||
         d.description?.toLowerCase().includes(s) ||
         d.tags?.some((t: string) => t.toLowerCase().includes(s));
       if (!match) return false;
     }
-    if (languageFilter!=='all' && resourceLanguage(d)!==languageFilter) return false;
+    if (languageFilter!=='all' && (editorial.language||resourceLanguage(d))!==languageFilter) return false;
     if (yearFilter!=='all' && (resourceYear(d)||'unconfirmed')!==yearFilter) return false;
     if (typeFilter !== "all") {
       if (typeFilter === "other") {
@@ -343,9 +354,11 @@ export default function KnowledgeBase() {
                 ))}
               </SelectContent>
             </Select>
-            <select aria-label="Resource language hint" className="text-sm border rounded-md bg-background p-2" value={languageFilter} onChange={e=>setLanguageFilter(e.target.value)}><option value="all">All language hints</option>{Object.entries(RESOURCE_LANGUAGES).map(([key,name])=><option key={key} value={key}>{name} (name/tags)</option>)}<option value="unconfirmed">Language unconfirmed</option></select>
+            <select aria-label="Resource language hint" className="text-sm border rounded-md bg-background p-2" value={languageFilter} onChange={e=>setLanguageFilter(e.target.value)}><option value="all">All languages / hints</option>{Object.entries(RESOURCE_LANGUAGES).map(([key,name])=><option key={key} value={key}>{name}</option>)}<option value="multilingual">Multilingual (reviewed)</option><option value="other">Other (reviewed)</option><option value="unconfirmed">Language unconfirmed</option></select>
             <select aria-label="Year mentioned in resource name" className="text-sm border rounded-md bg-background p-2" value={yearFilter} onChange={e=>setYearFilter(e.target.value)}><option value="all">Any year in name</option>{[...new Set(documents.map(resourceYear).filter(Boolean))].sort().reverse().map(year=><option key={year} value={year}>{year}</option>)}<option value="unconfirmed">No single year in name</option></select>
-            {(search||languageFilter!=='all'||yearFilter!=='all'||typeFilter!=='all')&&<Button variant="ghost" onClick={()=>{setSearch('');setLanguageFilter('all');setYearFilter('all');setTypeFilter('all')}}>Clear resource filters</Button>}
+            <select aria-label="Editorial status" className="text-sm border rounded-md bg-background p-2" value={editorialFilter} onChange={e=>setEditorialFilter(e.target.value)}><option value="current">Active library · excludes editorial archive</option><option value="recommended">Recommended by HQ</option><option value="needs_review">Needs editorial review</option><option value="archived">Editorial archive</option><option value="all">All editorial statuses</option></select>
+            <select aria-label="Resource purpose" className="text-sm border rounded-md bg-background p-2" value={purposeFilter} onChange={e=>setPurposeFilter(e.target.value)}><option value="all">All purposes</option>{RESOURCE_PURPOSES.map(p=><option key={p}>{p}</option>)}</select>
+            {(search||languageFilter!=='all'||yearFilter!=='all'||typeFilter!=='all'||editorialFilter!=='current'||purposeFilter!=='all')&&<Button variant="ghost" onClick={()=>{setSearch('');setLanguageFilter('all');setYearFilter('all');setTypeFilter('all');setEditorialFilter('current');setPurposeFilter('all')}}>Clear resource filters</Button>}
             <div className="flex border rounded-md">
               <Button
                 variant={viewMode === "list" ? "default" : "ghost"}
@@ -368,6 +381,7 @@ export default function KnowledgeBase() {
             </div>
           </div>
 
+          {isAdmin&&<section aria-label="HQ editorial queue" className="rounded-lg border p-3 text-sm space-y-2"><p>Editorial queue for this loaded selection: {documents.filter(d=>reviewOf(d).status==='needs_review').length} need review · {[...duplicateNames.values()].filter(n=>n>1).length} repeated filename groups. Repeated names do not prove identical content; PDF and editable formats are not automatically duplicates.</p><Button variant="outline" onClick={()=>{setSelectedCategoryId(null);setEditorialFilter('needs_review');setSearch('');setLanguageFilter('all');setYearFilter('all');setTypeFilter('all');setPurposeFilter('all')}}>Review all pending resources</Button><p>Proposed naming: product / subject — purpose — confirmed language — verified edition. No automatic recommendation, renaming or removal.</p></section>}
           {selectedCategory && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>All Resources</span>
@@ -424,8 +438,9 @@ export default function KnowledgeBase() {
                               {isLink ? <Link className="h-4 w-4 text-primary" /> : <File className="h-4 w-4 text-primary" />}
                             </div>
                             <div className="min-w-0">
-                              <button className="text-sm font-medium text-primary text-left hover:underline focus-visible:underline" onClick={e=>{e.stopPropagation();handleOpenDoc(doc)}} aria-label={`Open resource ${doc.title}`}>{doc.title}</button>
+                              <button className="text-sm font-medium text-primary text-left hover:underline focus-visible:underline" onClick={e=>{e.stopPropagation();handleOpenDoc(doc)}} aria-label={`Open resource ${resourceTitle(doc)}`}>{resourceTitle(doc)}</button>
                               <ResourceMetadata doc={doc}/>
+                              {isAdmin&&(duplicateNames.get(doc.file_name?.trim().toLowerCase())||0)>1&&<p className="text-xs text-amber-800">Repeated filename in this selection · compare before archiving</p>}
                               {doc.description && <p className="text-xs text-muted-foreground truncate">{doc.description}</p>}
                             </div>
                           </div>
@@ -448,6 +463,7 @@ export default function KnowledgeBase() {
                         </TableCell>
                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1">
+                            {isAdmin&&<Button variant="outline" size="sm" onClick={()=>setReviewingDoc(doc)}>Review</Button>}
                             {doc.file_url ? (
                               <Button
                                 variant="ghost" size="icon" className="h-7 w-7"
@@ -471,7 +487,7 @@ export default function KnowledgeBase() {
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuItem onClick={() => { setEditingDoc(doc); setShowDocDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-                                  <DropdownMenuItem className="text-destructive" onClick={() => handleArchiveDoc(doc.id)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Archive</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleArchiveDoc(doc.id)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Editorial archive…</DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             )}
@@ -497,7 +513,7 @@ export default function KnowledgeBase() {
                           {isLink ? <Link className="h-4 w-4 text-primary" /> : <File className="h-4 w-4 text-primary" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <button className="text-sm font-medium text-primary text-left hover:underline focus-visible:underline" onClick={e=>{e.stopPropagation();handleOpenDoc(doc)}} aria-label={`Open resource ${doc.title}`}>{doc.title}</button>
+                          <button className="text-sm font-medium text-primary text-left hover:underline focus-visible:underline" onClick={e=>{e.stopPropagation();handleOpenDoc(doc)}} aria-label={`Open resource ${resourceTitle(doc)}`}>{resourceTitle(doc)}</button>
                           <ResourceMetadata doc={doc}/>
                           {doc.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{doc.description}</p>}
                         </div>
@@ -512,6 +528,7 @@ export default function KnowledgeBase() {
                           {doc.updated_at ? format(new Date(doc.updated_at), "dd MMM yyyy") : ""}
                         </span>
                         <div className="flex gap-1">
+                          {isAdmin&&<Button variant="outline" size="sm" onClick={()=>setReviewingDoc(doc)}>Review</Button>}
                           {doc.file_url ? (
                             <Button aria-label={`${isLink?'Open link':'Download file'}: ${doc.title}`} variant="ghost" size="icon" className="h-7 w-7" onClick={() => isLink ? handleOpenDoc(doc) : handleDownloadDoc(doc)}>
                               {isLink ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
@@ -530,7 +547,7 @@ export default function KnowledgeBase() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => { setEditingDoc(doc); setShowDocDialog(true); }}><Pencil className="h-3.5 w-3.5 mr-2" /> Edit</DropdownMenuItem>
-                                <DropdownMenuItem className="text-destructive" onClick={() => handleArchiveDoc(doc.id)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Archive</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleArchiveDoc(doc.id)}><Trash2 className="h-3.5 w-3.5 mr-2" /> Editorial archive…</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           )}
@@ -550,6 +567,7 @@ export default function KnowledgeBase() {
         </div>
       </div>
 
+      {reviewingDoc&&isAdmin&&<ResourceReviewDialog key={reviewingDoc.id} doc={reviewingDoc} onClose={()=>setReviewingDoc(null)} onSave={async review=>{await saveReview.mutateAsync({id:reviewingDoc.id,updated_at:reviewingDoc.updated_at,review});toast({title:'Editorial review saved'});}}/>}
       <CategoryDialog
         open={showCatDialog}
         onOpenChange={setShowCatDialog}
@@ -785,10 +803,8 @@ export default function KnowledgeBase() {
   }
 
   function handleArchiveDoc(id: string) {
-    deleteDocument.mutate(id, {
-      onSuccess: () => toast({ title: "Resource archived" }),
-      onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
-    });
+    const doc=documents.find(d=>d.id===id);
+    if(doc)setReviewingDoc({...doc,content_review:{...reviewOf(doc),status:'archived'}});
   }
 
   async function handleDeleteCategory(cat: any) {

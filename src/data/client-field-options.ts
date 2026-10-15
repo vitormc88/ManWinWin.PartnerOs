@@ -1,21 +1,4 @@
-export const SECTOR_OPTIONS = [
-  "Automotive",
-  "Chemicals",
-  "Energy",
-  "Fleet",
-  "Food & Beverages",
-  "Healthcare & Pharma",
-  "Infrastructures",
-  "Maintenance Providers",
-  "Manufacturing",
-  "Metal Manufacturing",
-  "Plastics, Paper & Packaging",
-  "Optical",
-  "Public Institutions",
-  "Textiles",
-  "Water & Waste Treatment",
-  "Other",
-] as const;
+export { SECTOR_CATALOGUE as SECTOR_OPTIONS } from './sector-catalogue';
 
 export const LICENSE_OPTIONS = [
   "Business KeepIT",

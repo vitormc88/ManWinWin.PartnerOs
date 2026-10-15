@@ -1,6 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { validateResourceReview, type ResourceReview } from '@/lib/resource-governance';
+
+export function useSaveResourceReview() {
+  const qc=useQueryClient();
+  return useMutation({
+    mutationFn:async({id,updated_at,review}:{id:string;updated_at:string|null;review:ResourceReview})=>{
+      const checked=validateResourceReview(review);
+      let query=supabase.from('documents').update({content_review:checked} as never).eq('id',id);
+      query=updated_at?query.eq('updated_at',updated_at):query.is('updated_at',null);
+      const {data,error}=await query.select('id');
+      if(error)throw error;
+      if(!data?.length)throw new Error('This resource changed or you no longer have access. Reload and review again.');
+    },
+    onSettled:()=>qc.invalidateQueries({queryKey:['documents']}),
+  });
+}
 
 export function useCategories() {
   return useQuery({

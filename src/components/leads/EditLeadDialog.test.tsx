@@ -23,9 +23,9 @@ describe("Edit lead details", () => {
     fireEvent.click(screen.getByRole("option", { name: "Plant Manager" }));
     fireEvent.keyDown(screen.getByRole("combobox", { name: "Sector" }), { key: "ArrowDown" });
     expect(screen.getAllByRole("option").map(option => option.textContent)).toEqual(["— None —", ...SECTOR_OPTIONS]);
-    fireEvent.click(screen.getByRole("option", { name: "Energy" }));
+    fireEvent.click(screen.getByRole("option", { name: "Energy & Utilities" }));
     fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
-    expect(state.mutate.mock.calls[0][0]).toEqual({ id: "test-lead", requireUnconverted: true, job_role: "Plant Manager", sector: "Energy" });
+    expect(state.mutate.mock.calls[0][0]).toEqual({ id: "test-lead", requireUnconverted: true, job_role: "Plant Manager", sector: "Energy & Utilities" });
   });
   it("preserves legacy values while changing unrelated details", () => {
     render(<EditLeadDialog lead={{ ...lead, job_role: "Technical Director", sector: "Legacy sector" }} canEdit onClose={vi.fn()} />);
