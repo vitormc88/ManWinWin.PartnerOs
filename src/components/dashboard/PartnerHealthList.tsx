@@ -8,14 +8,24 @@ export function PartnerHealthList({
   loading,
   error,
   retry,
+  limit = 5,
+  embedded = false,
 }: {
   rows: ReturnType<typeof partnerHealthRows>;
   loading: boolean;
   error: boolean;
   retry: () => void;
+  limit?: number;
+  embedded?: boolean;
 }) {
   return (
-    <section className="bg-card rounded-xl border shadow-sm p-5 space-y-3">
+    <section
+      className={
+        embedded
+          ? "space-y-3"
+          : "bg-card rounded-xl border shadow-sm p-5 space-y-3"
+      }
+    >
       <h2 className="font-semibold">Partner Health Monitor</h2>
       <p className="text-xs text-muted-foreground">
         Active partners · relationship, momentum and engagement
@@ -32,7 +42,7 @@ export function PartnerHealthList({
       ) : rows.length === 0 ? (
         <p>No active partners in this scope.</p>
       ) : (
-        rows.slice(0, 5).map(({ partner, metric }) => (
+        rows.slice(0, limit).map(({ partner, metric }) => (
           <Link
             key={partner.id}
             to={`/partners/${partner.id}`}

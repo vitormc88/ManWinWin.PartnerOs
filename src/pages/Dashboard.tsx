@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { DollarSign, Users, TrendingUp, Activity, Wallet } from "lucide-react";
+import { ArrowUpRight, ChevronDown, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
-import { KPICard } from "@/components/dashboard/KPICard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { PartnerHealthList } from "@/components/dashboard/PartnerHealthList";
 import { PartnerLearning } from "@/components/dashboard/PartnerLearning";
@@ -93,6 +92,8 @@ export default function Dashboard() {
   const [partner, setPartner] = useState("all");
   const [archived, setArchived] = useState(false);
   const [currency, setCurrency] = useState("EUR");
+  const [healthOpen, setHealthOpen] = useState(false);
+  const [tasksOpen, setTasksOpen] = useState(false);
   // Scope is resolved on every render so an HQ filter cannot survive an identity switch.
   const scope = isHQ && showPartners ? partner : "all";
   const partners = partnersQ.data ?? [];
@@ -155,9 +156,9 @@ export default function Dashboard() {
         .filter(Boolean),
     ]),
   ].sort((a, b) => b - a);
-  const renewalLink = (r: any) =>
+  const renewalLink = (r: (typeof renewalRows)[number]) =>
     `/renewals?renewal=${encodeURIComponent(r.id)}`;
-  const label = (r: any) => {
+  const label = (r: (typeof renewalRows)[number]) => {
     const c = clientMap.get(r.client_id);
     return c
       ? `${c.client_code} — ${c.short_name || c.commercial_name}`
@@ -191,19 +192,23 @@ export default function Dashboard() {
       : `${(((totals.total - prior.total) / Math.abs(prior.total)) * 100).toFixed(1)}% vs equivalent period in ${year - 1}`;
   const pipelineLink = `/pipeline?dashboard=open${scope !== "all" ? `&partner_id=${encodeURIComponent(scope)}` : ""}`;
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">
-          {isHQ ? "Dashboard" : `${ownName.data || "Your Partner"} Dashboard`}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {isHQ
-            ? "Partner ecosystem overview"
-            : "Your results and next actions"}{" "}
-          · {now.toLocaleDateString("en-GB")}
-        </p>
+    <div className="max-w-7xl mx-auto space-y-5 min-w-0">
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">
+            {isHQ
+              ? "Executive overview"
+              : `${ownName.data || "Your Partner"} Dashboard`}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isHQ
+              ? "Results, outlook and where to focus next"
+              : "Your results and next actions"}{" "}
+            · {now.toLocaleDateString("en-GB")}
+          </p>
+        </div>
         <button
-          className="text-xs text-foreground border rounded-md px-3 py-2 hover:bg-secondary mt-2"
+          className="inline-flex items-center gap-2 text-xs text-foreground border rounded-md px-3 py-2 hover:bg-secondary"
           onClick={() => {
             if (showClients) {
               void revenueQ.refetch();
@@ -219,6 +224,7 @@ export default function Dashboard() {
             if (allow("notifications")) void notificationsQ.refetch();
           }}
         >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
           Refresh dashboard
         </button>
       </header>
@@ -235,7 +241,7 @@ export default function Dashboard() {
       ) : null}
       {(showClients || showPipeline) && (
         <section className="bg-card border rounded-xl p-4 space-y-3">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 [&_label]:min-w-0 [&_label]:max-w-full [&_select]:max-w-full max-sm:[&_label]:flex max-sm:[&_label]:flex-col max-sm:[&_label]:gap-1 max-sm:[&_select]:ml-0">
             <label className="text-sm">
               Year{" "}
               <select
@@ -266,20 +272,6 @@ export default function Dashboard() {
                 ))}
               </select>
             </label>
-            {showClients && (
-              <label className="text-sm">
-                Group by{" "}
-                <select
-                  aria-label="Group by"
-                  value={grouping}
-                  onChange={(e) => setGrouping(e.target.value as any)}
-                  className="ml-2 border rounded bg-background p-2"
-                >
-                  <option value="month">Month</option>
-                  <option value="quarter">Quarter</option>
-                </select>
-              </label>
-            )}
             {showPartners && (
               <label className="text-sm">
                 Partner{" "}
@@ -317,159 +309,317 @@ export default function Dashboard() {
               </label>
             )}
           </div>
-          {showPartners && (
-            <label className="text-xs flex gap-2">
-              <input
-                type="checkbox"
-                checked={archived}
-                onChange={(e) => {
-                  setArchived(e.target.checked);
-                  setPartner("all");
-                }}
-              />
-              Include archived partners in historical selection
-            </label>
-          )}
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground w-fit">
+              Additional filters
+            </summary>
+            <div className="flex flex-wrap items-center gap-4 pt-3">
+              {showClients && (
+                <label>
+                  Group by{" "}
+                  <select
+                    aria-label="Group by"
+                    value={grouping}
+                    onChange={(e) =>
+                      setGrouping(e.target.value as "month" | "quarter")
+                    }
+                    className="ml-2 border rounded bg-background p-2"
+                  >
+                    <option value="month">Month</option>
+                    <option value="quarter">Quarter</option>
+                  </select>
+                </label>
+              )}
+              {showPartners && (
+                <label className="flex gap-2 items-center">
+                  <input
+                    type="checkbox"
+                    checked={archived}
+                    onChange={(e) => {
+                      setArchived(e.target.checked);
+                      setPartner("all");
+                    }}
+                  />
+                  Include archived partners in historical selection
+                </label>
+              )}
+            </div>
+          </details>
           <p className="text-xs text-muted-foreground">
             {bounds.label} · Awards: {bounds.start} to {bounds.end}. Open
             pipeline and renewal urgency are current, not historical snapshots.
           </p>
         </section>
       )}
-      {((showRenewals &&
-        !renewalsQ.isLoading &&
-        !renewalsQ.isError &&
-        overdue.length > 0) ||
-        (showPartners &&
-          !healthQ.isLoading &&
-          !healthQ.isError &&
-          risks.length > 0)) && (
-        <section className="border border-destructive/30 rounded-xl p-4 bg-destructive/5">
-          <h2 className="font-semibold">Action Required</h2>
-          <div className="flex gap-4 flex-wrap mt-2">
-            {showRenewals && !renewalsQ.isError && overdue.length > 0 && (
-              <Link
-                className="text-destructive underline text-sm"
-                to={`/renewals?deadline=Overdue${scope !== "all" ? `&partner=${scope}` : ""}`}
+      <div
+        className={`grid gap-4 ${showClients && showPipeline ? "lg:grid-cols-[1.2fr_1fr]" : "grid-cols-1"}`}
+      >
+        {showClients && (
+          <section
+            aria-labelledby="dashboard-awards-title"
+            className="bg-card border rounded-xl p-5 sm:p-6 min-w-0"
+          >
+            <h2
+              id="dashboard-awards-title"
+              className="text-sm font-medium text-muted-foreground"
+            >
+              Awarded Revenue · {period.toUpperCase()}
+            </h2>
+            <LoadState
+              loading={revenueQ.isLoading}
+              error={revenueQ.isError}
+              retry={retryRevenue}
+            >
+              <p className="text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums mt-4">
+                {formatMoney(totals.total, { currency: selectedCurrency })}
+              </p>
+              <p
+                className={`text-xs mt-3 ${totals.total < prior.total ? "text-destructive" : "text-muted-foreground"}`}
               >
-                {overdue.length} overdue renewals
+                {delta}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t mt-5 pt-4">
+                <div>
+                  <h3 className="text-xs text-muted-foreground">
+                    New Business · selected period
+                  </h3>
+                  <p className="text-xl font-semibold tabular-nums mt-1">
+                    {formatMoney(totals.nb, { currency: selectedCurrency })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Year 1 · includes services
+                  </p>
+                </div>
+                <div>
+                  <h3 className="text-xs text-muted-foreground">
+                    Renewals · selected period
+                  </h3>
+                  <p className="text-xl font-semibold tabular-nums mt-1">
+                    {formatMoney(totals.renewals, {
+                      currency: selectedCurrency,
+                    })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Year 2+ · awarded renewals
+                  </p>
+                </div>
+                {totals.other !== 0 && (
+                  <div className="sm:col-span-2">
+                    <h3 className="text-xs text-muted-foreground">
+                      Other / unclassified awards
+                    </h3>
+                    <p className="text-lg font-semibold tabular-nums">
+                      {formatMoney(totals.other, {
+                        currency: selectedCurrency,
+                      })}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </LoadState>
+            <details className="mt-5 text-xs text-muted-foreground">
+              <summary className="cursor-pointer w-fit">
+                What this revenue includes
+              </summary>
+              <p className="mt-2 leading-relaxed">
+                Awarded revenue is the recorded commercial value, not invoices,
+                payments or partner commissions. Imported history keeps its
+                original dates and values. Historical revenue includes archived
+                relationships. Currency: {selectedCurrency}.
+              </p>
+            </details>
+          </section>
+        )}
+        {showPipeline && (
+          <section
+            aria-labelledby="dashboard-pipeline-title"
+            className="bg-card rounded-xl border p-5 space-y-3 min-w-0"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2
+                id="dashboard-pipeline-title"
+                className="text-sm font-medium text-muted-foreground"
+              >
+                Open Pipeline · current
+              </h2>
+              <Link
+                to={pipelineLink}
+                className="text-xs text-primary inline-flex items-center gap-1"
+              >
+                View pipeline{" "}
+                <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
               </Link>
-            )}
-            {showPartners &&
-              !healthQ.isError &&
-              risks.map((r) => (
+            </div>
+            <LoadState
+              loading={dealsQ.isLoading}
+              error={dealsQ.isError}
+              retry={() => {
+                void dealsQ.refetch();
+              }}
+            >
+              <p className="text-3xl sm:text-4xl font-semibold tracking-tight tabular-nums">
+                {formatMoney(forecast.total)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {forecast.open.length} open opportunities · EUR · current, not
+                awarded
+              </p>
+              <h3 className="text-xs font-semibold border-t pt-3">
+                Expected closures · {bounds.label}
+              </h3>
+              {forecast.open.length > 0 &&
+              forecast.missing.length === forecast.open.length ? (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                  <p className="font-semibold">
+                    Forecast unavailable — expected close dates missing
+                  </p>
+                  <p className="text-sm mt-1">
+                    All {forecast.open.length} open opportunities lack a close
+                    date. No reliable period forecast can be calculated.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p>
+                    {forecast.scheduled.length} currently open opportunities
+                    scheduled {forecastBounds.start} to {forecastBounds.end} ·{" "}
+                    {formatMoney(forecast.scheduledValue)} · weighted{" "}
+                    {formatMoney(forecast.weighted)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Based on expected close dates and commercial probabilities.
+                    This is a forecast of today's open opportunities, not past
+                    pipeline or awarded revenue.
+                  </p>
+                </>
+              )}
+              {forecast.missing.length > 0 && (
                 <Link
-                  className="text-destructive underline text-sm"
-                  key={r.partner.id}
-                  to={`/partners/${r.partner.id}`}
+                  className="block text-sm text-amber-700 dark:text-amber-400 underline"
+                  to={`${pipelineLink.replace("dashboard=open", "dashboard=undated")}`}
                 >
-                  {r.partner.company_name}: health requires attention
+                  {forecast.missing.length} opportunities without an expected
+                  close date — review
+                </Link>
+              )}
+              {forecast.missing.length > 0 &&
+                forecast.missing.length < forecast.open.length && (
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Partial forecast: undated opportunities are excluded from
+                    the period values above.
+                  </p>
+                )}
+              {forecast.scheduled.slice(0, 5).map((d) => (
+                <Link
+                  className="block text-sm text-primary"
+                  key={d.id}
+                  to={`/deals/${d.id}`}
+                >
+                  {d.company_name} · {d.expected_close_date} ·{" "}
+                  {formatMoney(d.expected_value)}
                 </Link>
               ))}
+            </LoadState>
+          </section>
+        )}
+      </div>
+      {(showRenewals || showPartners || showTasks) && (
+        <section aria-labelledby="dashboard-focus-title" className="space-y-2">
+          <h2
+            id="dashboard-focus-title"
+            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          >
+            Where to focus now
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {showRenewals && (
+              <div className="border rounded-xl bg-card p-4">
+                <LoadState
+                  loading={renewalsQ.isLoading}
+                  error={renewalsQ.isError}
+                  retry={() => {
+                    void renewalsQ.refetch();
+                  }}
+                >
+                  <Link
+                    to={`/renewals?deadline=Overdue${scope !== "all" ? `&partner=${scope}` : ""}`}
+                    className="flex items-center justify-between gap-3 hover:underline"
+                  >
+                    <span>
+                      <strong
+                        className={`text-2xl tabular-nums ${overdue.length ? "text-destructive" : ""}`}
+                      >
+                        {overdue.length}
+                      </strong>
+                      <span className="block text-xs text-muted-foreground">
+                        Overdue renewals
+                      </span>
+                    </span>
+                    <ArrowUpRight
+                      className="h-4 w-4 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                </LoadState>
+              </div>
+            )}
+            {showPartners && (
+              <div className="border rounded-xl bg-card p-4">
+                <LoadState
+                  loading={partnersQ.isLoading || healthQ.isLoading}
+                  error={partnersQ.isError || healthQ.isError}
+                  retry={() => {
+                    void partnersQ.refetch();
+                    void healthQ.refetch();
+                  }}
+                >
+                  <a
+                    href="#dashboard-partner-health"
+                    onClick={() => setHealthOpen(true)}
+                    className="flex items-center justify-between gap-3 hover:underline"
+                  >
+                    <span>
+                      <strong className="text-2xl tabular-nums">
+                        {risks.length}
+                      </strong>
+                      <span className="block text-xs text-muted-foreground">
+                        Partner health requires attention
+                      </span>
+                    </span>
+                    <ArrowUpRight
+                      className="h-4 w-4 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  </a>
+                </LoadState>
+              </div>
+            )}
+            {showTasks && (
+              <a
+                href="#dashboard-actions"
+                onClick={() => setTasksOpen(true)}
+                className="border rounded-xl bg-card p-4 flex items-center justify-between gap-3 hover:bg-secondary/50"
+              >
+                <span className="text-sm font-medium">
+                  {isHQ ? "Review team actions" : "Review my actions"}
+                  <span className="block text-xs font-normal text-muted-foreground mt-1">
+                    Priorities, owners and due dates
+                  </span>
+                </span>
+                <ArrowUpRight
+                  className="h-4 w-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              </a>
+            )}
           </div>
         </section>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {showClients && (
-          <>
-            <KPICard
-              title={`Awarded Revenue · ${period.toUpperCase()}`}
-              value={formatMoney(totals.total, { currency: selectedCurrency })}
-              loading={revenueQ.isLoading}
-              error={revenueQ.isError}
-              change={delta}
-              changeType={
-                totals.total > prior.total
-                  ? "positive"
-                  : totals.total < prior.total
-                    ? "negative"
-                    : "neutral"
-              }
-              icon={Wallet}
-            />
-            <KPICard
-              title="New Business · selected period"
-              value={formatMoney(totals.nb, { currency: selectedCurrency })}
-              loading={revenueQ.isLoading}
-              error={revenueQ.isError}
-              change="Year 1 · includes services"
-              icon={DollarSign}
-            />
-            <KPICard
-              title="Renewals · selected period"
-              value={formatMoney(totals.renewals, {
-                currency: selectedCurrency,
-              })}
-              loading={revenueQ.isLoading}
-              error={revenueQ.isError}
-              change="Year 2+ · awarded renewals"
-              icon={Wallet}
-            />
-            {totals.other !== 0 && (
-              <KPICard
-                title="Other / unclassified awards"
-                value={formatMoney(totals.other, {
-                  currency: selectedCurrency,
-                })}
-                loading={revenueQ.isLoading}
-                error={revenueQ.isError}
-                icon={Wallet}
-              />
-            )}
-          </>
-        )}
-        {showPipeline && (
-          <Link to={pipelineLink}>
-            <KPICard
-              title="Open Pipeline · current"
-              value={formatMoney(forecast.total)}
-              change={`${forecast.open.length} open opportunities · EUR`}
-              loading={dealsQ.isLoading}
-              error={dealsQ.isError}
-              icon={TrendingUp}
-            />
-          </Link>
-        )}
-        {showClients && (
-          <Link
-            to={`/clients?dashboard=active${scope !== "all" ? `&partner=${scope}` : ""}`}
-          >
-            <KPICard
-              title="Active Clients · current"
-              value={String(
-                clients.filter((c) => c.status === "Active").length,
-              )}
-              change={`${clients.filter((c) => c.status === "Active" && c.is_premium).length} premium`}
-              loading={clientsQ.isLoading}
-              error={clientsQ.isError}
-              icon={Activity}
-            />
-          </Link>
-        )}
-        {showPartners && (
-          <KPICard
-            title="Active Partners · current"
-            value={String(healthRows.length)}
-            change="Archived partners excluded"
-            loading={partnersQ.isLoading}
-            error={partnersQ.isError}
-            icon={Users}
-          />
-        )}
-      </div>
-      {showClients && (
-        <p className="text-xs text-muted-foreground">
-          Awarded revenue is the recorded commercial value, not invoices,
-          payments or partner commissions. Imported history keeps its original
-          dates and values. Historical revenue includes archived relationships.
-          Currency: {selectedCurrency}.
-        </p>
-      )}
       <div
-        className={`grid grid-cols-1 ${showClients && showPartners ? "lg:grid-cols-3" : ""} gap-4`}
+        className={`grid grid-cols-1 gap-4 items-start ${showClients && showRenewals ? "xl:grid-cols-[1.35fr_1fr]" : ""}`}
       >
         {showClients && (
-          <div className={showPartners ? "lg:col-span-2" : ""}>
+          <div className="min-w-0">
             <RevenueChart
               rows={monetaryRows}
               year={year}
@@ -484,87 +634,8 @@ export default function Dashboard() {
             />
           </div>
         )}
-        {showPartners && (
-          <PartnerHealthList
-            rows={healthRows}
-            loading={partnersQ.isLoading || healthQ.isLoading}
-            error={partnersQ.isError || healthQ.isError}
-            retry={() => {
-              void partnersQ.refetch();
-              void healthQ.refetch();
-            }}
-          />
-        )}
-      </div>
-      {showPipeline && (
-        <section className="bg-card rounded-xl border p-5 space-y-3">
-          <h2 className="font-semibold">Expected Closures · {bounds.label}</h2>
-          <LoadState
-            loading={dealsQ.isLoading}
-            error={dealsQ.isError}
-            retry={() => {
-              void dealsQ.refetch();
-            }}
-          >
-            {forecast.open.length > 0 &&
-            forecast.missing.length === forecast.open.length ? (
-              <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
-                <p className="font-semibold">
-                  Forecast unavailable — expected close dates missing
-                </p>
-                <p className="text-sm mt-1">
-                  All {forecast.open.length} open opportunities lack a close
-                  date. Current pipeline: {formatMoney(forecast.total)}. No
-                  reliable period forecast can be calculated.
-                </p>
-              </div>
-            ) : (
-              <>
-                <p>
-                  {forecast.scheduled.length} currently open opportunities
-                  scheduled {forecastBounds.start} to {forecastBounds.end} ·{" "}
-                  {formatMoney(forecast.scheduledValue)} · weighted{" "}
-                  {formatMoney(forecast.weighted)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Based on expected close dates and commercial probabilities.
-                  This is a forecast of today's open opportunities, not past
-                  pipeline or awarded revenue.
-                </p>
-              </>
-            )}
-            {forecast.missing.length > 0 && (
-              <Link
-                className="block text-amber-700 dark:text-amber-400 underline"
-                to={`${pipelineLink.replace("dashboard=open", "dashboard=undated")}`}
-              >
-                {forecast.missing.length} opportunities without an expected
-                close date — review
-              </Link>
-            )}
-            {forecast.missing.length > 0 &&
-              forecast.missing.length < forecast.open.length && (
-                <p className="text-sm text-amber-700 dark:text-amber-400">
-                  Partial forecast: undated opportunities are excluded from the
-                  period values above.
-                </p>
-              )}
-            {forecast.scheduled.slice(0, 5).map((d) => (
-              <Link
-                className="block text-sm text-primary"
-                key={d.id}
-                to={`/deals/${d.id}`}
-              >
-                {d.company_name} · {d.expected_close_date} ·{" "}
-                {formatMoney(d.expected_value)}
-              </Link>
-            ))}
-          </LoadState>
-        </section>
-      )}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {showRenewals && (
-          <section className="bg-card rounded-xl border p-5 space-y-3">
+          <section className="bg-card rounded-xl border p-5 space-y-3 min-w-0">
             <h2 className="font-semibold">Renewals · current urgency</h2>
             <LoadState
               loading={renewalsQ.isLoading}
@@ -624,82 +695,193 @@ export default function Dashboard() {
             </LoadState>
           </section>
         )}
-        {showTasks && (
-          <section className="bg-card rounded-xl border p-5 space-y-3">
-            <h2 className="font-semibold">
-              {isHQ ? "Team Next Actions" : "My Next Actions"}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Ordered by priority, then earliest due date, then score. Tasks for
-              the same renewal are grouped.
-            </p>
+      </div>
+      {(showClients || showPartners) && (
+        <section
+          aria-label="Current ecosystem"
+          className="flex flex-wrap gap-x-8 gap-y-4 bg-card rounded-xl border p-4"
+        >
+          {showClients && (
             <LoadState
-              loading={tasksQ.isLoading}
-              error={tasksQ.isError}
+              loading={clientsQ.isLoading}
+              error={clientsQ.isError}
               retry={() => {
-                void tasksQ.refetch();
+                void clientsQ.refetch();
               }}
             >
-              {scope !== "all" ? (
-                <p className="text-sm text-muted-foreground">
-                  Team actions cover all partners.{" "}
-                  <button
-                    className="underline text-primary"
-                    onClick={() => setPartner("all")}
-                  >
-                    Show all
-                  </button>
-                </p>
-              ) : taskRows.length === 0 ? (
-                <p>No open actions available in your accessible modules.</p>
-              ) : (
-                taskRows.slice(0, 6).map((t) => (
-                  <div key={t.id} className="border-t pt-2 space-y-1">
-                    <Link
-                      className="block text-sm hover:underline"
-                      to={`/tasks?view=${isHQ ? "team" : "my"}&task=${encodeURIComponent(t.id)}`}
-                    >
-                      <span className="font-medium">{t.title}</span>
-                      <p className="text-xs text-muted-foreground">
-                        {t.priority} ·{" "}
-                        {t.due_date?.slice(0, 10) || "No due date"}
-                        {isHQ ? ` · ${t.owner_name || "Unassigned"}` : ""}
-                        {` · score ${t.priority_score}`}
-                      </p>
-                    </Link>
-                    {t.members.length > 1 && (
-                      <details className="text-xs text-muted-foreground">
-                        <summary className="cursor-pointer">
-                          {t.members.length} tasks for this renewal — view
-                          details
-                        </summary>
-                        <ul className="mt-2 space-y-2">
-                          {t.members.map((member) => (
-                            <li key={member.id}>
-                              <Link
-                                className="hover:underline"
-                                to={`/tasks?view=${isHQ ? "team" : "my"}&task=${encodeURIComponent(member.id)}`}
-                              >
-                                {member.title} ·{" "}
-                                {member.owner_name || "Unassigned"} ·{" "}
-                                {member.due_date?.slice(0, 10) || "No due date"}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
-                  </div>
-                ))
-              )}
+              <Link
+                className="flex items-baseline gap-2 text-sm hover:underline"
+                to={`/clients?dashboard=active${scope !== "all" ? `&partner=${scope}` : ""}`}
+              >
+                <strong className="text-lg tabular-nums">
+                  {clients.filter((c) => c.status === "Active").length}
+                </strong>
+                <span className="text-muted-foreground">Active clients</span>
+                <span className="text-xs text-muted-foreground">
+                  ·{" "}
+                  {
+                    clients.filter((c) => c.status === "Active" && c.is_premium)
+                      .length
+                  }{" "}
+                  premium
+                </span>
+              </Link>
             </LoadState>
-            <Link
-              className="inline-block text-xs text-foreground border rounded-md px-3 py-2 hover:bg-secondary"
-              to={`/tasks?view=${isHQ ? "team" : "my"}`}
+          )}
+          {showPartners && (
+            <LoadState
+              loading={partnersQ.isLoading}
+              error={partnersQ.isError}
+              retry={() => {
+                void partnersQ.refetch();
+              }}
             >
-              View actions
-            </Link>
-          </section>
+              <a
+                href="#dashboard-partner-health"
+                onClick={() => setHealthOpen(true)}
+                className="flex items-baseline gap-2 text-sm hover:underline"
+              >
+                <strong className="text-lg tabular-nums">
+                  {healthRows.length}
+                </strong>
+                <span className="text-muted-foreground">Active partners</span>
+                <span className="text-xs text-muted-foreground">
+                  · archived excluded
+                </span>
+              </a>
+            </LoadState>
+          )}
+        </section>
+      )}
+      <div
+        className={`grid grid-cols-1 gap-4 items-start ${showPartners && showTasks ? "lg:grid-cols-2" : ""}`}
+      >
+        {showPartners && (
+          <details
+            id="dashboard-partner-health"
+            open={healthOpen}
+            onToggle={(e) => setHealthOpen(e.currentTarget.open)}
+            className="group bg-card rounded-xl border p-5 min-w-0"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+              <span className="font-semibold">Partner health details</span>
+              <ChevronDown
+                className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
+                aria-hidden="true"
+              />
+            </summary>
+            <div className="pt-4">
+              <PartnerHealthList
+                rows={healthRows}
+                limit={healthRows.length}
+                embedded
+                loading={partnersQ.isLoading || healthQ.isLoading}
+                error={partnersQ.isError || healthQ.isError}
+                retry={() => {
+                  void partnersQ.refetch();
+                  void healthQ.refetch();
+                }}
+              />
+            </div>
+          </details>
+        )}
+        {showTasks && (
+          <details
+            id="dashboard-actions"
+            open={tasksOpen}
+            onToggle={(e) => setTasksOpen(e.currentTarget.open)}
+            className="group bg-card rounded-xl border p-5 min-w-0"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+              <span className="font-semibold">
+                {isHQ ? "Team Next Actions" : "My Next Actions"}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
+              />
+            </summary>
+            <div className="space-y-3 pt-4">
+              <p className="text-xs text-muted-foreground">
+                Ordered by priority, then earliest due date, then score. Tasks
+                for the same renewal are grouped.
+              </p>
+              <LoadState
+                loading={tasksQ.isLoading}
+                error={tasksQ.isError}
+                retry={() => {
+                  void tasksQ.refetch();
+                }}
+              >
+                {scope !== "all" ? (
+                  <p className="text-sm text-muted-foreground">
+                    Team actions cover all partners.{" "}
+                    <button
+                      className="underline text-primary"
+                      onClick={() => setPartner("all")}
+                    >
+                      Show all
+                    </button>
+                  </p>
+                ) : taskRows.length === 0 ? (
+                  <p>No open actions available in your accessible modules.</p>
+                ) : (
+                  taskRows.slice(0, 6).map((t) => (
+                    <div key={t.id} className="border-t pt-2 space-y-1">
+                      <Link
+                        className="block text-sm hover:underline"
+                        to={`/tasks?view=${isHQ ? "team" : "my"}&task=${encodeURIComponent(t.id)}`}
+                      >
+                        <span className="font-medium">{t.title}</span>
+                        <p className="text-xs text-muted-foreground">
+                          {t.priority} ·{" "}
+                          {t.due_date?.slice(0, 10) || "No due date"}
+                          {isHQ ? ` · ${t.owner_name || "Unassigned"}` : ""}
+                        </p>
+                      </Link>
+                      <details className="text-xs text-muted-foreground">
+                        <summary className="cursor-pointer w-fit">
+                          Priority details
+                        </summary>
+                        <p className="mt-1">
+                          Priority score: {t.priority_score}
+                        </p>
+                      </details>
+                      {t.members.length > 1 && (
+                        <details className="text-xs text-muted-foreground">
+                          <summary className="cursor-pointer">
+                            {t.members.length} tasks for this renewal — view
+                            details
+                          </summary>
+                          <ul className="mt-2 space-y-2">
+                            {t.members.map((member) => (
+                              <li key={member.id}>
+                                <Link
+                                  className="hover:underline"
+                                  to={`/tasks?view=${isHQ ? "team" : "my"}&task=${encodeURIComponent(member.id)}`}
+                                >
+                                  {member.title} ·{" "}
+                                  {member.owner_name || "Unassigned"} ·{" "}
+                                  {member.due_date?.slice(0, 10) ||
+                                    "No due date"}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </div>
+                  ))
+                )}
+              </LoadState>
+              <Link
+                className="inline-block text-xs text-foreground border rounded-md px-3 py-2 hover:bg-secondary"
+                to={`/tasks?view=${isHQ ? "team" : "my"}`}
+              >
+                View actions
+              </Link>
+            </div>
+          </details>
         )}
       </div>
       {!isHQ && (allow("onboarding") || allow("certifications")) && (
@@ -708,73 +890,105 @@ export default function Dashboard() {
           certifications={allow("certifications")}
         />
       )}
-      {allow("notifications") && (
-        <section className="bg-card rounded-xl border p-5 space-y-2">
-          <h2 className="font-semibold">Recent Alerts</h2>
-          <LoadState
-            loading={notificationsQ.isLoading}
-            error={notificationsQ.isError}
-            retry={() => {
-              void notificationsQ.refetch();
-            }}
-          >
-            {(notificationsQ.data ?? [])
-              .filter((n) => !n.is_read)
-              .slice(0, 4)
-              .map((n) => (
-                <Link className="block text-sm" key={n.id} to="/notifications">
-                  {n.title}
-                </Link>
-              ))}
-            {!(notificationsQ.data ?? []).some((n) => !n.is_read) && (
-              <p className="text-sm text-muted-foreground">
-                No unread notifications.
-              </p>
-            )}
-          </LoadState>
-        </section>
-      )}
-      {showClients && (
-        <details className="bg-card rounded-xl border p-4">
-          <summary className="cursor-pointer text-sm font-medium">
-            Historical context and sales reconciliation
+      {(showClients || allow("notifications") || allow("announcements")) && (
+        <details className="group bg-card rounded-xl border p-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+            <span className="text-sm font-medium">
+              Updates & historical context
+              {allow("notifications") &&
+              !notificationsQ.isError &&
+              !notificationsQ.isLoading &&
+              (notificationsQ.data ?? []).some((n) => !n.is_read)
+                ? ` · ${(notificationsQ.data ?? []).filter((n) => !n.is_read).length} unread alerts`
+                : ""}
+              {allow("notifications") && notificationsQ.isError
+                ? " · Alerts unavailable"
+                : ""}
+            </span>
+            <ChevronDown
+              className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
+              aria-hidden="true"
+            />
           </summary>
-          <LoadState
-            loading={revenueQ.isLoading}
-            error={revenueQ.isError}
-            retry={retryRevenue}
-          >
-            <p className="text-sm mt-3">
-              Lifetime awarded revenue:{" "}
-              {formatMoney(lifetime.total, { currency: selectedCurrency })}.
-              Selected-period awards{" "}
-              {formatMoney(totals.total, { currency: selectedCurrency })};
-              equivalent {year - 1} period{" "}
-              {formatMoney(prior.total, { currency: selectedCurrency })}.
-            </p>
-          </LoadState>
-          {showPipeline && (
-            <LoadState
-              loading={dealsQ.isLoading}
-              error={dealsQ.isError}
-              retry={() => {
-                void dealsQ.refetch();
-              }}
-            >
-              <p className="text-xs mt-2">
-                Won Deal Value · all time:{" "}
-                {formatMoney(
-                  deals
-                    .filter((d) => d.status === "Won" && d.stage === "Won")
-                    .reduce((s, d) => s + authDealValue(d), 0),
+          <div className="space-y-4 pt-4">
+            {allow("notifications") && (
+              <section className="bg-card rounded-xl border p-5 space-y-2">
+                <h2 className="font-semibold">Recent Alerts</h2>
+                <LoadState
+                  loading={notificationsQ.isLoading}
+                  error={notificationsQ.isError}
+                  retry={() => {
+                    void notificationsQ.refetch();
+                  }}
+                >
+                  {(notificationsQ.data ?? [])
+                    .filter((n) => !n.is_read)
+                    .slice(0, 4)
+                    .map((n) => (
+                      <Link
+                        className="block text-sm"
+                        key={n.id}
+                        to="/notifications"
+                      >
+                        {n.title}
+                      </Link>
+                    ))}
+                  {!(notificationsQ.data ?? []).some((n) => !n.is_read) && (
+                    <p className="text-sm text-muted-foreground">
+                      No unread notifications.
+                    </p>
+                  )}
+                </LoadState>
+              </section>
+            )}
+            {showClients && (
+              <details className="bg-card rounded-xl border p-4">
+                <summary className="cursor-pointer text-sm font-medium">
+                  Historical context and sales reconciliation
+                </summary>
+                <LoadState
+                  loading={revenueQ.isLoading}
+                  error={revenueQ.isError}
+                  retry={retryRevenue}
+                >
+                  <p className="text-sm mt-3">
+                    Lifetime awarded revenue:{" "}
+                    {formatMoney(lifetime.total, {
+                      currency: selectedCurrency,
+                    })}
+                    . Selected-period awards{" "}
+                    {formatMoney(totals.total, { currency: selectedCurrency })};
+                    equivalent {year - 1} period{" "}
+                    {formatMoney(prior.total, { currency: selectedCurrency })}.
+                  </p>
+                </LoadState>
+                {showPipeline && (
+                  <LoadState
+                    loading={dealsQ.isLoading}
+                    error={dealsQ.isError}
+                    retry={() => {
+                      void dealsQ.refetch();
+                    }}
+                  >
+                    <p className="text-xs mt-2">
+                      Won Deal Value · all time:{" "}
+                      {formatMoney(
+                        deals
+                          .filter(
+                            (d) => d.status === "Won" && d.stage === "Won",
+                          )
+                          .reduce((s, d) => s + authDealValue(d), 0),
+                      )}
+                      . Sales metric only; never added to awarded revenue.
+                    </p>
+                  </LoadState>
                 )}
-                . Sales metric only; never added to awarded revenue.
-              </p>
-            </LoadState>
-          )}
+              </details>
+            )}
+            {allow("announcements") && <RecentActivity />}
+          </div>
         </details>
       )}
-      {allow("announcements") && <RecentActivity />}
     </div>
   );
 }

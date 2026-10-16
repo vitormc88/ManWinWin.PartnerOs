@@ -1,5 +1,11 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  cleanup,
+  within,
+} from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard from "@/pages/Dashboard";
 const state = vi.hoisted(() => ({
@@ -148,7 +154,7 @@ describe("Dashboard role, error and filter behavior", () => {
   it("excludes completed renewals and archived partners and exposes the same calculated health", () => {
     mount();
     expect(
-      screen.queryByRole("link", { name: /overdue renewals/ }),
+      screen.queryByRole("link", { name: /[1-9]\d* overdue renewals/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/health requires attention/)).toBeInTheDocument();
     expect(
@@ -211,6 +217,7 @@ describe("Dashboard role, error and filter behavior", () => {
       target: { value: "q2" },
     });
     expect(screen.getByText("Awarded Revenue · Q2")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Additional filters"));
     fireEvent.click(screen.getByRole("checkbox"));
     expect(
       screen.getByRole("option", { name: "Archived Partner (archived)" }),
@@ -218,17 +225,34 @@ describe("Dashboard role, error and filter behavior", () => {
   });
   it("shows one BPS action with access to all three underlying tasks", () => {
     state.tasks = ["decision", "overdue", "automatic"].map((id, index) => ({
-      id, title: `BPS ${id}`, source: index === 2 ? "renewal" : "manual",
-      related_type: "renewal", related_entity_id: "bps", related_route: "/renewals?renewal=bps",
-      priority: "Critical", priority_score: 120 - index,
-      due_date: index === 0 ? "2026-10-02" : "2026-10-08", owner_name: "George",
+      id,
+      title: `BPS ${id}`,
+      source: index === 2 ? "renewal" : "manual",
+      related_type: "renewal",
+      related_entity_id: "bps",
+      related_route: "/renewals?renewal=bps",
+      priority: "Critical",
+      priority_score: 120 - index,
+      due_date: index === 0 ? "2026-10-02" : "2026-10-08",
+      owner_name: "George",
     }));
     mount();
     expect(screen.getByText(/3 tasks for this renewal/)).toBeInTheDocument();
-    expect(screen.getByText(/3 tasks for this renewal/).closest("details")).not.toHaveAttribute("open");
-    expect(screen.getByText(/3 tasks for this renewal/).closest("details")?.querySelectorAll("a")).toHaveLength(3);
+    expect(
+      screen.getByText(/3 tasks for this renewal/).closest("details"),
+    ).not.toHaveAttribute("open");
+    expect(
+      screen
+        .getByText(/3 tasks for this renewal/)
+        .closest("details")
+        ?.querySelectorAll("a"),
+    ).toHaveLength(3);
+    fireEvent.click(screen.getByText("Review team actions"));
     fireEvent.click(screen.getByText(/3 tasks for this renewal/));
-    expect(screen.getByRole("link", {name: /BPS overdue/})).toHaveAttribute("href", "/tasks?view=team&task=overdue");
+    expect(screen.getByRole("link", { name: /BPS overdue/ })).toHaveAttribute(
+      "href",
+      "/tasks?view=team&task=overdue",
+    );
   });
   it("does not present zero as a reliable forecast when all opportunities are undated", () => {
     mount();
@@ -245,5 +269,74 @@ describe("Dashboard role, error and filter behavior", () => {
     expect(
       screen.getByRole("link", { name: /without an expected close date/ }),
     ).toHaveAttribute("href", "/pipeline?dashboard=undated");
+  });
+  it("keeps forecast confidence beside the current pipeline, not in the awarded revenue card", () => {
+    mount();
+    const pipeline = screen.getByRole("region", {
+      name: "Open Pipeline · current",
+    });
+    expect(
+      within(pipeline).getByText(/Forecast unavailable/),
+    ).toBeInTheDocument();
+    expect(
+      within(pipeline).getByRole("link", { name: /View pipeline/ }),
+    ).toHaveAttribute("href", "/pipeline?dashboard=open");
+    expect(
+      within(
+        screen.getByRole("region", { name: /Awarded Revenue/ }),
+      ).queryByText(/Forecast unavailable/),
+    ).not.toBeInTheDocument();
+  });
+  it("opens detailed health and actions from the cockpit shortcuts", () => {
+    mount();
+    const health = screen
+      .getByText("Partner health details")
+      .closest("details");
+    const actions = screen.getByText("Team Next Actions").closest("details");
+    expect(health).not.toHaveAttribute("open");
+    expect(actions).not.toHaveAttribute("open");
+    fireEvent.click(
+      screen.getByRole("link", { name: /Partner health requires attention/ }),
+    );
+    fireEvent.click(screen.getByText("Review team actions"));
+    expect(health).toHaveAttribute("open");
+    expect(actions).toHaveAttribute("open");
+  });
+  it("preserves all awarded components including unclassified entries", () => {
+    const year = new Date().getFullYear();
+    state.revenue = [
+      { id: "nb", amount: 120, revenue_type: "initial_sale" },
+      { id: "rn", amount: 50, revenue_type: "renewal" },
+      { id: "other", amount: 7, revenue_type: "adjustment" },
+    ].map((r) => ({
+      ...r,
+      partner_id: "p",
+      currency: "EUR",
+      revenue_date: `${year}-01-01`,
+    }));
+    mount();
+    const awards = screen.getByRole("region", { name: /Awarded Revenue/ });
+    expect(
+      within(awards).getByText("Other / unclassified awards"),
+    ).toBeInTheDocument();
+    expect(within(awards).getByText(/177[.,]00/)).toBeInTheDocument();
+    expect(within(awards).getByText(/120[.,]00/)).toBeInTheDocument();
+    expect(within(awards).getByText(/50[.,]00/)).toBeInTheDocument();
+    expect(within(awards).getByText("€7.00")).toBeInTheDocument();
+  });
+  it("keeps the selected partner scope on pipeline and renewal drilldowns", () => {
+    mount();
+    fireEvent.change(screen.getByLabelText("Partner"), {
+      target: { value: "p" },
+    });
+    expect(
+      screen.getByRole("link", { name: /without an expected close date/ }),
+    ).toHaveAttribute("href", "/pipeline?dashboard=undated&partner_id=p");
+    expect(
+      screen.getByRole("link", { name: /0 overdue renewals/i }),
+    ).toHaveAttribute("href", "/renewals?deadline=Overdue&partner=p");
+    expect(
+      screen.getByText(/Team actions cover all partners/),
+    ).toBeInTheDocument();
   });
 });
