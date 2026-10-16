@@ -217,7 +217,9 @@ describe("Dashboard role, error and filter behavior", () => {
       target: { value: "q2" },
     });
     expect(screen.getByText("Awarded Revenue · Q2")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Additional filters"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Scope & definitions" }),
+    );
     fireEvent.click(screen.getByRole("checkbox"));
     expect(
       screen.getByRole("option", { name: "Archived Partner (archived)" }),
@@ -338,5 +340,46 @@ describe("Dashboard role, error and filter behavior", () => {
     expect(
       screen.getByText(/Team actions cover all partners/),
     ).toBeInTheDocument();
+  });
+  it("keeps definitions and secondary filters in an accessible popover", () => {
+    mount();
+    expect(screen.queryByLabelText("Group by")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Awards: /)).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Scope & definitions" }),
+    );
+    expect(screen.getByLabelText("Group by")).toBeVisible();
+    expect(screen.getByText(/Awards: /)).toBeVisible();
+    expect(screen.getByText(/Imported history keeps/)).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Group by"), {
+      target: { value: "quarter" },
+    });
+    expect(screen.getByLabelText("Group by")).toHaveValue("quarter");
+  });
+  it("shows only three urgent renewal summaries with a route to all customers and owners", () => {
+    state.renewals = [0, 1, 2, 3].map((index) => ({
+      id: `renewal-${index}`,
+      client_id: "c",
+      partner_uuid: "p",
+      status: "Pending",
+      renewal_date: `2020-01-0${index + 1}`,
+      assigned_owner: "Owner",
+    }));
+    mount();
+    const list = screen.getByLabelText("Priority renewals");
+    const links = within(list).getAllByRole("link");
+    expect(links).toHaveLength(3);
+    expect(links[0]).toHaveAttribute("href", "/renewals?renewal=renewal-0");
+    expect(links[2]).toHaveAttribute("href", "/renewals?renewal=renewal-2");
+    expect(links[0]).toHaveAttribute("title", "0438 — Client · Owner");
+    expect(
+      screen.getByRole("link", { name: "See customers & owners" }),
+    ).toHaveAttribute("href", "/renewals");
+    fireEvent.change(screen.getByLabelText("Partner"), {
+      target: { value: "p" },
+    });
+    expect(
+      screen.getByRole("link", { name: "See customers & owners" }),
+    ).toHaveAttribute("href", "/renewals?partner=p");
   });
 });

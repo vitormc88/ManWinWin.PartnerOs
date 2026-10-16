@@ -1,0 +1,50 @@
+.dashboard-cockpit {
+  background: hsl(var(--secondary) / 0.45);
+  box-shadow: 0 0 0 24px hsl(var(--secondary) / 0.45);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.dashboard-cockpit > header {
+  align-items: center;
+}
+
+.dashboard-cockpit section,
+.dashboard-cockpit > div > details,
+.dashboard-cockpit > details {
+  border-color: hsl(var(--border) / 0.65);
+  box-shadow: none;
+}
+
+.dashboard-cockpit .cockpit-filter {
+  min-height: 32px;
+  border-radius: 5px;
+  padding: 4px 2px;
+  background-color: transparent;
+  cursor: pointer;
+}
+
+.dashboard-cockpit .cockpit-filter:hover {
+  background-color: hsl(var(--secondary));
+}
+
+.dashboard-cockpit .cockpit-filter:focus-visible,
+.dashboard-cockpit a:focus-visible,
+.dashboard-cockpit summary:focus-visible,
+.dashboard-cockpit button:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+}
+
+.dashboard-cockpit section.cockpit-awards {
+  border-top: 3px solid hsl(var(--primary));
+}
+
+.dashboard-cockpit .recharts-wrapper {
+  font-family: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-cockpit * {
+    transition: none !important;
+  }
+}
