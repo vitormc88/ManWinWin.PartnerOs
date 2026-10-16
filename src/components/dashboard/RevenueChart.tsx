@@ -6,7 +6,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
 import {
   revenueSeries,
@@ -41,16 +40,19 @@ export function RevenueChart({
 }) {
   const data = revenueSeries(rows, year, period, grouping, now);
   return (
-    <section className="bg-card rounded-xl border shadow-sm p-5 space-y-4">
+    <section
+      aria-label="Awarded revenue chart"
+      className="bg-card rounded-xl border p-5 space-y-4 min-w-0"
+    >
       <div className="flex justify-between gap-3">
         <div>
-          <h2 className="font-semibold">Awarded Revenue</h2>
-          <p className="text-xs text-muted-foreground">
-            New business and renewals · {currency} · commercial awards
-          </p>
+          <h2 className="text-sm font-semibold">Awarded revenue</h2>
         </div>
-        <span className="text-xs text-muted-foreground">
-          {updatedAt ? lastUpdatedLabel(updatedAt) : "Not loaded"}
+        <span
+          className="text-[10px] text-muted-foreground text-right"
+          title={updatedAt ? lastUpdatedLabel(updatedAt) : "Not loaded"}
+        >
+          {year} {period.toUpperCase()} · {currency}
         </span>
       </div>
       {error ? (
@@ -69,34 +71,69 @@ export function RevenueChart({
               No awarded revenue recorded in this period.
             </p>
           )}
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={data}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart
+              data={data}
+              maxBarSize={26}
+              margin={{ top: 8, right: 8, bottom: 0, left: -8 }}
+              accessibilityLayer
+            >
               <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="hsl(var(--border))"
+                vertical={false}
+                stroke="hsl(var(--border) / 0.65)"
               />
-              <XAxis dataKey="label" />
+              <XAxis
+                dataKey="label"
+                axisLine={false}
+                tickLine={false}
+                tick={{
+                  fontSize: 11,
+                  fill: "hsl(var(--muted-foreground))",
+                  fontFamily: "inherit",
+                }}
+                tickMargin={9}
+                minTickGap={8}
+                height={30}
+              />
               <YAxis
                 tickFormatter={(v) =>
                   formatMoney(v, { currency, compact: true })
                 }
-                width={75}
+                width={58}
+                tickCount={5}
+                axisLine={false}
+                tickLine={false}
+                tick={{
+                  fontSize: 10,
+                  fill: "hsl(var(--muted-foreground))",
+                  fontFamily: "inherit",
+                }}
               />
               <Tooltip
                 formatter={(v: number) => formatMoney(v, { currency })}
+                cursor={{ fill: "hsl(var(--secondary) / 0.5)" }}
+                contentStyle={{
+                  fontSize: 12,
+                  borderRadius: 8,
+                  borderColor: "hsl(var(--border))",
+                  background: "hsl(var(--card))",
+                  color: "hsl(var(--foreground))",
+                }}
+                labelStyle={{ fontWeight: 600, marginBottom: 4 }}
               />
-              <Legend />
               <Bar
                 dataKey="nb"
                 name="New Business"
                 stackId="awards"
                 fill="hsl(var(--primary))"
+                isAnimationActive={false}
               />
               <Bar
                 dataKey="renewals"
                 name="Renewals"
                 stackId="awards"
                 fill="hsl(var(--info))"
+                isAnimationActive={false}
               />
               {data.some((d) => d.other !== 0) && (
                 <Bar
@@ -104,10 +141,39 @@ export function RevenueChart({
                   name="Other / unclassified"
                   stackId="awards"
                   fill="hsl(var(--muted-foreground))"
+                  isAnimationActive={false}
                 />
               )}
             </BarChart>
           </ResponsiveContainer>
+          <ul
+            aria-label="Revenue chart legend"
+            className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground"
+          >
+            <li className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 rounded-sm bg-primary/80"
+              />
+              New business
+            </li>
+            <li className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 rounded-sm bg-info/80"
+              />
+              Renewals
+            </li>
+            {data.some((d) => d.other !== 0) && (
+              <li className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 rounded-sm bg-muted-foreground"
+                />
+                Other / unclassified
+              </li>
+            )}
+          </ul>
         </>
       )}
     </section>

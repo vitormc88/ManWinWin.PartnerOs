@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowUpRight, ChevronDown, RefreshCw } from "lucide-react";
+import {
+  ArrowUpRight,
+  CalendarDays,
+  ChevronDown,
+  RefreshCw,
+} from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import "./Dashboard.css";
 import { Link } from "react-router-dom";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { PartnerHealthList } from "@/components/dashboard/PartnerHealthList";
@@ -192,41 +203,48 @@ export default function Dashboard() {
       : `${(((totals.total - prior.total) / Math.abs(prior.total)) * 100).toFixed(1)}% vs equivalent period in ${year - 1}`;
   const pipelineLink = `/pipeline?dashboard=open${scope !== "all" ? `&partner_id=${encodeURIComponent(scope)}` : ""}`;
   return (
-    <div className="max-w-7xl mx-auto space-y-5 min-w-0">
+    <div className="dashboard-cockpit max-w-7xl mx-auto space-y-4 min-w-0">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">
+          <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-semibold mb-1">
+            {isHQ ? "Partner ecosystem" : "Partner workspace"}
+          </p>
+          <h1 className="text-2xl font-bold tracking-tight">
             {isHQ
               ? "Executive overview"
               : `${ownName.data || "Your Partner"} Dashboard`}
           </h1>
-          <p className="text-sm text-muted-foreground">
-            {isHQ
-              ? "Results, outlook and where to focus next"
-              : "Your results and next actions"}{" "}
-            · {now.toLocaleDateString("en-GB")}
-          </p>
         </div>
-        <button
-          className="inline-flex items-center gap-2 text-xs text-foreground border rounded-md px-3 py-2 hover:bg-secondary"
-          onClick={() => {
-            if (showClients) {
-              void revenueQ.refetch();
-              void clientsQ.refetch();
-            }
-            if (showPipeline) void dealsQ.refetch();
-            if (showPartners) {
-              void partnersQ.refetch();
-              void healthQ.refetch();
-            }
-            if (showRenewals) void renewalsQ.refetch();
-            if (showTasks) void tasksQ.refetch();
-            if (allow("notifications")) void notificationsQ.refetch();
-          }}
-        >
-          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-          Refresh dashboard
-        </button>
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-[11px] text-muted-foreground">
+            {now.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            })}
+          </span>
+          <button
+            className="inline-flex items-center justify-center text-foreground border rounded-md p-2 bg-card hover:bg-secondary"
+            title="Refresh dashboard"
+            onClick={() => {
+              if (showClients) {
+                void revenueQ.refetch();
+                void clientsQ.refetch();
+              }
+              if (showPipeline) void dealsQ.refetch();
+              if (showPartners) {
+                void partnersQ.refetch();
+                void healthQ.refetch();
+              }
+              if (showRenewals) void renewalsQ.refetch();
+              if (showTasks) void tasksQ.refetch();
+              if (allow("notifications")) void notificationsQ.refetch();
+            }}
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <span className="sr-only">Refresh dashboard</span>
+          </button>
+        </div>
       </header>
       {accessLoading ? (
         <p aria-busy="true">Loading permissions…</p>
@@ -240,82 +258,118 @@ export default function Dashboard() {
         </p>
       ) : null}
       {(showClients || showPipeline) && (
-        <section className="bg-card border rounded-xl p-4 space-y-3">
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3 [&_label]:min-w-0 [&_label]:max-w-full [&_select]:max-w-full max-sm:[&_label]:flex max-sm:[&_label]:flex-col max-sm:[&_label]:gap-1 max-sm:[&_select]:ml-0">
-            <label className="text-sm">
-              Year{" "}
-              <select
-                aria-label="Year"
-                value={year}
-                onChange={(e) => setYear(Number(e.target.value))}
-                className="ml-2 border rounded bg-background p-2"
-              >
-                {years.map((y) => (
-                  <option key={y}>{y}</option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              Period{" "}
-              <select
-                aria-label="Period"
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as Period)}
-                className="ml-2 border rounded bg-background p-2"
-              >
-                <option value="ytd">YTD / equivalent year-to-date</option>
-                <option value="year">Full year</option>
-                {[1, 2, 3, 4].map((q) => (
-                  <option key={q} value={`q${q}`}>
-                    Q{q}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {showPartners && (
-              <label className="text-sm">
-                Partner{" "}
-                <select
-                  aria-label="Partner"
-                  value={partner}
-                  onChange={(e) => setPartner(e.target.value)}
-                  className="ml-2 border rounded bg-background p-2"
-                >
-                  <option value="all">All partners + HQ Direct</option>
-                  <option value="hq">HQ Direct</option>
-                  {partners
-                    .filter((p) => archived || p.status !== "Archived")
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.company_name}
-                        {p.status === "Archived" ? " (archived)" : ""}
-                      </option>
-                    ))}
-                </select>
+        <section
+          aria-label="Dashboard filters"
+          className="cockpit-toolbar flex flex-wrap items-center gap-x-2 gap-y-2 text-xs"
+        >
+          <CalendarDays
+            className="w-4 h-4 text-muted-foreground shrink-0"
+            aria-hidden="true"
+          />
+          <label className="sr-only" htmlFor="dashboard-year">
+            Year
+          </label>
+          <select
+            id="dashboard-year"
+            aria-label="Year"
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="cockpit-filter font-semibold"
+          >
+            {years.map((y) => (
+              <option key={y}>{y}</option>
+            ))}
+          </select>
+          <span aria-hidden="true" className="text-muted-foreground">
+            ·
+          </span>
+          <label className="sr-only" htmlFor="dashboard-period">
+            Period
+          </label>
+          <select
+            id="dashboard-period"
+            aria-label="Period"
+            value={period}
+            onChange={(e) => setPeriod(e.target.value as Period)}
+            className="cockpit-filter font-semibold"
+          >
+            <option value="ytd">YTD</option>
+            <option value="year">Full year</option>
+            {[1, 2, 3, 4].map((q) => (
+              <option key={q} value={`q${q}`}>
+                Q{q}
+              </option>
+            ))}
+          </select>
+          <span className="hidden sm:inline text-muted-foreground mr-2">
+            {new Date(bounds.start + "T12:00:00").toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+            })}{" "}
+            –{" "}
+            {new Date(bounds.end + "T12:00:00").toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+            })}
+          </span>
+          {showPartners && (
+            <>
+              <label className="sr-only" htmlFor="dashboard-partner">
+                Partner
               </label>
-            )}
-            {showClients && currencies.length > 1 && (
-              <label className="text-sm">
-                Revenue currency{" "}
-                <select
-                  value={selectedCurrency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="ml-2 border rounded bg-background p-2"
-                >
-                  {currencies.map((c) => (
-                    <option key={c}>{c}</option>
+              <select
+                id="dashboard-partner"
+                aria-label="Partner"
+                value={partner}
+                onChange={(e) => setPartner(e.target.value)}
+                className="cockpit-filter max-w-[210px] text-muted-foreground"
+              >
+                <option value="all">All partners + HQ Direct</option>
+                <option value="hq">HQ Direct</option>
+                {partners
+                  .filter((p) => archived || p.status !== "Archived")
+                  .map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.company_name}
+                      {p.status === "Archived" ? " (archived)" : ""}
+                    </option>
                   ))}
-                </select>
-              </label>
-            )}
-          </div>
-          <details className="text-xs">
-            <summary className="cursor-pointer text-muted-foreground w-fit">
-              Additional filters
-            </summary>
-            <div className="flex flex-wrap items-center gap-4 pt-3">
+              </select>
+            </>
+          )}
+          {showClients && currencies.length > 1 && (
+            <label className="text-muted-foreground">
+              <span className="sr-only">Revenue currency</span>
+              <select
+                aria-label="Revenue currency"
+                value={selectedCurrency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="cockpit-filter"
+              >
+                {currencies.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="ml-auto rounded-md border bg-card px-3 py-2 text-xs hover:bg-secondary">
+                Scope & definitions
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="end"
+              className="w-[min(24rem,calc(100vw-2rem))] text-xs space-y-4"
+            >
+              <h2 className="font-semibold text-sm">Scope & definitions</h2>
+              <p className="text-muted-foreground">
+                {bounds.label} · Awards: {bounds.start} to {bounds.end}. Open
+                pipeline and renewal urgency are current, not historical
+                snapshots.
+              </p>
               {showClients && (
-                <label>
+                <label className="flex items-center justify-between gap-3">
                   Group by{" "}
                   <select
                     aria-label="Group by"
@@ -323,7 +377,7 @@ export default function Dashboard() {
                     onChange={(e) =>
                       setGrouping(e.target.value as "month" | "quarter")
                     }
-                    className="ml-2 border rounded bg-background p-2"
+                    className="rounded border bg-background p-2"
                   >
                     <option value="month">Month</option>
                     <option value="quarter">Quarter</option>
@@ -331,7 +385,7 @@ export default function Dashboard() {
                 </label>
               )}
               {showPartners && (
-                <label className="flex gap-2 items-center">
+                <label className="flex gap-2 items-start">
                   <input
                     type="checkbox"
                     checked={archived}
@@ -343,12 +397,16 @@ export default function Dashboard() {
                   Include archived partners in historical selection
                 </label>
               )}
-            </div>
-          </details>
-          <p className="text-xs text-muted-foreground">
-            {bounds.label} · Awards: {bounds.start} to {bounds.end}. Open
-            pipeline and renewal urgency are current, not historical snapshots.
-          </p>
+              {showClients && (
+                <p className="border-t pt-3 text-muted-foreground leading-relaxed">
+                  Awarded revenue is the recorded commercial value, not
+                  invoices, payments or partner commissions. Imported history
+                  keeps its original dates and values. Historical revenue
+                  includes archived relationships. Currency: {selectedCurrency}.
+                </p>
+              )}
+            </PopoverContent>
+          </Popover>
         </section>
       )}
       <div
@@ -357,11 +415,11 @@ export default function Dashboard() {
         {showClients && (
           <section
             aria-labelledby="dashboard-awards-title"
-            className="bg-card border rounded-xl p-5 sm:p-6 min-w-0"
+            className="cockpit-awards bg-card border rounded-xl p-5 min-w-0"
           >
             <h2
               id="dashboard-awards-title"
-              className="text-sm font-medium text-muted-foreground"
+              className="text-[11px] font-semibold tracking-wider uppercase text-muted-foreground"
             >
               Awarded Revenue · {period.toUpperCase()}
             </h2>
@@ -370,20 +428,20 @@ export default function Dashboard() {
               error={revenueQ.isError}
               retry={retryRevenue}
             >
-              <p className="text-4xl sm:text-5xl font-semibold tracking-tight tabular-nums mt-4">
+              <p className="text-3xl sm:text-4xl font-semibold tracking-tight tabular-nums mt-3">
                 {formatMoney(totals.total, { currency: selectedCurrency })}
               </p>
               <p
-                className={`text-xs mt-3 ${totals.total < prior.total ? "text-destructive" : "text-muted-foreground"}`}
+                className={`text-[11px] mt-2 ${totals.total < prior.total ? "text-destructive" : "text-teal-700 dark:text-teal-400"}`}
               >
                 {delta}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t mt-5 pt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t mt-4 pt-3">
                 <div>
                   <h3 className="text-xs text-muted-foreground">
                     New Business · selected period
                   </h3>
-                  <p className="text-xl font-semibold tabular-nums mt-1">
+                  <p className="text-lg font-semibold tabular-nums mt-1">
                     {formatMoney(totals.nb, { currency: selectedCurrency })}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -394,7 +452,7 @@ export default function Dashboard() {
                   <h3 className="text-xs text-muted-foreground">
                     Renewals · selected period
                   </h3>
-                  <p className="text-xl font-semibold tabular-nums mt-1">
+                  <p className="text-lg font-semibold tabular-nums mt-1">
                     {formatMoney(totals.renewals, {
                       currency: selectedCurrency,
                     })}
@@ -417,17 +475,9 @@ export default function Dashboard() {
                 )}
               </div>
             </LoadState>
-            <details className="mt-5 text-xs text-muted-foreground">
-              <summary className="cursor-pointer w-fit">
-                What this revenue includes
-              </summary>
-              <p className="mt-2 leading-relaxed">
-                Awarded revenue is the recorded commercial value, not invoices,
-                payments or partner commissions. Imported history keeps its
-                original dates and values. Historical revenue includes archived
-                relationships. Currency: {selectedCurrency}.
-              </p>
-            </details>
+            <p className="mt-3 text-[11px] text-muted-foreground">
+              Commercial awards, not invoices or cash received.
+            </p>
           </section>
         )}
         {showPipeline && (
@@ -457,26 +507,36 @@ export default function Dashboard() {
                 void dealsQ.refetch();
               }}
             >
-              <p className="text-3xl sm:text-4xl font-semibold tracking-tight tabular-nums">
+              <p className="text-3xl font-semibold tracking-tight tabular-nums">
                 {formatMoney(forecast.total)}
               </p>
               <p className="text-xs text-muted-foreground">
-                {forecast.open.length} open opportunities · EUR · current, not
-                awarded
+                {forecast.open.length} open opportunities · EUR
               </p>
-              <h3 className="text-xs font-semibold border-t pt-3">
-                Expected closures · {bounds.label}
-              </h3>
+              {forecast.missing.length !== forecast.open.length && (
+                <h3 className="text-xs font-semibold border-t pt-3">
+                  Expected closures · {bounds.label}
+                </h3>
+              )}
               {forecast.open.length > 0 &&
               forecast.missing.length === forecast.open.length ? (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
-                  <p className="font-semibold">
-                    Forecast unavailable — expected close dates missing
-                  </p>
-                  <p className="text-sm mt-1">
-                    All {forecast.open.length} open opportunities lack a close
-                    date. No reliable period forecast can be calculated.
-                  </p>
+                <div className="flex gap-2.5 rounded-lg bg-amber-50 p-3 text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                  <CalendarDays
+                    className="w-4 h-4 mt-0.5 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <p className="text-xs font-semibold">
+                      Forecast unavailable
+                    </p>
+                    <p className="text-[11px] mt-1">
+                      {forecast.open.length} opportunities have no expected
+                      close date.
+                    </p>
+                    <p className="sr-only">
+                      No reliable period forecast can be calculated.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -495,11 +555,15 @@ export default function Dashboard() {
               )}
               {forecast.missing.length > 0 && (
                 <Link
-                  className="block text-sm text-amber-700 dark:text-amber-400 underline"
+                  className="inline-flex items-center gap-2 text-xs hover:underline"
                   to={`${pipelineLink.replace("dashboard=open", "dashboard=undated")}`}
                 >
-                  {forecast.missing.length} opportunities without an expected
-                  close date — review
+                  <span className="sr-only">
+                    {forecast.missing.length} opportunities without an expected
+                    close date —{" "}
+                  </span>
+                  Review missing dates{" "}
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </Link>
               )}
               {forecast.missing.length > 0 &&
@@ -525,15 +589,14 @@ export default function Dashboard() {
       </div>
       {(showRenewals || showPartners || showTasks) && (
         <section aria-labelledby="dashboard-focus-title" className="space-y-2">
-          <h2
-            id="dashboard-focus-title"
-            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
-          >
-            Where to focus now
+          <h2 id="dashboard-focus-title" className="text-sm font-semibold">
+            Where attention is needed
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {showRenewals && (
-              <div className="border rounded-xl bg-card p-4">
+              <div
+                className={`rounded-xl p-3.5 ${!renewalsQ.isError && !renewalsQ.isLoading && overdue.length ? "bg-primary/5" : "border bg-card"}`}
+              >
                 <LoadState
                   loading={renewalsQ.isLoading}
                   error={renewalsQ.isError}
@@ -545,18 +608,18 @@ export default function Dashboard() {
                     to={`/renewals?deadline=Overdue${scope !== "all" ? `&partner=${scope}` : ""}`}
                     className="flex items-center justify-between gap-3 hover:underline"
                   >
-                    <span>
+                    <span className="flex items-center gap-3 min-w-0">
                       <strong
                         className={`text-2xl tabular-nums ${overdue.length ? "text-destructive" : ""}`}
                       >
                         {overdue.length}
                       </strong>
-                      <span className="block text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         Overdue renewals
                       </span>
                     </span>
                     <ArrowUpRight
-                      className="h-4 w-4 text-muted-foreground"
+                      className="h-4 w-4 text-muted-foreground ml-auto shrink-0"
                       aria-hidden="true"
                     />
                   </Link>
@@ -576,18 +639,18 @@ export default function Dashboard() {
                   <a
                     href="#dashboard-partner-health"
                     onClick={() => setHealthOpen(true)}
-                    className="flex items-center justify-between gap-3 hover:underline"
+                    className="flex items-center gap-3 hover:underline"
                   >
-                    <span>
+                    <span className="flex items-center gap-3 min-w-0">
                       <strong className="text-2xl tabular-nums">
                         {risks.length}
                       </strong>
-                      <span className="block text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         Partner health requires attention
                       </span>
                     </span>
                     <ArrowUpRight
-                      className="h-4 w-4 text-muted-foreground"
+                      className="h-4 w-4 text-muted-foreground ml-auto shrink-0"
                       aria-hidden="true"
                     />
                   </a>
@@ -636,7 +699,12 @@ export default function Dashboard() {
         )}
         {showRenewals && (
           <section className="bg-card rounded-xl border p-5 space-y-3 min-w-0">
-            <h2 className="font-semibold">Renewals · current urgency</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-semibold text-sm">Renewals to manage</h2>
+              <span className="text-[10px] text-muted-foreground">
+                ● Current
+              </span>
+            </div>
             <LoadState
               loading={renewalsQ.isLoading}
               error={renewalsQ.isError}
@@ -644,7 +712,7 @@ export default function Dashboard() {
                 void renewalsQ.refetch();
               }}
             >
-              <div className="grid grid-cols-2 gap-2">
+              <div className="cockpit-renewal-buckets grid grid-cols-4 gap-1.5">
                 {[
                   { label: "Overdue", rows: overdue, deadline: "Overdue" },
                   { label: "0–30 days", rows: soon, deadline: "Due Soon" },
@@ -664,29 +732,51 @@ export default function Dashboard() {
                   },
                 ].map((b) => (
                   <Link
-                    className="rounded bg-secondary/50 p-3"
+                    className={`rounded-lg px-2 py-2.5 min-w-0 ${b.deadline === "Overdue" && b.rows.length ? "bg-primary/5 text-destructive" : "bg-secondary/40"}`}
                     key={b.label}
                     to={`/renewals?deadline=${encodeURIComponent(b.deadline)}${scope !== "all" ? `&partner=${scope}` : ""}`}
                   >
                     <strong>{b.rows.length}</strong>
-                    <p className="text-xs">{b.label}</p>
+                    <p className="text-[10px] whitespace-nowrap">
+                      {b.label.replace(" days", "d")}
+                    </p>
                   </Link>
                 ))}
               </div>
-              {[...overdue, ...soon].slice(0, 6).map((r) => (
-                <Link
-                  key={r.id}
-                  className="block text-sm border-t pt-2"
-                  to={renewalLink(r)}
-                >
-                  {label(r)}{" "}
-                  <span className="text-muted-foreground">
-                    ·{" "}
-                    {r.days < 0 ? `${Math.abs(r.days)}d overdue` : `${r.days}d`}{" "}
-                    · {r.assigned_owner || "Unassigned"}
-                  </span>
-                </Link>
-              ))}
+              <div aria-label="Priority renewals">
+                {[...overdue, ...soon].slice(0, 3).map((r) => {
+                  const customer = clientMap.get(r.client_id);
+                  return (
+                    <Link
+                      key={r.id}
+                      className="flex items-center justify-between gap-3 border-t py-3 text-xs hover:text-primary"
+                      to={renewalLink(r)}
+                      title={`${label(r)} · ${r.assigned_owner || "Unassigned"}`}
+                      aria-label={`${label(r)} · ${r.days < 0 ? `${Math.abs(r.days)}d overdue` : `${r.days}d`} · ${r.assigned_owner || "Unassigned"}`}
+                    >
+                      <span className="truncate min-w-0">
+                        {customer?.short_name ||
+                          customer?.commercial_name ||
+                          "Open renewal details"}
+                      </span>
+                      <span
+                        className={`shrink-0 tabular-nums text-[11px] ${r.days < 0 ? "text-destructive" : "text-muted-foreground"}`}
+                      >
+                        {r.days < 0
+                          ? `${Math.abs(r.days)}d overdue`
+                          : `${r.days}d`}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+              <Link
+                className="inline-flex items-center gap-2 text-xs hover:underline pt-1"
+                to={`/renewals${scope !== "all" ? `?partner=${encodeURIComponent(scope)}` : ""}`}
+              >
+                See customers & owners{" "}
+                <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </Link>
               {overdue.length === 0 && soon.length === 0 && (
                 <p className="text-sm">
                   No overdue renewals or renewals due within 30 days.
