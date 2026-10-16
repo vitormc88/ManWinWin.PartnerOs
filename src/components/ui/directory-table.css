@@ -53,6 +53,10 @@
   font-size: 13px;
 }
 
+.directory-table td.tabular-nums {
+  white-space: nowrap;
+}
+
 .directory-table .directory-name {
   font-family: inherit;
   font-size: 13px;
