@@ -1,8 +1,9 @@
+import { DirectoryTable, DirectorySortHeader as SortHeader, DirectoryTag, DirectoryStatus } from "@/components/ui/directory-table";
+import { formatMoney } from "@/lib/money";
 import { usePartners, useCreatePartner, useArchivePartner, useRestorePartner, type Partner } from "@/hooks/usePartners";
 import { useAuth } from "@/contexts/AuthContext";
-import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Search, Plus, Archive, RotateCcw, MoreHorizontal, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
+import { Search, Plus, Archive, RotateCcw, MoreHorizontal } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,40 +18,7 @@ import { usePartnershipLevels } from "@/hooks/usePartners";
 import { usePartnerMetrics } from "@/hooks/usePartnerMetrics";
 import { COUNTRY_NAME_BY_CODE } from "@/data/iso-countries";
 
-const statusVariant: Record<string, "success" | "secondary" | "warning" | "destructive"> = {
-  Active: "success", Inactive: "secondary", Negotiation: "warning", Archived: "secondary",
-};
-
 type SortKey = "company" | "country" | "level" | "status" | "revenue" | "pipeline" | "health" | "clients";
-
-function SortHeader({ label, sortKey, activeKey, dir, onSort, align = "left" }: {
-  label: string;
-  sortKey: SortKey;
-  activeKey: SortKey;
-  dir: "asc" | "desc";
-  onSort: (key: SortKey) => void;
-  align?: "left" | "right";
-}) {
-  const active = activeKey === sortKey;
-  const Icon = active ? (dir === "asc" ? ArrowUp : ArrowDown) : ChevronsUpDown;
-  return (
-    <th
-      scope="col"
-      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={`px-5 py-3 font-medium text-muted-foreground ${align === "right" ? "text-right" : "text-left"}`}
-    >
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        aria-label={`Sort by ${label} (${active ? (dir === "asc" ? "currently ascending" : "currently descending") : "not sorted"})`}
-        className={`inline-flex items-center gap-1 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors ${active ? "text-foreground" : ""} ${align === "right" ? "flex-row-reverse" : ""}`}
-      >
-        <span>{label}</span>
-        <Icon className={`h-3.5 w-3.5 ${active ? "opacity-100" : "opacity-40"}`} aria-hidden="true" />
-      </button>
-    </th>
-  );
-}
 
 export default function Partners() {
   const { data: partners = [], isLoading } = usePartners();
@@ -164,8 +132,7 @@ export default function Partners() {
       </div>
 
       <div className="bg-card rounded-xl border shadow-sm overflow-hidden animate-reveal-up stagger-2">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <DirectoryTable label="Partners">
             <thead>
               <tr className="border-b bg-secondary/50">
                 <SortHeader label="Company" sortKey="company" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
@@ -175,8 +142,8 @@ export default function Partners() {
                 <SortHeader label="Revenue" sortKey="revenue" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
                 <SortHeader label="Pipeline" sortKey="pipeline" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
                 <SortHeader label="Health" sortKey="health" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
-                <SortHeader label="Clients" sortKey="clients" activeKey={sortKey} dir={sortDir} onSort={toggleSort} />
-                <th className="text-right px-5 py-3 font-medium text-muted-foreground w-10"></th>
+                <SortHeader label="Clients" sortKey="clients" activeKey={sortKey} dir={sortDir} onSort={toggleSort} align="right" />
+                <th scope="col" className="text-right w-10"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -194,24 +161,24 @@ export default function Partners() {
                 return (
                 <tr key={p.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="px-5 py-3">
-                    <Link to={`/partners/${p.id}`} className="font-medium text-foreground hover:text-primary transition-colors">{p.company_name}</Link>
-                    <p className="text-[11px] text-muted-foreground">{p.partner_code}</p>
+                    <Link to={`/partners/${p.id}`} className="directory-name">{p.company_name}</Link>
+                    <p className="directory-code">{p.partner_code}</p>
                   </td>
                   <td className="px-5 py-3 text-muted-foreground">{countryName}</td>
-                  <td className="px-5 py-3"><Badge variant="outline" className="text-xs font-normal">{p.partnership_level}</Badge></td>
-                  <td className="px-5 py-3"><Badge variant={statusVariant[p.status || "Active"] || "secondary"}>{p.status}</Badge></td>
-                  <td className="px-5 py-3 text-right tabular-nums font-medium text-foreground">€{revenue.toLocaleString()}</td>
-                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">€{pipeline.toLocaleString()}</td>
+                  <td className="px-5 py-3"><DirectoryTag tone="outline">{p.partnership_level}</DirectoryTag></td>
+                  <td className="px-5 py-3"><DirectoryStatus status={p.status} /></td>
+                  <td className="px-5 py-3 text-right tabular-nums font-medium text-foreground">{formatMoney(revenue)}</td>
+                  <td className="px-5 py-3 text-right tabular-nums text-muted-foreground">{formatMoney(pipeline)}</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full" style={{ backgroundColor: health >= 80 ? "hsl(var(--success))" : health >= 60 ? "hsl(var(--info))" : health >= 40 ? "hsl(var(--warning))" : "hsl(var(--destructive))" }} />
                       <span className="text-xs">{health}</span>
                     </div>
                   </td>
-                  <td className="px-5 py-3 text-muted-foreground tabular-nums">{clients}</td>
+                  <td className="px-5 py-3 text-right text-muted-foreground tabular-nums">{clients}</td>
                   <td className="px-5 py-3 text-right">
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                      <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="directory-action directory-action--icon" aria-label={`Actions for ${p.company_name}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild><Link to={`/partners/${p.id}`}>View Details</Link></DropdownMenuItem>
                         {isAdmin && (p.status === "Archived" ? (
@@ -226,8 +193,7 @@ export default function Partners() {
                 );
               })}
             </tbody>
-          </table>
-        </div>
+        </DirectoryTable>
       </div>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>

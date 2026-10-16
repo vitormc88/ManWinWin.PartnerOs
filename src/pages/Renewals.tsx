@@ -1,3 +1,4 @@
+import { DirectoryTable, DirectoryTag } from "@/components/ui/directory-table";
 import { useState, useMemo, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -7,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, FileText, Search } from "lucide-react";
 import { CreateProposalDialog } from "@/components/proposals/CreateProposalDialog";
 import { renewalProposalSource } from "@/lib/proposal-source";
-import { Badge } from "@/components/ui/badge";
 import { useRenewals } from "@/hooks/useDeals";
 import { usePartners } from "@/hooks/usePartners";
 import { useClients } from "@/hooks/useClients";
@@ -44,13 +44,6 @@ const statusColors: Record<string, string> = {
   "Won": "bg-success/10 text-success border-success/20",
   "Lost": "bg-destructive/10 text-destructive border-destructive/20",
   "Expired": "bg-muted text-muted-foreground border-border",
-};
-
-const priorityColors: Record<string, string> = {
-  "Critical": "bg-destructive/10 text-destructive",
-  "High": "bg-warning/15 text-warning-foreground",
-  "Medium": "bg-info/10 text-info",
-  "Low": "bg-success/10 text-success",
 };
 
 export default function Renewals() {
@@ -299,20 +292,19 @@ export default function Renewals() {
 
       <div className="bg-card rounded-xl border shadow-sm overflow-hidden animate-reveal-up stagger-3">
         <div className="px-4 py-3 border-b flex flex-wrap justify-between items-center gap-3"><span className="text-sm font-medium">{filtered.length} renewals in this selection</span><Button variant="outline" size="sm" aria-pressed={showAllColumns} onClick={() => setShowAllColumns(v => !v)}>{showAllColumns ? "Essential columns" : "All columns"}</Button></div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <DirectoryTable label="Renewals">
             <thead><tr className="border-b bg-secondary/50">
-              {showAllColumns && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>}
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
-              {!partnerScoped && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Partner</th>}
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Renewal Date</th>
-              {showAllColumns && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Days</th>}
-              {showAllColumns && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Deadline</th>}
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Commercial Stage</th>
-              {showAllColumns && <th className="text-left px-4 py-3 font-medium text-muted-foreground">Result</th>}
-              <th className="text-right px-4 py-3 font-medium text-muted-foreground">Value</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Owner</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Next step</th>
+              {showAllColumns && <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Priority</th>}
+              <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
+              {!partnerScoped && <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Partner</th>}
+              <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Renewal Date</th>
+              {showAllColumns && <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Days</th>}
+              {showAllColumns && <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Deadline</th>}
+              <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Commercial Stage</th>
+              {showAllColumns && <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Result</th>}
+              <th scope="col" className="text-right px-4 py-3 font-medium text-muted-foreground">Value</th>
+              <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Owner</th>
+              <th scope="col" className="text-left px-4 py-3 font-medium text-muted-foreground">Next step</th>
             </tr></thead>
             <tbody className="divide-y">
               {isLoading ? (
@@ -323,20 +315,19 @@ export default function Renewals() {
                 <tr><td colSpan={(showAllColumns ? 11 : 7) - (partnerScoped ? 1 : 0)} className="px-4 py-8 text-center text-muted-foreground">No renewals found.</td></tr>
               ) : filtered.map(r => (
                 <tr key={r.id} className="hover:bg-secondary/30 transition-colors cursor-pointer" onClick={() => setSelectedId(r.id)}>
-                  {showAllColumns && <td className="px-4 py-3"><span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${priorityColors[r.priority || "Medium"] || ""}`}>{r.priority}</span></td>}
-                  <td className="px-4 py-3"><Link to={`/clients/${r.client_id}`} className="font-medium text-foreground hover:text-primary" onClick={e => e.stopPropagation()}>{r.clientCode}</Link><p className="text-xs text-muted-foreground truncate max-w-[200px]">{r.clientName}</p></td>
+                  {showAllColumns && <td className="px-4 py-3"><DirectoryTag tone={r.priority === "Critical" ? "critical" : r.priority === "High" ? "warning" : r.priority === "Medium" ? "info" : r.priority === "Low" ? "positive" : "neutral"}>{r.priority}</DirectoryTag></td>}
+                  <td className="px-4 py-3"><Link to={`/clients/${r.client_id}`} className="directory-name block max-w-[260px] truncate" title={r.clientName} onClick={e => e.stopPropagation()}>{r.clientName}</Link><p className="directory-code">{r.clientCode}</p></td>
                   {!partnerScoped && <td className="px-4 py-3 text-muted-foreground text-xs">{r.partnerName}</td>}
                   <td className="px-4 py-3 tabular-nums text-xs">{formatDateOnly(r.renewal_date)}{!showAllColumns && <p className={`mt-1 font-medium ${r.deadline === "Overdue" ? "text-destructive" : "text-muted-foreground"}`}>{isClosedRenewal(r) ? r.result : r.daysUntil === null ? "Date missing" : r.daysUntil < 0 ? `${Math.abs(r.daysUntil)}d overdue` : `In ${r.daysUntil}d`}</p>}</td>
                   {showAllColumns && <td className="px-4 py-3"><span className="tabular-nums text-xs">{isClosedRenewal(r) ? "Closed" : r.daysUntil === null ? "—" : `${r.daysUntil}d`}</span></td>}
-                  {showAllColumns && <td className="px-4 py-3"><Badge variant={r.deadline === "Overdue" ? "destructive" : "outline"}>{r.deadline}</Badge></td>}<td className="px-4 py-3 text-xs">{r.stage}</td>{showAllColumns && <td className="px-4 py-3 text-xs">{r.result}</td>}
+                  {showAllColumns && <td className="px-4 py-3"><DirectoryTag tone={r.deadline === "Overdue" ? "critical" : "outline"}>{r.deadline}</DirectoryTag></td>}<td className="px-4 py-3 text-xs">{r.stage}</td>{showAllColumns && <td className="px-4 py-3 text-xs">{r.result}</td>}
                   <td className="px-4 py-3 text-right tabular-nums font-medium">{r.estimated_value == null ? "Not set" : formatMoney(isClosedRenewal(r) ? r.final_value ?? r.estimated_value : r.estimated_value)}</td>
                   <td className="px-4 py-3 text-xs"><span className={r.isUnassigned ? "text-destructive font-medium" : "text-muted-foreground"}>{r.ownerName}</span></td>
-                  <td className="px-4 py-3"><Button size="sm" variant="outline" onClick={e => { e.stopPropagation(); setSelectedId(r.id); }}>Open renewal<span className="sr-only"> for {r.clientName}</span></Button></td>
+                  <td className="px-4 py-3"><Button size="sm" variant="outline" className="directory-action" onClick={e => { e.stopPropagation(); setSelectedId(r.id); }}>Open renewal<span className="sr-only"> for {r.clientName}</span></Button></td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+        </DirectoryTable>
       </div>
 
       <Dialog open={!!detail} onOpenChange={() => setSelectedId(null)}>

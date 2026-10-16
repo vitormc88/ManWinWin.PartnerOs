@@ -1,14 +1,14 @@
+import { DirectoryTable, DirectorySortHeader, DirectoryTag, DirectoryStatus } from "@/components/ui/directory-table";
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Search, Download, Plus, ChevronDown, Archive } from "lucide-react";
+import { Search, Download, Plus, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CountryCombobox } from "@/components/clients/CountryCombobox";
 import { SectorSelect } from "@/components/clients/SectorSelect";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { displayCountry } from '@/lib/ux-presentation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useModuleAccess } from "@/hooks/useModuleAccess";
@@ -167,12 +167,6 @@ export default function ClientsLicenses() {
     navigate(`/clients/${clientId}`);
   };
 
-  const SortHeader = ({ field, children }: { field: string; children: React.ReactNode }) => (
-    <TableHead className="cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => handleSort(field)}>
-      <span className="inline-flex items-center gap-1">{children}{sortField === field && <ChevronDown className={`h-3 w-3 transition-transform ${sortDir === "desc" ? "rotate-180" : ""}`} />}</span>
-    </TableHead>
-  );
-
   const handleExport = () => {
     const headers = ["Client Code", "Client Name", "Partner", "Country", "Sector", "License Type", "Version", "Status"];
     const rows = filtered.map(c => [c.client_code, c.commercial_name, resolvePartnerIdentity(c as any, partnerMap).label, c.country, c.sector, c.license_type, c.current_version, c.status]);
@@ -287,18 +281,17 @@ export default function ClientsLicenses() {
       </div>
 
       <div className="animate-reveal-up rounded-xl border border-border/60 bg-card shadow-sm overflow-hidden" style={{ animationDelay: "180ms" }}>
-        <div className="overflow-x-auto">
-          <Table>
+        <DirectoryTable label="Clients & licenses">
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <SortHeader field="client_code">Code</SortHeader>
-                <SortHeader field="commercial_name">Client</SortHeader>
-                {!partnerScoped && <TableHead>Partner</TableHead>}
-                <SortHeader field="country">Country</SortHeader>
-                <SortHeader field="sector">Sector</SortHeader>
-                <TableHead>License</TableHead>
-                <TableHead>Version</TableHead>
-                <SortHeader field="status">Status</SortHeader>
+                <DirectorySortHeader label="Code" sortKey="client_code" activeKey={sortField} dir={sortDir} onSort={handleSort} />
+                <DirectorySortHeader label="Client" sortKey="commercial_name" activeKey={sortField} dir={sortDir} onSort={handleSort} />
+                {!partnerScoped && <TableHead scope="col">Partner</TableHead>}
+                <DirectorySortHeader label="Country" sortKey="country" activeKey={sortField} dir={sortDir} onSort={handleSort} />
+                <DirectorySortHeader label="Sector" sortKey="sector" activeKey={sortField} dir={sortDir} onSort={handleSort} />
+                <TableHead scope="col">License</TableHead>
+                <TableHead scope="col">Version</TableHead>
+                <DirectorySortHeader label="Status" sortKey="status" activeKey={sortField} dir={sortDir} onSort={handleSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -310,11 +303,11 @@ export default function ClientsLicenses() {
                 <TableRow><TableCell colSpan={partnerScoped ? 7 : 8} className="h-32 text-center text-muted-foreground">{showArchived ? "No archived clients." : "No clients match your filters."} {canEditClients && <button onClick={() => navigate("/clients/new")} className="text-primary hover:underline">Create client</button>}</TableCell></TableRow>
               ) : filtered.map(c => (
                 <TableRow key={c.id} className="cursor-pointer hover:bg-muted/40 transition-colors" onClick={() => handleOpenClient(c.id)}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">{c.client_code}</TableCell>
+                  <TableCell><span className="directory-code">{c.client_code}</span></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 min-w-[160px]">
-                      <button type="button" className="font-medium text-primary text-left underline-offset-4 hover:underline focus-visible:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded" aria-label={`Open client ${c.short_name || c.commercial_name}`} onClick={e => { e.stopPropagation(); handleOpenClient(c.id); }}>{c.short_name || c.commercial_name}</button>
-                      {c.is_premium && <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-amber-300 text-amber-600 bg-amber-50">Premium</Badge>}
+                      <button type="button" className="directory-name rounded" aria-label={`Open client ${c.short_name || c.commercial_name}`} onClick={e => { e.stopPropagation(); handleOpenClient(c.id); }}>{c.short_name || c.commercial_name}</button>
+                      {c.is_premium && <DirectoryTag tone="warning">Premium</DirectoryTag>}
                     </div>
                   </TableCell>
                   {!partnerScoped && <TableCell className="text-sm">
@@ -337,14 +330,13 @@ export default function ClientsLicenses() {
                   </TableCell>}
                   <TableCell className="text-sm">{displayCountry(c.country)}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{c.sector}</TableCell>
-                  <TableCell><Badge variant="secondary" className="text-xs font-normal">{getLicenseDisplay(c.license_type)}</Badge></TableCell>
+                  <TableCell><DirectoryTag tone="outline">{getLicenseDisplay(c.license_type)}</DirectoryTag></TableCell>
                   <TableCell className="text-xs tabular-nums">{c.current_version}</TableCell>
-                  <TableCell><Badge variant={c.status === "Active" ? "success" : c.status === "Archived" ? "ghost" : "secondary"}>{c.status}</Badge></TableCell>
+                  <TableCell><DirectoryStatus status={c.status} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
-        </div>
+        </DirectoryTable>
         <div className="px-4 py-3 border-t border-border/60 bg-muted/20 text-xs text-muted-foreground">
           Showing {filtered.length} of {clients.length} clients
         </div>
