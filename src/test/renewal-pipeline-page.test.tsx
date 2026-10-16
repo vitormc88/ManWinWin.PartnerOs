@@ -70,4 +70,15 @@ describe('Renewals Pipeline interactions', () => {
     fixtures.error = true; show(); expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(screen.queryByText('No renewals found.')).not.toBeInTheDocument();
   });
+  it('uses the shared table and puts the linked customer name before its secondary code', () => {
+    show();
+    const table = screen.getByRole('table', {name:'Renewals'});
+    expect(table).toHaveClass('directory-table');
+    const name = within(table).getByRole('link', {name:'Deadline client'});
+    expect(name).toHaveClass('directory-name');
+    expect(name).toHaveAttribute('href','/clients/c-bps');
+    expect(name.nextElementSibling).toHaveClass('directory-code');
+    expect(name.parentElement).toHaveTextContent('Deadline clientDeadline client-code');
+    expect(within(table).getByRole('button', {name:'Open renewal for Deadline client'})).toHaveClass('directory-action');
+  });
 });
