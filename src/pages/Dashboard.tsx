@@ -616,7 +616,7 @@ export default function Dashboard() {
         </section>
       )}
       <div
-        className={`grid grid-cols-1 gap-4 items-start ${showClients && showRenewals ? "xl:grid-cols-[1.35fr_1fr]" : ""}`}
+        className={`grid grid-cols-1 gap-4 items-start ${showClients && showRenewals ? "lg:grid-cols-[1.35fr_1fr]" : ""}`}
       >
         {showClients && (
           <div className="min-w-0">
