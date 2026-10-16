@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight, AlertTriangle, Activity, Globe2, Sparkles, Trophy, Rocket, Target as TargetIcon, Users, Heart, GraduationCap, ArrowUp, ArrowDown, ArrowUpDown, CalendarClock, ShieldAlert, Building2, ListChecks } from "lucide-react";
 import { resolveDealProbability, isActivePipelineStage } from "@/data/pipeline-stages";
-import { analyticsStageLabel, analyticsStageRows, authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue, renewalStatusDisplay, resolveRenewalOwner, rankByValue, isPartnerActive, summarizeOpenRenewals, salespeopleBreakdown, quarterEndInclusive, startOfToday } from "@/lib/analytics-corrections";
+import { analyticsStageLabel, analyticsStageRows, authDealValue, largestOpenDeals, aggregateWinRate, isRenewalOpen, isRenewalOverdue, renewalStatusDisplay, resolveRenewalOwner, rankByValue, summarizeActivePartnerHealth, summarizeOpenRenewals, salespeopleBreakdown, quarterEndInclusive, startOfToday } from "@/lib/analytics-corrections";
 import { useAuth } from "@/contexts/AuthContext";
 import { LossAnalysis } from "@/components/analytics/LossAnalysis";
 import {
@@ -1054,11 +1054,20 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
   });
 
   // KPIs
-  const activeCount = rows.filter((r) => isPartnerActive(fullById.get(r.partner_id))).length;
+  const healthSummary = summarizeActivePartnerHealth(rows.map((r) => ({
+    partner: fullById.get(r.partner_id),
+    health: metrics[r.partner_id]?.health_score,
+  })));
+  const activeCount = healthSummary.activeCount;
   const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
 
   const totalPipeline = rows.reduce((s, r) => s + r.pipeline, 0);
-  const avgHealth = rows.length ? Math.round(rows.reduce((s, r) => s + r.health, 0) / rows.length) : 0;
+  const avgHealth = healthSummary.average;
+  const healthCaption = activeCount === 0
+    ? "No active partners"
+    : healthSummary.scoredCount === activeCount
+      ? `Calculated · ${activeCount} active partners only`
+      : `Calculated · ${healthSummary.scoredCount} of ${activeCount} active partners with a health score`;
 
   // Rankings
   const topRevenue = [...rows].sort((a, b) => b.revenue - a.revenue).filter(r => r.revenue > 0).slice(0, 3);
@@ -1148,9 +1157,9 @@ function PartnerCockpit({ partners, navigate }: { partners: PartnerRow[]; naviga
         <KPI label="Active Partners" value={String(activeCount)} sub={`${activeCount} active of ${rows.length} total`} />
         <KPI label={LIFETIME_REVENUE_LABEL} value={fmtEuroK(totalRevenue)} sub="All recorded dates · visible partner rows" />
         <KPI label="Open Pipeline" value={fmtEuroK(totalPipeline)} sub="Across all partners" />
-        <KPI label="Average Partner Health" value={`${avgHealth}/100`} sub={`Calculated · all ${rows.length} listed partners, including archived`} trend={avgHealth >= 70 ? "up" : avgHealth >= 50 ? "neutral" : "down"} />
+        <KPI label="Average Partner Health" value={avgHealth === null ? "—" : `${avgHealth}/100`} sub={healthCaption} trend={avgHealth === null ? "neutral" : avgHealth >= 70 ? "up" : avgHealth >= 50 ? "neutral" : "down"} />
       </div>
-      <p className="text-sm text-muted-foreground">{AWARDED_REVENUE_NOTE} YTD = current calendar year through today. Rankings and health include all listed partner rows; Active Partners is a separate subset.</p>
+      <p className="text-sm text-muted-foreground">{AWARDED_REVENUE_NOTE} YTD = current calendar year through today. Average Partner Health includes active partners only; rankings and the detailed table retain all listed partner rows.</p>
 
       {/* Top Performance */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

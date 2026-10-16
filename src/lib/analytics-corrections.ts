@@ -93,6 +93,24 @@ export function isPartnerActive(p: { is_active?: boolean | null; status?: string
   return p.is_active !== false && (p.status || "") !== "Archived";
 }
 
+/** Same active population as the partner count; missing scores are not measured zeros. */
+export function summarizeActivePartnerHealth(rows: readonly {
+  partner: Parameters<typeof isPartnerActive>[0];
+  health: number | null | undefined;
+}[]) {
+  const active = rows.filter((row) => isPartnerActive(row.partner));
+  const scores = active.flatMap(({ health }) =>
+    typeof health === "number" && Number.isFinite(health) ? [health] : [],
+  );
+  return {
+    activeCount: active.length,
+    scoredCount: scores.length,
+    average: scores.length
+      ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+      : null,
+  };
+}
+
 /** KPI text: unknown when loading/failed, never a fake zero. */
 export function kpiText(state: { isLoading?: boolean; isError?: boolean }, render: () => string): string {
   if (state.isError) return "Unavailable";
