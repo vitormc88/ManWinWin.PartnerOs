@@ -88,6 +88,7 @@ import {
   BusinessPreviewStep,
 } from "./BusinessSteps";
 import { checkBusinessPricingReadiness } from "@/lib/proposal-business-readiness";
+import { buildBusinessProposalItemRows, businessPersistedTotals, assertBusinessProposalTotals } from "@/lib/proposal-business-persistence";
 import { CommercialWizard, type WizardResult } from "./CommercialWizard";
 import { CommercialIntelligencePanel } from "./CommercialIntelligencePanel";
 import { LICENSE_ORDER } from "@/lib/license-evolution";
@@ -917,7 +918,9 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
       return {
         softwareSubtotal: businessHeadline?.licenseSubtotal || 0,
         servicesSubtotal: businessHeadline?.services.reduce((s, l) => s + l.amount, 0) || 0,
-        discountAmount: 0,
+        discountAmount: businessHeadline
+          ? businessPersistedTotals(buildBusinessProposalItemRows(businessHeadline)).discount
+          : 0,
         totalYear1: businessHeadline?.totalYear1 || 0,
         totalRecurring: businessHeadline?.totalYear2Plus || 0,
       };
@@ -1227,37 +1230,21 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
       // succeed or fail together. No orphan proposal/items can remain.
       const buildItemRows = (proposalId: string | null): any[] => {
         if (isBusinessCatalogue && businessHeadline) {
-          const lines = [
-            ...businessHeadline.software,
-            ...(businessHeadline.api ? [businessHeadline.api] : []),
-            ...businessHeadline.hosting,
-            ...(businessHeadline.sat ? [businessHeadline.sat] : []),
-            ...businessHeadline.services,
-          ];
-          return lines.map((l, idx) => ({
-            ...(proposalId ? { proposal_id: proposalId } : {}),
-            category: l.category === "service" ? "service" : l.category === "module" || l.category === "plugin" ? "software" : "addon",
-            item_code: l.code,
-            item_name: l.label,
-            description: null,
-            qty: l.qty,
-            unit_price: l.unitPrice,
-            frequency: l.frequency,
-            total: l.amount,
-            discount_type: "none",
-            discount_value: 0,
-            gross_total: l.amount,
-            discount_amount: 0,
-            net_total: l.amount,
-            is_override: false,
-            is_recurring: l.recurring,
-            apply_discount_to_renewal: false,
-            sort_order: idx,
-          }));
+          return buildBusinessProposalItemRows(businessHeadline, proposalId);
         }
         return buildProposalItemRows(items, proposalId);
       };
       const nextItemRows = buildItemRows(null);
+      // Never persist a Business header whose Year 1 / Year 2+ totals disagree
+      // with the exact line amounts and renewal discount policy being saved.
+      if (isBusinessCatalogue && businessHeadline) {
+        try {
+          assertBusinessProposalTotals(nextItemRows, businessHeadline);
+        } catch (error: any) {
+          toast.error(error?.message || "Business financial reconciliation failed.");
+          return null;
+        }
+      }
       let decision = decideProposalSave(
         existingRow ? { status: existingRow.status, proposal: existingRow, items: (persistedItems || []) as any[] } : null,
         { proposal: payload, items: nextItemRows },
