@@ -14,6 +14,8 @@ import Dashboard from "@/pages/Dashboard";
 import Tasks from "@/pages/Tasks";
 import Partners from "@/pages/Partners";
 import PartnerDetail from "@/pages/PartnerDetail";
+import PartnerGrowth from "@/pages/PartnerGrowth";
+import PartnerProspectDetail from "@/pages/PartnerProspectDetail";
 import ClientsLicenses from "@/pages/ClientsLicenses";
 import CustomerExplorerPage from "@/pages/CustomerExplorer";
 import ClientDetail from "@/pages/ClientDetail";
@@ -94,6 +96,8 @@ const App = () => (
               <Route path="/tasks" element={<Tasks />} />
               <Route path="/partners" element={<Partners />} />
               <Route path="/partners/:id" element={<PartnerDetail />} />
+              <Route path="/partner-growth" element={<PartnerGrowth />} />
+              <Route path="/partner-growth/:id" element={<PartnerProspectDetail />} />
               <Route path="/clients" element={<ClientsLicenses />} />
               <Route path="/customer-explorer" element={<CustomerExplorerPage />} />
               <Route path="/clients/new" element={<ClientOnboardingWizard />} />
