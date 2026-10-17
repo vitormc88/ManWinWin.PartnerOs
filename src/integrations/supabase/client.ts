@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
+import { initialAuthFlow } from '@/lib/auth-flow';
 import { resolveSupabaseEnv } from '@/lib/supabase-env';
 
 // Environment separation guard: fails closed if the host and the resolved
@@ -15,6 +16,8 @@ const resolved = resolveSupabaseEnv({
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
+// Evaluate flow provenance before SDK initialization strips the hash.
+void initialAuthFlow;
 export const supabase = createClient<Database>(resolved.url, resolved.publishableKey, {
   auth: {
     storage: brokeredPreviewStorage(),

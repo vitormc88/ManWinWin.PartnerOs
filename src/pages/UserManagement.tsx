@@ -73,14 +73,21 @@ export default function UserManagement() {
     try {
       const { data, error } = await supabase.functions.invoke("admin-create-user", {
         body: {
-          action: "resend_invite",
+          action: "recover_access",
+          user_id: user.id,
           email: user.email,
           redirectTo: getPublishedResetPasswordUrl(),
         },
       });
-      if (error) throw error;
+      if (error) {
+        // FunctionsHttpError otherwise hides the backend's useful JSON message.
+        const detail = error.context instanceof Response
+          ? await error.context.clone().json().catch(() => null) : null;
+        throw new Error(detail?.error || error.message);
+      }
       if (data?.error) throw new Error(data.error);
-      toast.success(`Invitation resent to ${user.email}`);
+      if (data?.warning) toast.warning(data.warning);
+      else toast.success(`${data?.kind === "recovery" ? "Password recovery" : "Invitation"} email requested for ${user.email}. Check the latest email.`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to resend invitation");
     } finally {
@@ -152,13 +159,13 @@ export default function UserManagement() {
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
-                    {user.invitation_status === "pending" && (
+                    {user.is_active && user.email && (
                       <Button
                         size="icon"
                         variant="ghost"
                         onClick={() => resendInvite(user)}
                         disabled={resending === user.id}
-                        title="Resend invitation"
+                        title={user.invitation_status === "pending" ? "Resend invitation / recover access" : "Send password recovery"}
                       >
                         {resending === user.id ? (
                           <RotateCw className="h-4 w-4 animate-spin" />
