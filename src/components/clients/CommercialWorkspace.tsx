@@ -105,7 +105,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   const { data: proposals = [] } = useQuery({
     queryKey: ["proposals", "by-client", client?.id, clientName],
     queryFn: async () => {
-      const cols =
+      const cols: string =
         "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, implementation_net, renewal_change_mode, version, proposal_date, created_at, addition_action:business_config->commercial_addition->>action";
       const filters: string[] = [];
       if (client?.id) filters.push(`client_id.eq.${client.id}`);
