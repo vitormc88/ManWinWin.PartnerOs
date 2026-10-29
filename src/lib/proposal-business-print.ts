@@ -45,10 +45,10 @@ export interface BusinessPrintOptions {
   rules: PricingRule[];
 }
 
-export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOptions) {
+export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOptions, printWindow?: Window) {
   const html = buildBusinessProposalPrintHtml({ proposal, cfg, rules });
-  const win = window.open("", "_blank", "width=900,height=1200");
-  if (!win) return;
+  const win = printWindow || window.open("", "_blank", "width=900,height=1200");
+  if (!win) throw new Error("Allow pop-ups for PartnerOS, then generate the PDF again.");
   win.document.open();
   win.document.write(html);
   win.document.close();
