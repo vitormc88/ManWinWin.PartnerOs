@@ -27,7 +27,7 @@ grant select,insert,update,delete on proposals,proposal_items to authenticated;
 insert into clients values('11111111-1111-4111-8111-111111111111',null);
 insert into licenses values('22222222-2222-4222-8222-222222222222','11111111-1111-4111-8111-111111111111',10,11,'2026-10-29T00:00:00Z');
 insert into contracts values('33333333-3333-4333-8333-333333333333','11111111-1111-4111-8111-111111111111','2028-04-14','2026-10-29T00:00:00Z');
-\ir ../../supabase/migrations_review/commercial_addition_drafts.sql
+\ir ../../supabase/migrations/20261029191940_commercial_addition_atomic_drafts.sql
 create function pg_temp.payload() returns jsonb language sql as $$ select '{
  "client_id":"11111111-1111-4111-8111-111111111111","license_id":"22222222-2222-4222-8222-222222222222","contract_id":"33333333-3333-4333-8333-333333333333","partner_uuid":null,"client_name":"Synthetic QA","product_family":"Business","license_model":"useit","proposal_mode":"useit_only","hosting":"SaaS","deployment":"saas","proposal_date":"2026-10-29","language":"EN","payment_terms":"QA only","total_year_1":708,"total_recurring":472,
  "business_config":{"commercial_addition":{"schema":"commercial_addition_v1","action":"add_users",

@@ -30,7 +30,9 @@ Each mirror line stores its amount payable now; annual deltas are separately pre
 - Existing Business proposal mode, source identity and terms workflow regressions included in CI.
 - Synthetic local PostgreSQL fixture tests atomic save/edit, stale sources/components, amount integrity, concurrency, Ready freeze, HQ shares, partner isolation, anonymous denial and unchanged license/renewal. Fixture has synthetic helper functions/RLS; actual PROD grants, policies and triggers are separately inspected. It is not a full restore or a partner-session test.
 
-The local Supabase CLI available on this machine does not support migration creation. Reviewed SQL is therefore retained in `supabase/migrations_review/commercial_addition_drafts.sql`; apply through Supabase's migration tool so its journal supplies the version. Never execute the local fixture in TEST/PROD.
+The local Supabase CLI available on this machine does not support migration creation. Reviewed SQL was applied through Supabase's migration tool; its journal assigned version `20261029191940`, now retained in `supabase/migrations/20261029191940_commercial_addition_atomic_drafts.sql`. Never execute the local fixture in TEST/PROD.
+
+PROD verification: authenticated HQ atomic save/edit passed against the actual schema, RLS and triggers inside one transaction ending in ROLLBACK. Zero test proposals remained. No commercial choices or customer changes were persisted.
 
 ## Barcino
 

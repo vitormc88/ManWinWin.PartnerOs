@@ -1,3 +1,4 @@
+-- Version assigned by Supabase apply_migration, not a locally invented timestamp.
 -- Additive, draft-only save. No grants or RLS policies on existing data are widened.
 -- Snapshot + line mirrors commit together; no customer/license/renewal writes.
 create or replace function public.save_commercial_addition_draft(
