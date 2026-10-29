@@ -66,5 +66,5 @@ jobs:
       - run: npx tsc --noEmit -p tsconfig.app.json
       - run: npm test -- src/components/BrandMark.test.tsx
       - name: Commercial additions and proposal document regressions
-        run: npm test -- src/lib/__tests__/commercial-additions.test.ts src/components/proposals/CommercialAdditionDialog.test.tsx src/lib/__tests__/proposal-business-snapshot.test.tsx src/lib/__tests__/proposal-source-client.test.ts src/lib/proposal-workflow.terms.test.ts src/lib/__tests__/licensing.test.ts
+        run: npm test -- src/lib/__tests__/commercial-additions.test.ts src/components/proposals/CommercialAdditionDialog.test.tsx src/lib/__tests__/proposal-business-snapshot.test.tsx src/lib/__tests__/proposal-source-client.test.ts src/lib/proposal-workflow.terms.test.ts src/lib/__tests__/licensing.test.ts src/lib/__tests__/proposal-reopen.test.ts
       - run: npm run build
