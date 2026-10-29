@@ -78,11 +78,15 @@ const ACTION_LABELS: Record<string, string> = {
 
 /** Human label for the commercial action behind a proposal. */
 export function proposalActionLabel(
-  row: { source_type?: string | null; renewal_change_mode?: string | null } | null | undefined,
+  row: { source_type?: string | null; renewal_change_mode?: string | null; addition_action?: string | null } | null | undefined,
 ): string {
-  const mode = (row?.renewal_change_mode || "").trim().toLowerCase();
-  if (mode && ACTION_LABELS[mode]) return ACTION_LABELS[mode];
   const type = (row?.source_type || "").trim().toLowerCase();
+  if (type === "client" && row?.addition_action && ["add_users", "add_modules", "add_plugins"].includes(row.addition_action)) return ACTION_LABELS[row.addition_action];
+  const mode = (row?.renewal_change_mode || "").trim().toLowerCase();
+  // Every client proposal inherits the column's legacy "straight" default.
+  // Only a renewal source makes that default a renewal action.
+  if (type === "client" && ["straight", "none", ""].includes(mode)) return "Commercial action";
+  if (mode && ACTION_LABELS[mode]) return ACTION_LABELS[mode];
   if (type === "renewal") return "Renewal";
   if (type === "client") return "Commercial action";
   return "New business";

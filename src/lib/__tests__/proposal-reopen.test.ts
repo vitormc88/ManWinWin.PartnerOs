@@ -45,6 +45,13 @@ describe("isProposalReadOnly", () => {
 });
 
 describe("proposalActionLabel", () => {
+  it("labels source-linked additions independently of the legacy straight renewal default", () => {
+    expect(proposalActionLabel({ source_type: "client", renewal_change_mode: "straight", addition_action: "add_users" })).toBe("Additional users");
+    expect(proposalActionLabel({ source_type: "client", renewal_change_mode: "straight", addition_action: "add_modules" })).toBe("Additional modules");
+    expect(proposalActionLabel({ source_type: "client", renewal_change_mode: "straight", addition_action: "add_plugins" })).toBe("Additional plugins");
+    expect(proposalActionLabel({ source_type: "client", renewal_change_mode: "straight" })).toBe("Commercial action");
+    expect(proposalActionLabel({ source_type: "renewal", renewal_change_mode: "straight" })).toBe("Renewal");
+  });
   it("labels the commercial action", () => {
     expect(proposalActionLabel({ source_type: "client", renewal_change_mode: "upgrade" })).toBe("Upgrade");
     expect(proposalActionLabel({ source_type: "renewal", renewal_change_mode: "none" })).toBe("Renewal");
