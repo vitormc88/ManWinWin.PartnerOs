@@ -57,7 +57,7 @@ import { storeProposalDocument, signProposalDocument } from "@/lib/proposal-docu
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
 import { printBusinessProposal } from "@/lib/proposal-business-print";
-import { withCurrentBusinessDocumentText, assertSavedBusinessDocumentText } from "@/lib/proposal-business-terms";
+import { buildBusinessDocumentSnapshot, businessDocumentMatchesSaved } from "@/lib/proposal-business-snapshot";
 import type {
   ProposalLanguage,
   ProposalPlan,
@@ -1428,7 +1428,7 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
    * status, commercial values or proposal items.
    */
   const generateStoredDocx = async (
-    build: (prop: Proposal, docItems: any[]) => Promise<{ blob: Blob; fileName: string }>,
+    build: (prop: Proposal, docItems: any[]) => Promise<{ blob: Blob; fileName: string; attachToSavedProposal?: boolean }>,
   ) => {
     // A brand-new proposal must exist before it can own a document; creating
     // it as Draft is not a lifecycle transition.
@@ -1459,7 +1459,11 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
         sort_order: r.sort_order ?? idx,
       }));
 
-      const { blob, fileName } = await build(prop as unknown as Proposal, docItems);
+      const { blob, fileName, attachToSavedProposal } = await build(prop as unknown as Proposal, docItems);
+      if (attachToSavedProposal === false) {
+        toast.info("Current preview downloaded. Changes are not saved and the stored document was not replaced. Use Save as Draft to keep changes.");
+        return;
+      }
 
       const anchorId = proposalStoragePrefix(readProposalSource(prop) ?? source);
 
@@ -1541,29 +1545,52 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
     }
   };
 
-  const handleGenerateBusinessDocx = () =>
-    generateStoredDocx((prop) => {
-      assertSavedBusinessDocumentText(prop, paymentTerms, notes);
-      return downloadBusinessProposalDocx({ proposal: prop, cfg: businessConfig, rules });
+  const currentBusinessSnapshot = (prop: Proposal) => buildBusinessDocumentSnapshot(prop, {
+    proposal_mode: proposalMode,
+    business_config: businessConfig,
+    language,
+    client_name: clientName,
+    project_name: projectName || null,
+    country: country || null,
+    proposal_date: proposalDate,
+    validity_days: validityDays,
+    payment_terms: paymentTerms,
+    notes: notes || null,
+  }, rules);
+
+  const handleGenerateBusinessDocx = () => {
+    if (!assertBusinessPricingReady()) return;
+    return generateStoredDocx(async (prop) => {
+      const snapshot = currentBusinessSnapshot(prop);
+      const result = await downloadBusinessProposalDocx({ proposal: snapshot, cfg: snapshot.business_config, rules });
+      return { ...result, attachToSavedProposal: businessDocumentMatchesSaved(prop, snapshot) };
     });
+  };
 
   const handleGenerateBusinessPdf = async () => {
-    const existingId = editingProposal?.id || generatedProposalIdRef.current;
-    const base = existingId
-      ? ({ id: existingId } as Proposal)
-      : await persistProposal("Draft");
-    if (!base) return;
-    generatedProposalIdRef.current = base.id;
+    if (!assertBusinessPricingReady()) return;
+    // Open within the click gesture; awaiting the database first can block the popup.
+    const printWindow = window.open("", "_blank", "width=900,height=1200");
+    if (!printWindow) {
+      toast.error("Allow pop-ups for PartnerOS, then click Generate PDF again.");
+      return;
+    }
     try {
+      const existingId = editingProposal?.id || generatedProposalIdRef.current;
+      const base = existingId ? ({ id: existingId } as Proposal) : await persistProposal("Draft");
+      if (!base) { printWindow.close(); return; }
+      generatedProposalIdRef.current = base.id;
       const { data: prop, error } = await supabase
         .from("proposals")
         .select("*")
         .eq("id", base.id)
         .single();
       if (error || !prop) throw error || new Error("Proposal not found");
-      printBusinessProposal({ proposal: withCurrentBusinessDocumentText(prop as unknown as Proposal, paymentTerms, notes), cfg: businessConfig, rules });
-      toast.success("PDF preview opened — use the print dialog to save as PDF");
+      const snapshot = currentBusinessSnapshot(prop as unknown as Proposal);
+      printBusinessProposal({ proposal: snapshot, cfg: snapshot.business_config, rules }, printWindow);
+      toast.success("PDF preview opened with the current selection — proposal not modified");
     } catch (e: any) {
+      printWindow.close();
       toast.error("PDF generation failed: " + (e?.message || ""));
     }
   };
@@ -2421,6 +2448,9 @@ export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSourc
                     <h3 className="text-lg font-semibold text-foreground">Save Business proposal</h3>
                     <p className="text-sm text-muted-foreground mt-1">
                       {productFamily} · {deployment === "saas" ? "SaaS" : "On-Premise"} · {language}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      PDF and Word use the current preview. Unsaved downloads do not update the saved proposal or replace its stored document. Use Save as Draft to keep changes.
                     </p>
                     {businessHeadline && (
                       <p className="text-sm text-muted-foreground mt-1">
