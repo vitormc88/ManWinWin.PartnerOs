@@ -101,6 +101,10 @@ describe("Mid-cycle additions — incremental commercial calculations", () => {
   });
 });
 describe("Explicit proration and source normalization", () => {
+  it("reads the actual legacy LIC shape as Business UseIT SaaS, rather than generic Professional", () => {
+    const b = additionBaselineFromSnapshot({ clientId: "qa", clientName: "Synthetic legacy customer", licenseFamily: "Professional", licenseVariant: null, deployment: "Cloud/SaaS", backofficeUsers: 10, webUsers: 11, license: { id: "l", product: "ManWinWin", edition: "Professional", license_model: "USE-IT", deployment_type: "Cloud/SaaS" }, contract: { id: "c" } });
+    expect(b.family).toBe("Business"); expect(b.model).toBe("useit"); expect(b.deployment).toBe("saas"); expect(b.backoffice).toBe(10);
+  });
   it("renders the actual Word with the same delta, annual increase, terms and notes as PDF", async () => {
     let bytes: Buffer | undefined;
     const spy = vi.spyOn(Packer, "toBlob").mockImplementation(async document => { bytes = await Packer.toBuffer(document); return new Blob(); });
