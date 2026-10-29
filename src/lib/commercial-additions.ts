@@ -1,4 +1,5 @@
 import type { PricingRule } from "@/types/proposal";
+import { readLicenseVocabulary, normalizeDeployment } from "@/lib/licensing";
 
 export const ADDITION_SCHEMA = "commercial_addition_v1";
 export const ADDITION_ACTIONS = ["add_users", "add_modules", "add_plugins"] as const;
@@ -61,9 +62,10 @@ const record = (v: unknown): Record<string, unknown> => v && typeof v === "objec
 const text = (v: unknown): string => typeof v === "string" ? v : "";
 export function additionBaselineFromSnapshot(snapshot: unknown): AdditionBaseline {
   const s = record(snapshot), license = record(s.license), contract = record(s.contract);
-  const family = s.licenseFamily === "Business" || s.licenseFamily === "Professional" ? s.licenseFamily : null;
-  const variant = normalize(text(s.licenseVariant) || text(license.license_model));
-  const deployment = normalize(text(s.deployment));
+  const vocabulary = readLicenseVocabulary({ product: text(license.product), edition: text(license.edition), license_model: text(license.license_model), deployment_type: text(license.deployment_type), database_type: text(license.database_type) });
+  const family = vocabulary.product.family || (s.licenseFamily === "Business" || s.licenseFamily === "Professional" ? s.licenseFamily : null);
+  const variant = normalize(vocabulary.product.family ? vocabulary.product.value : text(s.licenseVariant) || text(license.license_model));
+  const deployment = normalize(normalizeDeployment(text(license.deployment_type), text(s.deployment)).value);
   const rows = [...(Array.isArray(s.modules) ? s.modules : []), ...(Array.isArray(s.plugins) ? s.plugins : [])];
   const owned = rows.flatMap(value => {
     const r = record(value);

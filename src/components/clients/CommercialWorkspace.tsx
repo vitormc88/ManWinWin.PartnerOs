@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/money";
 import { formatDateOnly } from "@/lib/date-format";
+import { readLicenseVocabulary } from "@/lib/licensing";
 import { useCreateNote } from "@/hooks/useClients";
 import { useCreateManualTask } from "@/hooks/useTasks";
 import { useLifecycleEvents } from "@/hooks/useLifecycleEvents";
@@ -100,7 +101,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
 
   // Existing proposals for this client. Client-anchored proposals are matched
   // by the real client id; legacy ones only carry the client name.
-  const clientName: string = client?.company_name ?? client?.name ?? "";
+  const clientName: string = client?.commercial_name ?? client?.company_name ?? client?.name ?? "";
   const { data: proposals = [] } = useQuery({
     queryKey: ["proposals", "by-client", client?.id, clientName],
     queryFn: async () => {
@@ -184,43 +185,14 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
   }, [modules, plugins]);
 
   const derivedLicense = useMemo(() => {
-    const lic: any = primaryLicense || {};
-    const product: string = (lic.product || "").toString().trim();
-    const edition: string = (lic.edition || "").toString().trim();
-    const combined = `${product} ${edition}`.toLowerCase();
-
-    const family: "Business" | "Professional" | null =
-      /business/.test(combined) ? "Business" :
-      /professional/.test(combined) ? "Professional" : null;
-
-    // Variant: "KeepIT" / "UseIT" for Business, "I|II|III|1|2|3" for Professional.
-    let variant: string | null = null;
-    if (family === "Business") {
-      if (/keepit/.test(combined)) variant = "KeepIT";
-      else if (/useit/.test(combined)) variant = "UseIT";
-      else if (/startit/.test(combined)) variant = "StartIT";
-    } else if (family === "Professional") {
-      const m = combined.match(/professional[^0-9iv]*(iii|ii|i|3|2|1)\b/);
-      if (m) {
-        const t = m[1];
-        variant = t === "iii" || t === "3" ? "III" : t === "ii" || t === "2" ? "II" : "I";
-      }
-    }
-
-    // ProposalPlan 1|2|3 currently only maps meaningfully for Professional.
-    let plan: 1 | 2 | 3 | undefined;
-    if (family === "Professional" && variant) {
-      plan = variant === "III" ? 3 : variant === "II" ? 2 : 1;
-    }
-
-    const label = family
-      ? family === "Business"
-        ? variant ? `Business ${variant}` : (product || "Business")
-        : variant ? `Professional ${variant}` : (product || "Professional")
-      : (product || null);
-
+    const vocabulary = readLicenseVocabulary(primaryLicense, client?.cloud_onpremise);
+    const family = vocabulary.product.family || null;
+    const level = Number(vocabulary.product.value.match(/professional\s*([123])/i)?.[1]);
+    const plan = family === "Professional" && [1, 2, 3].includes(level) ? level as 1 | 2 | 3 : undefined;
+    const variant = family === "Business" ? vocabulary.licenseModel === "KEEP-IT" ? "KeepIT" : vocabulary.licenseModel === "USE-IT" ? "UseIT" : null : plan ? ["I", "II", "III"][plan - 1] : null;
+    const label = vocabulary.product.fullLabel || null;
     return { family, variant, plan, label };
-  }, [primaryLicense]);
+  }, [primaryLicense, client?.cloud_onpremise]);
 
   const currentLicenseId = useMemo(
     () => resolveLicenseId(derivedLicense.family, derivedLicense.variant),
@@ -264,7 +236,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       licenseFamily: derivedLicense.family,
       licenseVariant: derivedLicense.variant,
       licenseLabel: derivedLicense.label,
-      deployment: lic.deployment_type || lic.database_type || client?.cloud_onpremise || null,
+      deployment: readLicenseVocabulary(primaryLicense, client?.cloud_onpremise).deployment.value || null,
       billingFrequency: (primaryContract as any)?.billing_frequency || lic.billing_frequency || lic.periodicity || null,
       currency: lic.currency || (primaryContract as any)?.currency || null,
       satActive: Boolean(lic.sat_active) || null,
