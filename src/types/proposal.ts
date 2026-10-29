@@ -132,6 +132,8 @@ export interface Proposal {
   license_model?: ProposalLicenseModel | null;
   /** Business only — proposal presentation mode. */
   proposal_mode?: ProposalMode | null;
+  /** Versioned catalogue configuration or existing-customer addition snapshot. */
+  business_config?: unknown;
   /** Business only — deployment target. */
   deployment?: ProposalDeployment | null;
   client_name: string;

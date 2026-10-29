@@ -58,6 +58,8 @@ import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
 import { printBusinessProposal } from "@/lib/proposal-business-print";
 import { buildBusinessDocumentSnapshot, businessDocumentMatchesSaved } from "@/lib/proposal-business-snapshot";
+import { CommercialAdditionDialog } from "./CommercialAdditionDialog";
+import { ADDITION_ACTIONS } from "@/lib/commercial-additions";
 import type {
   ProposalLanguage,
   ProposalPlan,
@@ -202,7 +204,15 @@ interface Props {
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
 
-export function CreateProposalDialog({ open, onOpenChange, dealId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null, readOnly = false }: Props) {
+export function CreateProposalDialog(props: Props) {
+  const config = (props.editingProposal as Proposal & { business_config?: { commercial_addition?: unknown } } | null)?.business_config;
+  if ((props.proposalSource?.source_type === "client" && ADDITION_ACTIONS.some(action => action === props.commercialContext?.mode)) || config?.commercial_addition) {
+    return <CommercialAdditionDialog key={props.editingProposal?.id || `${props.proposalSource?.client_id}:${props.commercialContext?.mode}`} {...props} />;
+  }
+  return <StandardProposalDialog {...props} />;
+}
+
+function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null, readOnly = false }: Props) {
   const source = useMemo<ProposalSource>(
     () => proposalSource ?? dealProposalSource(dealId),
     [proposalSource, dealId],

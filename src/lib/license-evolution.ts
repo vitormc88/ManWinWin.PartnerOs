@@ -104,9 +104,11 @@ export function availableCommercialActions(current: LicenseId | null): Commercia
       "other",
     ];
   }
-  // Professional: no Add Modules (bundled by level), no Change Hosting.
+  // Professional: Requests is a standalone add-on; Stock/Purchase remain
+  // bundled by level and the addition editor directs those to an upgrade.
   return [
     "upgrade_license",
+    "add_modules",
     "add_plugins",
     "add_users",
     "renew_agreement",
