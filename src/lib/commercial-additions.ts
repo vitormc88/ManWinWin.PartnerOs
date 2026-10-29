@@ -197,5 +197,8 @@ export function readAdditionDraft(row: { business_config?: unknown } | null | un
     || !Array.isArray(b.owned) || !Array.isArray(s.products) || !Array.isArray(q.lines) || !Array.isArray(q.blockers)
     || !["priceReview", "monthReview", "effectiveDate", "renewalDate"].every(k => typeof s[k] === "string")
     || typeof b.clientName !== "string" || typeof b.clientId !== "string") return null;
+  if (![b.backoffice, b.web, s.backoffice, s.web].every(n => typeof n === "number" && Number.isSafeInteger(n) && n >= 0)
+    || ![...b.owned, ...s.products].every(id => typeof id === "string")
+    || !draft.rules.every(value => { const r = record(value); return typeof r.code === "string" && typeof r.unit_type === "string" && typeof r.currency === "string" && typeof r.active === "boolean"; })) return null;
   return draft as unknown as AdditionDraft;
 }
