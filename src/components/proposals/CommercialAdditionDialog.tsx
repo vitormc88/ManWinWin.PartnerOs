@@ -173,7 +173,10 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const showEditor = editing && !readonly;
   const jump = (review: AdditionReview) => { if (canManage) setEditing(true); setStep(review.step); setReviewTarget({id: review.target}); };
   const overview = !showEditor && !!saved;
-  const estimateAvailable = hasItems && quote.months != null && !!selection.pricingBasis && !!selection.offerBasis
+  const priceBasisReady = !!selection.offerBasis && !!selection.pricingBasis
+    && (selection.offerBasis !== "partner" || [selection.licenseShare, selection.hostingShare].every(n => n != null && Number.isFinite(n) && n >= 0 && n <= 100))
+    && !quote.blockers.some(message => /catalogue rule|already licensed|Professional does not|Invalid component|finite|supported range/.test(message));
+  const estimateAvailable = priceBasisReady && hasItems && quote.months != null && !!selection.pricingBasis && !!selection.offerBasis
     && (selection.offerBasis !== "partner" || [selection.licenseShare, selection.hostingShare].every(n => n != null && Number.isFinite(n) && n >= 0 && n <= 100))
     && [selection.backoffice,selection.web].every(n=>Number.isSafeInteger(n)&&n>=0)
     && !quote.blockers.some(message=>/catalogue rule|already licensed|Professional does not|Invalid component|finite|supported range/.test(message))
@@ -221,7 +224,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
       <p className="text-xs text-muted-foreground">Recorded annual baseline: {baseline.recordedAnnual == null ? "not available" : additionMoney(baseline.recordedAnnual)}. Imported/unreconciled totals require review.</p>
       <label className="flex gap-2 text-sm rounded-lg border p-3"><input id="addition-baseline" type="checkbox" checked={selection.baselineAnnualConfirmed} onChange={e => field("baselineAnnualConfirmed", e.target.checked)} />I confirm the recorded annual renewal is correct and uses the same customer/partner price basis. Required before issue; ask HQ if uncertain.</label>
 
-            <div id="addition-discounts" tabIndex={-1}>{selection.commercial?<AdditionCommercialTerms section="prices" value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<Button type="button" variant="outline" onClick={()=>field("commercial",initialAdditionCommercial(saved?.proposal_date||localToday()))}>Enable detailed prices & payment terms</Button>}</div>
+            <div id="addition-discounts" tabIndex={-1}>{selection.commercial?<AdditionCommercialTerms section="prices" priceBasisReady={priceBasisReady} periodReady={quote.months != null && quote.months > 0} value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<Button type="button" variant="outline" onClick={()=>field("commercial",initialAdditionCommercial(saved?.proposal_date||localToday()))}>Enable detailed prices & payment terms</Button>}</div>
           </div>
           <div hidden={step!==2} className="space-y-5">
             <h3 className="font-semibold text-lg">Review before preparing the document</h3>
@@ -243,7 +246,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
           <p className="text-sm">Annual renewal increase: <strong>{estimateAvailable?additionMoney(quote.annualIncrease):"To be confirmed"}</strong></p>
           <p className="text-sm">New annual renewal: <strong>{estimateAvailable&&quote.renewalAnnual!=null?additionMoney(quote.renewalAnnual):"Not confirmed — baseline requires review"}</strong></p>
           <p className="text-xs text-muted-foreground">{selection.offerBasis==="partner"?(estimateAvailable?"Navaltik invoice to partner · entered shares applied":"Partner prices awaiting verified shares"):selection.offerBasis==="customer"?"Customer catalogue prices":"Price recipient not yet selected"}. Contract renewal date is unchanged. ARR changes only upon adjudication; license activation is separate.</p>
-          <details><summary className="cursor-pointer text-sm font-medium">Component breakdown ({quote.lines.length})</summary><ul className="mt-3 space-y-3 text-sm">{quote.lines.map(l=><li key={l.code}><p>{l.quantity} × {l.label}</p><p className="text-muted-foreground">{additionMoney(l.dueNow)} now · +{additionMoney(l.annual)}/year</p></li>)}</ul><p className="text-xs text-muted-foreground mt-3">{quote.supportNote}</p></details>
+          <details><summary className="cursor-pointer text-sm font-medium">Component breakdown ({quote.lines.length})</summary><ul className="mt-3 space-y-3 text-sm">{quote.lines.map(l=><li key={l.code}><p>{l.quantity} × {l.label}</p><p className="text-muted-foreground">{estimateAvailable ? `${additionMoney(l.dueNow)} now` : "Purchase amount awaiting period / price basis"} · {priceBasisReady ? `+${additionMoney(l.annual)}/year` : "Annual amount awaiting price basis"}</p></li>)}</ul><p className="text-xs text-muted-foreground mt-3">{quote.supportNote}</p></details>
         </section>
       </div>
       {overview?<details className="mt-5 border rounded-lg p-4"><summary className="cursor-pointer font-medium text-sm">Saved scope & commercial conditions</summary><div className="mt-3 space-y-3 text-sm"><p>{selection.priceReview}</p><p className="whitespace-pre-wrap">{effectiveTerms}</p><p className="whitespace-pre-wrap">{notes}</p></div></details>:null}
