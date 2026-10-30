@@ -15,15 +15,17 @@ import type { ProposalSource } from "@/lib/proposal-source";
 import { ADDITION_PRODUCTS, ADDITION_SCHEMA, additionBaselineFromSnapshot, initialAdditionSelection, calculateAddition, readAdditionDraft, type AdditionAction, type AdditionSelection, type AdditionDraft } from "@/lib/commercial-additions";
 import { additionMoney, printAddition } from "@/lib/commercial-addition-documents";
 import type { CommercialContext } from "./CreateProposalDialog";
+import { CommercialAdditionWorkflow } from "./CommercialAdditionWorkflow";
+import { additionMatchesSaved } from "@/lib/commercial-addition-workflow";
 
 interface Props {
   open: boolean; onOpenChange: (open: boolean) => void; proposalSource?: ProposalSource | null;
-  editingProposal?: Proposal | null; commercialContext?: CommercialContext | null; readOnly?: boolean;
+  editingProposal?: Proposal | null; commercialContext?: CommercialContext | null; readOnly?: boolean; canManageClient?: boolean;
 }
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 /** Additions are deltas, never a new full-catalogue implementation proposal. */
-export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, editingProposal, commercialContext, readOnly = false }: Props) {
+export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, editingProposal, commercialContext, readOnly = false, canManageClient }: Props) {
   const { user, isHQ } = useAuth();
   const { canEdit } = useModuleAccess();
   const qc = useQueryClient();
@@ -41,7 +43,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const quote = calculateAddition(baseline, selection, rules);
   const field = <K extends keyof AdditionSelection>(key: K, value: AdditionSelection[K]) => setSelection(s => ({ ...s, [key]: value }));
   const sourceValid = proposalSource?.source_type === "client" && proposalSource.client_id === baseline.clientId && proposalSource.contract_id === baseline.contractId && proposalSource.license_id === baseline.licenseId;
-  const readonly = readOnly || (saved != null && saved.status !== "Draft") || !canEdit("clients");
+  const readonly = !(canManageClient ?? !readOnly) || (saved != null && saved.status !== "Draft") || !canEdit("clients");
   const blockers = [...quote.blockers,
     ...(!["add_users", "add_modules", "add_plugins"].includes(action) || (editingProposal != null && !savedDraft) ? ["This addition snapshot is incomplete or unsupported. Reopen a new addition from the current client."] : []),
     ...(!sourceValid ? ["The proposal source does not match the saved client, license and contract."] : []),
@@ -119,7 +121,8 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
       <p className="font-semibold">{quote.months} billable months · only the additions are charged</p><p className="text-sm">BackOffice: {baseline.backoffice} → {quote.afterBackoffice} · WEB: {baseline.web} → {quote.afterWeb}</p><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{["Component", "Qty", "One-time", "Annual increase", "Payable now"].map(h => <th key={h} className="text-left p-2">{h}</th>)}</tr></thead><tbody>{quote.lines.map(l => <tr key={l.code}><td className="p-2">{l.label}</td><td className="p-2">{l.quantity}</td><td className="p-2">{additionMoney(l.oneTime)}</td><td className="p-2">{additionMoney(l.annual)}</td><td className="p-2">{additionMoney(l.dueNow)}</td></tr>)}</tbody></table></div>
       <p>Payable now: <strong>{additionMoney(quote.dueNow)}</strong></p><p>Annual renewal increase: <strong>{additionMoney(quote.annualIncrease)}</strong></p><p>New annual renewal: <strong>{quote.renewalAnnual == null ? "Not confirmed — baseline requires review" : additionMoney(quote.renewalAnnual)}</strong></p><p className="text-xs text-muted-foreground">{quote.supportNote}</p>
     </section>}
-    <p className="text-xs text-muted-foreground">Saving a Draft or downloading does not activate accesses, update contracts, extend dates or change the current renewal. Download uses the current selection; use Save Draft to retain changes. Existing drafts retain their saved price catalogue snapshot.</p>
+    {saved ? <CommercialAdditionWorkflow proposal={saved} canManage={canEdit("clients") && (canManageClient ?? !readOnly)} savedCurrent={additionMatchesSaved(saved,draft,terms,notes) && !blockers.length} onUpdated={setSaved} /> : null}
+    <p className="text-xs text-muted-foreground">Saving or downloading does not change ARR or licenses. Use Proposal follow-up to validate, record sending, adjudicate and activate. Existing drafts retain their saved prices.</p>
     <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button><Button variant="outline" disabled={busy || !!blockers.length} onClick={() => { try { printAddition(documentProposal, draft); } catch (e) { toast.error(e instanceof Error ? e.message : "Unable to print."); } }}>Download PDF</Button><Button variant="outline" disabled={busy || !!blockers.length} onClick={downloadWord}>Download Word</Button><Button disabled={readonly || busy || !!blockers.length} onClick={save}>{busy ? "Working…" : "Save Draft"}</Button></div>
   </DialogContent></Dialog>;
 }

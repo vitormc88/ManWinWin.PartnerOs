@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { CommercialAdditionDialog } from "./CommercialAdditionDialog";
 import { calculateAddition, initialAdditionSelection, type AdditionDraft, type AdditionBaseline } from "@/lib/commercial-additions";
 import type { Proposal, PricingRule } from "@/types/proposal";
+vi.mock("./CommercialAdditionWorkflow", () => ({ CommercialAdditionWorkflow: () => null }));
 const baseline: AdditionBaseline = { clientId: "c", clientName: "Synthetic customer", partnerId: null, licenseId: "l", contractId: "k", family: "Business", model: "useit", plan: null, deployment: "saas", backoffice: 10, web: 11, owned: [], renewalDate: "2028-04-14", priceTable: "2023", recordedAnnual: 14031, satActive: true };
 const rules: PricingRule[] = [
   { id: "bo", code: "BUS_USEIT_ADDITIONAL_BACKOFFICE", unit_price: 352, unit_type: "yearly", label: "BO", category: "business", active: true, currency: "EUR", notes: null },

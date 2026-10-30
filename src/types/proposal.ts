@@ -1,6 +1,6 @@
 export type ProposalLanguage = "EN" | "PT" | "ES" | "RO" | "TH";
 export type ProposalPlan = 1 | 2 | 3;
-export type ProposalStatus = "Draft" | "Ready" | "Sent" | "Won" | "Lost";
+export type ProposalStatus = "Draft" | "Ready" | "Sent" | "Accepted" | "Won" | "Lost";
 export type ProposalHosting = "SaaS" | "On-Premise";
 
 /** Product family — Professional (default) or Business (KeepIT/UseIT). */

@@ -39,7 +39,6 @@ import { proposalSourceFromRecord, isProposalReadOnly, proposalActionLabel } fro
 import {
   buildCommercialSummary,
   buildHistory,
-  openProposals,
   type UrgencyTone,
 } from "@/lib/client-overview";
 
@@ -106,7 +105,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     queryKey: ["proposals", "by-client", client?.id, clientName],
     queryFn: async () => {
       const cols: string =
-        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, implementation_net, renewal_change_mode, version, proposal_date, created_at, addition_action:business_config->commercial_addition->>action";
+        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, implementation_net, renewal_change_mode, version, proposal_date, created_at, addition_action:business_config->commercial_addition->>action, commercial_addition_fulfillments(activated_at)";
       const filters: string[] = [];
       if (client?.id) filters.push(`client_id.eq.${client.id}`);
       if (clientName) filters.push(`client_name.eq.${clientName.replace(/[(),]/g, " ")}`);
@@ -390,9 +389,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     [intelligence, intelligenceState, effectiveRenewal, primaryContract],
   );
 
-  // Real opportunities only: persisted proposals that are still commercially open.
-  // Missing modules / plugins / disabled API are NOT opportunities.
-  const realOpportunities = useMemo(() => openProposals(proposals as any[]), [proposals]);
+  // Retain adjudicated and rejected proposals so follow-up and activation remain reachable.
+  const recentProposals = proposals as any[];
 
   const history = useMemo(
     () =>
@@ -496,17 +494,17 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> Opportunities
+            <Sparkles className="h-4 w-4 text-primary" /> Proposals & follow-up
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {realOpportunities.length === 0 ? (
+          {recentProposals.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No open commercial opportunities recorded for this client.
+              No commercial proposals recorded for this client.
             </p>
           ) : (
             <div className="space-y-2">
-              {realOpportunities.slice(0, 8).map((p: any) => (
+              {recentProposals.map((p: any) => (
                 <button
                   key={p.id}
                   onClick={() => reopenProposal(p.id)}
@@ -519,13 +517,13 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                       {proposalActionLabel(p)}
                       {" · "}
                       {p.proposal_date ? formatDateOnly(p.proposal_date) : "—"}
-                      {p.total_recurring ? ` · Recurring ${formatMoney(p.total_recurring)}` : ""}
+                      {p.total_recurring ? ` · ${p.addition_action ? "Annual increase" : "Recurring"} ${formatMoney(p.total_recurring)}` : ""}
                       {p.implementation_net ? ` · One-time ${formatMoney(p.implementation_net)}` : ""}
-                      {p.total_year_1 ? ` · Year 1 ${formatMoney(p.total_year_1)}` : ""}
+                      {p.total_year_1 ? ` · ${p.addition_action ? "Payable now" : "Year 1"} ${formatMoney(p.total_year_1)}` : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className="text-[10px]">{p.status || "draft"}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{p.addition_action && p.status === "Accepted" ? (p.commercial_addition_fulfillments?.activated_at ? "License updated" : "Adjudicated · Activation pending") : p.addition_action && p.status === "Lost" ? "Rejected" : p.status || "Draft"}</Badge>
                     <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 </button>
@@ -668,6 +666,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
             reopenedProposal ?? (proposalSource?.source_type === "renewal" ? editingRenewalProposal : null)
           }
           readOnly={reopenReadOnly}
+          canManageClient={!readOnly}
 
           defaultClientName={clientName}
           defaultCountry={client.country || null}

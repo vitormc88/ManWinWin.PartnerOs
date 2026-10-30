@@ -200,6 +200,7 @@ interface Props {
   commercialContext?: CommercialContext | null;
   /** Historical/closed proposal: opened for inspection, never re-saved. */
   readOnly?: boolean;
+  canManageClient?: boolean;
 }
 
 const STEPS = ["Basic", "Software", "Services", "Terms", "Preview", "Generate"];
