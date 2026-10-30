@@ -36,6 +36,12 @@ describe("Addition proposal editor", () => {
     expect(state.rpc.mock.calls[0][1]._payload.proposal_mode).toBe("useit_only");
   });
   it("blocks invalid quantities immediately", () => { show(); fireEvent.change(screen.getByLabelText("Additional WEB / Mobility (not total)"), { target: { value: "1.5" } }); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled(); });
+  it("permits a scoped commercial editor without general client edit, and permits editing after return to Draft", () => {
+    state.editable = false;
+    render(<CommercialAdditionDialog open onOpenChange={() => {}} proposalSource={source} editingProposal={proposal()} readOnly canManageClient />);
+    expect(screen.getByRole("button", { name: "Save Draft" })).toBeEnabled();
+    expect(screen.getByLabelText("Additional BackOffice (not total)")).toBeEnabled();
+  });
   it("does not edit validated proposals or users without edit access", () => { show(proposal(draft(), "Ready")); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); cleanup(); state.editable = false; show(); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); });
   it("blocks partner revenue shares for a non-HQ user", () => { const d = draft(); d.selection = { ...selection, offerBasis: "partner", licenseShare: 60, hostingShare: 100 }; state.isHQ = false; show(proposal(d)); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); expect(screen.queryByRole("option", { name: /Navaltik to partner/ })).toBeNull(); });
   it("disables already-owned plugins and API", () => { const d = draft(); d.action = "add_plugins"; d.baseline = { ...baseline, owned: ["api", "sla"] }; show(proposal(d)); expect(screen.getByLabelText(/API ManWinWin/)).toBeDisabled(); expect(screen.getByLabelText(/SLA/)).toBeDisabled(); });

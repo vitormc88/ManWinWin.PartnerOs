@@ -121,6 +121,15 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     },
     enabled: !!client?.id || !!clientName,
   });
+  const { data: canManageAdditions = false } = useQuery({
+    queryKey: ["client-addition-permission", client?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("can_manage_client_additions" as never, { _client_id: client.id } as never);
+      if (error) throw error;
+      return data === true;
+    },
+    enabled: !!client?.id,
+  });
 
   // Real operational renewal row for this client (never a derived placeholder).
   const { data: renewalRow = null } = useQuery({
@@ -541,7 +550,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {readOnly ? (
+          {readOnly && !canManageAdditions ? (
             <p className="text-sm text-muted-foreground">
               You have read-only access to this client. Commercial actions are handled by your account owner.
             </p>
@@ -567,7 +576,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                     Commercial proposal type
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {allowedActions.map((id) => {
+                  {allowedActions.filter(id => !readOnly || ["add_users", "add_modules", "add_plugins"].includes(id)).map((id) => {
                     const m = PROPOSAL_MODES[id];
                     const Icon = m.icon;
                     return (
@@ -585,7 +594,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
               {canCreateTask && (
                 <ActionButton icon={CalendarPlus} label="Create task" hint="Meeting or follow-up linked to this client" onClick={() => setShowMeeting(true)} />
               )}
-              <ActionButton icon={StickyNote} label="Log touchpoint" hint="Commercial note on this client" onClick={() => setShowNote(true)} />
+              {!readOnly && <ActionButton icon={StickyNote} label="Log touchpoint" hint="Commercial note on this client" onClick={() => setShowNote(true)} />}
             </div>
           )}
         </CardContent>
@@ -666,7 +675,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
             reopenedProposal ?? (proposalSource?.source_type === "renewal" ? editingRenewalProposal : null)
           }
           readOnly={reopenReadOnly}
-          canManageClient={!readOnly}
+          canManageClient={!readOnly || canManageAdditions}
 
           defaultClientName={clientName}
           defaultCountry={client.country || null}

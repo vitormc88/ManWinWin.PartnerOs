@@ -1,10 +1,10 @@
 -- Included only by the local synthetic lifecycle fixture.
 create function pg_temp.payload() returns jsonb language sql as $$
-select jsonb_build_object('client_id',c.client_id,'license_id',l.id,'contract_id',c.id,'partner_uuid',null,'client_name','Synthetic QA','product_family','Business','license_model','useit','proposal_mode','useit_only','hosting','SaaS','deployment','saas','proposal_date','2026-10-29','language','EN','payment_terms','100% upfront before activation','total_year_1',118,'total_recurring',472,
+select jsonb_build_object('client_id',c.client_id,'license_id',l.id,'contract_id',c.id,'partner_uuid',cl.partner_uuid,'client_name','Synthetic QA','product_family','Business','license_model','useit','proposal_mode','useit_only','hosting','SaaS','deployment','saas','proposal_date','2026-10-29','language','EN','payment_terms','100% upfront before activation','total_year_1',118,'total_recurring',472,
 'business_config',jsonb_build_object('commercial_addition',jsonb_build_object('schema','commercial_addition_v1','action','add_users',
 'baseline',jsonb_build_object('clientId',c.client_id,'licenseId',l.id,'contractId',c.id,'renewalDate',c.contract_end_date,'backoffice',l.backoffice_users,'web',l.web_accesses,'licenseUpdatedAt',l.updated_at,'contractUpdatedAt',c.updated_at,'componentIds','[]'::jsonb,'owned','[]'::jsonb,'recordedAnnual',c.total_value),
 'selection',jsonb_build_object('offerBasis','customer','pricingBasis','direct','monthPolicy','agreed','priceReview','Synthetic approved price table','implementationReview','not_needed','effectiveDate','2026-10-29','renewalDate',c.contract_end_date,'baselineAnnualConfirmed',true,'backoffice',1,'web',0,'products','[]'::jsonb),
-'quote','{"blockers":[],"months":3,"dueNow":118,"annualIncrease":472,"lines":[{"code":"BO","label":"BackOffice","quantity":1,"kind":"license","annual":352,"oneTime":0,"dueNow":88},{"code":"HOST","label":"Hosting","quantity":1,"kind":"hosting","annual":120,"oneTime":0,"dueNow":30}]}'::jsonb))) from contracts c join licenses l on l.client_id=c.client_id limit 1 $$;
+'quote','{"blockers":[],"months":3,"dueNow":118,"annualIncrease":472,"lines":[{"code":"BO","label":"BackOffice","quantity":1,"kind":"license","annual":352,"oneTime":0,"dueNow":88},{"code":"HOST","label":"Hosting","quantity":1,"kind":"hosting","annual":120,"oneTime":0,"dueNow":30}]}'::jsonb))) from contracts c join licenses l on l.client_id=c.client_id join clients cl on cl.id=c.client_id limit 1 $$;
 create function pg_temp.expect_failure(proposal_uuid uuid, op text, details jsonb, pattern text) returns void language plpgsql as $$
 begin
  begin perform commercial_addition_action(proposal_uuid,op,details);
@@ -98,6 +98,9 @@ reset role;
 -- A second, independently prepared addition covers WEB, all modules/plugins and API.
 do $$ declare p uuid; data jsonb; lines jsonb; products jsonb:='["requests","stock","purchase","import","workflow","reports","sla","api"]'; begin
  perform set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
+ assert not public.can_manage_client('11111111-1111-4111-8111-111111111111'),'partner has no general client edit';
+ assert public.can_manage_client_additions('11111111-1111-4111-8111-111111111111'),'existing pipeline edit allows own-client additions only';
+ assert not public.can_manage_client_additions('99999999-9999-4999-8999-999999999999'),'another client is not authorized';
  data:=pg_temp.payload();
  select jsonb_agg(jsonb_build_object('code','QA_'||x,'label',x,'quantity',1,'kind','license','annual',100,'oneTime',0,'dueNow',25)) into lines from jsonb_array_elements_text(products) x;
  lines:=lines||'[{"code":"WEB","label":"Additional WEB","quantity":2,"kind":"web","annual":240,"oneTime":0,"dueNow":60}]'::jsonb;

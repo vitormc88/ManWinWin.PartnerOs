@@ -17,7 +17,7 @@ Proposals & follow-up retains recent adjudicated/rejected proposals. An adjudica
 ## Integrity and permissions
 
 - All operations run through audited database operations; no browser status/contract/license writes.
-- Existing client edit/module permissions and proposal-source ownership apply. Read-only users receive no mutation controls. Fulfillment history uses client visibility RLS; direct ledger DML and anonymous execution are denied.
+- Client edit permission, or existing pipeline edit permission scoped to visible clients owned by the user's partner, authorizes addition operations. Users without commercial edit receive no mutation controls. This allows Josué's existing sales role to prepare/follow up Raven additions without general client/license/contract editing rights. Fulfillment history uses client visibility RLS; direct ledger DML and anonymous execution are denied.
 - Proposal and source row locks, a unique per-proposal award ledger, frozen commercial fingerprints and idempotent adjudication/activation prevent repeated clicks from duplicating ARR or accesses.
 - A failure rolls back status, award ledger, contract lines, renewal and license together.
 - Source changes, unknown contract lines/currencies/frequencies, unreconciled manual adjustments or separate component renewals block adjudication with an actionable reconciliation message. A pending award for the same license must be activated before another award. Changed entitlements after award block activation instead of overwriting them.
@@ -31,7 +31,7 @@ The isolated SQL fixture (`tests/sql/commercial_addition_lifecycle_qa.sql`) cont
 
 UI regression tests cover explicit validation, acceptance evidence, payment-gated activation, unsaved/read-only/error blocks, completion and rejection reasons. Existing addition pricing/documents/editor and proposal regressions remain in CI.
 
-Migration journal version: `20261030000156`, assigned by Supabase. The Barcino transaction was exercised in PROD with **ROLLBACK**, including actual commercial-intelligence ARR calculation and repeated adjudication/activation. Final persisted state remained Ready, ARR/renewal €14,031, 10 BO and 11 WEB, no award ledger. No real adjudication, payment or activation was recorded.
+Migration journal versions: `20261030000156` (lifecycle) and `20261030000932` (scoped commercial permission), assigned by Supabase. The Barcino transaction was exercised in PROD with **ROLLBACK**, including actual commercial-intelligence ARR calculation and repeated adjudication/activation. Final persisted state remained Ready, ARR/renewal €14,031, 10 BO and 11 WEB, no award ledger. No real adjudication, payment or activation was recorded.
 
 Post-migration advisors: no new missing-RLS or missing-FK-index findings. The authenticated SECURITY DEFINER entry-point notice is intentional: the public operation performs explicit authentication, source ownership and client edit checks before calling private helpers. All direct ledger mutations remain revoked. Newly-created unused-index notices are expected before real awards exist. The scoped frontend/proposal regression suite passed 101 tests.
 
