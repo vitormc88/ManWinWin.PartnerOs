@@ -36,7 +36,7 @@ import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
 
 import { renewalProposalSource, clientProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import { proposalSourceFromRecord, isProposalReadOnly, proposalActionLabel } from "@/lib/proposal-reopen";
-import { preparationProposal, type PreparationDraft } from "@/lib/proposal-preparation";
+import { preparationScope, preparationProposal, type PreparationDraft } from "@/lib/proposal-preparation";
 import {
   buildCommercialSummary,
   buildHistory,
@@ -530,10 +530,10 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         </CardHeader>
         <CardContent>
           {preparations.isError?<p role="alert" className="text-sm text-destructive mb-3">Preparation drafts could not be loaded. Refresh before creating another draft.</p>:null}
-          {preparations.data?.length?<div className="space-y-2 mb-4">{preparations.data.map(row=><button key={row.id} onClick={()=>reopenPreparation(row)} className="w-full rounded-lg border border-dashed p-3 text-left hover:bg-muted/40"><span className="font-medium text-sm">{row.kind==="addition"?"Continue preparation draft":"Continue commercial review request"}</span><span className="block text-xs text-muted-foreground mt-1">Saved {formatDateOnly(row.updated_at.slice(0,10))} · Not issued · No financial or license impact</span></button>)}</div>:null}
+          {preparations.data?.length?<div className="space-y-2 mb-4">{preparations.data.map(row=><button key={row.id} onClick={()=>reopenPreparation(row)} className="w-full rounded-lg border border-dashed p-3 text-left hover:bg-muted/40"><span className="font-medium text-sm">{row.kind==="addition"?"Continue saved preparation":"Continue commercial review request"}</span><span className="block text-sm mt-1">{preparationScope(row)}</span><span className="block text-xs text-muted-foreground mt-1">Saved {formatDateOnly(row.updated_at.slice(0,10))} · Not issued · No financial or license impact</span></button>)}</div>:null}
           {recentProposals.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No commercial proposals recorded for this client.
+              {preparations.data?.length ? "Your saved preparation is above. It becomes a commercial Draft after its required checks are complete." : "No proposals yet. Create a proposal to get started; you can save it before completing every detail."}
             </p>
           ) : (
             <div className="space-y-2">
