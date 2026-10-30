@@ -420,4 +420,9 @@ insert into plugins_catalog(name) values('Import Tool'),('Workflow'),('Advanced 
 \ir ../../supabase/migrations/20261029191940_commercial_addition_atomic_drafts.sql
 \ir ../../supabase/migrations/20261030000156_commercial_addition_adjudication_activation.sql
 \ir ../../supabase/migrations/20261030000932_commercial_addition_scoped_pipeline_permissions.sql
+create table public.pricing_rules(code text primary key,active boolean,currency text,unit_type text,unit_price numeric,support_percentage numeric);
+insert into public.pricing_rules values('BUS_WEB_MOBILE_USER',true,'EUR','per-user-month',20,null);
+create table public.partner_discount_limits(partner_id uuid primary key,max_software_discount_pct numeric,max_services_discount_pct numeric);
+\ir ../../supabase/migrations/20261030160433_commercial_addition_detailed_terms.sql
 \ir commercial_addition_lifecycle_cases.sql
+\ir commercial_addition_lifecycle_terms.sql

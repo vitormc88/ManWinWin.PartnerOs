@@ -2,6 +2,22 @@
 
 Open **Clients & Licenses → client → Commercial → Actions → Add Users / Add Modules / Add Plugins**. Select only the additional quantities/components, review the remaining months, applicable price table, billing basis, implementation and payment terms. Existing licensed components cannot be selected again. Save the draft before using follow-up actions.
 
+## Detailed commercial terms (30 October 2026)
+
+New additions start with structured terms and Portuguese documents. Existing saved proposals retain their exact prices and payment policy; a Draft can explicitly enable detailed terms, after which its payment agreement must be completed again. Ready/Accepted snapshots are never silently migrated.
+
+- **Negotiated unit tariff**: HQ records a customer-specific tariff with its agreement/justification. WEB and hosting use €/access/month; other recurring components use €/unit/year; perpetual purchases use €/unit. This is separate from Navaltik/partner revenue sharing.
+- **Initial discount** reduces this purchase only. **Renewal discount** changes the annual contractual increase. Both are explicit; no blanket 10% is inferred from S&AT boilerplate. The annual contractual metric keeps the existing proposal generator convention; this release does not settle the pending multi-year discounted ARR policy.
+- **Offer this component** sets initial and, where recurring, renewal discounts to 100%. Justification is required. A zero-value proposal still follows evidence-based adjudication/activation and grants only its selected entitlements. HQ authorizes offers and negotiated tariff changes; partner software discounts respect their existing configured limit (10% default).
+- **KeepIT support** follows the negotiated capital tariff. A discount on the initial capital purchase does not silently discount S&AT; its initial/renewal concession is separately visible and selected.
+- Choose invoice schedule (100% award, or award/installation split), due days, explicit activation milestone and agreement reference. Payment text is generated identically on client and server. Full-payment and award-invoice-payment milestones require receipt confirmation. HQ-authorized credit activation requires its authorization reference and an explicit authorization confirmation, without declaring a fictitious payment. Zero-value offers use authorization confirmation too. Actual billing/collections remain external.
+- Saving freezes and validates catalogue prices, arithmetic, document dates, billable-month policy, payment terms and actor limits. Protected server approvals bind the saved snapshot and document metadata; altered approved terms must be saved/reviewed again. Existing source locks and stale-data checks remain.
+- **PDF** downloads directly, without a print popup, with PT/EN text, actual period, validity, unit tariff, initial/renewal discounts, payable-now amount, annual contractual increase and compact official ISO footer on every page. Large conditions paginate. Word uses the same content and footer asset.
+
+Migration `20261030160433_commercial_addition_detailed_terms.sql` uses its Supabase-assigned journal version. It adds only the protected terms-approval table and private pricing/validation helpers, and extends existing audited operations. No real contracts, licences, proposal statuses or user permissions are backfilled.
+
+Still pending Rita: automatic upgrade/unused-period credit rules, day-15 convention, approved source-price/rounding rules, support-day capacity/expiry, Purchase Requests identity and exceptional Professional entitlements. This release does not introduce those rules or import historical quotations as sales.
+
 ## Operational flow
 
 1. **Save Draft** preserves the commercial snapshot and its prices. It changes neither ARR nor the installed license.

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CommercialAdditionWorkflow } from "./CommercialAdditionWorkflow";
 import type { Proposal } from "@/types/proposal";
+import { initialAdditionCommercial } from "@/lib/commercial-additions";
 const state = vi.hoisted(()=>({ rpc:vi.fn(),updated:vi.fn(),error:vi.fn(),isHQ:false,ledger:null as unknown,failed:false,status:"Ready" }));
 vi.mock("@/contexts/AuthContext",()=>({useAuth:()=>({isHQ:state.isHQ})}));
 vi.mock("@tanstack/react-query",()=>({useQueryClient:()=>({invalidateQueries:vi.fn()}),useQuery:({queryKey}:{queryKey:string[]})=>({data:queryKey[0]==="commercial-addition-events"?[]:state.ledger,isLoading:false,isError:state.failed})}));
@@ -17,4 +18,13 @@ describe("Addition workflow UI",()=>{
  it("fails closed on unsaved changes or unavailable fulfillment history",()=>{show("Ready",true,false);expect(screen.getByRole("button",{name:"Adjudicate"})).toBeDisabled();cleanup();state.failed=true;show();expect(screen.getByRole("button",{name:"Adjudicate"})).toBeDisabled();expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);});
  it("displays completion and removes activation after it was applied",()=>{state.ledger={activated_at:"2026-10-29T12:00:00Z",annual_increase:472,annual_after:14503,payment_reference:"R-1"};show("Accepted");expect(screen.getByText(/Adjudicated · License updated/)).toBeInTheDocument();expect(screen.queryByRole("button",{name:"Activate awarded additions"})).toBeNull();});
  it("requires a reason to reject and records it through the operation",async()=>{show();fireEvent.click(screen.getByRole("button",{name:"Reject"}));const confirm=screen.getByRole("button",{name:"Confirm Reject"});expect(confirm).toBeDisabled();fireEvent.change(screen.getByLabelText("Reason (required)"),{target:{value:"Customer declined"}});fireEvent.click(confirm);await waitFor(()=>expect(state.rpc).toHaveBeenCalledWith("commercial_addition_action",expect.objectContaining({_action:"reject",_details:expect.objectContaining({note:"Customer declined"})})));});
+ it("records credit authorization without falsely declaring a payment",async()=>{
+  const commercial=initialAdditionCommercial("2026-10-29");commercial.payment.activation="on_award";
+  const proposal={id:"qa",status:"Accepted",business_config:{commercial_addition:{schema:"commercial_addition_v1",action:"add_users",baseline:{clientId:"c",clientName:"QA",backoffice:1,web:1,owned:[]},selection:{backoffice:0,web:1,products:[],effectiveDate:"2026-10-29",renewalDate:"2027-10-29",priceReview:"QA",monthReview:"",commercial},rules:[],quote:{lines:[],blockers:[],dueNow:100}}}} as unknown as Proposal;
+  render(<CommercialAdditionWorkflow proposal={proposal} canManage savedCurrent onUpdated={state.updated}/>);
+  fireEvent.click(screen.getByRole("button",{name:"Activate awarded additions"}));
+  fireEvent.change(screen.getByLabelText("Activation authorization reference"),{target:{value:"HQ signed terms"}});
+  fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(screen.getByRole("button",{name:"Confirm Activate awarded additions"}));
+  await waitFor(()=>expect(state.rpc).toHaveBeenCalledWith("commercial_addition_action",expect.objectContaining({_details:expect.objectContaining({payment_confirmed:false,activation_authorized:true})})));
+ });
 });

@@ -11,14 +11,17 @@ export async function generateAdditionDocx(proposal: Partial<Proposal>, draft: A
   const response = await fetch(logoUrl);
   if (!response.ok) throw new Error("Unable to load ManWinWin document logo.");
   const logo = new Uint8Array(await response.arrayBuffer());
-  const headers = ["Component", "Qty", "One-time", "Annual increase", "Payable now"];
+  const headers = c.headers;
+  const isoResponse = await fetch("/customer-export/iso9001.png");
+  if (!isoResponse.ok) throw new Error("Unable to load ISO document footer.");
+  const iso = new Uint8Array(await isoResponse.arrayBuffer());
   const document = new Document({ creator: "PartnerOS", title: c.title, sections: [{
     headers: { default: new Header({ children: [new Paragraph({ children: [new ImageRun({ data: logo, type: "png", transformation: { width: 180, height: 45 } })] })] }) },
-    footers: { default: new Footer({ children: [p("ManWinWin Software · support@manwinwin.com · www.manwinwin.com")] }) },
-    children: [p(c.title, true), ...c.details.map(x => p(x)), p("Incremental investment", true),
+    footers: { default: new Footer({ children: [new Table({width:{size:100,type:WidthType.PERCENTAGE},borders:{top:{style:"single",size:3,color:"DDE3E8"},bottom:{style:"none"},left:{style:"none"},right:{style:"none"},insideHorizontal:{style:"none"},insideVertical:{style:"none"}},rows:[new TableRow({children:[new TableCell({width:{size:78,type:WidthType.PERCENTAGE},children:[new Paragraph({children:[new TextRun({text:"ManWinWin Software\n(+351) 214 309 100\nsupport@manwinwin.com\nwww.manwinwin.com",size:14,color:"687680"})]})]}),new TableCell({children:[new Paragraph({children:[new ImageRun({data:iso,type:"png",transformation:{width:90,height:42}})]})]})]})]})] }) },
+    children: [p(c.title, true), ...c.details.map(x => p(x)), p(c.headings.investment, true),
       new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headers, ...c.rows].map((row, i) => new TableRow({ tableHeader: i === 0, children: row.map(text => new TableCell({ children: [p(text, i === 0)] })) })) }),
-      ...c.summary.map(x => p(x)), p("Payment terms", true), ...c.terms.split(/\r?\n/).map(x => p(x)),
-      ...(c.notes ? [p("Notes / special conditions", true), ...c.notes.split(/\r?\n/).map(x => p(x))] : []),
+      ...c.summary.map(x => p(x)), p(c.headings.terms, true), ...c.terms.split(/\r?\n/).map(x => p(x)),
+      ...(c.notes ? [p(c.headings.notes, true), ...c.notes.split(/\r?\n/).map(x => p(x))] : []),
     ],
   }] });
   return Packer.toBlob(document);
