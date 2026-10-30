@@ -52,7 +52,7 @@ describe("Addition proposal editor", () => {
   });
   it("protects changed quantities when closing and never persists on discard",()=>{
     show();fireEvent.change(screen.getByLabelText("Additional WEB / Mobility (not total)"),{target:{value:"2"}});
-    fireEvent.click(screen.getAllByRole("button",{name:"Close",exact:true})[0]);
+    fireEvent.click(screen.getAllByRole("button",{name:"Close"})[0]);
     expect(screen.getByRole("alertdialog")).toHaveTextContent("Unsaved proposal changes");
     fireEvent.click(screen.getByRole("button",{name:"Keep editing"}));
     expect(screen.getByLabelText("Additional WEB / Mobility (not total)")).toHaveValue(2);
