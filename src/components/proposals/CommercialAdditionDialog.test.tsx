@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { CommercialAdditionDialog } from "./CommercialAdditionDialog";
 import { calculateAddition, initialAdditionSelection, type AdditionDraft, type AdditionBaseline } from "@/lib/commercial-additions";
 import type { Proposal, PricingRule } from "@/types/proposal";
+vi.mock("./CommercialAdditionWorkflow", () => ({ CommercialAdditionWorkflow: () => null }));
 const baseline: AdditionBaseline = { clientId: "c", clientName: "Synthetic customer", partnerId: null, licenseId: "l", contractId: "k", family: "Business", model: "useit", plan: null, deployment: "saas", backoffice: 10, web: 11, owned: [], renewalDate: "2028-04-14", priceTable: "2023", recordedAnnual: 14031, satActive: true };
 const rules: PricingRule[] = [
   { id: "bo", code: "BUS_USEIT_ADDITIONAL_BACKOFFICE", unit_price: 352, unit_type: "yearly", label: "BO", category: "business", active: true, currency: "EUR", notes: null },
@@ -35,6 +36,12 @@ describe("Addition proposal editor", () => {
     expect(state.rpc.mock.calls[0][1]._payload.proposal_mode).toBe("useit_only");
   });
   it("blocks invalid quantities immediately", () => { show(); fireEvent.change(screen.getByLabelText("Additional WEB / Mobility (not total)"), { target: { value: "1.5" } }); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled(); });
+  it("permits a scoped commercial editor without general client edit, and permits editing after return to Draft", () => {
+    state.editable = false;
+    render(<CommercialAdditionDialog open onOpenChange={() => {}} proposalSource={source} editingProposal={proposal()} readOnly canManageClient />);
+    expect(screen.getByRole("button", { name: "Save Draft" })).toBeEnabled();
+    expect(screen.getByLabelText("Additional BackOffice (not total)")).toBeEnabled();
+  });
   it("does not edit validated proposals or users without edit access", () => { show(proposal(draft(), "Ready")); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); cleanup(); state.editable = false; show(); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); });
   it("blocks partner revenue shares for a non-HQ user", () => { const d = draft(); d.selection = { ...selection, offerBasis: "partner", licenseShare: 60, hostingShare: 100 }; state.isHQ = false; show(proposal(d)); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); expect(screen.queryByRole("option", { name: /Navaltik to partner/ })).toBeNull(); });
   it("disables already-owned plugins and API", () => { const d = draft(); d.action = "add_plugins"; d.baseline = { ...baseline, owned: ["api", "sla"] }; show(proposal(d)); expect(screen.getByLabelText(/API ManWinWin/)).toBeDisabled(); expect(screen.getByLabelText(/SLA/)).toBeDisabled(); });

@@ -12,6 +12,8 @@ on:
       - 'bun.lock'
       - 'src/**'
       - 'tests/sql/fin02/**'
+      - 'tests/sql/commercial_addition_lifecycle*'
+      - 'supabase/migrations/*commercial_addition*'
       - 'docs/qa/fin02-test-dual-migration-journal-reconciliation-20261013.md'
   workflow_dispatch:
 
@@ -19,6 +21,24 @@ permissions:
   contents: read
 
 jobs:
+  addition-lifecycle:
+    name: Isolated addition adjudication and activation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: synthetic-qa-only
+          POSTGRES_DB: additions_qa
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run synthetic SQL cases; no TEST or PROD access
+        env:
+          PGPASSWORD: synthetic-qa-only
+        run: psql -h 127.0.0.1 -U postgres -d additions_qa -v ON_ERROR_STOP=1 -f tests/sql/commercial_addition_lifecycle_qa.sql
   candidate-merged-tree:
     name: Verify Lovable scaffold gone; PR49 and PR51 preserved
     runs-on: ubuntu-latest
@@ -68,3 +88,5 @@ jobs:
       - name: Commercial additions and proposal document regressions
         run: npm test -- src/lib/__tests__/commercial-additions.test.ts src/components/proposals/CommercialAdditionDialog.test.tsx src/lib/__tests__/proposal-business-snapshot.test.tsx src/lib/__tests__/proposal-source-client.test.ts src/lib/proposal-workflow.terms.test.ts src/lib/__tests__/licensing.test.ts src/lib/__tests__/proposal-reopen.test.ts
       - run: npm run build
+      - name: Addition follow-up regression
+        run: npm test -- src/lib/__tests__/commercial-addition-workflow.test.ts src/components/proposals/CommercialAdditionWorkflow.test.tsx
