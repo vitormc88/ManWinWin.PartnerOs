@@ -53,6 +53,15 @@ describe("Addition proposal editor", () => {
     expect(screen.getByRole("button",{name:"Download PDF"})).toBeDisabled();
     expect(screen.getByText("Partner prices awaiting verified shares",{exact:false})).toBeInTheDocument();
   });
+  it("reopens older WEB-only drafts without leaving an irrelevant hidden calculation unresolved", async () => {
+    const d=draft();d.selection={...d.selection,backoffice:0,web:1,pricingBasis:""};
+    d.rules=[...d.rules,{...rules[0],id:"web",code:"BUS_WEB_MOBILE_USER",unit_price:20,unit_type:"per-user-month"}];
+    show(proposal(d));
+    expect(screen.getByRole("button",{name:"Download PDF"})).toBeEnabled();
+    fireEvent.click(screen.getByRole("button",{name:"Save Draft"}));
+    await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());
+    expect(state.rpc.mock.calls[0][1]._payload.business_config.commercial_addition.selection.pricingBasis).toBe("direct");
+  });
   it("removes only the deselected item's discounts and preserves the remaining basket", async () => {
     const d = draft(); d.selection = {...d.selection, web:1, commercial:initialAdditionCommercial("2026-10-29")};
     d.rules = [...d.rules, { ...rules[0], id:"web",code:"BUS_WEB_MOBILE_USER",unit_price:20,unit_type:"per-user-month" }];

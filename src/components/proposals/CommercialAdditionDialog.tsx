@@ -42,7 +42,15 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const preparation = readPreparation(editingProposal);
   const [working, setWorking] = useState<PreparationDraft | null>(preparation);
   const [baseline] = useState(() => savedDraft?.baseline ?? additionBaselineFromSnapshot(commercialContext?.existingCustomer));
-  const [selection, setSelection] = useState<AdditionSelection>(() => savedDraft?.selection ?? { ...initialAdditionSelection(baseline, localToday()), pricingBasis: "direct", commercial: initialAdditionCommercial(localToday()) });
+  const [selection, setSelection] = useState<AdditionSelection>(() => {
+    const restored = savedDraft?.selection;
+    if (!restored) return { ...initialAdditionSelection(baseline, localToday()), pricingBasis: "direct", commercial: initialAdditionCommercial(localToday()) };
+    if (!preparation && editingProposal?.status !== "Draft") return restored;
+    // Old incomplete preparations must not be stranded behind a now-hidden control.
+    return { ...restored,
+      pricingBasis: restored.pricingBasis || (needsAdditionCalculationChoice(baseline, restored) ? "" : "direct"),
+      hostingShare: restored.offerBasis === "partner" && !needsAdditionHostingShare(baseline, restored) ? 100 : restored.hostingShare };
+  });
   const [terms, setTerms] = useState(editingProposal?.payment_terms || "");
   const [notes, setNotes] = useState(editingProposal?.notes || "");
   const [saved, setSaved] = useState<Proposal | null>(preparation ? null : editingProposal ?? null);
