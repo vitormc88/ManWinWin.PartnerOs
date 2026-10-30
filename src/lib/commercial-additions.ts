@@ -38,10 +38,37 @@ export interface AdditionSelection {
   licenseShare: number | null; hostingShare: number | null;
   implementationReview: "" | "not_needed" | "separate";
   baselineAnnualConfirmed: boolean;
+  commercial?: AdditionCommercial;
+}
+export interface AdditionAdjustment {
+  unitPrice: number | null;
+  initialDiscountPct: number;
+  renewalDiscountPct: number;
+  reason: string;
+}
+export interface AdditionPayment {
+  invoice: "" | "award" | "split";
+  awardPercent: number;
+  awardDueDays: number;
+  installationDueDays: number;
+  activation: "" | "full_payment" | "award_payment" | "on_award";
+  reference: string;
+}
+export interface AdditionCommercial {
+  version: 2; language: "PT" | "EN"; proposalDate: string; validityDays: number;
+  adjustments: Record<string, AdditionAdjustment>;
+  payment: AdditionPayment;
+}
+export function initialAdditionCommercial(today: string): AdditionCommercial {
+  return { version: 2, language: "PT", proposalDate: today, validityDays: 30, adjustments: {},
+    payment: { invoice: "", awardPercent: 100, awardDueDays: 0, installationDueDays: 30, activation: "", reference: "" } };
 }
 export interface AdditionLine {
   code: string; label: string; quantity: number; ruleCodes: string[];
   annual: number; oneTime: number; dueNow: number; kind: "license" | "sat" | "hosting" | "web" | "api";
+  referenceAnnual?: number; referenceOneTime?: number; initialAnnual?: number;
+  referenceUnitPrice?: number; unitPrice?: number; unitPeriod?: "month" | "year" | "once";
+  initialDiscountPct?: number; renewalDiscountPct?: number; reason?: string;
 }
 export interface AdditionQuote {
   months: number | null; lines: AdditionLine[]; blockers: string[];
@@ -118,7 +145,7 @@ export function additionMonths(start: string, end: string, policy: AdditionSelec
   const endOfCompleteMonth = new Date(Date.UTC(year, a.getUTCMonth() + complete, Math.min(a.getUTCDate(), new Date(Date.UTC(year, a.getUTCMonth() + complete + 1, 0)).getUTCDate())));
   return policy === "started" && endOfCompleteMonth < b ? complete + 1 : complete;
 }
-export function calculateAddition(b: AdditionBaseline, s: AdditionSelection, rules: PricingRule[]): AdditionQuote {
+function calculateCatalogueAddition(b: AdditionBaseline, s: AdditionSelection, rules: PricingRule[]): AdditionQuote {
   const blockers: string[] = [], lines: AdditionLine[] = [];
   const months = additionMonths(s.effectiveDate, s.renewalDate, s.monthPolicy, s.agreedMonths);
   if (!b.clientId || !b.licenseId || !b.contractId) blockers.push("A linked client, license and contract are required.");
@@ -192,6 +219,53 @@ export function calculateAddition(b: AdditionBaseline, s: AdditionSelection, rul
     supportNote: b.family === "Business" && b.model === "keepit" ? "Only the incremental S&AT is charged for the remaining period. Existing S&AT/base fees are not charged again."
       : "S&AT is included in UseIT/Professional licensing. No additional 17% S&AT is stacked on top. Existing base services are not charged again." };
 }
+/** Legacy snapshots keep their exact calculation. Detailed terms are opt-in and frozen on save. */
+export function calculateAddition(b: AdditionBaseline, s: AdditionSelection, rules: PricingRule[]): AdditionQuote {
+  const q = calculateCatalogueAddition(b, s, rules), c = s.commercial;
+  if (!c) return q;
+  const blockers = [...q.blockers];
+  if (c.version !== 2 || !["PT", "EN"].includes(c.language) || !utcDay(c.proposalDate)
+    || !Number.isSafeInteger(c.validityDays) || c.validityDays < 1 || c.validityDays > 365) blockers.push("Review proposal language, date and validity (1–365 days).");
+  const payment = c.payment;
+  if (!payment || !["award", "split"].includes(payment.invoice) || !["full_payment", "award_payment", "on_award"].includes(payment.activation)
+    || ![payment.awardDueDays, payment.installationDueDays].every(n => Number.isSafeInteger(n) && n >= 0 && n <= 365)
+    || (payment.invoice === "award" ? payment.awardPercent !== 100 : !Number.isFinite(payment.awardPercent) || payment.awardPercent <= 0 || payment.awardPercent >= 100)
+    || !payment.reference?.trim()) blockers.push("Choose explicit invoicing, due dates and activation conditions, with the agreement reference.");
+  if (c.proposalDate > s.effectiveDate) blockers.push("The effective date cannot precede the proposal date.");
+  const raw = new Map(q.lines.map(l => [l.code, l]));
+  if (!c.adjustments || typeof c.adjustments !== "object" || Array.isArray(c.adjustments)) blockers.push("Invalid component pricing adjustments.");
+  for (const code of Object.keys(c.adjustments || {})) if (!raw.has(code)) blockers.push(`Remove the adjustment for an unselected component: ${code}.`);
+  const unitFactor = (l: AdditionLine) => l.kind === "web" || l.kind === "hosting" ? 12 : 1;
+  const bases = new Map(q.lines.map(l => {
+    const factor = unitFactor(l), original = (l.oneTime || l.annual) / l.quantity / factor;
+    const a = c.adjustments?.[l.code];
+    if (a && (a.unitPrice != null && (!Number.isFinite(a.unitPrice) || a.unitPrice < 0 || a.unitPrice > 100000000)
+      || ![a.initialDiscountPct, a.renewalDiscountPct].every(n => Number.isFinite(n) && n >= 0 && n <= 100)
+      || !a.reason?.trim() || l.oneTime > 0 && a.renewalDiscountPct !== 0 || l.kind === "sat" && a.unitPrice != null)) blockers.push(`Review the negotiated price, discount and justification: ${l.label}.`);
+    const unit = l.kind === "sat" ? original : a?.unitPrice ?? original;
+    return [l.code, { unit, original, annual: l.annual > 0 ? round(unit * l.quantity * factor) : 0, once: l.oneTime > 0 ? round(unit * l.quantity) : 0 }];
+  }));
+  const lines = q.lines.map(l => {
+    const a = c.adjustments?.[l.code], v = bases.get(l.code)!;
+    // KeepIT S&AT follows the negotiated capital tariff. Discounts on the purchase
+    // itself do not silently change the separately agreed S&AT discount.
+    if (l.kind === "sat") {
+      const parentCode = l.code.replace(/_SAT$/, ""), parent = raw.get(parentCode), adjusted = bases.get(parentCode);
+      if (parent?.oneTime && adjusted) v.annual = round(l.annual * adjusted.once / parent.oneTime);
+      v.unit = v.annual / l.quantity;
+    }
+    const initialPct = a?.initialDiscountPct ?? 0, renewalPct = a?.renewalDiscountPct ?? 0;
+    const initialAnnual = round(v.annual * (1 - initialPct / 100));
+    const annual = round(v.annual * (1 - renewalPct / 100)), once = round(v.once * (1 - initialPct / 100));
+    return { ...l, annual, oneTime: once, initialAnnual, dueNow: round(once + initialAnnual * (q.months ?? 0) / 12),
+      referenceAnnual: v.annual, referenceOneTime: v.once, referenceUnitPrice: v.original, unitPrice: v.unit,
+      unitPeriod: (l.oneTime > 0 ? "once" : unitFactor(l) === 12 ? "month" : "year") as AdditionLine["unitPeriod"],
+      initialDiscountPct: initialPct, renewalDiscountPct: renewalPct, reason: a?.reason || "" };
+  });
+  const annualIncrease = round(lines.reduce((sum, l) => sum + l.annual, 0)), dueNow = round(lines.reduce((sum, l) => sum + l.dueNow, 0));
+  if (![annualIncrease, dueNow, ...lines.flatMap(l => [l.annual, l.oneTime, l.initialAnnual!, l.dueNow])].every(n => Number.isFinite(n) && n >= 0 && n <= 100000000)) blockers.push("Negotiated amounts must be finite, non-negative and within the supported range.");
+  return { ...q, lines, dueNow, annualIncrease, renewalAnnual: s.baselineAnnualConfirmed && b.recordedAnnual != null ? round(b.recordedAnnual + annualIncrease) : null, blockers: [...new Set(blockers)] };
+}
 export function readAdditionDraft(row: { business_config?: unknown } | null | undefined): AdditionDraft | null {
   const config = record(row?.business_config), draft = record(config.commercial_addition);
   const b = record(draft.baseline), s = record(draft.selection), q = record(draft.quote);
@@ -202,5 +276,13 @@ export function readAdditionDraft(row: { business_config?: unknown } | null | un
   if (![b.backoffice, b.web, s.backoffice, s.web].every(n => typeof n === "number" && Number.isSafeInteger(n) && n >= 0)
     || ![...b.owned, ...s.products].every(id => typeof id === "string")
     || !draft.rules.every(value => { const r = record(value); return typeof r.code === "string" && typeof r.unit_type === "string" && typeof r.currency === "string" && typeof r.active === "boolean"; })) return null;
+  if (s.commercial != null) {
+    const c = record(s.commercial), p = record(c.payment), adjustments = record(c.adjustments);
+    if (c.version !== 2 || !["PT", "EN"].includes(String(c.language)) || typeof c.proposalDate !== "string" || typeof c.validityDays !== "number"
+      || !c.adjustments || Array.isArray(c.adjustments) || !c.payment
+      || !["invoice", "activation", "reference"].every(k => typeof p[k] === "string")
+      || !["awardPercent", "awardDueDays", "installationDueDays"].every(k => typeof p[k] === "number")
+      || !Object.values(adjustments).every(value => { const a = record(value); return (a.unitPrice == null || typeof a.unitPrice === "number") && typeof a.initialDiscountPct === "number" && typeof a.renewalDiscountPct === "number" && typeof a.reason === "string"; })) return null;
+  }
   return draft as unknown as AdditionDraft;
 }
