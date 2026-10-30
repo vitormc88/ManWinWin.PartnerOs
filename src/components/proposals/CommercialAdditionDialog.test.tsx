@@ -22,9 +22,42 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: state.error } }));
 const draft = (): AdditionDraft => ({ schema: "commercial_addition_v1", action: "add_users", baseline, selection, rules, quote: calculateAddition(baseline, selection, rules) });
 const proposal = (d = draft(), status = "Draft") => ({ id: "draft", version: 1, status, business_config: { commercial_addition: d }, proposal_date:"2026-10-29", payment_terms: "Payment in 30 days", updated_at: "2026-10-29" }) as Proposal;
 const source = { source_type: "client" as const, client_id: baseline.clientId, contract_id: baseline.contractId, license_id: baseline.licenseId, partner_uuid: null, deal_id: null, renewal_id: null };
-const show = (p = proposal()) => render(<CommercialAdditionDialog open onOpenChange={() => {}} proposalSource={source} editingProposal={p} />);
+const show = (p = proposal()) => {
+ const result=render(<CommercialAdditionDialog open onOpenChange={() => {}} proposalSource={source} editingProposal={p} />);
+ const edit=screen.queryByRole("button",{name:"Edit draft"});if(edit)fireEvent.click(edit);
+ return result;
+};
 beforeEach(() => { cleanup(); vi.clearAllMocks(); state.isHQ = true; state.editable = true; state.pricing = []; state.rpc.mockResolvedValue({ data: "saved", error: null }); });
 describe("Addition proposal editor", () => {
+  it("saves unfinished preparation outside commercial proposals and keeps the price visible", async()=>{
+    show();fireEvent.click(screen.getByRole("button",{name:"2. Prices & period"}));
+    fireEvent.click(screen.getByRole("button",{name:"Enable detailed prices & payment terms"}));
+    expect(screen.getByRole("region",{name:"Incremental investment summary"})).toHaveTextContent("€708.00");
+    expect(screen.getByRole("button",{name:"Download PDF"})).toBeDisabled();
+    fireEvent.click(screen.getByRole("button",{name:"Save Draft"}));
+    await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());
+    expect(state.rpc.mock.calls[0][0]).toBe("save_proposal_preparation");
+    const args=state.rpc.mock.calls[0][1];expect(args._kind).toBe("addition");
+    expect(args._body.draft.quote.blockers.length).toBeGreaterThan(0);
+    expect(args._proposal_id).toBe("draft");
+    expect(args._payload).toBeUndefined();
+  });
+  it("combines accesses and eligible modules in the same preparation",async()=>{
+    show();fireEvent.change(screen.getByLabelText("Additional WEB / Mobility (not total)"),{target:{value:"2"}});
+    fireEvent.click(screen.getByLabelText("Maintenance Requests"));
+    fireEvent.click(screen.getByLabelText("API ManWinWin"));
+    fireEvent.click(screen.getByRole("button",{name:"Save Draft"}));
+    await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());
+    expect(state.rpc.mock.calls[0][1]._body.draft.selection).toMatchObject({backoffice:1,web:2,products:["requests","api"]});
+  });
+  it("protects changed quantities when closing and never persists on discard",()=>{
+    show();fireEvent.change(screen.getByLabelText("Additional WEB / Mobility (not total)"),{target:{value:"2"}});
+    fireEvent.click(screen.getAllByRole("button",{name:"Close",exact:true})[0]);
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Unsaved proposal changes");
+    fireEvent.click(screen.getByRole("button",{name:"Keep editing"}));
+    expect(screen.getByLabelText("Additional WEB / Mobility (not total)")).toHaveValue(2);
+    expect(state.rpc).not.toHaveBeenCalled();
+  });
   it("reopens the saved snapshot without using new catalogue defaults and saves only through the atomic RPC", async () => {
     show();
     expect(screen.getByLabelText("Additional BackOffice (not total)")).toHaveValue(1);
@@ -40,22 +73,23 @@ describe("Addition proposal editor", () => {
   it("permits a scoped commercial editor without general client edit, and permits editing after return to Draft", () => {
     state.editable = false;
     render(<CommercialAdditionDialog open onOpenChange={() => {}} proposalSource={source} editingProposal={proposal()} readOnly canManageClient />);
+    fireEvent.click(screen.getByRole("button",{name:"Edit draft"}));
     expect(screen.getByRole("button", { name: "Save Draft" })).toBeEnabled();
     expect(screen.getByLabelText("Additional BackOffice (not total)")).toBeEnabled();
   });
-  it("does not edit validated proposals or users without edit access", () => { show(proposal(draft(), "Ready")); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); cleanup(); state.editable = false; show(); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); });
-  it("blocks partner revenue shares for a non-HQ user", () => { const d = draft(); d.selection = { ...selection, offerBasis: "partner", licenseShare: 60, hostingShare: 100 }; state.isHQ = false; show(proposal(d)); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); expect(screen.queryByRole("option", { name: /Navaltik to partner/ })).toBeNull(); });
+  it("does not edit validated proposals or users without edit access", () => { show(proposal(draft(), "Ready")); expect(screen.queryByRole("button", { name: "Save Draft" })).toBeNull(); cleanup(); state.editable = false; show(); expect(screen.queryByRole("button", { name: "Save Draft" })).toBeNull(); });
+  it("blocks partner revenue shares for a non-HQ user", () => { const d = draft(); d.selection = { ...selection, offerBasis: "partner", licenseShare: 60, hostingShare: 100 }; state.isHQ = false; show(proposal(d)); expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled(); expect(screen.queryByRole("option", { name: /Navaltik to partner/ })).toBeNull(); });
   it("disables already-owned plugins and API", () => { const d = draft(); d.action = "add_plugins"; d.baseline = { ...baseline, owned: ["api", "sla"] }; show(proposal(d)); expect(screen.getByLabelText(/API ManWinWin/)).toBeDisabled(); expect(screen.getByLabelText(/SLA/)).toBeDisabled(); });
   it("fails closed on a malformed saved addition", () => { show({ ...proposal(), business_config: { commercial_addition: { schema: "commercial_addition_v1" } } }); expect(screen.getByRole("button", { name: "Save Draft" })).toBeDisabled(); });
   it("saves detailed Portuguese terms and a justified initial-only concession", async()=>{
-    show();fireEvent.click(screen.getByRole("button",{name:"Enable detailed prices & payment terms"}));
-    expect(screen.getByRole("button",{name:"Save Draft"})).toBeDisabled();
+    show();fireEvent.click(screen.getByRole("button",{name:"2. Prices & period"}));fireEvent.click(screen.getByRole("button",{name:"Enable detailed prices & payment terms"}));
+    expect(screen.getByRole("button",{name:"Download PDF"})).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Invoice schedule"),{target:{value:"award"}});
     fireEvent.change(screen.getByLabelText("Award invoice due (days)"),{target:{value:"30"}});
     fireEvent.change(screen.getByLabelText("Activation condition"),{target:{value:"on_award"}});
     fireEvent.change(screen.getByLabelText("Payment / activation agreement reference"),{target:{value:"QA signed credit agreement"}});
     fireEvent.change(screen.getAllByLabelText("Initial discount (%)")[0],{target:{value:"10"}});
-    expect(screen.getByRole("button",{name:"Save Draft"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Download PDF"})).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Commercial justification / agreement"),{target:{value:"Initial-only commercial concession"}});
     fireEvent.click(screen.getByRole("button",{name:"Save Draft"}));
     await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());

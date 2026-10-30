@@ -20,6 +20,8 @@ import { additionMatchesSaved } from "@/lib/commercial-addition-workflow";
 import { additionPaymentText } from "@/lib/commercial-addition-terms";
 import { AdditionCommercialTerms } from "./AdditionCommercialTerms";
 import { usePartnerDiscountLimits, toDiscountOverrides } from "@/hooks/usePartnerDiscountLimits";
+import { ProposalLeaveGuard } from "./ProposalLeaveGuard";
+import { readPreparation, type PreparationDraft } from "@/lib/proposal-preparation";
 
 interface Props {
   open: boolean; onOpenChange: (open: boolean) => void; proposalSource?: ProposalSource | null;
@@ -36,13 +38,22 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const qc = useQueryClient();
   const rulesQ = usePricingRules();
   const savedDraft = readAdditionDraft(editingProposal);
+  const preparation = readPreparation(editingProposal);
+  const [working, setWorking] = useState<PreparationDraft | null>(preparation);
   const [baseline] = useState(() => savedDraft?.baseline ?? additionBaselineFromSnapshot(commercialContext?.existingCustomer));
   const [selection, setSelection] = useState<AdditionSelection>(() => savedDraft?.selection ?? { ...initialAdditionSelection(baseline, localToday()), commercial: initialAdditionCommercial(localToday()) });
   const [terms, setTerms] = useState(editingProposal?.payment_terms || "");
   const [notes, setNotes] = useState(editingProposal?.notes || "");
-  const [saved, setSaved] = useState<Proposal | null>(editingProposal ?? null);
-  const [frozenRules, setFrozenRules] = useState(savedDraft?.rules);
+  const [saved, setSaved] = useState<Proposal | null>(preparation ? null : editingProposal ?? null);
+  const [frozenRules, setFrozenRules] = useState(savedDraft?.rules.length ? savedDraft.rules : undefined);
   const [busy, setBusy] = useState(false);
+  const [step, setStep] = useState(0);
+  const [editing, setEditing] = useState(!editingProposal || !!preparation);
+  const [leave, setLeave] = useState(false);
+  const fingerprint = JSON.stringify({selection,terms,notes});
+  const [committed, setCommitted] = useState(fingerprint);
+  const dirty = fingerprint !== committed;
+  const requestClose = (value: boolean) => { if (!value && dirty && !readonly) setLeave(true); else onOpenChange(value); };
   const action = savedDraft?.action ?? commercialContext?.mode as AdditionAction;
   const rules = frozenRules ?? rulesQ.data ?? [];
   const quote = calculateAddition(baseline, selection, rules);
@@ -66,12 +77,27 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const documentProposal: Partial<Proposal> = { ...(saved || {}), client_name: baseline.clientName, language: selection.commercial?.language || "EN", payment_terms: effectiveTerms, notes, version: saved?.version };
 
   const save = async () => {
-    if (readonly || busy || blockers.length || !user) return;
+    if (readonly || busy || !user || !sourceValid || !Number.isSafeInteger(selection.backoffice) || !Number.isSafeInteger(selection.web) || selection.backoffice < 0 || selection.web < 0 || (editingProposal && !savedDraft)) return false;
     setBusy(true);
     try {
-      const { data: id, error } = await supabase.rpc("save_commercial_addition_draft" as never, {
-        _proposal_id: saved?.id || null,
-        _expected_updated_at: saved?.updated_at || null,
+      if (blockers.length) {
+        const { data, error } = await supabase.rpc("save_proposal_preparation" as never, {
+          _id: working?.id || null, _expected_updated_at: working?.updated_at || null,
+          _client_id: baseline.clientId, _license_id: baseline.licenseId, _contract_id: baseline.contractId,
+          _kind: "addition", _body: {draft, terms, notes},
+          _proposal_id: working?.proposal_id || saved?.id || null,
+          _proposal_updated_at: working?.proposal_updated_at || saved?.updated_at || null,
+        } as never);
+        if(error) throw error;
+        setWorking(data as unknown as PreparationDraft); setCommitted(fingerprint);
+        await qc.invalidateQueries({queryKey:["proposal-preparations"]});
+        toast.success("Preparation draft saved. Complete the outstanding reviews before issuing a proposal.");
+        return true;
+      }
+      const { data: id, error } = await supabase.rpc((working ? "complete_proposal_preparation" : "save_commercial_addition_draft") as never, {
+        ...(working ? {_preparation_id:working.id,_preparation_updated_at:working.updated_at} : {
+          _proposal_id: saved?.id || null, _expected_updated_at: saved?.updated_at || null,
+        }),
         _payload: {
           client_id: baseline.clientId, partner_uuid: proposalSource?.partner_uuid, contract_id: baseline.contractId, license_id: baseline.licenseId,
           client_name: baseline.clientName, product_family: baseline.family, license_model: baseline.model,
@@ -86,11 +112,15 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
       const { data: row, error: readError } = await supabase.from("proposals").select("*").eq("id", String(id)).single();
       if (readError) throw readError;
       setSaved(row as unknown as Proposal);
+      setWorking(null); setCommitted(fingerprint); setEditing(false);
       setFrozenRules(rules);
       await qc.invalidateQueries({ queryKey: ["proposals"] });
+      await qc.invalidateQueries({queryKey:["proposal-preparations"]});
       toast.success("Addition saved as Draft. Client, license, contract and renewal are unchanged.");
+      return true;
     } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to save the addition draft."); }
     finally { setBusy(false); }
+    return false;
   };
   const downloadWord = async () => {
     if (blockers.length || busy) return;
@@ -106,20 +136,46 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     catch (error) { toast.error(error instanceof Error ? error.message : "Unable to generate PDF."); }
     finally { setBusy(false); }
   };
-  const products = ADDITION_PRODUCTS.filter(p => action === "add_modules" ? p.kind === "module" : p.kind === "plugin");
+  const canSave = !readonly && !busy && sourceValid && (!editingProposal || !!savedDraft)
+    && [selection.backoffice,selection.web].every(n=>Number.isSafeInteger(n)&&n>=0);
+  const showEditor = editing && !readonly;
+  const jump = (message:string) => {
+    const payment = /payment|invoic|validity|proposal language|effective date cannot/.test(message);
+    setStep(payment ? 2 : /Select at least|quantities|already licensed|Professional/.test(message) ? 0 : 1);
+  };
+  const overview = !showEditor && !!saved;
+  const estimateAvailable = quote.months != null && !!selection.pricingBasis && !!selection.offerBasis
+    && [selection.backoffice,selection.web].every(n=>Number.isSafeInteger(n)&&n>=0)
+    && !quote.blockers.some(message=>/catalogue rule|already licensed|Professional does not|Invalid component|finite|supported range/.test(message))
+    && [quote.dueNow,quote.annualIncrease].every(n=>Number.isFinite(n)&&n>=0&&n<=100000000);
+  const gross = Math.round(quote.lines.reduce((sum,l)=>sum+(l.referenceOneTime??l.oneTime)+(l.referenceAnnual??l.annual)*(quote.months??0)/12,0)*100)/100;
 
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-    <DialogHeader><DialogTitle>{saved ? `Addition proposal v${saved.version}` : "New addition proposal"} — {baseline.clientName}</DialogTitle></DialogHeader>
-    <p className="text-sm text-muted-foreground">{baseline.family || "Unknown license"} {baseline.model || (baseline.plan ? `Plan ${baseline.plan}` : "")} · {baseline.deployment || "Unknown hosting"} · {baseline.backoffice} BackOffice · {baseline.web} WEB · renewal {baseline.renewalDate || "not recorded"}</p>
-    {readonly ? <p role="status" className="text-sm">Read-only. Only Draft additions can be edited here; validated/closed proposals retain their workflow state.</p> : null}
-    <fieldset disabled={readonly || busy} className="space-y-4 min-w-0">
-      {action === "add_users" ? <div className="grid sm:grid-cols-2 gap-4">
-        <div><Label htmlFor="addition-bo">Additional BackOffice (not total)</Label><Input id="addition-bo" type="number" min={0} step={1} disabled={baseline.family === "Professional"} value={selection.backoffice} onChange={e => field("backoffice", Number(e.target.value))} />{baseline.family === "Professional" ? <p className="text-xs text-muted-foreground">Additional BackOffice requires a supported license upgrade, not a Professional add-on.</p> : null}</div>
-        <div><Label htmlFor="addition-web">Additional WEB / Mobility (not total)</Label><Input id="addition-web" type="number" min={0} step={1} value={selection.web} onChange={e => field("web", Number(e.target.value))} /></div>
-      </div> : <div><p className="font-medium text-sm">Additional {action === "add_modules" ? "modules" : "plugins / API"}</p><div className="flex flex-wrap gap-3 mt-2">{products.map(p => {
-        const owned = baseline.owned.includes(p.id), unsupported = baseline.family === "Professional" && p.id !== "requests";
-        return <label key={p.id} className="text-sm flex items-center gap-2 border rounded-md p-2"><input type="checkbox" checked={selection.products.includes(p.id)} disabled={owned || unsupported} onChange={e => field("products", e.target.checked ? [...selection.products, p.id] : selection.products.filter(id => id !== p.id))} />{p.label}{owned ? " · already licensed" : unsupported ? " · requires license upgrade" : ""}</label>;
-      })}</div></div>}
+  return <><Dialog open={open} onOpenChange={requestClose}><DialogContent className="max-w-6xl h-[92vh] max-h-[920px] flex flex-col p-0 gap-0 overflow-hidden">
+    <DialogHeader className="px-6 py-4 border-b shrink-0 pr-12"><DialogTitle>{overview ? `Proposal v${saved?.version} · ${saved?.status}` : working ? "Resume preparation draft" : "Prepare customer proposal"} — {baseline.clientName}</DialogTitle>
+      <p className="text-sm text-muted-foreground">{baseline.family || "Unknown license"} {baseline.model === "useit" ? "UseIT" : baseline.model === "keepit" ? "KeepIT" : baseline.plan ? `Plan ${baseline.plan}` : ""} · {baseline.deployment === "saas" ? "SaaS" : "On-premise"} · {baseline.backoffice} BackOffice · {baseline.web} WEB · Renewal {baseline.renewalDate || "not recorded"}</p>
+    </DialogHeader>
+    {showEditor ? <nav aria-label="Proposal preparation steps" className="flex gap-2 px-6 py-3 border-b shrink-0 overflow-x-auto">{["1. Choose items","2. Prices & period","3. Review & payment"].map((label,index)=><Button key={label} type="button" variant={step===index?"secondary":"ghost"} aria-current={step===index?"step":undefined} onClick={()=>setStep(index)}>{label}</Button>)}</nav> : null}
+    <div className="flex-1 min-h-0 overflow-y-auto p-6" id="addition-content">
+      {overview && saved ? <div className="mb-6 space-y-3"><CommercialAdditionWorkflow proposal={saved} canManage={canManage} savedCurrent={additionMatchesSaved(saved,draft,effectiveTerms,notes) && !blockers.length} onUpdated={p=>{setSaved(p);if(p.status==="Draft")setEditing(true);}}/>
+        {saved.status==="Draft" && canManage ? <Button type="button" variant="outline" onClick={()=>setEditing(true)}>Edit draft</Button> : <p className="text-sm text-muted-foreground">Validated proposals retain their saved terms. Use Return to Draft before editing.</p>}
+      </div> : null}
+      <div className={showEditor?"grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start":"space-y-5"}>
+        {showEditor ? <fieldset disabled={busy} className="min-w-0 space-y-5">
+          <div hidden={step!==0} className="space-y-5">
+            <div><h3 className="font-semibold text-lg">What would you like to add?</h3><p className="text-sm text-muted-foreground">Combine compatible accesses, modules and plugins in one proposal. Existing licensed components are preserved.</p></div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div><Label htmlFor="addition-bo">Additional BackOffice (not total)</Label><Input id="addition-bo" type="number" min={0} step={1} disabled={baseline.family==="Professional"} value={selection.backoffice} onChange={e=>field("backoffice",Number(e.target.value))}/>{baseline.family==="Professional"?<p className="text-xs text-muted-foreground">Additional BackOffice requires a license upgrade.</p>:null}</div>
+              <div><Label htmlFor="addition-web">Additional WEB / Mobility (not total)</Label><Input id="addition-web" type="number" min={0} step={1} value={selection.web} onChange={e=>field("web",Number(e.target.value))}/></div>
+            </div>
+            {(["module","plugin"] as const).map(kind=><section key={kind} className="space-y-2"><h4 className="font-medium">{kind==="module"?"Modules":"Plugins & API"}</h4><div className="grid sm:grid-cols-2 gap-2">{ADDITION_PRODUCTS.filter(p=>p.kind===kind).map(p=>{
+              const owned=baseline.owned.includes(p.id), unsupported=baseline.family==="Professional"&&p.id!=="requests";
+              return <label key={p.id} className={`text-sm flex items-start gap-2 border rounded-lg p-3 ${owned||unsupported?"bg-muted/40 text-muted-foreground":"hover:bg-muted/30"}`}><input className="mt-1" type="checkbox" checked={selection.products.includes(p.id)} disabled={owned||unsupported} onChange={e=>field("products",e.target.checked?[...selection.products,p.id]:selection.products.filter(id=>id!==p.id))}/><span>{p.label}{owned?<small className="block">Already licensed</small>:unsupported?<small className="block">Requires license upgrade</small>:null}</span></label>;
+            })}</div></section>)}
+            <p className="text-sm rounded-lg bg-muted p-3">Implementation and training are not added automatically. Review any service requirement in the next step; separately quoted services remain excluded from these totals.</p>
+          </div>
+          <div hidden={step!==1} className="space-y-5">
+            <h3 className="font-semibold text-lg">Period & price review</h3>
+            {working && frozenRules ? <div className="text-sm rounded-lg border p-3"><p>Saved catalogue prices are preserved. If the catalogue has changed, refresh it and review the applicable prices again.</p><Button type="button" variant="ghost" onClick={()=>{setFrozenRules(undefined);field("priceReview","");}}>Refresh catalogue for this preparation</Button></div> : null}
       <div className="grid sm:grid-cols-3 gap-4">
         <div><Label htmlFor="addition-effective">Activation / effective date</Label><Input id="addition-effective" type="date" value={selection.effectiveDate} onChange={e => field("effectiveDate", e.target.value)} /></div>
         <div><Label htmlFor="addition-renewal">Existing renewal (not extended)</Label><Input id="addition-renewal" type="date" readOnly value={selection.renewalDate} /></div>
@@ -132,16 +188,38 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
       {selection.offerBasis === "partner" && isHQ ? <div className="grid sm:grid-cols-2 gap-4">{(["licenseShare", "hostingShare"] as const).map(key => <div key={key}><Label htmlFor={`addition-${key}`}>{key === "licenseShare" ? "Confirmed Navaltik share — license / S&AT / WEB / API (%)" : "Confirmed Navaltik share — hosting (%)"}</Label><Input id={`addition-${key}`} type="number" min={0} max={100} value={selection[key] ?? ""} onChange={e => field(key, e.target.value === "" ? null : Number(e.target.value))} /></div>)}</div> : null}
       <p className="text-xs text-muted-foreground">Recorded annual baseline: {baseline.recordedAnnual == null ? "not available" : additionMoney(baseline.recordedAnnual)}. Imported/unreconciled totals require review.</p>
       <label className="flex gap-2 text-sm"><input type="checkbox" checked={selection.baselineAnnualConfirmed} onChange={e => field("baselineAnnualConfirmed", e.target.checked)} />I have reconciled the recorded annual baseline and it uses the same offer basis. Show the proposed total renewal.</label>
-      {selection.commercial ? <AdditionCommercialTerms value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/> : <><div><Label htmlFor="addition-terms">Agreed payment terms — required</Label><Textarea id="addition-terms" value={terms} onChange={e => setTerms(e.target.value)} /></div>{!readonly?<Button type="button" variant="outline" onClick={()=>field("commercial",initialAdditionCommercial(saved?.proposal_date || localToday()))}>Enable detailed prices & payment terms</Button>:null}</>}
-      {selection.commercial?<p className="text-sm whitespace-pre-wrap border-l-2 pl-3">{effectiveTerms}</p>:null}
-      <div><Label htmlFor="addition-notes">Notes / special conditions</Label><Textarea id="addition-notes" value={notes} onChange={e => setNotes(e.target.value)} /></div>
-    </fieldset>
-    {blockers.length ? <div role="status" className="rounded-lg border border-amber-300 bg-amber-50 text-amber-950 p-3 text-sm"><p className="font-semibold">Review required — saving and export are blocked</p><ul className="list-disc ml-5">{blockers.map(b => <li key={b}>{b}</li>)}</ul></div> : <section aria-label="Incremental investment summary" className="border rounded-lg p-4 space-y-3">
-      <p className="font-semibold">{quote.months} billable months · only the additions are charged</p><p className="text-sm">BackOffice: {baseline.backoffice} → {quote.afterBackoffice} · WEB: {baseline.web} → {quote.afterWeb}</p><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr>{["Component", "Qty", "One-time", "Annual increase", "Payable now"].map(h => <th key={h} className="text-left p-2">{h}</th>)}</tr></thead><tbody>{quote.lines.map(l => <tr key={l.code}><td className="p-2">{l.label}</td><td className="p-2">{l.quantity}</td><td className="p-2">{additionMoney(l.oneTime)}</td><td className="p-2">{additionMoney(l.annual)}</td><td className="p-2">{additionMoney(l.dueNow)}</td></tr>)}</tbody></table></div>
-      <p>Payable now: <strong>{additionMoney(quote.dueNow)}</strong></p><p>Annual renewal increase: <strong>{additionMoney(quote.annualIncrease)}</strong></p><p>New annual renewal: <strong>{quote.renewalAnnual == null ? "Not confirmed — baseline requires review" : additionMoney(quote.renewalAnnual)}</strong></p><p className="text-xs text-muted-foreground">{quote.supportNote}</p>
-    </section>}
-    {saved ? <CommercialAdditionWorkflow proposal={saved} canManage={canManage} savedCurrent={additionMatchesSaved(saved,draft,effectiveTerms,notes) && !blockers.length} onUpdated={setSaved} /> : null}
-    <p className="text-xs text-muted-foreground">Saving or downloading does not change ARR or licenses. Use Proposal follow-up to validate, record sending, adjudicate and activate. Existing drafts retain their saved prices.</p>
-    <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button><Button variant="outline" disabled={busy || !!blockers.length} onClick={downloadPdf}>Download PDF</Button><Button variant="outline" disabled={busy || !!blockers.length} onClick={downloadWord}>Download Word</Button><Button disabled={readonly || busy || !!blockers.length} onClick={save}>{busy ? "Working…" : "Save Draft"}</Button></div>
-  </DialogContent></Dialog>;
+
+            {selection.commercial?<AdditionCommercialTerms section="prices" value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<Button type="button" variant="outline" onClick={()=>field("commercial",initialAdditionCommercial(saved?.proposal_date||localToday()))}>Enable detailed prices & payment terms</Button>}
+          </div>
+          <div hidden={step!==2} className="space-y-5">
+            <h3 className="font-semibold text-lg">Review before preparing the document</h3>
+            {selection.commercial?<AdditionCommercialTerms section="payment" value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<div><Label htmlFor="addition-terms">Agreed payment terms — required</Label><Textarea id="addition-terms" value={terms} onChange={e=>setTerms(e.target.value)}/></div>}
+            <p className="text-sm whitespace-pre-wrap rounded-lg bg-muted p-3">{effectiveTerms}</p>
+            <div><Label htmlFor="addition-notes">Notes / special conditions</Label><Textarea id="addition-notes" value={notes} onChange={e=>setNotes(e.target.value)}/></div>
+            {blockers.length?<section role="status" aria-label="Outstanding proposal reviews" className="rounded-lg border border-amber-300 bg-amber-50 text-amber-950 p-4"><p className="font-semibold">Preparation can be saved. Resolve these reviews before document export:</p><ul className="mt-2 space-y-2">{blockers.map(b=><li key={b}><button type="button" className="underline text-left text-sm" onClick={()=>jump(b)}>{b}</button></li>)}</ul></section>:<p role="status" className="rounded-lg bg-emerald-50 text-emerald-900 p-3 text-sm">Calculation and terms are complete. Save the proposal, then mark it Ready in follow-up.</p>}
+          </div>
+        </fieldset> : null}
+        <section aria-label="Incremental investment summary" className="rounded-xl border bg-muted/20 p-5 space-y-4 lg:sticky lg:top-0">
+          <h3 className="font-semibold">{overview?"Saved investment":"Investment preview"}</h3>
+          {!overview&&blockers.length?<p className="text-xs text-amber-800">Estimate · {blockers.length} reviews outstanding · not ready to issue</p>:null}
+          <p className="text-sm">{quote.months??"—"} billable months · only the additions are charged</p>
+          <p className="text-sm">BackOffice: {baseline.backoffice} → {quote.afterBackoffice} · WEB: {baseline.web} → {quote.afterWeb}</p>
+          <div className="border-y py-3 space-y-2 text-sm"><p className="flex justify-between gap-3"><span>Before initial discounts</span><span>{estimateAvailable?additionMoney(gross):"Period / price basis required"}</span></p><p className="flex justify-between"><span>Initial discounts</span><span>{estimateAvailable?`−${additionMoney(Math.max(0,gross-quote.dueNow))}`:"—"}</span></p></div>
+          <div><p className="text-xs text-muted-foreground">THIS PURCHASE · EXCLUDING TAX</p><strong className="block text-2xl tabular-nums">{estimateAvailable?additionMoney(quote.dueNow):"To be confirmed"}</strong></div>
+          <p className="text-sm">Annual renewal increase: <strong>{estimateAvailable?additionMoney(quote.annualIncrease):"To be confirmed"}</strong></p>
+          <p className="text-sm">New annual renewal: <strong>{estimateAvailable&&quote.renewalAnnual!=null?additionMoney(quote.renewalAnnual):"Not confirmed — baseline requires review"}</strong></p>
+          <p className="text-xs text-muted-foreground">{selection.offerBasis==="partner"?"Navaltik to partner · confirmed shares":"Customer prices when selected"}. Contract renewal date is unchanged. ARR changes only upon adjudication; license activation is separate.</p>
+          <details><summary className="cursor-pointer text-sm font-medium">Component breakdown ({quote.lines.length})</summary><ul className="mt-3 space-y-3 text-sm">{quote.lines.map(l=><li key={l.code}><p>{l.quantity} × {l.label}</p><p className="text-muted-foreground">{additionMoney(l.dueNow)} now · +{additionMoney(l.annual)}/year</p></li>)}</ul><p className="text-xs text-muted-foreground mt-3">{quote.supportNote}</p></details>
+        </section>
+      </div>
+      {overview?<details className="mt-5 border rounded-lg p-4"><summary className="cursor-pointer font-medium text-sm">Saved scope & commercial conditions</summary><div className="mt-3 space-y-3 text-sm"><p>{selection.priceReview}</p><p className="whitespace-pre-wrap">{effectiveTerms}</p><p className="whitespace-pre-wrap">{notes}</p></div></details>:null}
+    </div>
+    <footer className="border-t bg-background px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="flex gap-2"><Button variant="ghost" onClick={()=>requestClose(false)}>Close</Button>{showEditor&&step>0?<Button variant="outline" onClick={()=>setStep(step-1)}>Back</Button>:null}</div>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" disabled={busy||!!blockers.length} onClick={downloadPdf}>Download PDF</Button><Button variant="outline" disabled={busy||!!blockers.length} onClick={downloadWord}>Download Word</Button>
+        {showEditor?<><Button variant="outline" disabled={!canSave} onClick={save}>{busy?"Saving…":"Save Draft"}</Button>{step<2?<Button disabled={busy} onClick={()=>setStep(step+1)}>Continue</Button>:null}</>:null}
+      </div>
+    </footer>
+  </DialogContent></Dialog><ProposalLeaveGuard open={leave} dirty={dirty&&!readonly} busy={busy} onKeep={()=>setLeave(false)} onDiscard={()=>{setLeave(false);onOpenChange(false);}} onSave={canSave?async()=>{if(await save()){setLeave(false);onOpenChange(false);}}:undefined}/></>;
 }

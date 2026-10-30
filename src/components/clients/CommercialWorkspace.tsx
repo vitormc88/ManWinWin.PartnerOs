@@ -36,6 +36,7 @@ import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
 
 import { renewalProposalSource, clientProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import { proposalSourceFromRecord, isProposalReadOnly, proposalActionLabel } from "@/lib/proposal-reopen";
+import { preparationProposal, type PreparationDraft } from "@/lib/proposal-preparation";
 import {
   buildCommercialSummary,
   buildHistory,
@@ -48,13 +49,13 @@ const PROPOSAL_MODES: Record<CommercialActionId, {
   hint: string;
   icon: any;
 }> = {
-  upgrade_license:  { mode: "upgrade_license",  label: "Change / Upgrade License",  hint: "Move to a higher plan or Business model", icon: ArrowUpCircle },
+  upgrade_license:  { mode: "upgrade_license",  label: "Review License Upgrade",  hint: "Preserve configuration and prepare a transition review", icon: ArrowUpCircle },
   add_modules:      { mode: "add_modules",      label: "Add Modules",               hint: "Extend current license with modules",     icon: Puzzle },
   add_plugins:      { mode: "add_plugins",      label: "Add Plugins",               hint: "Enable additional plugins",               icon: Plug },
-  add_users:        { mode: "add_users",        label: "Add Users",                 hint: "Increase licensed users",                 icon: Users2 },
-  change_hosting:   { mode: "change_hosting",   label: "Change Hosting",            hint: "Switch SaaS / On-Premise",                icon: Server },
+  add_users:        { mode: "add_users",        label: "Extend License",            hint: "Accesses, modules, plugins & API in one proposal", icon: Users2 },
+  change_hosting:   { mode: "change_hosting",   label: "Review Hosting Change",     hint: "Prepare the change without replacing the license", icon: Server },
   renew_agreement:  { mode: "renew_agreement",  label: "Renew Commercial Agreement", hint: "Prepare a renewal proposal",             icon: RefreshCcw },
-  other:            { mode: "other",            label: "Other Commercial Proposal", hint: "Custom commercial change",                icon: MoreHorizontal },
+  other:            { mode: "other",            label: "Commercial / Services Review", hint: "Record service scope and conditions for review", icon: MoreHorizontal },
 };
 
 
@@ -130,6 +131,27 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     },
     enabled: !!client?.id,
   });
+  const preparations = useQuery({
+    queryKey:["proposal-preparations",client?.id],
+    enabled:!!client?.id&&canManageAdditions,
+    queryFn:async()=>{
+      const {data,error}=await supabase.from("proposal_preparations" as never).select("id,client_id,license_id,contract_id,partner_uuid,proposal_id,proposal_updated_at,kind,updated_at").eq("client_id",client.id).order("updated_at",{ascending:false}).limit(30);
+      if(error)throw error;
+      return (data||[]) as unknown as PreparationDraft[];
+    },
+  });
+  const reopenPreparation=async(row:PreparationDraft)=>{
+    if(reopeningId)return;
+    setReopeningId(row.id);
+    try{
+      const {data,error}=await supabase.from("proposal_preparations" as never).select("*").eq("id",row.id).single();
+      if(error)throw error;
+      const proposal=preparationProposal(data as unknown as PreparationDraft,clientName);
+      setProposalSource(proposalSourceFromRecord(proposal));setReopenedProposal(proposal);
+      setCommercialCtx(null);setEditingRenewalProposal(null);setReopenReadOnly(false);setShowProposal(true);
+    }catch{toast.error("Could not reopen the preparation. Refresh and try again.");}
+    finally{setReopeningId(null);}
+  };
 
   // Real operational renewal row for this client (never a derived placeholder).
   const { data: renewalRow = null } = useQuery({
@@ -507,6 +529,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {preparations.isError?<p role="alert" className="text-sm text-destructive mb-3">Preparation drafts could not be loaded. Refresh before creating another draft.</p>:null}
+          {preparations.data?.length?<div className="space-y-2 mb-4">{preparations.data.map(row=><button key={row.id} onClick={()=>reopenPreparation(row)} className="w-full rounded-lg border border-dashed p-3 text-left hover:bg-muted/40"><span className="font-medium text-sm">{row.kind==="addition"?"Continue preparation draft":"Continue commercial review request"}</span><span className="block text-xs text-muted-foreground mt-1">Saved {formatDateOnly(row.updated_at.slice(0,10))} · Not issued · No financial or license impact</span></button>)}</div>:null}
           {recentProposals.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No commercial proposals recorded for this client.
@@ -516,7 +540,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
               {recentProposals.map((p: any) => (
                 <button
                   key={p.id}
-                  onClick={() => reopenProposal(p.id)}
+                  onClick={() => {const working=preparations.data?.find(row=>row.proposal_id===p.id);if(working)reopenPreparation(working);else reopenProposal(p.id);}}
                   disabled={reopeningId === p.id}
                   className="w-full flex items-center justify-between gap-3 rounded-lg border border-border/50 p-3 hover:bg-secondary/40 transition-colors text-left"
                 >
@@ -576,7 +600,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                     Commercial proposal type
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {allowedActions.filter(id => !readOnly || ["add_users", "add_modules", "add_plugins"].includes(id)).map((id) => {
+                    {allowedActions.filter(id => !["add_modules","add_plugins"].includes(id)).filter(id => !readOnly || ["add_users", "add_modules", "add_plugins"].includes(id)).map((id) => {
                     const m = PROPOSAL_MODES[id];
                     const Icon = m.icon;
                     return (

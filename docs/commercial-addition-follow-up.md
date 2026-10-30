@@ -1,5 +1,19 @@
 # Existing-customer addition proposals
 
+## Preparation workspace (UX audit follow-up)
+
+Open **Commercial → Create proposal → Extend License** for a shared basket of accesses, modules, plugins and API. Three stages separate items, period/prices, and review/payment. The investment summary and footer actions remain available; initial gross, concession and net are shown separately. A calculation may be previewed while payment is incomplete, but document export and official validation remain blocked until the applicable reviews are complete.
+
+**Save Draft** also preserves incomplete work in `proposal_preparations`. These working copies are separate from commercial proposals, have no financial totals in analytics and cannot be adjudicated or activated. They appear in the client's Commercial area. Completing a working copy calls the existing strictly validated save operation and removes the preparation atomically; it creates/updates only a Draft. Source permissions, catalogue arithmetic, stale-source checks and concurrent-edit checks remain in force. A failed completion retains the preparation. Refreshing a saved catalogue requires reviewing the pricing reference again.
+
+Closing an edited preparation offers keep editing, discard, or save-and-close. Browser refresh/navigation also receives an unsaved-work warning. Opening a saved proposal shows follow-up and the next action above the investment; editing is separate. Secondary revise/reject operations are under Other actions.
+
+An initial-period offer is separate from an offer including renewals; the latter requires an explicit confirmation. Empty payment selections produce a pending-conditions message, never credit authorization.
+
+**Review License Upgrade**, **Review Hosting Change** and **Commercial / Services Review** preserve the existing configuration and save the requested scope without generating a full new-license quote. Pending transition credits, proration and service rules are not guessed. Existing renewal proposals continue through their separate operational renewal flow. Service requests can be recorded for review; services are not silently added to the incremental basket or charged as a new implementation.
+
+New preparation records have scoped SELECT RLS for commercial editors, no direct insert/update/delete grants, and authenticated operations using the existing client-commercial permission. The completion operation cannot convert a review request into a commercial addition.
+
 Open **Clients & Licenses → client → Commercial → Actions → Add Users / Add Modules / Add Plugins**. Select only the additional quantities/components, review the remaining months, applicable price table, billing basis, implementation and payment terms. Existing licensed components cannot be selected again. Save the draft before using follow-up actions.
 
 ## Detailed commercial terms (30 October 2026)
@@ -8,7 +22,7 @@ New additions start with structured terms and Portuguese documents. Existing sav
 
 - **Negotiated unit tariff**: HQ records a customer-specific tariff with its agreement/justification. WEB and hosting use €/access/month; other recurring components use €/unit/year; perpetual purchases use €/unit. This is separate from Navaltik/partner revenue sharing.
 - **Initial discount** reduces this purchase only. **Renewal discount** changes the annual contractual increase. Both are explicit; no blanket 10% is inferred from S&AT boilerplate. The annual contractual metric keeps the existing proposal generator convention; this release does not settle the pending multi-year discounted ARR policy.
-- **Offer this component** sets initial and, where recurring, renewal discounts to 100%. Justification is required. A zero-value proposal still follows evidence-based adjudication/activation and grants only its selected entitlements. HQ authorizes offers and negotiated tariff changes; partner software discounts respect their existing configured limit (10% default).
+- **Offer this period only** sets the initial discount to 100%, retaining the renewal tariff. **Offer including renewals** requires confirmation and sets both discounts to 100%. Justification is required. A zero-value proposal still follows evidence-based adjudication/activation and grants only its selected entitlements. HQ authorizes offers and negotiated tariff changes; partner software discounts respect their existing configured limit (10% default).
 - **KeepIT support** follows the negotiated capital tariff. A discount on the initial capital purchase does not silently discount S&AT; its initial/renewal concession is separately visible and selected.
 - Choose invoice schedule (100% award, or award/installation split), due days, explicit activation milestone and agreement reference. Payment text is generated identically on client and server. Full-payment and award-invoice-payment milestones require receipt confirmation. HQ-authorized credit activation requires its authorization reference and an explicit authorization confirmation, without declaring a fictitious payment. Zero-value offers use authorization confirmation too. Actual billing/collections remain external.
 - Saving freezes and validates catalogue prices, arithmetic, document dates, billable-month policy, payment terms and actor limits. Protected server approvals bind the saved snapshot and document metadata; altered approved terms must be saved/reviewed again. Existing source locks and stale-data checks remain.

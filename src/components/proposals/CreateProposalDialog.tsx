@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { CommercialReviewDialog } from "./CommercialReviewDialog";
+import { ProposalLeaveGuard } from "./ProposalLeaveGuard";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -210,10 +212,17 @@ export function CreateProposalDialog(props: Props) {
   if ((props.proposalSource?.source_type === "client" && ADDITION_ACTIONS.some(action => action === props.commercialContext?.mode)) || config?.commercial_addition) {
     return <CommercialAdditionDialog key={props.editingProposal?.id || `${props.proposalSource?.client_id}:${props.commercialContext?.mode}`} {...props} />;
   }
+  if ((props.proposalSource?.source_type === "client" && ["upgrade_license","change_hosting","other"].includes(props.commercialContext?.mode || "")) || (props.editingProposal?.business_config as unknown as {commercial_request?:unknown})?.commercial_request) {
+    return <CommercialReviewDialog key={props.editingProposal?.id || props.commercialContext?.mode} {...props}/>;
+  }
   return <StandardProposalDialog {...props} />;
 }
 
 function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = null, defaultClientName, defaultCountry, editingProposal = null, commercialContext = null, readOnly = false }: Props) {
+  const [unsavedEdits,setUnsavedEdits]=useState(false);
+  const [confirmLeave,setConfirmLeave]=useState(false);
+  useEffect(()=>{setUnsavedEdits(false);setConfirmLeave(false);},[open,editingProposal?.id]);
+  const closeEditor=(value:boolean)=>{if(!value&&unsavedEdits&&!readOnly)setConfirmLeave(true);else onOpenChange(value);};
   const source = useMemo<ProposalSource>(
     () => proposalSource ?? dealProposalSource(dealId),
     [proposalSource, dealId],
@@ -1663,8 +1672,8 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
 
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={closeEditor}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" onChangeCapture={()=>setUnsavedEdits(true)} onClickCapture={e=>{if((e.target as HTMLElement).closest('[role="switch"],button[role="combobox"]'))setUnsavedEdits(true);}}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="h-5 w-5" />
@@ -2542,6 +2551,7 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
         </>
         )}
       </DialogContent>
+      <ProposalLeaveGuard open={confirmLeave} dirty={unsavedEdits&&!readOnly} busy={saving} onKeep={()=>setConfirmLeave(false)} onDiscard={()=>{setUnsavedEdits(false);setConfirmLeave(false);onOpenChange(false);}}/>
       <AlertDialog open={!!revalPrompt} onOpenChange={(o) => { if (!o) answerRevalidation(false); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
