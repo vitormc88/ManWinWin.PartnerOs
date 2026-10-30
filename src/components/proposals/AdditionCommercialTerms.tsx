@@ -6,8 +6,8 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { additionMoney } from "@/lib/commercial-addition-documents";
 import type { AdditionCommercial, AdditionLine, AdditionAdjustment } from "@/lib/commercial-additions";
 
-export function AdditionCommercialTerms({ value, lines, isHQ, maxDiscount, onChange, section = "all" }: {
-  value: AdditionCommercial; lines: AdditionLine[]; isHQ: boolean; maxDiscount: number; onChange: (c: AdditionCommercial) => void; section?: "all" | "prices" | "payment";
+export function AdditionCommercialTerms({ value, lines, isHQ, maxDiscount, onChange, section = "all", priceBasisReady = true, periodReady = true }: {
+  value: AdditionCommercial; lines: AdditionLine[]; isHQ: boolean; maxDiscount: number; onChange: (c: AdditionCommercial) => void; section?: "all" | "prices" | "payment"; priceBasisReady?: boolean; periodReady?: boolean;
 }) {
   const [offer, setOffer] = useState<{code:string; recurring:boolean} | null>(null);
   const payment = value.payment;
@@ -21,7 +21,7 @@ export function AdditionCommercialTerms({ value, lines, isHQ, maxDiscount, onCha
   };
   return <section className="space-y-4 border rounded-lg p-4" aria-label="Detailed commercial terms">
     <h3 className="font-semibold">{section === "prices" ? "Prices & discounts" : section === "payment" ? "Document & payment" : "Prices, discounts & payment"}</h3>
-    <p className="text-xs text-muted-foreground">Initial discounts affect this purchase only. Renewal discounts affect the annual contractual increase. Negotiated tariffs and offers require justification; HQ authorizes tariff changes and credit activation.</p>
+    <p className="text-xs text-muted-foreground">{section === "payment" ? "Choose the document settings and proposed payment conditions. HQ authorizes credit activation." : "Negotiated tariffs and offers require justification. HQ authorizes tariff changes; discounts must stay within your authorization."}</p>
     {section !== "prices" ? <div className="grid sm:grid-cols-3 gap-3">
       <div><Label htmlFor="addition-language">Document language</Label><select id="addition-language" className="w-full h-10 border rounded px-2 bg-background" value={value.language} onChange={e=>onChange({...value,language:e.target.value as "PT"|"EN"})}><option value="PT">Português</option><option value="EN">English</option></select></div>
       <div><Label htmlFor="addition-proposal-date">Proposal date</Label><Input id="addition-proposal-date" type="date" value={value.proposalDate} onChange={e=>onChange({...value,proposalDate:e.target.value})}/></div>
@@ -37,7 +37,7 @@ export function AdditionCommercialTerms({ value, lines, isHQ, maxDiscount, onCha
           <div><Label htmlFor={`initial-discount-${l.code}`}>Initial discount (%)</Label><Input id={`initial-discount-${l.code}`} type="number" min={0} max={maxDiscount} step="0.01" value={a?.initialDiscountPct??0} onChange={e=>adjust(l.code,{initialDiscountPct:Number(e.target.value)})}/></div>
           <div><Label htmlFor={`renewal-discount-${l.code}`}>Renewal discount (%)</Label><Input id={`renewal-discount-${l.code}`} type="number" min={0} max={maxDiscount} step="0.01" disabled={!recurring} value={a?.renewalDiscountPct??0} onChange={e=>adjust(l.code,{renewalDiscountPct:Number(e.target.value)})}/></div>
         </div>
-        <p className="text-sm text-muted-foreground">Reference tariff: {additionMoney(l.referenceUnitPrice ?? 0)} · This purchase: <strong className="text-foreground">{additionMoney(l.dueNow)}</strong> · Annual increase: {additionMoney(l.annual)}</p>
+        <p className="text-sm text-muted-foreground">Reference tariff: {priceBasisReady ? additionMoney(l.referenceUnitPrice ?? 0) : "Awaiting price basis"} · This purchase: <strong className="text-foreground">{priceBasisReady && periodReady ? additionMoney(l.dueNow) : "Awaiting period / price basis"}</strong> · Annual increase: {priceBasisReady ? additionMoney(l.annual) : "Awaiting price basis"}</p>
         {a?<div><Label htmlFor={`reason-${l.code}`}>Commercial justification / agreement</Label><Input id={`reason-${l.code}`} value={a.reason} onChange={e=>adjust(l.code,{reason:e.target.value})}/></div>:null}
         <div className="flex flex-wrap gap-2">{isHQ?<><Button type="button" variant="outline" size="sm" onClick={()=>adjust(l.code,{initialDiscountPct:100,renewalDiscountPct:0})}>Offer this period only</Button>{recurring?<Button type="button" variant="outline" size="sm" onClick={()=>setOffer({code:l.code,recurring})}>Offer including renewals…</Button>:null}</>:null}{a?<Button type="button" variant="ghost" size="sm" onClick={()=>{const next={...value.adjustments};delete next[l.code];onChange({...value,adjustments:next});}}>Reset to catalogue</Button>:null}</div>
       </div>;
