@@ -426,3 +426,5 @@ create table public.partner_discount_limits(partner_id uuid primary key,max_soft
 \ir ../../supabase/migrations/20261030160433_commercial_addition_detailed_terms.sql
 \ir commercial_addition_lifecycle_cases.sql
 \ir commercial_addition_lifecycle_terms.sql
+\ir ../../supabase/migrations/20261030192708_proposal_preparation_workspace.sql
+\ir proposal_preparation_cases.sql

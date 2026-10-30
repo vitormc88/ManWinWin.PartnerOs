@@ -1,6 +1,9 @@
 import type { AdditionCommercial, AdditionPayment } from "./commercial-additions";
 
 export function additionPaymentText(p: AdditionPayment, language: "PT" | "EN") {
+  if (!["award", "split"].includes(p.invoice) || !["full_payment", "award_payment", "on_award"].includes(p.activation)) {
+    return language === "PT" ? "Condições de pagamento e ativação por definir." : "Payment and activation conditions have not been agreed yet.";
+  }
   const pt = language === "PT", days = (n: number) => n === 0 ? (pt ? "pronto pagamento" : "due immediately") : pt ? `pagamento a ${n} dias` : `payment within ${n} days`;
   const invoice = p.invoice === "split"
     ? pt ? `Fatura de ${p.awardPercent}% na adjudicação, ${days(p.awardDueDays)}.\nFatura dos restantes ${100-p.awardPercent}% na instalação, ${days(p.installationDueDays)}.` : `${p.awardPercent}% invoiced on award, ${days(p.awardDueDays)}.\nRemaining ${100-p.awardPercent}% invoiced on installation, ${days(p.installationDueDays)}.`
