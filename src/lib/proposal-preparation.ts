@@ -1,5 +1,5 @@
 import type { Proposal } from "@/types/proposal";
-import type { AdditionDraft } from "./commercial-additions";
+import { ADDITION_PRODUCTS, readAdditionDraft, type AdditionDraft } from "./commercial-additions";
 
 export interface PreparationDraft {
   id: string; client_id: string; license_id: string; contract_id: string; partner_uuid: string | null;
@@ -18,4 +18,11 @@ export function preparationProposal(row: PreparationDraft, clientName: string): 
 export function readPreparation(proposal?: Proposal | null): PreparationDraft | null {
   const config = proposal?.business_config as unknown as { preparation?: PreparationDraft } | null;
   return config?.preparation || null;
+}
+export function preparationScope(row: PreparationDraft): string {
+  const draft = readAdditionDraft({ business_config: { commercial_addition: row.body.draft } });
+  if (!draft) return row.kind === "request" ? "Commercial review" : "Items not yet selected";
+  const s = draft.selection;
+  return [s.backoffice > 0 ? `+${s.backoffice} BackOffice` : "", s.web > 0 ? `+${s.web} WEB` : "",
+    ...s.products.map(id => ADDITION_PRODUCTS.find(p => p.id === id)?.label || "Component")].filter(Boolean).join(" · ") || "Items not yet selected";
 }
