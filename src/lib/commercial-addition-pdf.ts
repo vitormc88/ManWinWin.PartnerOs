@@ -42,12 +42,12 @@ export async function createAdditionPdf(proposal: Partial<Proposal>, draft: Addi
     page.drawText(`PartnerOS · ${c.versionLabel}`,{x:W-226,y:H-55,size:7.5,font,color:muted});
     page.drawLine({start:{x:M,y:H-79},end:{x:W-M,y:H-79},color:border,thickness:.6});y=H-108;
   }
-  function paragraph(text:string,size=9,strong=false,color=navy) {
+  function paragraph(text:string,size=9,strong=false,color=navy,after=7) {
     for(const line of wrap(text,strong?bold:font,size,WIDTH)) {
       if(y<103)newPage();
       page.drawText(line,{x:M,y,size,font:strong?bold:font,color});y-=size*1.45;
     }
-    y-=7;
+    y-=after;
   }
   const widths=[220,32,82,99,WIDTH-433];
   function row(cells:string[],heading=false) {
@@ -69,7 +69,7 @@ export async function createAdditionPdf(proposal: Partial<Proposal>, draft: Addi
     y-=height;page.drawLine({start:{x:M,y:y+4},end:{x:W-M,y:y+4},color:border,thickness:.5});
   }
   newPage();paragraph(c.title,19,true);
-  for(const detail of c.details)paragraph(detail,8.5,false,muted);
+  for(const detail of c.details)paragraph(detail,8.5,false,muted,3);
   y-=6;paragraph(c.headings.investment,12,true);row(c.headers,true);
   for(const cells of c.rows)row(cells);
   y-=12;

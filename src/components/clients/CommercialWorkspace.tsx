@@ -581,7 +581,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
               You have read-only access to this client. Commercial actions are handled by your account owner.
             </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              {canManageAdditions?<ActionButton icon={FilePlus2} label="Create proposal" hint="Software additions, services & discounts" onClick={()=>openProposal("add_users")}/>:null}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="group flex flex-col items-start gap-2 rounded-xl border border-primary/40 bg-primary/5 p-4 text-left hover:border-primary hover:bg-primary/10 transition-colors">
@@ -590,8 +591,8 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                     </div>
                     <div className="w-full flex items-center justify-between gap-2">
                       <div>
-                        <p className="text-sm font-semibold text-foreground">Create proposal</p>
-                        <p className="text-[11px] text-muted-foreground">Existing customer commercial action</p>
+                        <p className="text-sm font-semibold text-foreground">Other commercial actions</p>
+                        <p className="text-[11px] text-muted-foreground">License upgrade, hosting or renewal</p>
                       </div>
                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     </div>
@@ -602,7 +603,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                     Commercial proposal type
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                    {allowedActions.filter(id => !["add_modules","add_plugins"].includes(id)).filter(id => !readOnly || ["add_users", "add_modules", "add_plugins"].includes(id)).map((id) => {
+                    {allowedActions.filter(id => !["add_users","add_modules","add_plugins"].includes(id)).filter(id => !readOnly).map((id) => {
                     const m = PROPOSAL_MODES[id];
                     const Icon = m.icon;
                     return (

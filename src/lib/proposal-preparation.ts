@@ -30,5 +30,6 @@ export function preparationScope(row: { kind: string; scope?: unknown; services?
   const s = value as Record<string, unknown>;
   const count = (n: unknown) => typeof n === "number" && Number.isSafeInteger(n) && n > 0;
   return [count(s.backoffice) ? `+${s.backoffice} BackOffice` : "", count(s.web) ? `+${s.web} WEB` : "",
-    ...(Array.isArray(s.products) ? s.products.flatMap(id => { const product = ADDITION_PRODUCTS.find(p => p.id === id); return product ? [product.label] : []; }) : [])].filter(Boolean).join(" · ") || "Items not yet selected";
+    ...(Array.isArray(s.products) ? s.products.flatMap(id => { const product = ADDITION_PRODUCTS.find(p => p.id === id); return product ? [product.label] : []; }) : []),
+    ...(Array.isArray(s.services)&&s.services.length?[`${s.services.length} service / expense line(s)`]:[])].filter(Boolean).join(" · ") || "Items not yet selected";
 }

@@ -49,7 +49,7 @@ export function CommercialAdditionWorkflow({ proposal, canManage, savedCurrent, 
     if (!canProceed) return;
     setBusy(true);
     try {
-      const auditNote=action==="sent"?`Document: ${proposalIdentity(proposal)}\nRecipient: ${recipient}\nChannel: ${channel}\n${note}`:action==="accept"?`${note}\nAccepted document: ${proposalIdentity(proposal)} (${proposal.id}). ${addition?.selection.implementationReview==="separate"?"Software only; services quotation and acceptance are separate.":"No services included."}`:note;
+      const auditNote=action==="sent"?`Document: ${proposalIdentity(proposal)}\nRecipient: ${recipient}\nChannel: ${channel}\n${note}`:action==="accept"?`${note}\nAccepted document: ${proposalIdentity(proposal)} (${proposal.id}). ${addition?.selection.services?.length?"Includes the listed one-time services and expenses; no service ARR.":addition?.selection.implementationReview==="separate"?"Software only; services quotation and acceptance are separate.":"No services included."}`:note;
       const { error } = await supabase.rpc("commercial_addition_action" as never, { _proposal_id: proposal.id, _action: action, _details: { date, evidence_type: evidence, reference, note:auditNote, payment_confirmed: !authorizationOnly && payment, activation_authorized: authorizationOnly && payment } } as never);
       if (error) throw error;
       const { data: updated, error: readError } = await supabase.from("proposals").select("*").eq("id",proposal.id).single();

@@ -13,6 +13,7 @@ on:
       - 'src/**'
       - 'tests/sql/fin02/**'
       - 'tests/sql/commercial_addition_lifecycle*'
+      - 'tests/sql/commercial_addition_simple_editor.sql'
       - 'tests/sql/proposal_preparation*'
       - 'supabase/migrations/*proposal_preparation*'
       - 'supabase/migrations/*commercial_addition*'
@@ -40,7 +41,7 @@ jobs:
       - name: Run synthetic SQL cases; no TEST or PROD access
         env:
           PGPASSWORD: synthetic-qa-only
-        run: psql -h 127.0.0.1 -U postgres -d additions_qa -v ON_ERROR_STOP=1 -f tests/sql/commercial_addition_lifecycle_qa.sql
+        run: psql -h 127.0.0.1 -U postgres -d additions_qa -v ON_ERROR_STOP=1 -f tests/sql/commercial_addition_lifecycle_qa.sql -f tests/sql/commercial_addition_simple_editor.sql
   candidate-merged-tree:
     name: Verify Lovable scaffold gone; PR49 and PR51 preserved
     runs-on: ubuntu-latest
@@ -90,5 +91,7 @@ jobs:
       - name: Commercial additions and proposal document regressions
         run: npm test -- src/components/proposals/LinkedServicesReview.test.tsx src/lib/__tests__/commercial-proposal-journey.test.ts src/components/proposals/PreparationDraftList.test.tsx src/lib/__tests__/proposal-preparation-reliability.test.ts src/lib/__tests__/addition-preparation-ux.test.ts src/lib/__tests__/commercial-additions.test.ts src/components/proposals/CommercialAdditionDialog.test.tsx src/lib/__tests__/proposal-business-snapshot.test.tsx src/lib/__tests__/proposal-source-client.test.ts src/lib/proposal-workflow.terms.test.ts src/lib/__tests__/licensing.test.ts src/lib/__tests__/proposal-reopen.test.ts
       - run: npm run build
+      - name: Combined customer proposals
+        run: npm test -- src/lib/__tests__/customer-proposal-editor.test.ts src/components/proposals/CustomerProposalEditor.test.tsx
       - name: Addition follow-up regression
         run: npm test -- src/lib/__tests__/commercial-addition-workflow.test.ts src/lib/__tests__/commercial-addition-terms.test.ts src/lib/__tests__/commercial-addition-pdf.test.ts src/components/proposals/CommercialAdditionWorkflow.test.tsx src/components/proposals/AdditionCommercialTerms.test.tsx src/components/proposals/CommercialProposalRouting.test.tsx
