@@ -20,7 +20,7 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
     versionLabel: additionVersionLabel(proposal, pt),
     headings: { investment: pt ? "Resumo do investimento" : "Incremental investment", terms: pt ? "Condições de faturação, pagamento e ativação" : "Payment terms", notes: pt ? "Notas / condições especiais" : "Notes / special conditions" },
     headers: pt ? ["Componente", "Qtd.", "Aquisição única", "Incremento anual", "Valor inicial"] : ["Component", "Qty", "One-time", "Annual increase", "Payable now"],
-    title: `${pt ? "Ampliação da configuração ManWinWin" : "Additional license components"} — ${proposal.client_name || draft.baseline.clientName}`,
+    title: `${draft.selection.services?.length ? pt?"Ampliação e serviços ManWinWin":"Software additions & services":pt ? "Ampliação da configuração ManWinWin" : "Additional license components"} — ${proposal.client_name || draft.baseline.clientName}`,
     details: [
       ...(!proposal.id || !proposal.version ? [pt ? "PRÉ-VISUALIZAÇÃO — não guardada nem validada. Não utilizar como proposta emitida." : "PREVIEW — not saved or validated. Do not use as an issued proposal."] : []),
       ...(proposal.id?[`${pt?"Documento":"Document"}: ${proposalIdentity(proposal)}`]:[]),
@@ -42,7 +42,8 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
     rows: draft.quote.lines.map(l => {
       const reference = l.referenceUnitPrice == null ? "" : `\n${pt ? "Tarifa de referência" : "Reference tariff"}: ${money(l.referenceUnitPrice)}/${l.unitPeriod === "month" ? pt ? "mês" : "month" : l.unitPeriod === "once" ? pt ? "aquisição" : "purchase" : pt ? "ano" : "year"}${l.unitPrice !== l.referenceUnitPrice ? ` → ${money(l.unitPrice!)}` : ""}`;
       const discounts = commercial ? [(l.initialDiscountPct||0)>0?`${pt?"Desconto inicial":"Initial discount"}: ${l.initialDiscountPct}%`:"",(l.renewalDiscountPct||0)>0?`${pt?"Desconto renovação":"Renewal discount"}: ${l.renewalDiscountPct}%`:""].filter(Boolean).map(t=>`\n${t}`).join("") : "";
-      return [componentLabel(l.label) + reference + discounts, String(l.quantity), money(l.oneTime), money(l.annual), money(l.dueNow)];
+      const service=draft.selection.services?.find(s=>`SERVICE_${s.id}`===l.code);
+      return [componentLabel(l.label) + (service?` · ${service.modality} · ${service.unit}`:"") + reference + discounts, String(l.quantity), money(l.oneTime), money(l.annual), money(l.dueNow)];
     }),
     summary: [
       ...(pt ? [
@@ -50,14 +51,14 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
         `Incremento anual ${proposal.status === "Accepted" ? "adjudicado" : "proposto"} / impacto na renovação: + ${money(draft.quote.annualIncrease)}`,
         draft.quote.renewalAnnual == null ? "Novo total anual do contrato: por confirmar, sujeito à reconciliação do contrato atual." : `Novo total anual do contrato: ${money(draft.quote.renewalAnnual)}`,
         draft.baseline.model === "keepit" ? "Apenas o S&AT incremental é proporcional ao período restante. Não se volta a cobrar o S&AT existente." : "S&AT incluído no licenciamento UseIT/Professional; sem adicionar uma segunda percentagem de S&AT.",
-        draft.selection.implementationReview === "separate" ? "Serviços de implementação/formação excluídos; sujeitos a proposta separada." : "Sem serviços de implementação/formação nesta proposta.",
+        draft.selection.services?.length ? "Serviços e despesas acima incluídos no valor inicial; sem impacto no valor anual da renovação." : draft.selection.implementationReview === "separate" ? "Serviços de implementação/formação excluídos; sujeitos a proposta separada." : "Sem serviços de implementação/formação nesta proposta.",
         "Esta proposta abrange apenas a ampliação indicada e mantém a data de renovação do contrato existente. Ofertas atribuem apenas os direitos expressamente selecionados.",
       ] : [
       `Payable now for these additions: ${additionMoney(draft.quote.dueNow)}`,
       `Annual increase from the existing renewal: ${additionMoney(draft.quote.annualIncrease)}`,
       draft.quote.renewalAnnual == null ? "New annual renewal total: not confirmed (existing contract requires review)." : `New annual renewal total on the reviewed baseline: ${additionMoney(draft.quote.renewalAnnual)}`,
       draft.quote.supportNote,
-      draft.selection.implementationReview === "separate" ? "Implementation/training services are excluded and must be quoted separately." : "No implementation services requested or charged in this proposal.",
+      draft.selection.services?.length ? "Services and expenses above are included in the purchase total and do not increase the annual renewal." : draft.selection.implementationReview === "separate" ? "Implementation/training services are excluded and must be quoted separately." : "No implementation services requested or charged in this proposal.",
       "This proposal covers additions only, not a replacement license. It does not extend the existing renewal date. Activation and contract updates require separate approval.",
       ]),
     ],

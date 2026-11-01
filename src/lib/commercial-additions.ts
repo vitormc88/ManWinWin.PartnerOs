@@ -29,6 +29,10 @@ export interface AdditionBaseline {
   currency?: string;
 }
 export interface AdditionSelection {
+  /** Versioned so issued snapshots retain their original rules. */
+  editorVersion?: 3;
+  professionalPrices?: Partial<Record<AdditionProduct, { annual: number | null; reference: string }>>;
+  services?: AdditionService[];
   backoffice: number; web: number; products: AdditionProduct[];
   effectiveDate: string; renewalDate: string;
   monthPolicy: "" | "complete" | "started" | "agreed"; agreedMonths: number | null;
@@ -41,6 +45,12 @@ export interface AdditionSelection {
   commercial?: AdditionCommercial;
   serviceReview?: import("./commercial-proposal-journey").ServiceReview;
   softwareOnlyAcknowledged?: boolean;
+}
+export interface AdditionService {
+  id: string; label: string; modality: "online" | "onsite" | "other";
+  quantity: number; unit: "session" | "hour" | "day" | "fixed";
+  unitPrice: number | null; ruleCode: string | null; reference: string;
+  expense: boolean;
 }
 export interface AdditionAdjustment {
   unitPrice: number | null;
@@ -67,7 +77,7 @@ export function initialAdditionCommercial(today: string): AdditionCommercial {
 }
 export interface AdditionLine {
   code: string; label: string; quantity: number; ruleCodes: string[];
-  annual: number; oneTime: number; dueNow: number; kind: "license" | "sat" | "hosting" | "web" | "api";
+  annual: number; oneTime: number; dueNow: number; kind: "license" | "sat" | "hosting" | "web" | "api" | "service" | "expense";
   referenceAnnual?: number; referenceOneTime?: number; initialAnnual?: number;
   referenceUnitPrice?: number; unitPrice?: number; unitPeriod?: "month" | "year" | "once";
   initialDiscountPct?: number; renewalDiscountPct?: number; reason?: string;
@@ -91,7 +101,8 @@ const record = (v: unknown): Record<string, unknown> => v && typeof v === "objec
 const text = (v: unknown): string => typeof v === "string" ? v : "";
 export function additionBaselineFromSnapshot(snapshot: unknown): AdditionBaseline {
   const s = record(snapshot), license = record(s.license), contract = record(s.contract);
-  const vocabulary = readLicenseVocabulary({ product: text(license.product), edition: text(license.edition), license_model: text(license.license_model), deployment_type: text(license.deployment_type), database_type: text(license.database_type) });
+  const product = /^professional$/i.test(text(license.product)) && /^professional\s*([123]|i{1,3})$/i.test(text(license.edition)) ? text(license.edition) : text(license.product);
+  const vocabulary = readLicenseVocabulary({ product, edition: text(license.edition), license_model: text(license.license_model), deployment_type: text(license.deployment_type), database_type: text(license.database_type) });
   const family = vocabulary.product.family || (s.licenseFamily === "Business" || s.licenseFamily === "Professional" ? s.licenseFamily : null);
   const variant = normalize(vocabulary.product.family ? vocabulary.product.value : text(s.licenseVariant) || text(license.license_model));
   const deployment = normalize(normalizeDeployment(text(license.deployment_type), text(s.deployment)).value);
@@ -104,8 +115,8 @@ export function additionBaselineFromSnapshot(snapshot: unknown): AdditionBaselin
   if (s.apiAccess === true || license.api_access === true) owned.push("api");
   const planToken = variant.replace(/^(professional|plan)\s*/, "");
   const plan = ({ i: 1, ii: 2, iii: 3 } as Record<string, number>)[planToken] ?? Number(planToken);
-  if (family === "Professional" && plan >= 2) owned.push("stock");
-  if (family === "Professional" && plan === 3) owned.push("purchase");
+  if (family === "Professional" && plan >= 2) owned.push("stock", "purchase");
+  if (family === "Professional" && plan === 3) owned.push("import", "workflow", "reports", "sla", "api");
   return {
     clientId: text(s.clientId), clientName: text(s.clientName), partnerId: text(s.partnerId) || null,
     licenseId: text(license.id) || null, contractId: text(contract.id) || null,
@@ -160,10 +171,10 @@ function calculateCatalogueAddition(b: AdditionBaseline, s: AdditionSelection, r
   if (!s.offerBasis) blockers.push("Choose customer prices or a confirmed Navaltik/partner basis.");
   if (!s.implementationReview) blockers.push("Review whether implementation services are needed; none are added automatically.");
   if (![s.backoffice, s.web].every(n => Number.isSafeInteger(n) && n >= 0)) blockers.push("Additional user quantities must be whole, non-negative numbers.");
-  if (!s.backoffice && !s.web && !s.products.length) blockers.push("Select at least one additional access or component.");
+  if (!s.backoffice && !s.web && !s.products.length && !(s.editorVersion === 3 && s.services?.length)) blockers.push("Select at least one access, component or service.");
   if (new Set(s.products).size !== s.products.length) blockers.push("Duplicate components are not allowed.");
   if (s.products.some(id => b.owned.includes(id))) blockers.push("A selected component is already licensed; it must not be charged again.");
-  if (b.family === "Professional" && (s.backoffice > 0 || s.products.some(id => id !== "requests"))) blockers.push("Professional does not support these additions separately. Use a supported license upgrade instead.");
+  if (b.family === "Professional" && (s.backoffice > 0 || s.editorVersion !== 3 && s.products.some(id => id !== "requests"))) blockers.push("Additional Professional BackOffice requires a license upgrade; legacy quotes cannot price other components separately.");
   const shares = s.offerBasis === "partner" ? [s.licenseShare, s.hostingShare] : [100, 100];
   if (shares.some(n => n == null || !Number.isFinite(n) || n < 0 || n > 100)) blockers.push("Confirm both partner revenue shares (0–100%); they are never inferred from notes.");
   const licenseShare = (shares[0] ?? 0) / 100, hostingShare = (shares[1] ?? 0) / 100;
@@ -208,8 +219,29 @@ function calculateCatalogueAddition(b: AdditionBaseline, s: AdditionSelection, r
     if (!p) { blockers.push(`Unknown component: ${id}.`); continue; }
     if (b.family === "Professional") {
       if (id === "requests") add("requests_module", p.label, 1, price("requests_module"), 0, "license");
+      else if (s.editorVersion === 3) {
+        const agreed = s.professionalPrices?.[id];
+        if (agreed?.annual == null || !Number.isFinite(agreed.annual) || agreed.annual <= 0 || agreed.annual > 100000000 || !agreed.reference.trim()) blockers.push(`${p.label}: enter the approved annual price and its reference; no Professional catalogue tariff is available.`);
+        else add(`PRO_ADDITION_${id.toUpperCase()}`, p.label, 1, agreed.annual, 0, id === "api" ? "api" : "license", []);
+      }
     } else if (id === "api") add("BUS_API", p.label, 1, price("BUS_API"), 0, "api");
     else licensePart(p.suffix, p.label, 1);
+  }
+  if (s.editorVersion === 3) {
+    const services = s.services ?? [];
+    if (services.length > 30 || new Set(services.map(l => l.id)).size !== services.length) blockers.push("Use at most 30 distinct service / expense lines.");
+    for (const service of services) {
+      const rule = service.ruleCode ? byCode.get(service.ruleCode) : undefined;
+      const tariff = rule ? Number(rule.unit_price) : service.unitPrice;
+      if (!/^[a-zA-Z0-9_-]{1,60}$/.test(service.id) || !service.label.trim() || !["online", "onsite", "other"].includes(service.modality) || !["session", "hour", "day", "fixed"].includes(service.unit)
+        || !Number.isFinite(service.quantity) || service.quantity <= 0 || service.quantity > 1000 || tariff == null || !Number.isFinite(tariff) || tariff <= 0 || tariff > 100000000 || !service.reference.trim()
+        || service.ruleCode && (!["impl_session","BUS_RCI_LIVE_SESSION"].includes(service.ruleCode) || !rule || rule.currency !== "EUR" || rule.unit_type !== "one-time" || tariff !== service.unitPrice)) {
+        blockers.push(`${service.label || "Service"}: enter a valid quantity, approved unit price and price reference.`); continue;
+      }
+      // Services and expenses are not prorated, shared with software or added to ARR.
+      const amount = round(service.quantity * tariff);
+      lines.push({code:`SERVICE_${service.id}`,label:service.label,quantity:service.quantity,annual:0,oneTime:amount,dueNow:amount,kind:service.expense?"expense":"service",ruleCodes:service.ruleCode?[service.ruleCode]:[]});
+    }
   }
   const annualIncrease = round(lines.reduce((n, l) => n + l.annual, 0));
   const dueNow = round(lines.reduce((n, l) => n + l.dueNow, 0));
@@ -257,6 +289,7 @@ export function calculateAddition(b: AdditionBaseline, s: AdditionSelection, rul
       v.unit = v.annual / l.quantity;
     }
     const initialPct = a?.initialDiscountPct ?? 0, renewalPct = a?.renewalDiscountPct ?? 0;
+    if (s.editorVersion === 3 && ((l.kind === "expense" && (initialPct !== 0 || renewalPct !== 0)) || (["sat","hosting"].includes(l.kind) && (initialPct !== 0 || renewalPct !== 0)))) blockers.push(`${l.label}: S&AT, hosting and expenses cannot be discounted.`);
     const initialAnnual = round(v.annual * (1 - initialPct / 100));
     const annual = round(v.annual * (1 - renewalPct / 100)), once = round(v.once * (1 - initialPct / 100));
     return { ...l, annual, oneTime: once, initialAnnual, dueNow: round(once + initialAnnual * (q.months ?? 0) / 12),

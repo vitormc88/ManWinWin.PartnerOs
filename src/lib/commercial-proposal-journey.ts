@@ -1,5 +1,5 @@
 import type { Proposal } from "@/types/proposal";
-import { ADDITION_PRODUCTS, type AdditionDraft, type AdditionLine } from "./commercial-additions";
+import { ADDITION_PRODUCTS, calculateAddition, type AdditionDraft, type AdditionLine } from "./commercial-additions";
 
 /** Operational service request, not a priced offer or an acceptance of services. */
 export interface ServiceReview {
@@ -31,8 +31,9 @@ export function proposalJourney(p: Proposal) {
 }
 export function revisionPayload(p: Proposal, draft: AdditionDraft, today: string) {
   const journey=proposalJourney(p);
-  const selection={...draft.selection,...(draft.selection.commercial?{commercial:{...draft.selection.commercial,proposalDate:today}}:{})};
-  return {...p,proposal_date:today,business_config:{...(p.business_config as unknown as Record<string,unknown>),commercial_addition:{...draft,selection},commercial_journey:{rootId:journey?.rootId||p.id,revision:(journey?.revision||1)+1,revisionOf:p.id}}};
+  const selection={...draft.selection,...(draft.selection.editorVersion===3?{effectiveDate:today>draft.selection.effectiveDate?today:draft.selection.effectiveDate}:{}),...(draft.selection.commercial?{commercial:{...draft.selection.commercial,proposalDate:today}}:{})};
+  const quote=draft.selection.editorVersion===3?calculateAddition(draft.baseline,selection,draft.rules):draft.quote;
+  return {...p,proposal_date:today,total_year_1:quote.dueNow,total_recurring:quote.annualIncrease,business_config:{...(p.business_config as unknown as Record<string,unknown>),commercial_addition:{...draft,selection,quote},commercial_journey:{rootId:journey?.rootId||p.id,revision:(journey?.revision||1)+1,revisionOf:p.id}}};
 }
 export function groupAdditionLines(lines: AdditionLine[]) {
   const groups=new Map<string,AdditionLine[]>();
@@ -47,6 +48,7 @@ export function additionScope(d: AdditionDraft) {
     ...d.selection.products.map(id=>ADDITION_PRODUCTS.find(p=>p.id===id)?.label||id)];
 }
 export function servicesSummary(d: AdditionDraft, pt=false): string[] {
+  if(d.selection.editorVersion===3) return (d.selection.services??[]).map(s=>`${s.label} · ${s.quantity} ${s.unit} · ${s.modality}${s.expense?(pt?" · despesa única":" · one-time expense"):""}`);
   if(d.selection.implementationReview!=="separate") return [pt?"Sem serviços nesta proposta.":"No services in this proposal."];
   const s=d.selection.serviceReview;
   return [pt?"SOFTWARE APENAS — serviços e despesas excluídos dos totais; orçamento separado.":"SOFTWARE ONLY — services and expenses excluded from totals; separately quoted.",

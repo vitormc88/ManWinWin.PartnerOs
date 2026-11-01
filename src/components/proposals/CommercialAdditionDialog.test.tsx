@@ -4,6 +4,7 @@ import { CommercialAdditionDialog } from "./CommercialAdditionDialog";
 import { calculateAddition, initialAdditionSelection, initialAdditionCommercial, type AdditionDraft, type AdditionBaseline } from "@/lib/commercial-additions";
 import type { Proposal, PricingRule } from "@/types/proposal";
 vi.mock("./ProposalRevisionContext", () => ({ ProposalRevisionContext: () => null }));
+vi.mock("@/hooks/usePartners",()=>({usePartner:()=>({data:null,isLoading:false,isError:false})}));
 vi.mock("./CommercialAdditionWorkflow", () => ({ CommercialAdditionWorkflow: (props: unknown) => { state.workflow(props); return null; } }));
 vi.mock("@/hooks/usePartnerDiscountLimits", () => ({ usePartnerDiscountLimits: () => ({data:null,isLoading:false,isError:false}), toDiscountOverrides: () => ({software:null}) }));
 const baseline: AdditionBaseline = { clientId: "c", clientName: "Synthetic customer", partnerId: null, licenseId: "l", contractId: "k", family: "Business", model: "useit", plan: null, deployment: "saas", backoffice: 10, web: 11, owned: [], renewalDate: "2028-04-14", priceTable: "2023", recordedAnnual: 14031, satActive: true };

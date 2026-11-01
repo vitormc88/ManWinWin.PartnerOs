@@ -29,6 +29,10 @@ import { LinkedServicesReview } from "./LinkedServicesReview";
 import { AdditionReviewSummary } from "./AdditionReviewSummary";
 import { ProposalRevisionContext } from "./ProposalRevisionContext";
 import { LinkedServiceStatus } from "./LinkedServiceStatus";
+import { CustomerProposalEditor } from "./CustomerProposalEditor";
+import { newCustomerProposal, reconcileCustomerBasket } from "@/lib/customer-proposal-editor";
+import { usePartner } from "@/hooks/usePartners";
+import { getDiscountLimits } from "@/lib/proposal-discount-policy";
 
 interface Props {
   open: boolean; onOpenChange: (open: boolean) => void; proposalSource?: ProposalSource | null;
@@ -40,7 +44,9 @@ const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${St
 export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, editingProposal, commercialContext, readOnly = false, canManageClient }: Props) {
   const { user, isHQ, profile } = useAuth();
   const limits = usePartnerDiscountLimits(isHQ ? undefined : profile?.partner_id || undefined);
+  const actorPartner = usePartner(isHQ ? undefined : profile?.partner_id || undefined);
   const maxDiscount = isHQ ? 100 : toDiscountOverrides(limits.data).software ?? 10;
+  const maxServicesDiscount = getDiscountLimits({isHQ,partnershipLevel:actorPartner.data?.partnership_level,overrides:toDiscountOverrides(limits.data)}).services;
   const { canEdit } = useModuleAccess();
   const qc = useQueryClient();
   const rulesQ = usePricingRules();
@@ -50,7 +56,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const [baseline] = useState(() => savedDraft?.baseline ?? additionBaselineFromSnapshot(commercialContext?.existingCustomer));
   const [selection, setSelection] = useState<AdditionSelection>(() => {
     const restored = savedDraft?.selection;
-    if (!restored) return { ...initialAdditionSelection(baseline, localToday()), pricingBasis: "direct", commercial: initialAdditionCommercial(localToday()) };
+    if (!restored) return newCustomerProposal(baseline,localToday());
     if (!preparation && editingProposal?.status !== "Draft") return restored;
     // Old incomplete preparations must not be stranded behind a now-hidden control.
     return { ...restored,
@@ -65,7 +71,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const [busy, setBusy] = useState(false);
   const [servicesDirty,setServicesDirty]=useState(false);
   const [servicesVerified,setServicesVerified]=useState(false);
-  const [step, setStep] = useState(() => typeof preparation?.body.uiStep === "number" && [0,1,2].includes(preparation.body.uiStep) ? preparation.body.uiStep : 0);
+  const [step, setStep] = useState(() => typeof preparation?.body.uiStep === "number" && [0,1,2,3].includes(preparation.body.uiStep) ? preparation.body.uiStep : 0);
   const [editing, setEditing] = useState(!editingProposal || !!preparation);
   const [leave, setLeave] = useState(false);
   const [pendingCalculation, setPendingCalculation] = useState<AdditionSelection["pricingBasis"] | null>(null);
@@ -107,7 +113,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const canManage = canManageClient ?? (!readOnly && canEdit("clients"));
   const readonly = !canManage || (saved != null && saved.status !== "Draft");
   const effectiveTerms = saved && !editing ? saved.payment_terms || "" : selection.commercial ? additionPaymentText(selection.commercial.payment, selection.commercial.language) : terms;
-  const unauthorizedAdjustments = !isHQ && Object.values(selection.commercial?.adjustments || {}).some(a => a.unitPrice != null || a.initialDiscountPct > maxDiscount || a.renewalDiscountPct > maxDiscount);
+  const unauthorizedAdjustments = !isHQ && Object.entries(selection.commercial?.adjustments || {}).some(([code,a]) => a.unitPrice != null || a.initialDiscountPct > (code.startsWith("SERVICE_")?maxServicesDiscount:maxDiscount) || a.renewalDiscountPct > maxDiscount);
   const blockers = [...quote.blockers, ...additionPreparationBlockers(baseline, selection),
     ...(editing && selection.implementationReview==="separate" ? [...serviceReviewErrors(selection.serviceReview),...(!selection.serviceReview?.id?["Save the linked services budget request before issuing software."]:[]),...(!selection.softwareOnlyAcknowledged?["Confirm this document covers software only; services need a separate quotation and acceptance."]:[])] : []),
     ...(servicesDirty?["Save the linked services budget request before saving software."]:[]),
@@ -118,10 +124,13 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     ...(!isHQ && selection.offerBasis === "partner" ? ["Navaltik/partner revenue shares require HQ review."] : []),
     ...(!effectiveTerms.trim() || /(to be agreed|to be confirmed|pending|por confirmar)/i.test(effectiveTerms) ? ["Complete the proposed payment terms; unresolved placeholders cannot be issued."] : []),
     ...(!readonly && unauthorizedAdjustments ? ["These negotiated prices or discounts require HQ authorization."] : []),
+    ...(!readonly && !isHQ && selection.editorVersion===3 && (Object.keys(selection.professionalPrices??{}).length>0 || selection.services?.some(l=>!l.ruleCode)) ? ["HQ must approve Professional component tariffs and custom service / expense prices before issue. You can save your draft."] : []),
+    ...(!readonly && !isHQ && selection.services?.some(l=>(selection.commercial?.adjustments[`SERVICE_${l.id}`]?.initialDiscountPct??0)>maxServicesDiscount) ? ["Services discount exceeds your authorized limit."] : []),
     ...(!readonly && !isHQ && selection.commercial?.payment.activation === "on_award" ? ["HQ must authorize activation on credit."] : []),
     ...(selection.commercial && !isHQ && (limits.isLoading || limits.isError) ? ["Discount limits are not available yet; try again before saving."] : []),
+    ...(selection.editorVersion===3&&!isHQ&&(actorPartner.isLoading||actorPartner.isError)?["Partner service discount limits could not be verified. Save the draft and retry before issue."]:[]),
   ];
-  const fieldIssues = additionFieldIssues(selection, quote.lines, maxDiscount);
+  const fieldIssues = additionFieldIssues(selection, quote.lines, maxDiscount, maxServicesDiscount);
   const hasItems = selection.backoffice > 0 || selection.web > 0 || selection.products.length > 0;
   const reviews = additionReviews(blockers, hasItems, fieldIssues).map(review => {
     if (review.id === "period" && !selection.monthPolicy) return {...review,target:"addition-months",title:"Choose how partial months are charged"};
@@ -148,7 +157,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
         if(error) throw error;
         setWorking(data as unknown as PreparationDraft); setCommitted(fingerprint);
         await qc.invalidateQueries({queryKey:["proposal-preparations"]});
-        toast.success("Preparation draft saved. Complete the outstanding reviews before issuing a proposal.");
+        toast.success("Draft saved. You can resume it from this client's Commercial tab.");
         return true;
       }
       const { data: id, error } = await supabase.rpc((working ? "complete_proposal_preparation" : "save_commercial_addition_draft") as never, {
@@ -160,7 +169,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
           client_name: baseline.clientName, product_family: baseline.family, license_model: baseline.model,
           proposal_mode: baseline.model === "keepit" ? "keepit_only" : baseline.model === "useit" ? "useit_only" : null,
           plan: baseline.plan, hosting: baseline.deployment === "saas" ? "SaaS" : "On-Premise", deployment: baseline.deployment,
-          project_name: "Additional license components", proposal_date: selection.commercial?.proposalDate || saved?.proposal_date || localToday(), language: selection.commercial?.language || saved?.language || "EN", validity_days: selection.commercial?.validityDays || saved?.validity_days || 30, payment_terms: effectiveTerms, notes,
+          project_name: selection.services?.length ? "Software & services proposal" : "Additional license components", proposal_date: selection.commercial?.proposalDate || saved?.proposal_date || localToday(), language: selection.commercial?.language || saved?.language || "EN", validity_days: selection.commercial?.validityDays || saved?.validity_days || 30, payment_terms: effectiveTerms, notes,
           total_year_1: quote.dueNow, total_recurring: quote.annualIncrease,
           business_config: { ...((saved?.business_config || {}) as Record<string,unknown>), commercial_addition: draft },
         },
@@ -228,6 +237,19 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     && !quote.blockers.some(message=>/catalogue rule|already licensed|Professional does not|Invalid component|finite|supported range/.test(message))
     && [quote.dueNow,quote.annualIncrease].every(n=>Number.isFinite(n)&&n>=0&&n<=100000000);
   const gross = Math.round(quote.lines.reduce((sum,l)=>sum+(l.referenceOneTime??l.oneTime)+(l.referenceAnnual??l.annual)*(quote.months??0)/12,0)*100)/100;
+
+  if(selection.editorVersion===3) return <>
+    {showEditor?<CustomerProposalEditor open={open} close={()=>requestClose(false)} baseline={baseline} selection={selection} change={next=>setSelection(previous=>{
+      const scoped=normalizeAdditionScope(baseline,next,rules);
+      return previous.products!==next.products||previous.backoffice!==next.backoffice||previous.web!==next.web?reconcileCustomerBasket(baseline,previous,scoped,rules):scoped;
+    })} quote={quote} draft={draft} rules={rules} blockers={blockers} isHQ={isHQ} maxDiscount={maxDiscount} maxServicesDiscount={maxServicesDiscount} busy={busy} canSave={canSave} step={step} setStep={setStep} notes={notes} setNotes={setNotes} terms={effectiveTerms} save={()=>{void save();}} download={()=>{void exportDocument("pdf",true);}}/>
+    :<Dialog open={open} onOpenChange={requestClose}><DialogContent className="max-w-4xl max-h-[92dvh] overflow-y-auto"><DialogHeader><DialogTitle>{saved?proposalIdentity(saved):"Proposal"} — {baseline.clientName}</DialogTitle></DialogHeader>{saved?<>
+      <ProposalRevisionContext proposal={saved}/><AdditionReviewSummary draft={readAdditionDraft(saved)||draft} terms={saved.payment_terms||""} notes={saved.notes||""}/>
+      <div className="flex flex-wrap gap-2"><Button disabled={busy||!!blockers.length} onClick={()=>exportDocument("pdf")}>Download PDF</Button><Button variant="outline" disabled={busy||!!blockers.length} onClick={()=>exportDocument("word")}>Download Word</Button>{canManage&&saved.status==="Draft"?<Button variant="outline" onClick={()=>{setEditing(true);setStep(0);}}>Edit draft</Button>:null}{canManage&&["Ready","Sent"].includes(saved.status)?<Button variant="outline" disabled={busy} onClick={createRevision}>Create revision</Button>:null}</div>
+      <CommercialAdditionWorkflow proposal={saved} canManage={canManage} savedCurrent={!dirty&&!!readAdditionDraft(saved)&&!readAdditionDraft(saved)!.quote.blockers.length} onUpdated={p=>{setSaved(p);setEditing(false);}}/>
+    </>:null}</DialogContent></Dialog>}
+    <ProposalLeaveGuard open={leave} dirty={dirty&&!readonly} busy={busy} onKeep={()=>setLeave(false)} onDiscard={()=>{setLeave(false);onOpenChange(false);}} onSave={canSave?async()=>{if(await save()){setLeave(false);onOpenChange(false);}}:undefined}/>
+  </>;
 
   return <><Dialog open={open} onOpenChange={requestClose}><DialogContent className="max-w-6xl h-[96dvh] sm:h-[92vh] max-h-[920px] flex flex-col p-0 gap-0 overflow-hidden">
     <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b shrink-0 pr-12"><DialogTitle className="text-base sm:text-lg line-clamp-2">{overview ? `${proposalIdentity(saved!)} · ${saved?.status}` : working ? "Continue saved preparation" : "Prepare customer proposal"} — {baseline.clientName}</DialogTitle>

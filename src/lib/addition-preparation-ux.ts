@@ -15,6 +15,7 @@ export function normalizeAdditionScope(b: AdditionBaseline, s: AdditionSelection
     hostingShare: s.offerBasis === "partner" && !needsAdditionHostingShare(b, s) ? 100 : s.hostingShare };
   if (!s.commercial) return next;
   const codes = new Set(calculateAddition(b, next, rules).lines.map(l => l.code));
+  if(next.editorVersion===3)for(const service of next.services??[])codes.add(`SERVICE_${service.id}`);
   return { ...next, commercial: { ...s.commercial, adjustments: Object.fromEntries(Object.entries(s.commercial.adjustments).filter(([code]) => codes.has(code))) } };
 }
 
@@ -37,13 +38,14 @@ export function hasCalculationTariff(s: AdditionSelection) {
 }
 
 export interface AdditionFieldIssue { target: string; message: string; affectsAmount: boolean; code?: string; step?: number }
-export function additionFieldIssues(s: AdditionSelection, lines: AdditionLine[], maxDiscount: number): AdditionFieldIssue[] {
+export function additionFieldIssues(s: AdditionSelection, lines: AdditionLine[], maxDiscount: number, maxServicesDiscount = maxDiscount): AdditionFieldIssue[] {
   const issues: AdditionFieldIssue[] = [];
   for (const line of lines) {
+    const limit = line.kind === "service" ? maxServicesDiscount : maxDiscount;
     const a = s.commercial?.adjustments[line.code];
     if (!a) continue;
     for (const [field, value] of [["initial-discount", a.initialDiscountPct], ["renewal-discount", a.renewalDiscountPct]] as const) {
-      if (!Number.isFinite(value) || value < 0 || value > maxDiscount) issues.push({ code: line.code, target: `${field}-${line.code}`, message: `${line.label}: ${field === "initial-discount" ? "initial" : "renewal"} discount must be between 0% and ${maxDiscount}%.`, affectsAmount: true });
+      if (!Number.isFinite(value) || value < 0 || value > limit) issues.push({ code: line.code, target: `${field}-${line.code}`, message: `${line.label}: ${field === "initial-discount" ? "initial" : "renewal"} discount must be between 0% and ${limit}%.`, affectsAmount: true });
     }
     if (a.unitPrice != null && (!Number.isFinite(a.unitPrice) || a.unitPrice < 0 || a.unitPrice > 100000000)) issues.push({ code: line.code, target: `price-${line.code}`, message: `${line.label}: enter a unit price between €0 and €100,000,000.`, affectsAmount: true });
     if (!a.reason.trim()) issues.push({ code: line.code, target: `reason-${line.code}`, message: `${line.label}: enter the commercial justification for this discount or negotiated tariff.`, affectsAmount: false });
