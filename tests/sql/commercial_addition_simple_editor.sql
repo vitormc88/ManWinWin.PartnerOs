@@ -1,7 +1,7 @@
 -- LOCAL SYNTHETIC DATABASE ONLY. Run after the lifecycle fixture, in the same psql session.
 reset role;
 create table if not exists public.partners(id uuid primary key,partnership_level text);
-\ir ../../supabase/migrations/20261101202457_commercial_addition_simple_editor.sql
+\ir ../../supabase/migrations/20261101224556_commercial_addition_simple_editor.sql
 create function pg_temp.combined_payload() returns jsonb language plpgsql security definer set search_path=pg_catalog,public,private as $$
 declare data jsonb:=pg_temp.detailed_payload();d jsonb;c jsonb;s jsonb;begin
  d:=data#>'{business_config,commercial_addition}';s:=d->'selection';c:=s->'commercial';
