@@ -1,4 +1,5 @@
 import { PreparationDraftList } from "@/components/proposals/PreparationDraftList";
+import { proposalIdentity } from "@/lib/commercial-proposal-journey";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,7 +108,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     queryKey: ["proposals", "by-client", client?.id, clientName],
     queryFn: async () => {
       const cols: string =
-        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, implementation_net, renewal_change_mode, version, proposal_date, created_at, addition_action:business_config->commercial_addition->>action, commercial_addition_fulfillments(activated_at)";
+        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, implementation_net, renewal_change_mode, version, proposal_date, created_at, journey:business_config->commercial_journey, addition_action:business_config->commercial_addition->>action, commercial_addition_fulfillments(activated_at)";
       const filters: string[] = [];
       if (client?.id) filters.push(`client_id.eq.${client.id}`);
       if (clientName) filters.push(`client_name.eq.${clientName.replace(/[(),]/g, " ")}`);
@@ -546,7 +547,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                   className="w-full flex items-center justify-between gap-3 rounded-lg border border-border/50 p-3 hover:bg-secondary/40 transition-colors text-left"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{p.version ? `v${p.version} · ` : ""}{p.project_name || p.client_name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{p.addition_action?`${proposalIdentity(p)} · `:p.version?`v${p.version} · `:""}{p.project_name || p.client_name}</p>
                     <p className="text-xs text-muted-foreground break-words">
                       {proposalActionLabel(p)}
                       {" · "}

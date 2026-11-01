@@ -81,6 +81,8 @@ export function additionReviews(blockers: string[], hasItems: boolean, issues: A
     else groups.set(id, { id, target: issue.target, step: issue.step ?? 1, title: issue.message, owner: "You · correct this field", details: [] });
   }
   const definitions: [RegExp, Omit<AdditionReview, "details">][] = [
+    [/services budget|services review|training \/ implementation|onsite travel|service quantity|service discount|services quotation/, {id:"services-budget",step:0,target:"addition-services",title:"Complete and save the linked services budget request",owner:"Services budget owner"}],
+    [/software only/, {id:"services-exclusion",step:2,target:"addition-software-only",title:"Confirm software and services are separately quoted",owner:"You"}],
     [/annual baseline/, { id: "baseline", step: 1, target: "addition-baseline", title: "Confirm the existing annual renewal", owner: "Contract review · HQ if uncertain" }],
     [/billable.month|effective date|Renewal date|agreed billable/, { id: "period", step: 1, target: "addition-effective", title: "Confirm the period to charge", owner: "You · use the agreed contract rule" }],
     [/pricing decision|price table|catalogue|calculation/, { id: "catalogue", step: 1, target: "addition-price-review", title: "Confirm which prices apply", owner: "Price review · HQ for exceptions" }],

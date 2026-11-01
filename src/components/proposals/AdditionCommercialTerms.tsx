@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { upfrontAdditionPayment } from "@/lib/commercial-addition-terms";
 import { additionMoney } from "@/lib/commercial-addition-documents";
 import type { AdditionCommercial, AdditionLine, AdditionAdjustment } from "@/lib/commercial-additions";
+import { groupAdditionLines } from "@/lib/commercial-proposal-journey";
 
 export function AdditionCommercialTerms({ value, lines, isHQ, maxDiscount, onChange, section = "all", priceBasisReady = true, periodReady = true, issues = [] }: {
   value: AdditionCommercial; lines: AdditionLine[]; isHQ: boolean; maxDiscount: number; onChange: (c: AdditionCommercial) => void; section?: "all" | "prices" | "payment"; priceBasisReady?: boolean; periodReady?: boolean; issues?: AdditionFieldIssue[];
@@ -32,7 +33,9 @@ export function AdditionCommercialTerms({ value, lines, isHQ, maxDiscount, onCha
       <div><Label htmlFor="addition-validity">Validity (days)</Label><Input {...errorProps("addition-validity")} id="addition-validity" type="number" min={1} max={365} value={value.validityDays} onChange={e=>onChange({...value,validityDays:Number(e.target.value)})}/>{errorText("addition-validity")}</div>
     </div> : null}
     {section === "prices" ? <p className="text-sm text-muted-foreground">Initial discount applies only to this purchase. Renewal discount changes the annual increase on future renewals. Each row is separate: offering a license does not offer its hosting or S&AT.</p> : null}
-    {section !== "payment" ? lines.map(l=>{
+    {section !== "payment" ? groupAdditionLines(lines).map(group=><details key={group[0].code} className="rounded-lg border p-3" open={group.some(l=>!!value.adjustments[l.code]||issues.some(i=>i.code===l.code))}>
+      <summary className="cursor-pointer text-sm font-medium">{group[0].label} · {group[0].quantity} · {group.some(l=>issues.some(i=>i.code===l.code&&i.affectsAmount))?"Correct highlighted values":priceBasisReady&&periodReady?additionMoney(group.reduce((sum,l)=>sum+l.dueNow,0)):"Price pending"}<span className="block text-xs text-muted-foreground mt-1">{group.length>1?"Includes incremental S&AT · ":""}Expand prices, discounts and offers</span></summary>
+      <div className="mt-3 space-y-3">{group.map(l=>{
       const invalidAmount = issues.some(i => i.code === l.code && i.affectsAmount) || ![l.dueNow,l.annual,l.oneTime].every(n=>Number.isFinite(n)&&n>=0);
       const a=value.adjustments[l.code], recurring=(l.referenceAnnual??l.annual)>0;
       return <div className="rounded-md border p-3 space-y-2" key={l.code}>
@@ -46,7 +49,7 @@ export function AdditionCommercialTerms({ value, lines, isHQ, maxDiscount, onCha
         {a?<div><Label htmlFor={`reason-${l.code}`}>Commercial justification / agreement</Label><Input {...errorProps(`reason-${l.code}`)} id={`reason-${l.code}`} value={a.reason} onChange={e=>adjust(l.code,{reason:e.target.value})}/>{errorText(`reason-${l.code}`)}</div>:null}
         <div className="flex flex-wrap gap-2">{isHQ?<><Button type="button" variant="outline" size="sm" onClick={()=>adjust(l.code,{initialDiscountPct:100,renewalDiscountPct:0})}>Offer this period only</Button>{recurring?<Button type="button" variant="outline" size="sm" onClick={()=>setOffer({code:l.code,recurring})}>Offer including renewals…</Button>:null}</>:null}{a?<Button type="button" variant="ghost" size="sm" onClick={()=>{const next={...value.adjustments};delete next[l.code];onChange({...value,adjustments:next});}}>Reset to catalogue</Button>:null}</div>
       </div>;
-    }) : null}
+    })}</div></details>) : null}
     {Object.keys(value.adjustments).some(code=>!lines.some(l=>l.code===code))?<Button type="button" variant="outline" onClick={()=>onChange({...value,adjustments:Object.fromEntries(Object.entries(value.adjustments).filter(([code])=>lines.some(l=>l.code===code)))})}>Remove adjustments for unselected components</Button>:null}
     {section !== "prices" ? <><div className="rounded-lg bg-muted/40 p-3 space-y-2"><p className="text-sm">Choose a payment preset or enter custom conditions. These are proposed terms, not evidence of customer acceptance.</p><Button type="button" variant="outline" onClick={()=>onChange({...value,payment:upfrontAdditionPayment(payment)})}>100% upfront · activate after payment</Button></div><div className="grid sm:grid-cols-2 gap-3">
       <div><Label htmlFor="addition-invoice">Invoice schedule</Label><select {...errorProps("addition-invoice")} id="addition-invoice" className="w-full h-10 border rounded px-2 bg-background" value={payment.invoice} onChange={e=>onChange({...value,payment:{...payment,invoice:e.target.value as typeof payment.invoice,awardPercent:e.target.value==="award"?100:50}})}><option value="">Choose agreed schedule</option><option value="award">100% on award</option><option value="split">Award + installation</option></select>{errorText("addition-invoice")}</div>

@@ -19,12 +19,16 @@ import { ADDITION_PRODUCTS, ADDITION_SCHEMA, additionBaselineFromSnapshot, initi
 import { additionMoney } from "@/lib/commercial-addition-documents";
 import type { CommercialContext } from "./CreateProposalDialog";
 import { CommercialAdditionWorkflow } from "./CommercialAdditionWorkflow";
-import { additionMatchesSaved } from "@/lib/commercial-addition-workflow";
 import { additionPaymentText, isGeneratedPaymentReference, PROPOSED_PAYMENT_REFERENCE } from "@/lib/commercial-addition-terms";
 import { AdditionCommercialTerms } from "./AdditionCommercialTerms";
 import { usePartnerDiscountLimits, toDiscountOverrides } from "@/hooks/usePartnerDiscountLimits";
 import { ProposalLeaveGuard } from "./ProposalLeaveGuard";
 import { readPreparation, type PreparationDraft } from "@/lib/proposal-preparation";
+import { proposalIdentity, revisionPayload, serviceReviewErrors } from "@/lib/commercial-proposal-journey";
+import { LinkedServicesReview } from "./LinkedServicesReview";
+import { AdditionReviewSummary } from "./AdditionReviewSummary";
+import { ProposalRevisionContext } from "./ProposalRevisionContext";
+import { LinkedServiceStatus } from "./LinkedServiceStatus";
 
 interface Props {
   open: boolean; onOpenChange: (open: boolean) => void; proposalSource?: ProposalSource | null;
@@ -59,6 +63,8 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const [saved, setSaved] = useState<Proposal | null>(preparation ? null : editingProposal ?? null);
   const [frozenRules, setFrozenRules] = useState(savedDraft?.rules.length ? savedDraft.rules : undefined);
   const [busy, setBusy] = useState(false);
+  const [servicesDirty,setServicesDirty]=useState(false);
+  const [servicesVerified,setServicesVerified]=useState(false);
   const [step, setStep] = useState(() => typeof preparation?.body.uiStep === "number" && [0,1,2].includes(preparation.body.uiStep) ? preparation.body.uiStep : 0);
   const [editing, setEditing] = useState(!editingProposal || !!preparation);
   const [leave, setLeave] = useState(false);
@@ -83,7 +89,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   }, [step, reviewTarget]);
   const fingerprint = JSON.stringify({selection,terms,notes});
   const [committed, setCommitted] = useState(fingerprint);
-  const dirty = fingerprint !== committed;
+  const dirty = fingerprint !== committed || servicesDirty;
   const requestClose = (value: boolean) => { if (!value && dirty && !readonly) setLeave(true); else onOpenChange(value); };
   const action = savedDraft?.action ?? commercialContext?.mode as AdditionAction;
   const rules = frozenRules ?? rulesQ.data ?? [];
@@ -100,9 +106,12 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const sourceValid = proposalSource?.source_type === "client" && proposalSource.client_id === baseline.clientId && proposalSource.contract_id === baseline.contractId && proposalSource.license_id === baseline.licenseId;
   const canManage = canManageClient ?? (!readOnly && canEdit("clients"));
   const readonly = !canManage || (saved != null && saved.status !== "Draft");
-  const effectiveTerms = readonly && saved ? saved.payment_terms || "" : selection.commercial ? additionPaymentText(selection.commercial.payment, selection.commercial.language) : terms;
+  const effectiveTerms = saved && !editing ? saved.payment_terms || "" : selection.commercial ? additionPaymentText(selection.commercial.payment, selection.commercial.language) : terms;
   const unauthorizedAdjustments = !isHQ && Object.values(selection.commercial?.adjustments || {}).some(a => a.unitPrice != null || a.initialDiscountPct > maxDiscount || a.renewalDiscountPct > maxDiscount);
   const blockers = [...quote.blockers, ...additionPreparationBlockers(baseline, selection),
+    ...(editing && selection.implementationReview==="separate" ? [...serviceReviewErrors(selection.serviceReview),...(!selection.serviceReview?.id?["Save the linked services budget request before issuing software."]:[]),...(!selection.softwareOnlyAcknowledged?["Confirm this document covers software only; services need a separate quotation and acceptance."]:[])] : []),
+    ...(servicesDirty?["Save the linked services budget request before saving software."]:[]),
+    ...(editing&&selection.implementationReview==="separate"&&selection.serviceReview?.id&&!servicesVerified?["Load and verify the linked services budget request before issuing software."]:[]),
     ...(!["add_users", "add_modules", "add_plugins"].includes(action) || (editingProposal != null && !savedDraft) ? ["This addition snapshot is incomplete or unsupported. Reopen a new addition from the current client."] : []),
     ...(!sourceValid ? ["The proposal source does not match the saved client, license and contract."] : []),
     ...(!frozenRules && (rulesQ.isLoading || rulesQ.isError) ? ["The active price catalogue is not available yet."] : []),
@@ -125,7 +134,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const documentProposal: Partial<Proposal> = { ...(saved || {}), client_name: baseline.clientName, language: selection.commercial?.language || "EN", payment_terms: effectiveTerms, notes, version: saved?.version };
 
   const save = async () => {
-    if (readonly || busy || !user || !sourceValid || !Number.isSafeInteger(selection.backoffice) || !Number.isSafeInteger(selection.web) || selection.backoffice < 0 || selection.web < 0 || (editingProposal && !savedDraft)) return false;
+      if (readonly || busy || servicesDirty || !user || !sourceValid || !Number.isSafeInteger(selection.backoffice) || !Number.isSafeInteger(selection.web) || selection.backoffice < 0 || selection.web < 0 || (editingProposal && !savedDraft)) return false;
     setBusy(true);
     try {
       if (blockers.length) {
@@ -153,7 +162,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
           plan: baseline.plan, hosting: baseline.deployment === "saas" ? "SaaS" : "On-Premise", deployment: baseline.deployment,
           project_name: "Additional license components", proposal_date: selection.commercial?.proposalDate || saved?.proposal_date || localToday(), language: selection.commercial?.language || saved?.language || "EN", validity_days: selection.commercial?.validityDays || saved?.validity_days || 30, payment_terms: effectiveTerms, notes,
           total_year_1: quote.dueNow, total_recurring: quote.annualIncrease,
-          business_config: { commercial_addition: draft },
+          business_config: { ...((saved?.business_config || {}) as Record<string,unknown>), commercial_addition: draft },
         },
       } as never);
       if (error) throw error;
@@ -192,10 +201,23 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     finally { setBusy(false); }
   };
   const canSave = !readonly && !busy && sourceValid && (!editingProposal || !!savedDraft)
+    && !servicesDirty
     && [selection.backoffice,selection.web].every(n=>Number.isSafeInteger(n)&&n>=0);
   const showEditor = editing && !readonly;
   const jump = (review: AdditionReview) => { if (canManage) setEditing(true); setStep(review.step); setReviewTarget({id: review.target}); };
   const overview = !showEditor && !!saved;
+  const createRevision=async()=>{
+    if(!saved||!canManage||busy)return;const snapshot=readAdditionDraft(saved);if(!snapshot)return;
+    setBusy(true);
+    try {
+      const {data:id,error}=await supabase.rpc("save_commercial_addition_draft" as never,{_proposal_id:null,_expected_updated_at:null,_payload:revisionPayload(saved,snapshot,localToday())} as never);
+      if(error)throw error;
+      const {data:row,error:readError}=await supabase.from("proposals").select("*").eq("id",String(id)).single();if(readError)throw readError;
+      const p=row as unknown as Proposal,d=readAdditionDraft(p);if(!d)throw new Error("Revision saved. Reopen it from Commercial to continue.");
+      setSaved(p);setSelection(d.selection);setNotes(p.notes||"");setTerms(p.payment_terms||"");setFrozenRules(d.rules);setCommitted(JSON.stringify({selection:d.selection,terms:p.payment_terms||"",notes:p.notes||""}));setEditing(true);setStep(0);
+      await qc.invalidateQueries({queryKey:["proposals"]});toast.success("New revision created as Draft. The previous document and its status are preserved.");
+    }catch(error){toast.error(error instanceof Error?error.message:"Unable to create a revision. Original proposal unchanged.");}finally{setBusy(false);}
+  };
   const priceBasisReady = !!selection.offerBasis && !!selection.pricingBasis
     && (selection.offerBasis !== "partner" || [selection.licenseShare, selection.hostingShare].every(n => n != null && Number.isFinite(n) && n >= 0 && n <= 100))
     && !quote.blockers.some(message => /catalogue rule|already licensed|Professional does not|Invalid component/.test(message));
@@ -208,15 +230,18 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const gross = Math.round(quote.lines.reduce((sum,l)=>sum+(l.referenceOneTime??l.oneTime)+(l.referenceAnnual??l.annual)*(quote.months??0)/12,0)*100)/100;
 
   return <><Dialog open={open} onOpenChange={requestClose}><DialogContent className="max-w-6xl h-[96dvh] sm:h-[92vh] max-h-[920px] flex flex-col p-0 gap-0 overflow-hidden">
-    <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b shrink-0 pr-12"><DialogTitle className="text-base sm:text-lg line-clamp-2">{overview ? `Proposal v${saved?.version} · ${saved?.status}` : working ? "Continue saved preparation" : "Prepare customer proposal"} — {baseline.clientName}</DialogTitle>
+    <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b shrink-0 pr-12"><DialogTitle className="text-base sm:text-lg line-clamp-2">{overview ? `${proposalIdentity(saved!)} · ${saved?.status}` : working ? "Continue saved preparation" : "Prepare customer proposal"} — {baseline.clientName}</DialogTitle>
       <p className="text-sm text-muted-foreground">{baseline.family || "Unknown license"} {baseline.model === "useit" ? "UseIT" : baseline.model === "keepit" ? "KeepIT" : baseline.plan ? `Plan ${baseline.plan}` : ""} · {baseline.deployment === "saas" ? "SaaS" : "On-premise"} · {baseline.backoffice} BackOffice · {baseline.web} WEB · Renewal {baseline.renewalDate || "not recorded"}</p>
     </DialogHeader>
     {showEditor ? <nav aria-label="Proposal preparation steps" className="grid grid-cols-3 gap-1 px-3 py-2 sm:px-6 border-b shrink-0">{["1. Choose items","2. Prices & period","3. Review & payment"].map((label,index)=><Button key={label} type="button" className="min-w-0 px-1 sm:px-3 text-xs sm:text-sm" aria-label={label} variant={step===index?"secondary":"ghost"} aria-current={step===index?"step":undefined} onClick={()=>{setReviewTarget(null);setStep(index);}}><span className="sm:hidden">{["1 · Items","2 · Prices","3 · Review"][index]}</span><span className="hidden sm:inline">{label}</span></Button>)}</nav> : null}
     {showEditor ? <div className="lg:hidden border-b px-4 py-2 bg-muted/30 shrink-0"><div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">{estimateAvailable?additionMoney(quote.dueNow):amountsInvalid?"Check entered values":"Estimate pending"}</span><Button type="button" variant="ghost" size="sm" onClick={()=>{setShowSummary(v=>!v);if(!showSummary)setReviewTarget({id:"addition-summary"});}}>{showSummary?"Hide summary":"Show summary"}</Button></div>{reviews[0]?<button type="button" aria-label="Go to next task" className="block text-left text-xs text-amber-900 mt-1" onClick={()=>jump(reviews[0])}>Next: {reviews[0].title} →</button>:<p className="text-xs text-emerald-800">Prepared for final validation</p>}</div>:null}
 
     <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6" id="addition-content">
-      {overview && saved ? <div className="mb-6 space-y-3"><CommercialAdditionWorkflow proposal={saved} canManage={canManage} savedCurrent={additionMatchesSaved(saved,draft,effectiveTerms,notes) && !blockers.length} onUpdated={p=>{setSaved(p);if(p.status==="Draft")setEditing(true);}}/>
-        {saved.status==="Draft" && canManage ? <Button type="button" variant="outline" onClick={()=>setEditing(true)}>Edit draft</Button> : <p className="text-sm text-muted-foreground">Validated proposals retain their saved terms. Use Return to Draft before editing.</p>}
+      {overview && saved ? <div className="mb-6 space-y-3"><ProposalRevisionContext proposal={saved}/><CommercialAdditionWorkflow proposal={saved} canManage={canManage} savedCurrent={!dirty && !!readAdditionDraft(saved) && !(readAdditionDraft(saved)?.quote.blockers.length)} onUpdated={p=>{setSaved(p);if(p.status==="Draft")setEditing(true);}}/>
+        {saved.status==="Draft" && canManage ? <Button type="button" variant="outline" onClick={()=>setEditing(true)}>Edit draft</Button> : <p className="text-sm text-muted-foreground">Issued documents retain their saved terms. Create a revision to negotiate changes; the original document remains available.</p>}
+        {canManage&&["Draft","Ready","Sent"].includes(saved.status)?<Button type="button" variant="outline" disabled={busy} onClick={createRevision}>Create new revision</Button>:null}
+        {readAdditionDraft(saved)?<AdditionReviewSummary draft={readAdditionDraft(saved)!} terms={saved.payment_terms||""} notes={saved.notes||""}/>:<p role="alert">The saved document snapshot is incomplete. Reopen from the client and contact HQ before validation.</p>}
+        {readAdditionDraft(saved)?.selection.serviceReview?.id?<LinkedServiceStatus id={readAdditionDraft(saved)!.selection.serviceReview!.id!} baseline={baseline} proposalId={saved.id} canManage={canManage}/>:null}
       </div> : null}
       <div className={showEditor?"grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6 items-start":"space-y-5"}>
         {showEditor ? <fieldset disabled={busy} className="min-w-0 space-y-5">
@@ -232,7 +257,8 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
             })}
             <details className="rounded-lg border p-3"><summary className="text-sm cursor-pointer font-medium">Existing components & upgrade options</summary><div className="grid sm:grid-cols-2 gap-2 mt-3">{ADDITION_PRODUCTS.filter(p=>baseline.owned.includes(p.id)||(baseline.family==="Professional"&&p.id!=="requests")).map(p=><label key={p.id} className="text-sm flex items-start gap-2 text-muted-foreground"><input type="checkbox" disabled checked={false}/><span>{p.label}<small className="block">{baseline.owned.includes(p.id)?"Already licensed":"Requires license upgrade"}</small></span></label>)}</div></details>
             <div><Label htmlFor="addition-implementation">Implementation / training</Label><select id="addition-implementation" className="w-full border rounded-md h-10 px-2 bg-background" value={selection.implementationReview} onChange={e => field("implementationReview", e.target.value as AdditionSelection["implementationReview"])}><option value="">Choose service scope</option><option value="not_needed">No services needed for this addition</option><option value="separate">Quote implementation separately</option></select></div>
-            <p className="text-sm rounded-lg bg-muted p-3">Services are excluded from these totals. If needed, select separate quotation and record the scope in the proposal notes for follow-up.</p>
+            <p className="text-sm rounded-lg bg-muted p-3">This document prices software only. Required services have their own linked budget, owner and review status.</p>
+            {selection.implementationReview==="separate"?<LinkedServicesReview baseline={baseline} proposalId={saved?.id} value={selection.serviceReview} onDirtyChange={setServicesDirty} onVerifiedChange={setServicesVerified} onChange={v=>field("serviceReview",v)}/>:null}
           </div>
           <div hidden={step!==1} className="space-y-5">
             <h3 className="font-semibold text-lg">Period & price review</h3>
@@ -255,6 +281,8 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
           </div>
           <div hidden={step!==2} className="space-y-5">
             <h3 className="font-semibold text-lg">Review, save & download</h3><p className="text-sm text-muted-foreground">Save & download creates a numbered Draft in this client’s follow-up. It does not mark it Ready, send it or change the license. Unsaved previews are available under More options.</p>
+            <AdditionReviewSummary draft={draft} change={n=>setStep(n)}/>
+            {selection.implementationReview==="separate"?<label className="flex gap-2 rounded-lg border p-3 text-sm"><input id="addition-software-only" type="checkbox" checked={!!selection.softwareOnlyAcknowledged} onChange={e=>field("softwareOnlyAcknowledged",e.target.checked)}/>I confirm this software document excludes services and expenses. The linked services quotation requires its own approval and customer acceptance.</label>:null}
             <div id="addition-payment" tabIndex={-1}>{selection.commercial?<AdditionCommercialTerms section="payment" issues={fieldIssues} value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<div><Label htmlFor="addition-terms">Agreed payment terms — required</Label><Textarea id="addition-terms" value={terms} onChange={e=>setTerms(e.target.value)}/></div>}</div>
             <p className="text-sm whitespace-pre-wrap rounded-lg bg-muted p-3">{effectiveTerms}</p>
             <div><Label htmlFor="addition-notes">Notes / special conditions</Label><Textarea id="addition-notes" value={notes} onChange={e=>setNotes(e.target.value)}/></div>
@@ -264,11 +292,12 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
         </fieldset> : null}
         <section id="addition-summary" tabIndex={-1} aria-label="Incremental investment summary" className={`${showEditor&&!showSummary?"hidden lg:block":""} rounded-xl border bg-muted/20 p-5 space-y-4 lg:sticky lg:top-0`}>
           <h3 className="font-semibold">{overview?"Saved investment":"Investment preview"}</h3>
+          {selection.implementationReview==="separate"?<p className="text-sm rounded bg-amber-50 p-2 text-amber-950">Software only · services excluded. Budget: {selection.serviceReview?.status||"not yet linked"} · Owner: {selection.serviceReview?.owner||"unassigned"}</p>:null}
           {(!overview || (canManage && saved?.status === "Draft" && blockers.length > 0)) ? <div role="status" className="space-y-3"><p className={`text-sm font-medium ${reviews.length ? "text-amber-800" : "text-emerald-800"}`}>{!hasItems ? "Start by choosing your items" : reviews.length ? "Preparation in progress · not ready to issue" : "Prepared for final validation"}</p>{reviews.length ? <><p className="text-xs text-muted-foreground">Your next step</p><button type="button" className="w-full rounded-md border bg-background p-3 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" onClick={() => jump(reviews[0])}><span className="block text-sm font-medium">{reviews[0].title} →</span><span className="block text-xs text-muted-foreground mt-1">{reviews[0].owner}</span></button>{reviews.length > 1 ? <details><summary className="text-sm cursor-pointer">Other tasks to finish ({reviews.length - 1})</summary><ul aria-label="Tasks to finish this proposal" className="space-y-2 mt-2">{reviews.slice(1).map(review => <li key={review.id}><button type="button" className="w-full rounded-md border bg-background p-2 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" onClick={() => jump(review)}><span className="block text-sm font-medium">{review.title} →</span><span className="block text-xs text-muted-foreground">{review.owner}</span></button></li>)}</ul></details> : null}<ul className="text-xs text-muted-foreground space-y-1">{reviews[0].details.filter(d=>d!==reviews[0].title).map(d=><li key={d}>{d}</li>)}</ul><p className="text-xs text-muted-foreground">Save your preparation now and return later if a contract or HQ check is needed.</p></> : null}</div> : null}
 
           {hasItems ? <><p className="text-sm">{quote.months??"—"} billable months · only the additions are charged</p>
           <p className="text-sm">BackOffice: {baseline.backoffice} → {quote.afterBackoffice} · WEB: {baseline.web} → {quote.afterWeb}</p>
-          <div className="border-y py-3 space-y-2 text-sm"><p className="flex justify-between gap-3"><span>Before initial discounts</span><span>{estimateAvailable?additionMoney(gross):"Period / price basis required"}</span></p><p className="flex justify-between"><span>Initial discounts</span><span>{estimateAvailable?`−${additionMoney(Math.max(0,gross-quote.dueNow))}`:"—"}</span></p></div>
+          <div className="border-y py-3 space-y-2 text-sm"><p className="flex justify-between gap-3"><span>Before initial discounts</span><span>{estimateAvailable?additionMoney(gross):amountsInvalid?"Correct highlighted values":"Period / price basis required"}</span></p><p className="flex justify-between"><span>Initial discounts</span><span>{estimateAvailable?`−${additionMoney(Math.max(0,gross-quote.dueNow))}`:"—"}</span></p></div>
           <div><p className="text-xs text-muted-foreground">THIS PURCHASE · EXCLUDING TAX</p><strong className="block text-2xl tabular-nums">{estimateAvailable?additionMoney(quote.dueNow):amountsInvalid?"Correct highlighted values":"To be confirmed"}</strong></div>
           <p className="text-sm">Annual renewal increase: <strong>{estimateAvailable?additionMoney(quote.annualIncrease):"To be confirmed"}</strong></p>
           <p className="text-sm">New annual renewal: <strong>{estimateAvailable&&quote.renewalAnnual!=null?additionMoney(quote.renewalAnnual):(additionPreparationBlockers(baseline, selection).length ? "Not confirmed — baseline requires review" : amountsInvalid ? "Correct the highlighted values" : "Awaiting period / price basis")}</strong></p>

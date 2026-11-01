@@ -13,6 +13,9 @@ import { readPreparation, type PreparationDraft } from "@/lib/proposal-preparati
 import type { CommercialContext } from "./CreateProposalDialog";
 import type { Proposal } from "@/types/proposal";
 import type { ProposalSource } from "@/lib/proposal-source";
+import { LinkedServicesReview } from "./LinkedServicesReview";
+import type { ServiceReview } from "@/lib/commercial-proposal-journey";
+import type { AdditionBaseline } from "@/lib/commercial-additions";
 
 /** A review request has no issuable document or financial values. */
 export function CommercialReviewDialog({open,onOpenChange,commercialContext,editingProposal,proposalSource,canManageClient,readOnly=false}: {
@@ -22,13 +25,15 @@ export function CommercialReviewDialog({open,onOpenChange,commercialContext,edit
   const qc=useQueryClient(), {canEdit}=useModuleAccess();
   const initial=readPreparation(editingProposal);
   const [working,setWorking]=useState<PreparationDraft|null>(initial);
-  const request=(initial?.body.request||{}) as {mode?:string; current?:CommercialContext["existingCustomer"]; target?:string};
+  const request=(initial?.body.request||{}) as {mode?:string; current?:CommercialContext["existingCustomer"]; target?:string; serviceBaseline?:AdditionBaseline;linkedProposalId?:string};
+  const [service,setService]=useState<ServiceReview|undefined>(initial?.body.services ? {...initial.body.services as ServiceReview,id:initial.id,updatedAt:initial.updated_at}:undefined);
+  const [servicesDirty,setServicesDirty]=useState(false);
   const mode=request.mode||commercialContext?.mode||"other", current=request.current||commercialContext?.existingCustomer;
   const [target,setTarget]=useState(request.target||"");
   const [notes,setNotes]=useState(String(initial?.body.notes||""));
   const [busy,setBusy]=useState(false), [leave,setLeave]=useState(false);
   const fingerprint=JSON.stringify({target,notes}), [committed,setCommitted]=useState(fingerprint);
-  const dirty=fingerprint!==committed, canManage=canManageClient??(!readOnly&&canEdit("clients"));
+  const dirty=fingerprint!==committed||servicesDirty, canManage=canManageClient??(!readOnly&&canEdit("clients"));
   const label=mode==="upgrade_license"?"License upgrade":mode==="change_hosting"?"Hosting change":"Commercial / services request";
   const close=(value:boolean)=>{if(!value&&dirty)setLeave(true);else onOpenChange(value);};
   const save=async()=>{
@@ -47,6 +52,7 @@ export function CommercialReviewDialog({open,onOpenChange,commercialContext,edit
     }catch(error){toast.error(error instanceof Error?error.message:"Could not save the review request.");return false;}
     finally{setBusy(false);}
   };
+  if(service&&request.serviceBaseline)return <><Dialog open={open} onOpenChange={close}><DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Linked services budget — {request.serviceBaseline.clientName}</DialogTitle></DialogHeader><LinkedServicesReview baseline={request.serviceBaseline} value={service} proposalId={request.linkedProposalId} readOnly={!canManage} onChange={setService} onDirtyChange={setServicesDirty}/><Button variant="outline" onClick={()=>close(false)}>Close</Button></DialogContent></Dialog><ProposalLeaveGuard open={leave} dirty={dirty} onKeep={()=>setLeave(false)} onDiscard={()=>{setLeave(false);onOpenChange(false);}}/></>;
   return <><Dialog open={open} onOpenChange={close}><DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{label} — review required</DialogTitle></DialogHeader>
     <p className="text-sm">{current?.clientName||editingProposal?.client_name}</p>
     <div className="rounded-lg border p-4 text-sm space-y-2"><p className="font-semibold">Existing configuration is preserved</p><p>{current?.licenseFamily} {current?.licenseVariant} · {current?.deployment}</p><p>{current?.backofficeUsers??"—"} BackOffice · {current?.webUsers??"—"} WEB · Renewal {current?.renewalDate||"not recorded"}</p></div>

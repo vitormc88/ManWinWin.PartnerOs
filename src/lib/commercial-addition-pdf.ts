@@ -72,8 +72,12 @@ export async function createAdditionPdf(proposal: Partial<Proposal>, draft: Addi
   for(const detail of c.details)paragraph(detail,8.5,false,muted);
   y-=6;paragraph(c.headings.investment,12,true);row(c.headers,true);
   for(const cells of c.rows)row(cells);
-  y-=16;
+  y-=12;
+  const summaryHeight=c.summary.reduce((sum,text,i)=>sum+wrap(text,i<2?bold:font,i<2?10:8.5,WIDTH).length*(i<2?14.5:12.325)+7,0);
+  // Keep investment, recurring impact and exclusions together whenever one page can hold the block.
+  if(summaryHeight<H-220&&y-summaryHeight<103)newPage();
   for(let i=0;i<c.summary.length;i++)paragraph(c.summary[i],i<2?10:8.5,i<2,i===0?red:navy);
+  if(draft.selection.implementationReview==="separate"){paragraph(c.pt?"Orçamento de serviços ligado":"Linked services budget",12,true);for(const line of c.services)paragraph(line,8.5);}
   y-=5;paragraph(c.headings.terms,12,true);paragraph(c.terms);
   if(c.notes){paragraph(c.headings.notes,12,true);paragraph(c.notes);}
   const pages=doc.getPages();
