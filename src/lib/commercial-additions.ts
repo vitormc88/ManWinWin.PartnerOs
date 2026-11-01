@@ -39,6 +39,8 @@ export interface AdditionSelection {
   implementationReview: "" | "not_needed" | "separate";
   baselineAnnualConfirmed: boolean;
   commercial?: AdditionCommercial;
+  serviceReview?: import("./commercial-proposal-journey").ServiceReview;
+  softwareOnlyAcknowledged?: boolean;
 }
 export interface AdditionAdjustment {
   unitPrice: number | null;

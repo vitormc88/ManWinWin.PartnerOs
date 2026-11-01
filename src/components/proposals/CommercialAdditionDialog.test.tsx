@@ -3,7 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { CommercialAdditionDialog } from "./CommercialAdditionDialog";
 import { calculateAddition, initialAdditionSelection, initialAdditionCommercial, type AdditionDraft, type AdditionBaseline } from "@/lib/commercial-additions";
 import type { Proposal, PricingRule } from "@/types/proposal";
-vi.mock("./CommercialAdditionWorkflow", () => ({ CommercialAdditionWorkflow: () => null }));
+vi.mock("./ProposalRevisionContext", () => ({ ProposalRevisionContext: () => null }));
+vi.mock("./CommercialAdditionWorkflow", () => ({ CommercialAdditionWorkflow: (props: unknown) => { state.workflow(props); return null; } }));
 vi.mock("@/hooks/usePartnerDiscountLimits", () => ({ usePartnerDiscountLimits: () => ({data:null,isLoading:false,isError:false}), toDiscountOverrides: () => ({software:null}) }));
 const baseline: AdditionBaseline = { clientId: "c", clientName: "Synthetic customer", partnerId: null, licenseId: "l", contractId: "k", family: "Business", model: "useit", plan: null, deployment: "saas", backoffice: 10, web: 11, owned: [], renewalDate: "2028-04-14", priceTable: "2023", recordedAnnual: 14031, satActive: true };
 const rules: PricingRule[] = [
@@ -12,7 +13,7 @@ const rules: PricingRule[] = [
 ];
 const selection = { ...initialAdditionSelection(baseline, "2026-10-29"), backoffice: 1, baselineAnnualConfirmed: true, monthPolicy: "started" as const, pricingBasis: "direct" as const, offerBasis: "customer" as const, implementationReview: "not_needed" as const, priceReview: "QA catalogue approved" };
 
-const state = vi.hoisted(() => ({ isHQ: true, editable: true, rpc: vi.fn(), error: vi.fn(), pricing: [] as unknown[], pdf:vi.fn(), savedRow:null as unknown }));
+const state = vi.hoisted(() => ({ isHQ: true, editable: true, rpc: vi.fn(), error: vi.fn(), pricing: [] as unknown[], pdf:vi.fn(), workflow:vi.fn(), savedRow:null as unknown }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ isHQ: state.isHQ, user: { id: "qa" } }) }));
 vi.mock("@/hooks/useModuleAccess", () => ({ useModuleAccess: () => ({ canEdit: () => state.editable }) }));
 vi.mock("@/hooks/useProposals", () => ({ usePricingRules: () => ({ data: state.pricing, isLoading: false, isError: false }) }));
@@ -30,6 +31,22 @@ const show = (p = proposal()) => {
 };
 beforeEach(() => { cleanup(); vi.clearAllMocks(); state.isHQ = true; state.editable = true; state.pricing = []; state.savedRow=null; state.pdf.mockResolvedValue(undefined); state.rpc.mockResolvedValue({ data: "saved", error: null }); });
 describe("Addition proposal editor", () => {
+  it("allows an unchanged saved snapshot to reach validation without comparing reconstructed defaults",()=>{
+    const d=draft();d.selection={...d.selection,commercial:initialAdditionCommercial("2026-10-29")};
+    d.selection.commercial!.payment={invoice:"award",awardPercent:100,awardDueDays:0,installationDueDays:30,activation:"full_payment",reference:"Proposed terms: 100% upfront; activation after full payment"};
+    const p=proposal(d);p.payment_terms="Saved original commercial terms";
+    render(<CommercialAdditionDialog open onOpenChange={()=>{}} proposalSource={source} editingProposal={p}/>);
+    expect(state.workflow.mock.calls.at(-1)![0]).toMatchObject({savedCurrent:true,proposal:{payment_terms:"Saved original commercial terms"}});
+    expect(state.rpc).not.toHaveBeenCalled();
+  });
+  it("creates a new revision via the official atomic save and leaves the issued source untouched",async()=>{
+    const p=proposal(draft(),"Ready");state.savedRow={...p,id:"revision",version:2,status:"Draft",business_config:{...(p.business_config as unknown as Record<string,unknown>),commercial_journey:{rootId:"draft",revision:2,revisionOf:"draft"}}};
+    render(<CommercialAdditionDialog open onOpenChange={()=>{}} proposalSource={source} editingProposal={p}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Create new revision"}));
+    await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());
+    expect(state.rpc.mock.calls[0]).toMatchObject(["save_commercial_addition_draft",{_proposal_id:null,_expected_updated_at:null,_payload:{business_config:{commercial_journey:{rootId:"draft",revision:2,revisionOf:"draft"}}}}]);
+    expect(p.status).toBe("Ready");
+  });
   it("saves and downloads the numbered snapshot read back from the server", async () => {
     state.savedRow={...proposal(),id:"saved3",version:3,client_name:baseline.clientName};
     show();fireEvent.click(screen.getByRole("button",{name:"3. Review & payment"}));

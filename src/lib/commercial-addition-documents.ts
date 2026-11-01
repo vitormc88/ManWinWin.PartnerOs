@@ -2,6 +2,7 @@ import type { Proposal } from "@/types/proposal";
 import { readAdditionDraft, type AdditionDraft } from "./commercial-additions";
 import logoUrl from "@/assets/manwinwin-logo.png";
 import { additionValidUntil } from "./commercial-addition-terms";
+import { proposalIdentity, servicesSummary } from "./commercial-proposal-journey";
 
 export const additionMoney = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n);
 export function additionVersionLabel(proposal: Partial<Proposal>, pt: boolean) {
@@ -22,6 +23,8 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
     title: `${pt ? "Ampliação da configuração ManWinWin" : "Additional license components"} — ${proposal.client_name || draft.baseline.clientName}`,
     details: [
       ...(!proposal.id || !proposal.version ? [pt ? "PRÉ-VISUALIZAÇÃO — não guardada nem validada. Não utilizar como proposta emitida." : "PREVIEW — not saved or validated. Do not use as an issued proposal."] : []),
+      ...(proposal.id?[`${pt?"Documento":"Document"}: ${proposalIdentity(proposal)}`]:[]),
+      ...(draft.selection.implementationReview==="separate"?[pt?"SOFTWARE APENAS — formação/implementação e despesas excluídas. Orçamento separado.":"SOFTWARE ONLY — training/implementation and expenses excluded. Separate quotation."]:[]),
       `${draft.baseline.family} ${draft.baseline.model === "keepit" ? "KeepIT" : draft.baseline.model === "useit" ? "UseIT" : `${pt ? "Plano" : "Plan"} ${draft.baseline.plan}`} · ${draft.baseline.deployment === "saas" ? "SaaS" : "On-premise"} · ${additionVersionLabel(proposal, pt)}`,
       ...(pt ? [
         `Valores ${draft.selection.offerBasis === "partner" ? "Navaltik ao parceiro, com repartição confirmada" : "ao cliente final"}. Acresce IVA à taxa legal em vigor.`,
@@ -38,7 +41,7 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
     ],
     rows: draft.quote.lines.map(l => {
       const reference = l.referenceUnitPrice == null ? "" : `\n${pt ? "Tarifa de referência" : "Reference tariff"}: ${money(l.referenceUnitPrice)}/${l.unitPeriod === "month" ? pt ? "mês" : "month" : l.unitPeriod === "once" ? pt ? "aquisição" : "purchase" : pt ? "ano" : "year"}${l.unitPrice !== l.referenceUnitPrice ? ` → ${money(l.unitPrice!)}` : ""}`;
-      const discounts = commercial ? `\n${pt ? "Desconto inicial" : "Initial discount"}: ${l.initialDiscountPct || 0}% · ${pt ? "renovação" : "renewal"}: ${l.renewalDiscountPct || 0}%${l.initialDiscountPct === 100 ? pt ? " · OFERTA inicial" : " · initial OFFER" : ""}${l.renewalDiscountPct === 100 ? pt ? " · OFERTA na renovação" : " · renewal OFFER" : ""}` : "";
+      const discounts = commercial ? [(l.initialDiscountPct||0)>0?`${pt?"Desconto inicial":"Initial discount"}: ${l.initialDiscountPct}%`:"",(l.renewalDiscountPct||0)>0?`${pt?"Desconto renovação":"Renewal discount"}: ${l.renewalDiscountPct}%`:""].filter(Boolean).map(t=>`\n${t}`).join("") : "";
       return [componentLabel(l.label) + reference + discounts, String(l.quantity), money(l.oneTime), money(l.annual), money(l.dueNow)];
     }),
     summary: [
@@ -58,6 +61,7 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
       "This proposal covers additions only, not a replacement license. It does not extend the existing renewal date. Activation and contract updates require separate approval.",
       ]),
     ],
+    services: servicesSummary(draft,pt),
     terms: proposal.payment_terms || "Payment terms require agreement before issue.",
     notes: proposal.notes || "",
   };
@@ -70,7 +74,7 @@ export function buildAdditionPrintHtml(proposal: Partial<Proposal>, draft = read
   @page{size:A4;margin:18mm}body{font:11pt Arial,sans-serif;color:#2c343c;line-height:1.45}header{border-bottom:2px solid #e01f2c;padding-bottom:12px}img{width:175px}h1{font-size:19pt}h2{font-size:13pt;margin-top:22px}table{width:100%;border-collapse:collapse;font-size:9pt}th,td{padding:9px 7px;border-bottom:1px solid #ddd;text-align:right}th:first-child,td:first-child{text-align:left}th{background:#f1f4f6}thead{display:table-header-group}tr{break-inside:avoid}.summary{border-left:3px solid #e01f2c;padding-left:14px;break-inside:avoid}.terms{white-space:pre-wrap;overflow-wrap:anywhere}footer{font-size:8pt;color:#627180;margin-top:28px;border-top:1px solid #ddd;padding-top:7px}</style></head><body>
   <header><img src="${logoUrl}" alt="ManWinWin"><h1>${escape(c.title)}</h1></header>${c.details.map(x => `<p>${escape(x)}</p>`).join("")}
   <h2>${escape(c.headings.investment)}</h2><table><thead><tr>${c.headers.map(x => `<th>${x}</th>`).join("")}</tr></thead><tbody>${c.rows.map(row => `<tr>${row.map(x => `<td class="terms">${escape(x)}</td>`).join("")}</tr>`).join("")}</tbody></table>
-  <section class="summary">${c.summary.map(x => `<p>${escape(x)}</p>`).join("")}</section><h2>${escape(c.headings.terms)}</h2><p class="terms">${escape(c.terms)}</p>${c.notes ? `<h2>${escape(c.headings.notes)}</h2><p class="terms">${escape(c.notes)}</p>` : ""}<footer style="display:flex;justify-content:space-between;align-items:center"><span>ManWinWin Software<br>(+351) 214 309 100<br>support@manwinwin.com<br>www.manwinwin.com</span><img src="/customer-export/iso9001.png" alt="ISO 9001 Bureau Veritas" style="width:90px"></footer><script>window.onload=()=>window.print();</script></body></html>`;
+  <section class="summary">${c.summary.map(x => `<p>${escape(x)}</p>`).join("")}</section>${c.services.map(x=>`<p>${escape(x)}</p>`).join("")}<h2>${escape(c.headings.terms)}</h2><p class="terms">${escape(c.terms)}</p>${c.notes ? `<h2>${escape(c.headings.notes)}</h2><p class="terms">${escape(c.notes)}</p>` : ""}<footer style="display:flex;justify-content:space-between;align-items:center"><span>ManWinWin Software<br>(+351) 214 309 100<br>support@manwinwin.com<br>www.manwinwin.com</span><img src="/customer-export/iso9001.png" alt="ISO 9001 Bureau Veritas" style="width:90px"></footer><script>window.onload=()=>window.print();</script></body></html>`;
 }
 export function printAddition(proposal: Partial<Proposal>, draft: AdditionDraft) {
   const html = buildAdditionPrintHtml(proposal, draft);
