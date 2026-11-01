@@ -58,3 +58,25 @@ do $$ declare data jsonb;d jsonb;s jsonb;q jsonb; begin
 end $$;
 rollback;
 \echo 'PASS: combined proposal, service discount, award-only ARR, idempotent activation and Professional price validation'
+
+begin;
+do $$ declare data jsonb;d jsonb;s jsonb;c jsonb;p uuid;before_arr numeric;begin
+ perform set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',true);
+ update licenses set product='Professional 1',edition='Professional 1',license_model='PROFESSIONAL',backoffice_users=1,updated_at=now();
+ data:=pg_temp.combined_payload();d:=data#>'{business_config,commercial_addition}';
+ d:=jsonb_set(d,'{baseline}',(d->'baseline')||'{"family":"Professional","model":null,"plan":1}'::jsonb);
+ s:=(d->'selection')||'{"backoffice":0,"web":0,"products":["stock"],"services":[],"professionalPrices":{"stock":{"annual":400,"reference":"Approved QA Professional tariff"}}}'::jsonb;
+ c:=jsonb_set(s->'commercial','{adjustments}','{}');s:=jsonb_set(s,'{commercial}',c);d:=jsonb_set(d,'{selection}',s);
+ d:=jsonb_set(d,'{quote}','{"months":3,"blockers":[],"dueNow":100,"annualIncrease":400,"lines":[{"code":"PRO_ADDITION_STOCK","label":"Stock Management","quantity":1,"kind":"license","annual":400,"oneTime":0,"dueNow":100,"initialAnnual":400,"referenceAnnual":400,"referenceOneTime":0,"referenceUnitPrice":400,"unitPrice":400,"initialDiscountPct":0,"renewalDiscountPct":0}]}');
+ data:=data||jsonb_build_object('product_family','Professional','license_model',null,'plan',1,'total_year_1',100,'total_recurring',400,'payment_terms',private.addition_payment_text(c),'business_config',jsonb_build_object('commercial_addition',d));
+ select total_value into before_arr from contracts limit 1;
+ p:=save_commercial_addition_draft(null,null,data);
+ perform commercial_addition_action(p,'validate');
+ perform commercial_addition_action(p,'accept',jsonb_build_object('date',current_date,'evidence_type','purchase_order','reference','SYNTHETIC-PROFESSIONAL'));
+ assert (select total_value from contracts limit 1)=before_arr+400,'Professional module annual delta is awarded once';
+ perform commercial_addition_action(p,'activate','{"activation_authorized":true,"reference":"Approved QA credit"}');
+ assert exists(select 1 from licensed_modules where enabled and module_name='Stock Management'),'Professional module is activated';
+ assert (select product from licenses limit 1)='Professional 1','Adding module does not replace the installed plan';
+end $$;
+rollback;
+\echo 'PASS: Professional 1 module save, validation, adjudication and activation'
