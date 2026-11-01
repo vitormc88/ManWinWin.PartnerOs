@@ -28,5 +28,5 @@ export async function generateAdditionDocx(proposal: Partial<Proposal>, draft: A
 }
 export async function downloadAdditionDocx(proposal: Partial<Proposal>, draft: AdditionDraft) {
   const blob = await generateAdditionDocx(proposal, draft);
-  saveAs(blob, `Addition_${draft.baseline.clientName.replace(/[^a-zA-Z0-9_-]/g, "_")}_v${proposal.version ?? "draft"}.docx`);
+  saveAs(blob, `Addition_${draft.baseline.clientName.replace(/[^a-zA-Z0-9_-]/g, "_")}_${proposal.id && proposal.version ? `v${proposal.version}` : "preview"}.docx`);
 }

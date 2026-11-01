@@ -1,3 +1,4 @@
+import { PreparationDraftList } from "@/components/proposals/PreparationDraftList";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,7 +37,7 @@ import { selectActiveRenewalRecord } from "@/lib/renewal-active-cycle";
 
 import { renewalProposalSource, clientProposalSource, type ProposalSource } from "@/lib/proposal-source";
 import { proposalSourceFromRecord, isProposalReadOnly, proposalActionLabel } from "@/lib/proposal-reopen";
-import { preparationScope, preparationProposal, type PreparationDraft } from "@/lib/proposal-preparation";
+import { PREPARATION_LIST_COLUMNS, preparationProposal, type PreparationDraft, type PreparationListRow } from "@/lib/proposal-preparation";
 import {
   buildCommercialSummary,
   buildHistory,
@@ -135,12 +136,12 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     queryKey:["proposal-preparations",client?.id],
     enabled:!!client?.id&&canManageAdditions,
     queryFn:async()=>{
-      const {data,error}=await supabase.from("proposal_preparations" as never).select("id,client_id,license_id,contract_id,partner_uuid,proposal_id,proposal_updated_at,kind,updated_at").eq("client_id",client.id).order("updated_at",{ascending:false}).limit(30);
+      const {data,error}=await supabase.from("proposal_preparations" as never).select(PREPARATION_LIST_COLUMNS).eq("client_id",client.id).order("updated_at",{ascending:false}).limit(30);
       if(error)throw error;
-      return (data||[]) as unknown as PreparationDraft[];
+      return (data||[]) as unknown as PreparationListRow[];
     },
   });
-  const reopenPreparation=async(row:PreparationDraft)=>{
+  const reopenPreparation=async(row:PreparationListRow)=>{
     if(reopeningId)return;
     setReopeningId(row.id);
     try{
@@ -530,7 +531,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
         </CardHeader>
         <CardContent>
           {preparations.isError?<p role="alert" className="text-sm text-destructive mb-3">Preparation drafts could not be loaded. Refresh before creating another draft.</p>:null}
-          {preparations.data?.length?<div className="space-y-2 mb-4">{preparations.data.map(row=><button key={row.id} onClick={()=>reopenPreparation(row)} className="w-full rounded-lg border border-dashed p-3 text-left hover:bg-muted/40"><span className="font-medium text-sm">{row.kind==="addition"?"Continue saved preparation":"Continue commercial review request"}</span><span className="block text-sm mt-1">{preparationScope(row)}</span><span className="block text-xs text-muted-foreground mt-1">Saved {formatDateOnly(row.updated_at.slice(0,10))} · Not issued · No financial or license impact</span></button>)}</div>:null}
+          {preparations.data?.length?<PreparationDraftList rows={preparations.data} onOpen={row=>{void reopenPreparation(row);}}/>:null}
           {recentProposals.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {preparations.data?.length ? "Your saved preparation is above. It becomes a commercial Draft after its required checks are complete." : "No proposals yet. Create a proposal to get started; you can save it before completing every detail."}
@@ -545,7 +546,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                   className="w-full flex items-center justify-between gap-3 rounded-lg border border-border/50 p-3 hover:bg-secondary/40 transition-colors text-left"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{p.project_name || p.client_name}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{p.version ? `v${p.version} · ` : ""}{p.project_name || p.client_name}</p>
                     <p className="text-xs text-muted-foreground break-words">
                       {proposalActionLabel(p)}
                       {" · "}

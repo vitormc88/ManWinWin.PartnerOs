@@ -12,12 +12,13 @@ const rules: PricingRule[] = [
 ];
 const selection = { ...initialAdditionSelection(baseline, "2026-10-29"), backoffice: 1, baselineAnnualConfirmed: true, monthPolicy: "started" as const, pricingBasis: "direct" as const, offerBasis: "customer" as const, implementationReview: "not_needed" as const, priceReview: "QA catalogue approved" };
 
-const state = vi.hoisted(() => ({ isHQ: true, editable: true, rpc: vi.fn(), error: vi.fn(), pricing: [] as unknown[] }));
+const state = vi.hoisted(() => ({ isHQ: true, editable: true, rpc: vi.fn(), error: vi.fn(), pricing: [] as unknown[], pdf:vi.fn(), savedRow:null as unknown }));
 vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ isHQ: state.isHQ, user: { id: "qa" } }) }));
 vi.mock("@/hooks/useModuleAccess", () => ({ useModuleAccess: () => ({ canEdit: () => state.editable }) }));
 vi.mock("@/hooks/useProposals", () => ({ usePricingRules: () => ({ data: state.pricing, isLoading: false, isError: false }) }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => ({ invalidateQueries: vi.fn() }) }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: state.rpc, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: { id: "saved", status: "Draft", updated_at: "2026-10-29", version: 1 } }) }) }) }) } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: state.rpc, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: state.savedRow || { id: "saved", status: "Draft", updated_at: "2026-10-29", version: 1 } }) }) }) }) } }));
+vi.mock("@/lib/commercial-addition-pdf",()=>({downloadAdditionPdf:state.pdf}));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: state.error } }));
 const draft = (): AdditionDraft => ({ schema: "commercial_addition_v1", action: "add_users", baseline, selection, rules, quote: calculateAddition(baseline, selection, rules) });
 const proposal = (d = draft(), status = "Draft") => ({ id: "draft", version: 1, status, business_config: { commercial_addition: d }, proposal_date:"2026-10-29", payment_terms: "Payment in 30 days", updated_at: "2026-10-29" }) as Proposal;
@@ -27,8 +28,33 @@ const show = (p = proposal()) => {
  const edit=screen.queryByRole("button",{name:"Edit draft"});if(edit)fireEvent.click(edit);
  return result;
 };
-beforeEach(() => { cleanup(); vi.clearAllMocks(); state.isHQ = true; state.editable = true; state.pricing = []; state.rpc.mockResolvedValue({ data: "saved", error: null }); });
+beforeEach(() => { cleanup(); vi.clearAllMocks(); state.isHQ = true; state.editable = true; state.pricing = []; state.savedRow=null; state.pdf.mockResolvedValue(undefined); state.rpc.mockResolvedValue({ data: "saved", error: null }); });
 describe("Addition proposal editor", () => {
+  it("saves and downloads the numbered snapshot read back from the server", async () => {
+    state.savedRow={...proposal(),id:"saved3",version:3,client_name:baseline.clientName};
+    show();fireEvent.click(screen.getByRole("button",{name:"3. Review & payment"}));
+    fireEvent.click(screen.getByRole("button",{name:"Save & download PDF"}));
+    await waitFor(()=>expect(state.pdf).toHaveBeenCalledOnce());
+    expect(state.rpc.mock.calls[0][0]).toBe("save_commercial_addition_draft");
+    expect(state.pdf.mock.calls[0][0]).toMatchObject({id:"saved3",version:3});
+    expect(state.pdf.mock.calls[0][1].schema).toBe("commercial_addition_v1");
+  });
+  it("does not download after a failed save and keeps the entered scope", async () => {
+    state.rpc.mockResolvedValue({data:null,error:new Error("CONFLICT: refresh before saving")});
+    show();fireEvent.click(screen.getByRole("button",{name:"3. Review & payment"}));
+    fireEvent.click(screen.getByRole("button",{name:"Save & download PDF"}));
+    await waitFor(()=>expect(state.error).toHaveBeenCalled());
+    expect(state.pdf).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"1. Choose items"}));
+    expect(screen.getByLabelText("Additional BackOffice (not total)")).toHaveValue(1);
+  });
+  it("makes an explicit unsaved preview without creating a commercial version", async () => {
+    show();fireEvent.click(screen.getByRole("button",{name:"Preview PDF"}));
+    await waitFor(()=>expect(state.pdf).toHaveBeenCalledOnce());
+    expect(state.rpc).not.toHaveBeenCalled();
+    expect(state.pdf.mock.calls[0][0].version).toBeUndefined();
+    expect(state.pdf.mock.calls[0][0].id).toBeUndefined();
+  });
   it("resumes an incomplete preparation on its saved step", () => {
     const d=draft();const p=proposal(d);
     p.business_config={commercial_addition:d,preparation:{id:"work",kind:"addition",body:{uiStep:2},updated_at:"2026-10-30"}} as unknown as Proposal["business_config"];
@@ -39,28 +65,43 @@ describe("Addition proposal editor", () => {
   it("keeps baseline review visible and blocks export until the recorded annual total is confirmed", () => {
     const d = draft(); d.selection = {...d.selection, baselineAnnualConfirmed:false};
     show(proposal(d));
-    expect(screen.getByRole("button", {name:"Download PDF"})).toBeDisabled();
+    expect(screen.getByRole("button", {name:"Preview PDF"})).toBeDisabled();
     expect(screen.getByRole("button", {name:/Confirm the existing annual renewal/})).toBeVisible();
     fireEvent.click(screen.getByRole("button", {name:/Confirm the existing annual renewal/}));
     expect(document.activeElement).toBe(screen.getByLabelText(/I confirm the recorded annual renewal/));
     fireEvent.click(screen.getByLabelText(/I confirm the recorded annual renewal/));
-    expect(screen.getByRole("button", {name:"Download PDF"})).toBeEnabled();
+    expect(screen.getByRole("button", {name:"Preview PDF"})).toBeEnabled();
   });
   it("requires a new baseline confirmation when the price recipient changes", () => {
     show();fireEvent.click(screen.getByRole("button",{name:"2. Prices & period"}));
     fireEvent.change(screen.getByLabelText("Who are these prices for?"),{target:{value:"partner"}});
     expect(screen.getByLabelText(/I confirm the recorded annual renewal/)).not.toBeChecked();
-    expect(screen.getByRole("button",{name:"Download PDF"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Preview PDF"})).toBeDisabled();
     expect(screen.getByText("Partner prices awaiting verified shares",{exact:false})).toBeInTheDocument();
   });
   it("reopens older WEB-only drafts without leaving an irrelevant hidden calculation unresolved", async () => {
     const d=draft();d.selection={...d.selection,backoffice:0,web:1,pricingBasis:""};
     d.rules=[...d.rules,{...rules[0],id:"web",code:"BUS_WEB_MOBILE_USER",unit_price:20,unit_type:"per-user-month"}];
     show(proposal(d));
-    expect(screen.getByRole("button",{name:"Download PDF"})).toBeEnabled();
+    expect(screen.getByRole("button",{name:"Preview PDF"})).toBeEnabled();
     fireEvent.click(screen.getByRole("button",{name:"Save Draft"}));
     await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());
     expect(state.rpc.mock.calls[0][1]._payload.business_config.commercial_addition.selection.pricingBasis).toBe("direct");
+  });
+  it("focuses the precise discount error without blaming a confirmed baseline", () => {
+    const d=draft();d.selection={...d.selection,commercial:initialAdditionCommercial("2026-10-29")};
+    d.selection.commercial!.payment={invoice:"award",awardPercent:100,awardDueDays:0,installationDueDays:30,activation:"full_payment",reference:"QA agreed terms"};
+    d.selection.commercial!.adjustments.BUS_USEIT_ADDITIONAL_BACKOFFICE={unitPrice:null,initialDiscountPct:101,renewalDiscountPct:0,reason:"QA concession"};
+    show(proposal(d));fireEvent.click(screen.getByRole("button",{name:/Additional BackOffice.*initial discount must be between/}));
+    const input=screen.getAllByLabelText("Initial discount (%)")[0];expect(document.activeElement).toBe(input);expect(input).toHaveAttribute("aria-invalid","true");
+    expect(screen.getByRole("region",{name:"Incremental investment summary"})).not.toHaveTextContent("baseline requires review");
+    expect(screen.queryByRole("button",{name:/Review the source contract/})).toBeNull();
+  });
+  it("separates the missing justification from a numeric price error",()=>{
+    const d=draft();d.selection={...d.selection,commercial:initialAdditionCommercial("2026-10-29")};d.selection.commercial!.adjustments.BUS_USEIT_ADDITIONAL_BACKOFFICE={unitPrice:null,initialDiscountPct:5,renewalDiscountPct:0,reason:""};
+    show(proposal(d));fireEvent.click(screen.getByRole("button",{name:/Additional BackOffice.*enter the commercial justification/}));
+    expect(document.activeElement).toBe(screen.getByLabelText("Commercial justification / agreement"));
+    expect(screen.getByLabelText("Commercial justification / agreement")).toHaveAttribute("aria-invalid","true");
   });
   it("removes only the deselected item's discounts and preserves the remaining basket", async () => {
     const d = draft(); d.selection = {...d.selection, web:1, commercial:initialAdditionCommercial("2026-10-29")};
@@ -79,7 +120,7 @@ describe("Addition proposal editor", () => {
     expect(screen.getByLabelText("Invoice schedule")).toHaveValue("award");
     expect(screen.getByLabelText("Award invoice due (days)")).toHaveValue(0);
     expect(screen.getByLabelText("Activation condition")).toHaveValue("full_payment");
-    expect(screen.getByLabelText("Payment / activation agreement reference")).toHaveValue("Proposed terms: 100% upfront; activation after full payment");
+    expect(screen.getByLabelText("Payment / activation agreement reference")).toHaveValue("Proposed conditions in this proposal");
     expect(state.rpc).not.toHaveBeenCalled();
   });
 
@@ -87,7 +128,7 @@ describe("Addition proposal editor", () => {
     show();fireEvent.click(screen.getByRole("button",{name:"2. Prices & period"}));
     fireEvent.click(screen.getByRole("button",{name:"Enable detailed prices & payment terms"}));
     expect(screen.getByRole("region",{name:"Incremental investment summary"})).toHaveTextContent("€708.00");
-    expect(screen.getByRole("button",{name:"Download PDF"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Preview PDF"})).toBeDisabled();
     fireEvent.click(screen.getByRole("button",{name:/Save Draft|Save preparation/}));
     await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());
     expect(state.rpc.mock.calls[0][0]).toBe("save_proposal_preparation");
@@ -123,7 +164,7 @@ describe("Addition proposal editor", () => {
     expect(state.rpc.mock.calls[0][1]._payload.total_year_1).toBe(708);
     expect(state.rpc.mock.calls[0][1]._payload.proposal_mode).toBe("useit_only");
   });
-  it("blocks invalid quantities immediately", () => { show(); fireEvent.change(screen.getByLabelText("Additional WEB / Mobility (not total)"), { target: { value: "1.5" } }); expect(screen.getByRole("button", { name: /Save Draft|Save preparation/ })).toBeDisabled(); expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled(); });
+  it("blocks invalid quantities immediately", () => { show(); fireEvent.change(screen.getByLabelText("Additional WEB / Mobility (not total)"), { target: { value: "1.5" } }); expect(screen.getByRole("button", { name: /Save Draft|Save preparation/ })).toBeDisabled(); expect(screen.getByRole("button", { name: "Preview PDF" })).toBeDisabled(); });
   it("permits a scoped commercial editor without general client edit, and permits editing after return to Draft", () => {
     state.editable = false;
     render(<CommercialAdditionDialog open onOpenChange={() => {}} proposalSource={source} editingProposal={proposal()} readOnly canManageClient />);
@@ -132,18 +173,18 @@ describe("Addition proposal editor", () => {
     expect(screen.getByLabelText("Additional BackOffice (not total)")).toBeEnabled();
   });
   it("does not edit validated proposals or users without edit access", () => { show(proposal(draft(), "Ready")); expect(screen.queryByRole("button", { name: /Save Draft|Save preparation/ })).toBeNull(); cleanup(); state.editable = false; show(); expect(screen.queryByRole("button", { name: /Save Draft|Save preparation/ })).toBeNull(); });
-  it("blocks partner revenue shares for a non-HQ user", () => { const d = draft(); d.selection = { ...selection, offerBasis: "partner", licenseShare: 60, hostingShare: 100 }; state.isHQ = false; show(proposal(d)); expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled(); expect(screen.queryByRole("option", { name: /Navaltik to partner/ })).toBeNull(); });
-  it("disables already-owned plugins and API", () => { const d = draft(); d.action = "add_plugins"; d.baseline = { ...baseline, owned: ["api", "sla"] }; show(proposal(d)); expect(screen.getByLabelText(/API ManWinWin/)).toBeDisabled(); expect(screen.getByLabelText(/SLA/)).toBeDisabled(); });
+  it("blocks partner revenue shares for a non-HQ user", () => { const d = draft(); d.selection = { ...selection, offerBasis: "partner", licenseShare: 60, hostingShare: 100 }; state.isHQ = false; show(proposal(d)); expect(screen.getByRole("button", { name: "Preview PDF" })).toBeDisabled(); expect(screen.queryByRole("option", { name: /Navaltik to partner/ })).toBeNull(); });
+  it("disables already-owned plugins and API", () => { const d = draft(); d.action = "add_plugins"; d.baseline = { ...baseline, owned: ["api", "sla"] }; show(proposal(d)); fireEvent.click(screen.getByText("Existing components & upgrade options")); expect(screen.getByLabelText(/API ManWinWin/)).toBeDisabled(); expect(screen.getByLabelText(/SLA/)).toBeDisabled(); });
   it("fails closed on a malformed saved addition", () => { show({ ...proposal(), business_config: { commercial_addition: { schema: "commercial_addition_v1" } } }); expect(screen.getByRole("button", { name: /Save Draft|Save preparation/ })).toBeDisabled(); });
   it("saves detailed Portuguese terms and a justified initial-only concession", async()=>{
     show();fireEvent.click(screen.getByRole("button",{name:"2. Prices & period"}));fireEvent.click(screen.getByRole("button",{name:"Enable detailed prices & payment terms"}));
-    expect(screen.getByRole("button",{name:"Download PDF"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Preview PDF"})).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Invoice schedule"),{target:{value:"award"}});
     fireEvent.change(screen.getByLabelText("Award invoice due (days)"),{target:{value:"30"}});
     fireEvent.change(screen.getByLabelText("Activation condition"),{target:{value:"on_award"}});
     fireEvent.change(screen.getByLabelText("Payment / activation agreement reference"),{target:{value:"QA signed credit agreement"}});
     fireEvent.change(screen.getAllByLabelText("Initial discount (%)")[0],{target:{value:"10"}});
-    expect(screen.getByRole("button",{name:"Download PDF"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Preview PDF"})).toBeDisabled();
     fireEvent.change(screen.getByLabelText("Commercial justification / agreement"),{target:{value:"Initial-only commercial concession"}});
     fireEvent.click(screen.getByRole("button",{name:/Save Draft|Save preparation/}));
     await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());

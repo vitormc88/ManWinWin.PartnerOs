@@ -39,7 +39,7 @@ export async function createAdditionPdf(proposal: Partial<Proposal>, draft: Addi
     const ratio=Math.min(145/logo.width,42/logo.height);
     page.drawImage(logo,{x:M,y:H-64,width:logo.width*ratio,height:logo.height*ratio});
     page.drawText(c.pt?"INDICAÇÃO DE INVESTIMENTO":"INVESTMENT PROPOSAL",{x:W-226,y:H-40,size:8,font:bold,color:muted});
-    page.drawText(`PartnerOS · v${proposal.version??(c.pt?"rascunho":"draft")}`,{x:W-226,y:H-55,size:7.5,font,color:muted});
+    page.drawText(`PartnerOS · ${c.versionLabel}`,{x:W-226,y:H-55,size:7.5,font,color:muted});
     page.drawLine({start:{x:M,y:H-79},end:{x:W-M,y:H-79},color:border,thickness:.6});y=H-108;
   }
   function paragraph(text:string,size=9,strong=false,color=navy) {
@@ -88,6 +88,6 @@ export async function createAdditionPdf(proposal: Partial<Proposal>, draft: Addi
 export async function downloadAdditionPdf(proposal:Partial<Proposal>,draft:AdditionDraft) {
   const bytes=await createAdditionPdf(proposal,draft);
   const blob=new Blob([bytes as BlobPart],{type:"application/pdf"}),url=URL.createObjectURL(blob);
-  const a=document.createElement("a");a.href=url;a.download=`ManWinWin_${draft.baseline.clientName.replace(/[^a-zA-Z0-9_-]/g,"_")}_v${proposal.version??"draft"}.pdf`;a.click();
+  const a=document.createElement("a");a.href=url;a.download=`ManWinWin_${draft.baseline.clientName.replace(/[^a-zA-Z0-9_-]/g,"_")}_${proposal.id && proposal.version ? `v${proposal.version}` : "preview"}.pdf`;a.click();
   setTimeout(()=>URL.revokeObjectURL(url),30000);
 }

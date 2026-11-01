@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { additionPreparationBlockers, additionReviews, needsAdditionCalculationChoice, needsAdditionHostingShare, normalizeAdditionScope, type AdditionReview } from "@/lib/addition-preparation-ux";
+import { additionFieldIssues, changeAdditionCalculation, hasCalculationTariff, additionPreparationBlockers, additionReviews, needsAdditionCalculationChoice, needsAdditionHostingShare, normalizeAdditionScope, type AdditionReview } from "@/lib/addition-preparation-ux";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +20,7 @@ import { additionMoney } from "@/lib/commercial-addition-documents";
 import type { CommercialContext } from "./CreateProposalDialog";
 import { CommercialAdditionWorkflow } from "./CommercialAdditionWorkflow";
 import { additionMatchesSaved } from "@/lib/commercial-addition-workflow";
-import { additionPaymentText } from "@/lib/commercial-addition-terms";
+import { additionPaymentText, isGeneratedPaymentReference, PROPOSED_PAYMENT_REFERENCE } from "@/lib/commercial-addition-terms";
 import { AdditionCommercialTerms } from "./AdditionCommercialTerms";
 import { usePartnerDiscountLimits, toDiscountOverrides } from "@/hooks/usePartnerDiscountLimits";
 import { ProposalLeaveGuard } from "./ProposalLeaveGuard";
@@ -48,6 +50,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     if (!preparation && editingProposal?.status !== "Draft") return restored;
     // Old incomplete preparations must not be stranded behind a now-hidden control.
     return { ...restored,
+      ...(restored.commercial && isGeneratedPaymentReference(restored.commercial.payment.reference) ? {commercial:{...restored.commercial,payment:{...restored.commercial.payment,reference:PROPOSED_PAYMENT_REFERENCE}}} : {}),
       pricingBasis: restored.pricingBasis || (needsAdditionCalculationChoice(baseline, restored) ? "" : "direct"),
       hostingShare: restored.offerBasis === "partner" && !needsAdditionHostingShare(baseline, restored) ? 100 : restored.hostingShare };
   });
@@ -59,6 +62,8 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const [step, setStep] = useState(() => typeof preparation?.body.uiStep === "number" && [0,1,2].includes(preparation.body.uiStep) ? preparation.body.uiStep : 0);
   const [editing, setEditing] = useState(!editingProposal || !!preparation);
   const [leave, setLeave] = useState(false);
+  const [pendingCalculation, setPendingCalculation] = useState<AdditionSelection["pricingBasis"] | null>(null);
+  const [showSummary, setShowSummary] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const [reviewTarget, setReviewTarget] = useState<{id: string} | null>(null);
   useEffect(() => {
@@ -68,6 +73,8 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     if (reviewTarget) {
       const target = content.querySelector<HTMLElement>(`#${reviewTarget.id}`);
       if (target) {
+        let ancestor = target.parentElement;
+        while (ancestor && ancestor !== content) { if (ancestor instanceof HTMLDetailsElement) ancestor.open = true; ancestor = ancestor.parentElement; }
         target.focus({ preventScroll: true });
         content.scrollTop = Math.max(0, target.getBoundingClientRect().top - content.getBoundingClientRect().top + content.scrollTop - 16);
       }
@@ -88,10 +95,12 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     if (next.offerBasis === "partner" && !needsAdditionHostingShare(baseline, next)) next.hostingShare = 100;
     return ["products", "backoffice", "web", "offerBasis"].includes(key) ? normalizeAdditionScope(baseline, next, rules) : next;
   });
+  const applyCalculation = (basis: AdditionSelection["pricingBasis"], tariff: "keep" | "catalogue" = "keep") => { setSelection(s => changeAdditionCalculation(baseline, s, rules, basis, tariff)); setPendingCalculation(null); };
+  const chooseCalculation = (basis: AdditionSelection["pricingBasis"]) => { if (basis !== selection.pricingBasis && hasCalculationTariff(selection)) setPendingCalculation(basis); else applyCalculation(basis); };
   const sourceValid = proposalSource?.source_type === "client" && proposalSource.client_id === baseline.clientId && proposalSource.contract_id === baseline.contractId && proposalSource.license_id === baseline.licenseId;
   const canManage = canManageClient ?? (!readOnly && canEdit("clients"));
   const readonly = !canManage || (saved != null && saved.status !== "Draft");
-  const effectiveTerms = selection.commercial ? additionPaymentText(selection.commercial.payment, selection.commercial.language) : terms;
+  const effectiveTerms = readonly && saved ? saved.payment_terms || "" : selection.commercial ? additionPaymentText(selection.commercial.payment, selection.commercial.language) : terms;
   const unauthorizedAdjustments = !isHQ && Object.values(selection.commercial?.adjustments || {}).some(a => a.unitPrice != null || a.initialDiscountPct > maxDiscount || a.renewalDiscountPct > maxDiscount);
   const blockers = [...quote.blockers, ...additionPreparationBlockers(baseline, selection),
     ...(!["add_users", "add_modules", "add_plugins"].includes(action) || (editingProposal != null && !savedDraft) ? ["This addition snapshot is incomplete or unsupported. Reopen a new addition from the current client."] : []),
@@ -103,8 +112,15 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     ...(!readonly && !isHQ && selection.commercial?.payment.activation === "on_award" ? ["HQ must authorize activation on credit."] : []),
     ...(selection.commercial && !isHQ && (limits.isLoading || limits.isError) ? ["Discount limits are not available yet; try again before saving."] : []),
   ];
+  const fieldIssues = additionFieldIssues(selection, quote.lines, maxDiscount);
   const hasItems = selection.backoffice > 0 || selection.web > 0 || selection.products.length > 0;
-  const reviews = additionReviews(blockers, hasItems);
+  const reviews = additionReviews(blockers, hasItems, fieldIssues).map(review => {
+    if (review.id === "period" && !selection.monthPolicy) return {...review,target:"addition-months",title:"Choose how partial months are charged"};
+    if (review.id === "period" && selection.monthPolicy === "agreed" && (!selection.agreedMonths || selection.agreedMonths <= 0)) return {...review,target:"addition-agreed-months",title:"Enter the agreed number of billable months"};
+    if (review.id === "period" && selection.monthPolicy === "agreed" && !selection.monthReview.trim()) return {...review,target:"addition-month-review",title:"Record the agreement for the billable months"};
+    if (review.id === "basis" && selection.offerBasis === "partner") return {...review,target:selection.licenseShare == null ? "addition-licenseShare" : "addition-hostingShare",title:"Enter the verified Navaltik revenue share"};
+    return review;
+  });
   const draft: AdditionDraft = { schema: ADDITION_SCHEMA, action, baseline, selection, rules, quote: { ...quote, blockers } };
   const documentProposal: Partial<Proposal> = { ...(saved || {}), client_name: baseline.clientName, language: selection.commercial?.language || "EN", payment_terms: effectiveTerms, notes, version: saved?.version };
 
@@ -149,23 +165,30 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
       await qc.invalidateQueries({ queryKey: ["proposals"] });
       await qc.invalidateQueries({queryKey:["proposal-preparations"]});
       toast.success("Addition saved as Draft. Client, license, contract and renewal are unchanged.");
-      return true;
+      return row as unknown as Proposal;
     } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to save the addition draft."); }
     finally { setBusy(false); }
     return false;
   };
-  const downloadWord = async () => {
+  const exportDocument = async (format: "pdf" | "word", persist = false) => {
     if (blockers.length || busy) return;
+    let row: Partial<Proposal> = { ...documentProposal, id: undefined, version: undefined, status: undefined };
+    let exportingDraft = draft;
+    if (persist) {
+      const result = await save();
+      if (!result || typeof result !== "object") return;
+      const snapshot = readAdditionDraft(result);
+      if (!snapshot) { toast.error("The proposal was saved, but its document snapshot could not be read. Reopen it before downloading."); return; }
+      row = result; exportingDraft = snapshot;
+    } else if (saved && !editing) {
+      row = saved; exportingDraft = readAdditionDraft(saved) || draft;
+    }
     setBusy(true);
-    try { const { downloadAdditionDocx } = await import("@/lib/commercial-addition-docx"); await downloadAdditionDocx(documentProposal, draft); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Unable to generate Word."); }
-    finally { setBusy(false); }
-  };
-  const downloadPdf = async () => {
-    if (blockers.length || busy) return;
-    setBusy(true);
-    try { const { downloadAdditionPdf } = await import("@/lib/commercial-addition-pdf"); await downloadAdditionPdf(documentProposal, draft); }
-    catch (error) { toast.error(error instanceof Error ? error.message : "Unable to generate PDF."); }
+    try {
+      if (format === "pdf") { const { downloadAdditionPdf } = await import("@/lib/commercial-addition-pdf"); await downloadAdditionPdf(row, exportingDraft); }
+      else { const { downloadAdditionDocx } = await import("@/lib/commercial-addition-docx"); await downloadAdditionDocx(row, exportingDraft); }
+      if (persist) toast.success(`Proposal v${row.version} saved and downloaded. Use Mark Ready in follow-up after final review.`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to generate the document. The saved proposal is available in follow-up."); }
     finally { setBusy(false); }
   };
   const canSave = !readonly && !busy && sourceValid && (!editingProposal || !!savedDraft)
@@ -175,20 +198,23 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const overview = !showEditor && !!saved;
   const priceBasisReady = !!selection.offerBasis && !!selection.pricingBasis
     && (selection.offerBasis !== "partner" || [selection.licenseShare, selection.hostingShare].every(n => n != null && Number.isFinite(n) && n >= 0 && n <= 100))
-    && !quote.blockers.some(message => /catalogue rule|already licensed|Professional does not|Invalid component|finite|supported range/.test(message));
-  const estimateAvailable = priceBasisReady && hasItems && quote.months != null && !!selection.pricingBasis && !!selection.offerBasis
+    && !quote.blockers.some(message => /catalogue rule|already licensed|Professional does not|Invalid component/.test(message));
+  const amountsInvalid = fieldIssues.some(i=>i.affectsAmount) || quote.blockers.some(message=>/Negotiated amounts must/.test(message)) || (hasItems && priceBasisReady && quote.months != null && quote.months > 0 && quote.blockers.some(message=>/supported range|finite/.test(message)));
+  const estimateAvailable = !amountsInvalid && priceBasisReady && hasItems && quote.months != null && !!selection.pricingBasis && !!selection.offerBasis
     && (selection.offerBasis !== "partner" || [selection.licenseShare, selection.hostingShare].every(n => n != null && Number.isFinite(n) && n >= 0 && n <= 100))
     && [selection.backoffice,selection.web].every(n=>Number.isSafeInteger(n)&&n>=0)
     && !quote.blockers.some(message=>/catalogue rule|already licensed|Professional does not|Invalid component|finite|supported range/.test(message))
     && [quote.dueNow,quote.annualIncrease].every(n=>Number.isFinite(n)&&n>=0&&n<=100000000);
   const gross = Math.round(quote.lines.reduce((sum,l)=>sum+(l.referenceOneTime??l.oneTime)+(l.referenceAnnual??l.annual)*(quote.months??0)/12,0)*100)/100;
 
-  return <><Dialog open={open} onOpenChange={requestClose}><DialogContent className="max-w-6xl h-[92vh] max-h-[920px] flex flex-col p-0 gap-0 overflow-hidden">
-    <DialogHeader className="px-6 py-4 border-b shrink-0 pr-12"><DialogTitle>{overview ? `Proposal v${saved?.version} · ${saved?.status}` : working ? "Continue saved preparation" : "Prepare customer proposal"} — {baseline.clientName}</DialogTitle>
+  return <><Dialog open={open} onOpenChange={requestClose}><DialogContent className="max-w-6xl h-[96dvh] sm:h-[92vh] max-h-[920px] flex flex-col p-0 gap-0 overflow-hidden">
+    <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b shrink-0 pr-12"><DialogTitle className="text-base sm:text-lg line-clamp-2">{overview ? `Proposal v${saved?.version} · ${saved?.status}` : working ? "Continue saved preparation" : "Prepare customer proposal"} — {baseline.clientName}</DialogTitle>
       <p className="text-sm text-muted-foreground">{baseline.family || "Unknown license"} {baseline.model === "useit" ? "UseIT" : baseline.model === "keepit" ? "KeepIT" : baseline.plan ? `Plan ${baseline.plan}` : ""} · {baseline.deployment === "saas" ? "SaaS" : "On-premise"} · {baseline.backoffice} BackOffice · {baseline.web} WEB · Renewal {baseline.renewalDate || "not recorded"}</p>
     </DialogHeader>
-    {showEditor ? <nav aria-label="Proposal preparation steps" className="flex gap-2 px-6 py-3 border-b shrink-0 overflow-x-auto">{["1. Choose items","2. Prices & period","3. Review & payment"].map((label,index)=><Button key={label} type="button" variant={step===index?"secondary":"ghost"} aria-current={step===index?"step":undefined} onClick={()=>{setReviewTarget(null);setStep(index);}}>{label}</Button>)}</nav> : null}
-    <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto p-6" id="addition-content">
+    {showEditor ? <nav aria-label="Proposal preparation steps" className="grid grid-cols-3 gap-1 px-3 py-2 sm:px-6 border-b shrink-0">{["1. Choose items","2. Prices & period","3. Review & payment"].map((label,index)=><Button key={label} type="button" className="min-w-0 px-1 sm:px-3 text-xs sm:text-sm" aria-label={label} variant={step===index?"secondary":"ghost"} aria-current={step===index?"step":undefined} onClick={()=>{setReviewTarget(null);setStep(index);}}><span className="sm:hidden">{["1 · Items","2 · Prices","3 · Review"][index]}</span><span className="hidden sm:inline">{label}</span></Button>)}</nav> : null}
+    {showEditor ? <div className="lg:hidden border-b px-4 py-2 bg-muted/30 shrink-0"><div className="flex items-center justify-between gap-2"><span className="text-sm font-semibold">{estimateAvailable?additionMoney(quote.dueNow):amountsInvalid?"Check entered values":"Estimate pending"}</span><Button type="button" variant="ghost" size="sm" onClick={()=>{setShowSummary(v=>!v);if(!showSummary)setReviewTarget({id:"addition-summary"});}}>{showSummary?"Hide summary":"Show summary"}</Button></div>{reviews[0]?<button type="button" aria-label="Go to next task" className="block text-left text-xs text-amber-900 mt-1" onClick={()=>jump(reviews[0])}>Next: {reviews[0].title} →</button>:<p className="text-xs text-emerald-800">Prepared for final validation</p>}</div>:null}
+
+    <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6" id="addition-content">
       {overview && saved ? <div className="mb-6 space-y-3"><CommercialAdditionWorkflow proposal={saved} canManage={canManage} savedCurrent={additionMatchesSaved(saved,draft,effectiveTerms,notes) && !blockers.length} onUpdated={p=>{setSaved(p);if(p.status==="Draft")setEditing(true);}}/>
         {saved.status==="Draft" && canManage ? <Button type="button" variant="outline" onClick={()=>setEditing(true)}>Edit draft</Button> : <p className="text-sm text-muted-foreground">Validated proposals retain their saved terms. Use Return to Draft before editing.</p>}
       </div> : null}
@@ -200,12 +226,13 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
               <div><Label htmlFor="addition-bo">Additional BackOffice (not total)</Label><Input id="addition-bo" type="number" min={0} step={1} disabled={baseline.family==="Professional"} value={selection.backoffice} onChange={e=>field("backoffice",Number(e.target.value))}/>{baseline.family==="Professional"?<p className="text-xs text-muted-foreground">Additional BackOffice requires a license upgrade.</p>:null}</div>
               <div><Label htmlFor="addition-web">Additional WEB / Mobility (not total)</Label><Input id="addition-web" type="number" min={0} step={1} value={selection.web} onChange={e=>field("web",Number(e.target.value))}/></div>
             </div>
-            {(["module","plugin"] as const).map(kind=><section key={kind} className="space-y-2"><h4 className="font-medium">{kind==="module"?"Modules":"Plugins & API"}</h4><div className="grid sm:grid-cols-2 gap-2">{ADDITION_PRODUCTS.filter(p=>p.kind===kind).map(p=>{
-              const owned=baseline.owned.includes(p.id), unsupported=baseline.family==="Professional"&&p.id!=="requests";
-              return <label key={p.id} className={`text-sm flex items-start gap-2 border rounded-lg p-3 ${owned||unsupported?"bg-muted/40 text-muted-foreground":"hover:bg-muted/30"}`}><input className="mt-1" type="checkbox" checked={selection.products.includes(p.id)} disabled={owned||unsupported} onChange={e=>field("products",e.target.checked?[...selection.products,p.id]:selection.products.filter(id=>id!==p.id))}/><span>{p.label}{owned?<small className="block">Already licensed</small>:unsupported?<small className="block">Requires license upgrade</small>:null}</span></label>;
-            })}</div></section>)}
+            {(["module","plugin"] as const).map(kind=>{
+              const available=ADDITION_PRODUCTS.filter(p=>p.kind===kind&&!baseline.owned.includes(p.id)&&(baseline.family!=="Professional"||p.id==="requests"));
+              return available.length ? <section key={kind} className="space-y-2"><h4 className="font-medium">{kind==="module"?"Modules":"Plugins & API"}</h4><div className="grid sm:grid-cols-2 gap-2">{available.map(p=><label key={p.id} className="text-sm flex items-start gap-2 border rounded-lg p-3 hover:bg-muted/30"><input className="mt-1" type="checkbox" checked={selection.products.includes(p.id)} onChange={e=>field("products",e.target.checked?[...selection.products,p.id]:selection.products.filter(id=>id!==p.id))}/><span>{p.label}</span></label>)}</div></section>:null;
+            })}
+            <details className="rounded-lg border p-3"><summary className="text-sm cursor-pointer font-medium">Existing components & upgrade options</summary><div className="grid sm:grid-cols-2 gap-2 mt-3">{ADDITION_PRODUCTS.filter(p=>baseline.owned.includes(p.id)||(baseline.family==="Professional"&&p.id!=="requests")).map(p=><label key={p.id} className="text-sm flex items-start gap-2 text-muted-foreground"><input type="checkbox" disabled checked={false}/><span>{p.label}<small className="block">{baseline.owned.includes(p.id)?"Already licensed":"Requires license upgrade"}</small></span></label>)}</div></details>
             <div><Label htmlFor="addition-implementation">Implementation / training</Label><select id="addition-implementation" className="w-full border rounded-md h-10 px-2 bg-background" value={selection.implementationReview} onChange={e => field("implementationReview", e.target.value as AdditionSelection["implementationReview"])}><option value="">Choose service scope</option><option value="not_needed">No services needed for this addition</option><option value="separate">Quote implementation separately</option></select></div>
-            <p className="text-sm rounded-lg bg-muted p-3">Implementation and training are not added automatically. Review any service requirement in the next step; separately quoted services remain excluded from these totals.</p>
+            <p className="text-sm rounded-lg bg-muted p-3">Services are excluded from these totals. If needed, select separate quotation and record the scope in the proposal notes for follow-up.</p>
           </div>
           <div hidden={step!==1} className="space-y-5">
             <h3 className="font-semibold text-lg">Period & price review</h3>
@@ -217,46 +244,54 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
       </div>
       {selection.monthPolicy === "agreed" ? <div className="grid sm:grid-cols-2 gap-4"><div><Label htmlFor="addition-agreed-months">Agreed billable months</Label><Input id="addition-agreed-months" type="number" min={0} step="0.01" value={selection.agreedMonths ?? ""} onChange={e => field("agreedMonths", e.target.value === "" ? null : Number(e.target.value))} /></div><div><Label htmlFor="addition-month-review">Agreement / reason</Label><Input id="addition-month-review" value={selection.monthReview} onChange={e => field("monthReview", e.target.value)} /></div></div> : null}
       <p id="addition-source" tabIndex={-1} className="text-xs text-muted-foreground">Source price table: {baseline.priceTable || "not recorded"}. A historical price table is not silently replaced by the current catalogue.</p>
-      {needsAdditionCalculationChoice(baseline, selection) ? <details className="rounded-lg border p-3" open={!selection.pricingBasis}><summary className="text-sm font-medium cursor-pointer">Price calculation · HQ / catalogue review</summary><p className="text-xs text-muted-foreground my-2">Use the approved calculation for this contract. These alternatives can change the price.</p><Label htmlFor="addition-pricing">Approved calculation</Label><select id="addition-pricing" className="w-full border rounded-md h-10 px-2 bg-background" value={selection.pricingBasis} onChange={e => field("pricingBasis", e.target.value as AdditionSelection["pricingBasis"])}><option value="">Choose approved calculation</option><option value="direct">Direct annual catalogue price</option><option value="derived">KeepIT price × approved UseIT factor</option></select></details> : <p className="text-sm rounded-lg bg-muted p-3">The selected items use their catalogue prices directly; no calculation method needs to be chosen.</p>}
+      {needsAdditionCalculationChoice(baseline, selection) ? <details className="rounded-lg border p-3" open={!selection.pricingBasis}><summary className="text-sm font-medium cursor-pointer">Price calculation · HQ / catalogue review</summary><p className="text-xs text-muted-foreground my-2">Use the approved calculation for this contract. These alternatives can change the price.</p><Label htmlFor="addition-pricing">Approved calculation</Label><select id="addition-pricing" className="w-full border rounded-md h-10 px-2 bg-background" value={selection.pricingBasis} onChange={e => chooseCalculation(e.target.value as AdditionSelection["pricingBasis"])}><option value="">Choose approved calculation</option><option value="direct">Direct annual catalogue price</option><option value="derived">KeepIT price × approved UseIT factor</option></select></details> : <p className="text-sm rounded-lg bg-muted p-3">The selected items use their catalogue prices directly; no calculation method needs to be chosen.</p>}
       <div><Label htmlFor="addition-price-review">Applicable price table / approval reference</Label><Input id="addition-price-review" placeholder="Confirm the table or existing agreement that applies" value={selection.priceReview} onChange={e => field("priceReview", e.target.value)} /><p className="text-xs text-muted-foreground mt-1">If the contract uses historical or special prices, ask HQ before confirming.</p></div>
       <div className="grid sm:grid-cols-2 gap-4"><div><Label htmlFor="addition-offer">Who are these prices for?</Label><select id="addition-offer" className="w-full border rounded-md h-10 px-2 bg-background" value={selection.offerBasis} onChange={e => field("offerBasis", e.target.value as AdditionSelection["offerBasis"])}><option value="">Choose recipient of prices</option><option value="customer">Customer catalogue prices</option>{isHQ ? <option value="partner">Navaltik invoice to partner — enter verified shares</option> : null}</select></div></div>
       {selection.offerBasis === "partner" && isHQ ? <div className="grid sm:grid-cols-2 gap-4">{(["licenseShare", "hostingShare"] as const).filter(key => key !== "hostingShare" || needsAdditionHostingShare(baseline, selection)).map(key => <div key={key}><Label htmlFor={`addition-${key}`}>{key === "licenseShare" ? "Verified Navaltik share — license / S&AT / WEB / API (%)" : "Verified Navaltik share — hosting (%)"}</Label><Input id={`addition-${key}`} type="number" min={0} max={100} value={selection[key] ?? ""} onChange={e => field(key, e.target.value === "" ? null : Number(e.target.value))} /></div>)}</div> : null}
       <p className="text-xs text-muted-foreground">Recorded annual baseline: {baseline.recordedAnnual == null ? "not available" : additionMoney(baseline.recordedAnnual)}. Imported/unreconciled totals require review.</p>
       <label className="flex gap-2 text-sm rounded-lg border p-3"><input id="addition-baseline" type="checkbox" checked={selection.baselineAnnualConfirmed} onChange={e => field("baselineAnnualConfirmed", e.target.checked)} />I confirm the recorded annual renewal is correct and uses the same customer/partner price basis. Required before issue; ask HQ if uncertain.</label>
 
-            <div id="addition-discounts" tabIndex={-1}>{selection.commercial?<AdditionCommercialTerms section="prices" priceBasisReady={priceBasisReady} periodReady={quote.months != null && quote.months > 0} value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<Button type="button" variant="outline" onClick={()=>field("commercial",initialAdditionCommercial(saved?.proposal_date||localToday()))}>Enable detailed prices & payment terms</Button>}</div>
+            <div id="addition-discounts" tabIndex={-1}>{selection.commercial?<AdditionCommercialTerms section="prices" issues={fieldIssues} priceBasisReady={priceBasisReady} periodReady={quote.months != null && quote.months > 0} value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<Button type="button" variant="outline" onClick={()=>field("commercial",initialAdditionCommercial(saved?.proposal_date||localToday()))}>Enable detailed prices & payment terms</Button>}</div>
           </div>
           <div hidden={step!==2} className="space-y-5">
-            <h3 className="font-semibold text-lg">Review before preparing the document</h3>
-            <div id="addition-payment" tabIndex={-1}>{selection.commercial?<AdditionCommercialTerms section="payment" value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<div><Label htmlFor="addition-terms">Agreed payment terms — required</Label><Textarea id="addition-terms" value={terms} onChange={e=>setTerms(e.target.value)}/></div>}</div>
+            <h3 className="font-semibold text-lg">Review, save & download</h3><p className="text-sm text-muted-foreground">Save & download creates a numbered Draft in this client’s follow-up. It does not mark it Ready, send it or change the license. Unsaved previews are available under More options.</p>
+            <div id="addition-payment" tabIndex={-1}>{selection.commercial?<AdditionCommercialTerms section="payment" issues={fieldIssues} value={selection.commercial} lines={quote.lines} isHQ={isHQ} maxDiscount={maxDiscount} onChange={value=>field("commercial",value)}/>:<div><Label htmlFor="addition-terms">Agreed payment terms — required</Label><Textarea id="addition-terms" value={terms} onChange={e=>setTerms(e.target.value)}/></div>}</div>
             <p className="text-sm whitespace-pre-wrap rounded-lg bg-muted p-3">{effectiveTerms}</p>
             <div><Label htmlFor="addition-notes">Notes / special conditions</Label><Textarea id="addition-notes" value={notes} onChange={e=>setNotes(e.target.value)}/></div>
             {blockers.length ? <p role="status" className="rounded-lg border border-amber-300 bg-amber-50 text-amber-950 p-3 text-sm">You can save this preparation at any time. Use the tasks in the investment summary to finish it; document export remains unavailable until all required checks are complete.</p> : <p role="status" className="rounded-lg bg-emerald-50 text-emerald-900 p-3 text-sm">Required preparation checks are complete. Save as Draft, then use Mark Ready for final validation in follow-up. Nothing has been issued or awarded.</p>}
 
           </div>
         </fieldset> : null}
-        <section aria-label="Incremental investment summary" className="rounded-xl border bg-muted/20 p-5 space-y-4 lg:sticky lg:top-0">
+        <section id="addition-summary" tabIndex={-1} aria-label="Incremental investment summary" className={`${showEditor&&!showSummary?"hidden lg:block":""} rounded-xl border bg-muted/20 p-5 space-y-4 lg:sticky lg:top-0`}>
           <h3 className="font-semibold">{overview?"Saved investment":"Investment preview"}</h3>
-          {(!overview || (canManage && saved?.status === "Draft" && blockers.length > 0)) ? <div role="status" className="space-y-3"><p className={`text-sm font-medium ${reviews.length ? "text-amber-800" : "text-emerald-800"}`}>{!hasItems ? "Start by choosing your items" : reviews.length ? "Preparation in progress · not ready to issue" : "Prepared for final validation"}</p>{reviews.length ? <><p className="text-xs text-muted-foreground">Your next step</p><button type="button" className="w-full rounded-md border bg-background p-3 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" onClick={() => jump(reviews[0])}><span className="block text-sm font-medium">{reviews[0].title} →</span><span className="block text-xs text-muted-foreground mt-1">{reviews[0].owner}</span></button>{reviews.length > 1 ? <details><summary className="text-sm cursor-pointer">Other tasks to finish ({reviews.length - 1})</summary><ul aria-label="Tasks to finish this proposal" className="space-y-2 mt-2">{reviews.slice(1).map(review => <li key={review.id}><button type="button" className="w-full rounded-md border bg-background p-2 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" onClick={() => jump(review)}><span className="block text-sm font-medium">{review.title} →</span><span className="block text-xs text-muted-foreground">{review.owner}</span></button></li>)}</ul></details> : null}<p className="text-xs text-muted-foreground">Save your preparation now and return later if a contract or HQ check is needed.</p></> : null}</div> : null}
+          {(!overview || (canManage && saved?.status === "Draft" && blockers.length > 0)) ? <div role="status" className="space-y-3"><p className={`text-sm font-medium ${reviews.length ? "text-amber-800" : "text-emerald-800"}`}>{!hasItems ? "Start by choosing your items" : reviews.length ? "Preparation in progress · not ready to issue" : "Prepared for final validation"}</p>{reviews.length ? <><p className="text-xs text-muted-foreground">Your next step</p><button type="button" className="w-full rounded-md border bg-background p-3 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" onClick={() => jump(reviews[0])}><span className="block text-sm font-medium">{reviews[0].title} →</span><span className="block text-xs text-muted-foreground mt-1">{reviews[0].owner}</span></button>{reviews.length > 1 ? <details><summary className="text-sm cursor-pointer">Other tasks to finish ({reviews.length - 1})</summary><ul aria-label="Tasks to finish this proposal" className="space-y-2 mt-2">{reviews.slice(1).map(review => <li key={review.id}><button type="button" className="w-full rounded-md border bg-background p-2 text-left hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" onClick={() => jump(review)}><span className="block text-sm font-medium">{review.title} →</span><span className="block text-xs text-muted-foreground">{review.owner}</span></button></li>)}</ul></details> : null}<ul className="text-xs text-muted-foreground space-y-1">{reviews[0].details.filter(d=>d!==reviews[0].title).map(d=><li key={d}>{d}</li>)}</ul><p className="text-xs text-muted-foreground">Save your preparation now and return later if a contract or HQ check is needed.</p></> : null}</div> : null}
 
-          <p className="text-sm">{quote.months??"—"} billable months · only the additions are charged</p>
+          {hasItems ? <><p className="text-sm">{quote.months??"—"} billable months · only the additions are charged</p>
           <p className="text-sm">BackOffice: {baseline.backoffice} → {quote.afterBackoffice} · WEB: {baseline.web} → {quote.afterWeb}</p>
           <div className="border-y py-3 space-y-2 text-sm"><p className="flex justify-between gap-3"><span>Before initial discounts</span><span>{estimateAvailable?additionMoney(gross):"Period / price basis required"}</span></p><p className="flex justify-between"><span>Initial discounts</span><span>{estimateAvailable?`−${additionMoney(Math.max(0,gross-quote.dueNow))}`:"—"}</span></p></div>
-          <div><p className="text-xs text-muted-foreground">THIS PURCHASE · EXCLUDING TAX</p><strong className="block text-2xl tabular-nums">{estimateAvailable?additionMoney(quote.dueNow):"To be confirmed"}</strong></div>
+          <div><p className="text-xs text-muted-foreground">THIS PURCHASE · EXCLUDING TAX</p><strong className="block text-2xl tabular-nums">{estimateAvailable?additionMoney(quote.dueNow):amountsInvalid?"Correct highlighted values":"To be confirmed"}</strong></div>
           <p className="text-sm">Annual renewal increase: <strong>{estimateAvailable?additionMoney(quote.annualIncrease):"To be confirmed"}</strong></p>
-          <p className="text-sm">New annual renewal: <strong>{estimateAvailable&&quote.renewalAnnual!=null?additionMoney(quote.renewalAnnual):"Not confirmed — baseline requires review"}</strong></p>
-          <p className="text-xs text-muted-foreground">{selection.offerBasis==="partner"?(estimateAvailable?"Navaltik invoice to partner · entered shares applied":"Partner prices awaiting verified shares"):selection.offerBasis==="customer"?"Customer catalogue prices":"Price recipient not yet selected"}. Contract renewal date is unchanged. ARR changes only upon adjudication; license activation is separate.</p>
-          <details><summary className="cursor-pointer text-sm font-medium">Component breakdown ({quote.lines.length})</summary><ul className="mt-3 space-y-3 text-sm">{quote.lines.map(l=><li key={l.code}><p>{l.quantity} × {l.label}</p><p className="text-muted-foreground">{estimateAvailable ? `${additionMoney(l.dueNow)} now` : "Purchase amount awaiting period / price basis"} · {priceBasisReady ? `+${additionMoney(l.annual)}/year` : "Annual amount awaiting price basis"}</p></li>)}</ul><p className="text-xs text-muted-foreground mt-3">{quote.supportNote}</p></details>
+          <p className="text-sm">New annual renewal: <strong>{estimateAvailable&&quote.renewalAnnual!=null?additionMoney(quote.renewalAnnual):(additionPreparationBlockers(baseline, selection).length ? "Not confirmed — baseline requires review" : amountsInvalid ? "Correct the highlighted values" : "Awaiting period / price basis")}</strong></p>
+          <p className="text-xs text-muted-foreground">{selection.offerBasis==="partner"?(priceBasisReady?"Navaltik invoice to partner · entered shares applied":"Partner prices awaiting verified shares"):selection.offerBasis==="customer"?"Customer catalogue prices":"Price recipient not yet selected"}. Contract renewal date is unchanged. ARR changes only upon adjudication; license activation is separate.</p>
+          <details><summary className="cursor-pointer text-sm font-medium">Component breakdown ({quote.lines.length})</summary><ul className="mt-3 space-y-3 text-sm">{quote.lines.map(l=><li key={l.code}><p>{l.quantity} × {l.label}</p><p className="text-muted-foreground">{estimateAvailable ? `${additionMoney(l.dueNow)} now` : "Purchase amount awaiting period / price basis"} · {priceBasisReady ? `+${additionMoney(l.annual)}/year` : "Annual amount awaiting price basis"}</p></li>)}</ul><p className="text-xs text-muted-foreground mt-3">{quote.supportNote}</p></details></> : <p className="text-sm text-muted-foreground">Choose an access or component to see its price and renewal impact.</p>}
         </section>
       </div>
       {overview?<details className="mt-5 border rounded-lg p-4"><summary className="cursor-pointer font-medium text-sm">Saved scope & commercial conditions</summary><div className="mt-3 space-y-3 text-sm"><p>{selection.priceReview}</p><p className="whitespace-pre-wrap">{effectiveTerms}</p><p className="whitespace-pre-wrap">{notes}</p></div></details>:null}
     </div>
-    <footer className="border-t bg-background px-6 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-      <div className="flex gap-2"><Button variant="ghost" onClick={()=>requestClose(false)}>Close</Button>{showEditor&&step>0?<Button variant="outline" onClick={()=>{setReviewTarget(null);setStep(step-1);}}>Back</Button>:null}</div>
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" disabled={busy||!!blockers.length} onClick={downloadPdf}>Download PDF</Button><Button variant="outline" disabled={busy||!!blockers.length} onClick={downloadWord}>Download Word</Button>
-        {showEditor?<><Button variant="outline" disabled={!canSave} onClick={save}>{busy?"Saving…":(blockers.length ? "Save preparation" : "Save Draft")}</Button>{step<2?<Button disabled={busy} onClick={()=>{setReviewTarget(null);setStep(step+1);}}>Continue</Button>:null}</>:null}
+    <footer className="border-t bg-background px-4 sm:px-6 py-3 flex items-center justify-between gap-2 shrink-0">
+      <div>{showEditor&&step>0?<Button variant="ghost" onClick={()=>{setReviewTarget(null);setStep(step-1);}}>Back</Button>:<Button variant="ghost" onClick={()=>requestClose(false)}>Close</Button>}</div>
+      <div className="flex items-center gap-2 min-w-0">
+        {showEditor?<><Button className="hidden sm:inline-flex" variant="outline" disabled={busy||!!blockers.length} onClick={()=>exportDocument("pdf")}>Preview PDF</Button>{step<2||!blockers.length?<Button className="hidden sm:inline-flex" variant="outline" disabled={!canSave} onClick={()=>save()}>{busy?"Saving…":blockers.length?"Save preparation":"Save Draft"}</Button>:null}</>:null}
+        <DropdownMenu><DropdownMenuTrigger asChild><Button type="button" variant="outline" disabled={busy} aria-label="More options">More<span className="hidden sm:inline"> options</span> ▾</Button></DropdownMenuTrigger><DropdownMenuContent align="end">
+          {showEditor?<DropdownMenuItem disabled={!canSave} onSelect={()=>{void save();}}>Save without download</DropdownMenuItem>:null}
+          <DropdownMenuItem disabled={busy||!!blockers.length} onSelect={()=>{void exportDocument("pdf");}}>{showEditor?"Preview PDF — not saved":"Download PDF"}</DropdownMenuItem>
+          <DropdownMenuItem disabled={busy||!!blockers.length} onSelect={()=>{void exportDocument("word");}}>{showEditor?"Preview Word — not saved":"Download Word"}</DropdownMenuItem>
+          {showEditor?<DropdownMenuItem disabled={!canSave||!!blockers.length} onSelect={()=>{void exportDocument("word",true);}}>Save & download Word</DropdownMenuItem>:null}
+          <DropdownMenuItem onSelect={()=>requestClose(false)}>Close</DropdownMenuItem>
+        </DropdownMenuContent></DropdownMenu>
+        {showEditor ? step<2?<Button disabled={busy} onClick={()=>{setReviewTarget(null);setStep(step+1);}}>Continue</Button>:blockers.length?<Button disabled={!canSave} onClick={()=>save()}>{busy?"Saving…":"Save preparation"}</Button>:<Button disabled={!canSave} onClick={()=>exportDocument("pdf",true)}>{busy?"Preparing…":"Save & download PDF"}</Button>:<Button disabled={busy||!!blockers.length} onClick={()=>exportDocument("pdf")}>Download PDF</Button>}
       </div>
     </footer>
-  </DialogContent></Dialog><ProposalLeaveGuard open={leave} dirty={dirty&&!readonly} busy={busy} onKeep={()=>setLeave(false)} onDiscard={()=>{setLeave(false);onOpenChange(false);}} onSave={canSave?async()=>{if(await save()){setLeave(false);onOpenChange(false);}}:undefined}/></>;
+
+  </DialogContent></Dialog><AlertDialog open={pendingCalculation!==null} onOpenChange={open=>{if(!open)setPendingCalculation(null);}}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Review the negotiated tariff before changing calculation</AlertDialogTitle><AlertDialogDescription>Discount percentages and their justification will be preserved. Choose whether to keep the negotiated annual unit tariff or return to the catalogue tariff for the changed components.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep current calculation</AlertDialogCancel><Button variant="outline" onClick={()=>{if(pendingCalculation!==null)applyCalculation(pendingCalculation,"catalogue");}}>Use catalogue tariffs</Button><AlertDialogAction onClick={()=>{if(pendingCalculation!==null)applyCalculation(pendingCalculation,"keep");}}>Keep negotiated tariffs</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog><ProposalLeaveGuard open={leave} dirty={dirty&&!readonly} busy={busy} onKeep={()=>setLeave(false)} onDiscard={()=>{setLeave(false);onOpenChange(false);}} onSave={canSave?async()=>{if(await save()){setLeave(false);onOpenChange(false);}}:undefined}/></>;
 }

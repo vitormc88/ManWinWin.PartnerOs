@@ -8,6 +8,12 @@ const line={code:"WEB",label:"WEB",quantity:1,ruleCodes:[],kind:"web" as const,a
 function Harness(){const [value,setValue]=useState(initialAdditionCommercial("2026-10-30"));return <><AdditionCommercialTerms value={value} lines={[line]} isHQ maxDiscount={100} onChange={setValue}/><output aria-label="adjustments">{JSON.stringify(value.adjustments)}</output></>;}
 afterEach(cleanup);
 describe("Explicit discount scope",()=>{
+ it("edits an upfront preset to split billing without retaining an obsolete upfront claim",()=>{
+   render(<Harness/>);fireEvent.click(screen.getByRole("button",{name:"100% upfront · activate after payment"}));
+   fireEvent.change(screen.getByLabelText("Invoice schedule"),{target:{value:"split"}});
+   expect(screen.getByLabelText("Payment / activation agreement reference")).toHaveValue("Proposed conditions in this proposal");
+   expect(screen.getByLabelText("Invoiced on award (%)")).toHaveValue(50);
+ });
  it("does not turn an unresolved period or price basis into a zero price",()=>{
    render(<AdditionCommercialTerms value={initialAdditionCommercial("2026-10-30")} lines={[{...line,dueNow:0,annual:0,referenceUnitPrice:0}]} isHQ maxDiscount={100} onChange={()=>{}} priceBasisReady={false} periodReady={false}/>);
    expect(screen.getByText("Awaiting period / price basis")).toBeInTheDocument();
