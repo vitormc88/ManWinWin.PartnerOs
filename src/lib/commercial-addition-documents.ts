@@ -4,6 +4,10 @@ import logoUrl from "@/assets/manwinwin-logo.png";
 import { additionValidUntil } from "./commercial-addition-terms";
 
 export const additionMoney = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n);
+export function additionVersionLabel(proposal: Partial<Proposal>, pt: boolean) {
+  if (!proposal.id || !proposal.version) return pt ? "Pré-visualização não guardada" : "Unsaved preview";
+  return proposal.status === "Draft" ? (pt ? `Rascunho v${proposal.version} — por validar` : `Draft v${proposal.version} — not validated`) : `v${proposal.version}`;
+}
 export function additionDocumentContent(proposal: Partial<Proposal>, draft: AdditionDraft) {
   if (draft.quote.blockers.length) throw new Error("Resolve all commercial addition blockers before exporting.");
   const commercial = draft.selection.commercial, pt = commercial?.language === "PT";
@@ -12,11 +16,13 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
   const date = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split("-").reverse().join(pt ? "/" : "-") : s;
   return {
     pt,
+    versionLabel: additionVersionLabel(proposal, pt),
     headings: { investment: pt ? "Resumo do investimento" : "Incremental investment", terms: pt ? "Condições de faturação, pagamento e ativação" : "Payment terms", notes: pt ? "Notas / condições especiais" : "Notes / special conditions" },
     headers: pt ? ["Componente", "Qtd.", "Aquisição única", "Incremento anual", "Valor inicial"] : ["Component", "Qty", "One-time", "Annual increase", "Payable now"],
     title: `${pt ? "Ampliação da configuração ManWinWin" : "Additional license components"} — ${proposal.client_name || draft.baseline.clientName}`,
     details: [
-      `${draft.baseline.family} ${draft.baseline.model === "keepit" ? "KeepIT" : draft.baseline.model === "useit" ? "UseIT" : `${pt ? "Plano" : "Plan"} ${draft.baseline.plan}`} · ${draft.baseline.deployment === "saas" ? "SaaS" : "On-premise"} · v${proposal.version ?? "draft"}`,
+      ...(!proposal.id || !proposal.version ? [pt ? "PRÉ-VISUALIZAÇÃO — não guardada nem validada. Não utilizar como proposta emitida." : "PREVIEW — not saved or validated. Do not use as an issued proposal."] : []),
+      `${draft.baseline.family} ${draft.baseline.model === "keepit" ? "KeepIT" : draft.baseline.model === "useit" ? "UseIT" : `${pt ? "Plano" : "Plan"} ${draft.baseline.plan}`} · ${draft.baseline.deployment === "saas" ? "SaaS" : "On-premise"} · ${additionVersionLabel(proposal, pt)}`,
       ...(pt ? [
         `Valores ${draft.selection.offerBasis === "partner" ? "Navaltik ao parceiro, com repartição confirmada" : "ao cliente final"}. Acresce IVA à taxa legal em vigor.`,
         `Início: ${date(draft.selection.effectiveDate)} · renovação do contrato: ${date(draft.selection.renewalDate)}`,
@@ -38,7 +44,7 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
     summary: [
       ...(pt ? [
         `Valor inicial desta ampliação: ${money(draft.quote.dueNow)}`,
-        `Incremento anual contratado / impacto na renovação: + ${money(draft.quote.annualIncrease)}`,
+        `Incremento anual ${proposal.status === "Accepted" ? "adjudicado" : "proposto"} / impacto na renovação: + ${money(draft.quote.annualIncrease)}`,
         draft.quote.renewalAnnual == null ? "Novo total anual do contrato: por confirmar, sujeito à reconciliação do contrato atual." : `Novo total anual do contrato: ${money(draft.quote.renewalAnnual)}`,
         draft.baseline.model === "keepit" ? "Apenas o S&AT incremental é proporcional ao período restante. Não se volta a cobrar o S&AT existente." : "S&AT incluído no licenciamento UseIT/Professional; sem adicionar uma segunda percentagem de S&AT.",
         draft.selection.implementationReview === "separate" ? "Serviços de implementação/formação excluídos; sujeitos a proposta separada." : "Sem serviços de implementação/formação nesta proposta.",
