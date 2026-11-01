@@ -241,6 +241,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   if(selection.editorVersion===3) return <>
     {showEditor?<CustomerProposalEditor open={open} close={()=>requestClose(false)} baseline={baseline} selection={selection} change={next=>setSelection(previous=>{
       const scoped=normalizeAdditionScope(baseline,next,rules);
+      if(previous.offerBasis!==next.offerBasis||previous.licenseShare!==next.licenseShare||previous.hostingShare!==next.hostingShare)scoped.baselineAnnualConfirmed=false;
       return previous.products!==next.products||previous.backoffice!==next.backoffice||previous.web!==next.web?reconcileCustomerBasket(baseline,previous,scoped,rules):scoped;
     })} quote={quote} draft={draft} rules={rules} blockers={blockers} isHQ={isHQ} maxDiscount={maxDiscount} maxServicesDiscount={maxServicesDiscount} busy={busy} canSave={canSave} step={step} setStep={setStep} notes={notes} setNotes={setNotes} terms={effectiveTerms} save={()=>{void save();}} download={()=>{void exportDocument("pdf",true);}}/>
     :<Dialog open={open} onOpenChange={requestClose}><DialogContent className="max-w-4xl max-h-[92dvh] overflow-y-auto"><DialogHeader><DialogTitle>{saved?proposalIdentity(saved):"Proposal"} — {baseline.clientName}</DialogTitle></DialogHeader>{saved?<>
