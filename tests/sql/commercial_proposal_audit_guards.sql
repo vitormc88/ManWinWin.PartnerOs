@@ -2,6 +2,15 @@
 reset role;
 select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
 insert into pricing_rules values('BUS_RCI_LIVE_SESSION',true,'EUR','one-time',405,null) on conflict do nothing;
+do $$ declare c jsonb;begin
+ c:='{"version":2,"language":"PT","payment":{"invoice":"award","awardPercent":100,"awardDueDays":0,"installationDueDays":30,"activation":"full_payment","reference":"Proposed conditions in this proposal"}}';
+ assert private.addition_payment_text(c)=E'Fatura de 100% na adjudicação, pronto pagamento.\nAtivação após confirmação do pagamento integral.\nCondições propostas neste documento, sujeitas a aceitação.';
+ assert private.addition_service_payment_text(c)=E'Fatura de 100% na adjudicação, pronto pagamento.\nInício dos serviços após confirmação do pagamento integral.\nCondições propostas neste documento, sujeitas a aceitação.';
+ c:=jsonb_set(c,'{language}','"EN"');
+ assert private.addition_service_payment_text(c)=E'100% invoiced on award, due immediately.\nService commencement after confirmation of full payment.\nConditions proposed in this document, subject to acceptance.';
+ c:=jsonb_set(c,'{payment,reference}','"PO-TEST"');assert private.addition_payment_text(c) like '%Commercial reference: PO-TEST';
+end $$;
+\echo 'PASS: server and editor payment text parity in Portuguese and English, with real line breaks'
 create function pg_temp.services_only_payload() returns jsonb language plpgsql as $$
 declare data jsonb:=pg_temp.combined_payload();d jsonb;s jsonb;begin
  d:=data#>'{business_config,commercial_addition}';s:=d->'selection';
