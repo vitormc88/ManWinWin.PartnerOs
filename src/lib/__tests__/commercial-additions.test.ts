@@ -116,7 +116,7 @@ describe("Explicit proration and source normalization", () => {
       const text = new DOMParser().parseFromString(xml, "application/xml").documentElement.textContent || "";
       expect(text).toContain("€708.00"); expect(text).toContain("€472.00");
       expect(text).toContain("Payment on activation"); expect(text).toContain("Special addition condition");
-      expect(text).toContain("not confirmed"); expect(text).not.toContain("RCI Business");
+      expect(text).toContain("Not confirmed"); expect(text).not.toContain("RCI Business");
     } finally { spy.mockRestore(); vi.unstubAllGlobals(); }
   });
   it.each([

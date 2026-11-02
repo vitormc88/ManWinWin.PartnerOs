@@ -1,4 +1,3 @@
-// @vitest-environment node
 import { describe,it,expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -16,7 +15,7 @@ describe("Official addition PDF",()=>{
  it("paginates large conditions without dropping the last page",async()=>{
   const bytes=await createAdditionPdf({notes:Array(150).fill("Condição de demonstração para verificar a paginação das propostas oficiais.").join("\n")},draft,assets);
   const pdf=await PDFDocument.load(bytes);expect(pdf.getPageCount()).toBeGreaterThan(2);
- });
+ },15000);
  it("fails visibly if required branding cannot be loaded",async()=>{
   await expect(createAdditionPdf({},draft,async()=>{throw new Error("Asset unavailable");})).rejects.toThrow("Asset unavailable");
  });

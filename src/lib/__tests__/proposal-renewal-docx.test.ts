@@ -91,7 +91,7 @@ describe("renewal proposal document — Business identity preserved", () => {
     }
     const flat = xml.replace(/\u00a0/g, " ");
     // Current recurring, proposed recurring and Year 2+ all show the real €39,600.
-    expect(flat.match(/39,600 €/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(flat.match(/39,600\.00 €/g)?.length).toBeGreaterThanOrEqual(3);
     expect(xml).toContain("Proposed Year 1 total");
     expect(xml).toContain("Proposed Year 2+ recurring");
     expect(xml).toContain("One-time charges");

@@ -5,6 +5,7 @@ import { generateProposalDocx } from "@/lib/proposal-docx";
 import JSZip from "jszip";
 import { proposalDocumentTitle, proposalFileName, proposalTermLines } from "@/lib/proposal-document-control";
 import type { Proposal, ProposalItem } from "@/types/proposal";
+import { formatEuro } from "@/lib/proposal-i18n";
 
 const proposal = {
   id: "p1",
@@ -55,6 +56,14 @@ const items: ProposalItem[] = [
 ];
 
 describe("proposal document control", () => {
+  it("retains cents and places the licensed scope before prices",()=>{
+    expect(formatEuro(24437.25,"EN")).toBe("24,437.25 €");
+    expect(formatEuro(3523.65,"PT")).toContain("3523,65");
+    const html=buildProposalPrintHtml(proposal,[...items,{...items[1],description:"15 standard hours",unit_price:1890,total:1890}]);
+    const main=new DOMParser().parseFromString(html,"text/html").querySelector("main")!;
+    expect(main.innerHTML.indexOf('class="includes"')).toBeLessThan(main.innerHTML.indexOf('class="year-bar"'));
+    expect(main.textContent).toContain("15 hours of implementation");
+  });
   it("keeps filename, title, client and version aligned", () => {
     expect(proposalFileName(proposal)).toBe("Proposal_McGills_Chemical_Corporation_v2.docx");
     expect(proposalDocumentTitle(proposal)).toBe("Investment Proposal — McGills Chemical Corporation — v2");

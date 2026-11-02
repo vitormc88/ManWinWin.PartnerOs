@@ -106,6 +106,16 @@ const proposal = {
 } as Proposal;
 
 describe("Business proposal document transparency", () => {
+  it.each(["compare_keepit_useit","keepit_only","useit_only"] as const)("presents configuration and services before investment for %s",mode=>{
+    const html=buildBusinessProposalPrintHtml({proposal:{...proposal,proposal_mode:mode},cfg:config,rules});
+    const main=new DOMParser().parseFromString(html,"text/html").querySelector("main")!;
+    const headings=[...main.querySelectorAll("h2")].map(h=>h.textContent);
+    expect(headings.indexOf("Software — ManWinWin Business configuration")).toBeLessThan(headings.indexOf("Services"));
+    expect(headings.indexOf("Services")).toBeLessThan(headings.indexOf("Investment Summary"));
+    const summary=main.querySelector(".summary-section")!.textContent!;
+    expect(summary.includes('Option A')).toBe(mode!=="useit_only");
+    expect(summary.includes('Option B')).toBe(mode!=="keepit_only");
+  });
   it("includes saved commercial text in the actual Word document XML", async () => {
     let zip: Buffer | undefined;
     const spy = vi.spyOn(Packer, "toBlob").mockImplementation(async document => {
@@ -170,8 +180,8 @@ describe("Business proposal document transparency", () => {
 
   it("lists Per Diem explicitly in the real Business print document", () => {
     const html = buildBusinessProposalPrintHtml({ proposal, cfg: config, rules });
-    expect(html).toContain("Per Diem: <strong>330 €</strong>");
-    expect(html).toContain("Total onsite services: 9,790 €");
+    expect(html).toContain("Per Diem: <strong>330.00 €</strong>");
+    expect(html).toContain("Total onsite services: 9,790.00 €");
     expect(html).toContain("TOTAL OF THE YEAR (Year 1)");
     expect(html).toContain('class="keep-together services-section"');
     expect(html).toContain('class="brand-header"');
@@ -199,7 +209,7 @@ describe("Business proposal document transparency", () => {
     ];
     const html = buildBusinessProposalPrintHtml({ proposal, cfg: saasConfig, rules: saasRules });
     expect(html).toContain("SaaS Hosting Services");
-    expect(html).toContain("2,400 €");
+    expect(html).toContain("2,400.00 €");
   });
 });
 
