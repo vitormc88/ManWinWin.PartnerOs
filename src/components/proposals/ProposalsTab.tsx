@@ -78,10 +78,13 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
   };
 
   const printPdf = async (id: string) => {
-    const res = await loadProposalAndItems(id);
-    if (!res) return;
-    printProposal(res.prop as any, res.items as any);
-    await promoteToReadyIfDraft(res.prop);
+    const target=window.open("", "_blank", "width=900,height=1200");
+    if(!target){toast.error("Allow pop-ups for PartnerOS, then generate the PDF again.");return;}
+    try {
+      const res = await loadProposalAndItems(id);
+      if (!res) {target.close();return;}
+      await printProposal(res.prop as Proposal, res.items as ProposalItem[],target);
+    } catch(e:unknown){target.close();toast.error("PDF generation failed: "+(e instanceof Error?e.message:"Please try again."));}
   };
 
   const duplicate = async (id: string) => {
@@ -157,18 +160,22 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
   };
 
   const printBusinessPdfFor = async (id: string) => {
-    const res = await loadProposalAndItems(id);
-    if (!res) return;
-    const cfgRaw = (res.prop as any).business_config;
-    if (!cfgRaw) {
-      toast.error("This proposal has no Business configuration");
-      return;
-    }
-    const cfg = buildBusinessCfg(cfgRaw);
+    const target=window.open("", "_blank", "width=900,height=1200");
+    if(!target){toast.error("Allow pop-ups for PartnerOS, then generate the PDF again.");return;}
     try {
-      printBusinessProposal({ proposal: res.prop as Proposal, cfg, rules });
+      const res = await loadProposalAndItems(id);
+      if (!res) {target.close();return;}
+      const cfgRaw = (res.prop as any).business_config;
+      if (!cfgRaw) {
+        toast.error("This proposal has no Business configuration");
+        target.close();
+        return;
+      }
+      const cfg = buildBusinessCfg(cfgRaw);
+      await printBusinessProposal({ proposal: res.prop as Proposal, cfg, rules },target);
 
     } catch (e: any) {
+      target.close();
       toast.error("PDF generation failed: " + (e?.message || ""));
     }
   };

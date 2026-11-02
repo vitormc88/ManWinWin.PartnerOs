@@ -92,6 +92,8 @@ jobs:
       - name: Commercial additions and proposal document regressions
         run: npm test -- src/components/proposals/LinkedServicesReview.test.tsx src/lib/__tests__/commercial-proposal-journey.test.ts src/components/proposals/PreparationDraftList.test.tsx src/lib/__tests__/proposal-preparation-reliability.test.ts src/lib/__tests__/addition-preparation-ux.test.ts src/lib/__tests__/commercial-additions.test.ts src/components/proposals/CommercialAdditionDialog.test.tsx src/lib/__tests__/proposal-business-snapshot.test.tsx src/lib/__tests__/proposal-source-client.test.ts src/lib/proposal-workflow.terms.test.ts src/lib/__tests__/licensing.test.ts src/lib/__tests__/proposal-reopen.test.ts
       - run: npm run build
+      - name: Shared proposal PDF and editable Word design
+        run: npm test -- src/lib/__tests__/proposal-document-design.test.ts src/lib/__tests__/proposal-document-formatting.test.ts src/lib/__tests__/proposal-business-document.test.ts src/lib/__tests__/proposal-branded-pdf.test.ts
       - name: Combined customer proposals
         run: npm test -- src/lib/__tests__/customer-proposal-editor.test.ts src/components/proposals/CustomerProposalEditor.test.tsx
       - name: Addition follow-up regression

@@ -4,18 +4,18 @@ import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRen
 import { getCommercialIncludes, getCommercialItemLabel } from "./proposal-commercial";
 import logoUrl from "@/assets/manwinwin-logo.png";
 import { proposalDocumentTitle, proposalTermLines, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
+import { brandOpportunityHtml } from "./proposal-document-design";
+import { openProposalPdf } from "./proposal-pdf-window";
 
 /**
  * Open a print-friendly window with the proposal rendered as HTML.
  * Users use the browser's "Save as PDF" to export.
  */
-export function printProposal(proposal: Proposal, items: ProposalItem[]) {
+export async function printProposal(proposal: Proposal, items: ProposalItem[], printWindow?:Window) {
   const html = buildProposalPrintHtml(proposal, items);
-  const win = window.open("", "_blank", "width=900,height=1200");
-  if (!win) return;
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  const win = printWindow || window.open("", "_blank", "width=900,height=1200");
+  if (!win) throw new Error("Allow pop-ups for PartnerOS, then generate the PDF again.");
+  await openProposalPdf(html,win);
 }
 
 export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]): string {
@@ -60,11 +60,8 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   const discountCellLabel = (rawItem: ProposalItem) => {
     const eff = getItemEffectiveDiscount(rawItem, softwarePct, servicesPct);
     if (!eff.amount) return "—";
-    const isSoftware = rawItem.category === "software" || rawItem.category === "addon";
     const prefix =
-      eff.source === "section"
-        ? `${isSoftware ? esc(s.softwareDiscountLabel(eff.value)) : esc(s.servicesDiscountLabel(eff.value))} `
-        : eff.type === "percent"
+      eff.source === "section" || eff.type === "percent"
         ? `${Number(eff.value || 0)}% `
         : "";
     return `${prefix}<span class="discount-amount">-${formatEuro(Number(eff.amount) || 0, lang)}</span>`;
@@ -296,18 +293,22 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     <h2>${esc(s.billingHeader)}</h2>
     <p class="terms-label">${esc(hasExplicitTermsHeading ? termLines[0] : s.standardTerms)}</p>
     ${paymentTermLines.length ? `<ul>${paymentTermLines.map((line) => `<li>${esc(line)}</li>`).join("")}</ul>` : ""}
+    ${!termLines.length ? `<p class="footnote">${esc(s.footnote1)}</p><p class="footnote">${esc(s.footnote2)}</p>` : ""}
     ${proposal.notes ? `<h2>${esc(s.notes)}</h2><p>${esc(proposal.notes)}</p>` : ""}
     <h2>${esc(s.otherInfo)}</h2>
     <p>${esc(s.vatNote)}</p>
     <p>${esc(s.validityNote(proposal.validity_days))}</p>
   </div>
 
+  ${proposal.hosting === "SaaS" ? `<h2>${esc(s.saasFeatures)}</h2><ul>${s.saasFeaturesList.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+  <h2>${esc(s.satTitle)}</h2><ul>${s.satList.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+
   <div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
   <script>setTimeout(() => window.print(), 600);</script>
 </body>
 </html>`;
 
-  return html;
+  return brandOpportunityHtml(html, proposal, `ManWinWin Professional · ${proposal.plan} · ${proposal.hosting}`);
 }
 
 function esc(v: any): string {

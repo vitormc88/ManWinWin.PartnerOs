@@ -1,8 +1,8 @@
 import type { Proposal } from "@/types/proposal";
 import { isServicesOnly, readAdditionDraft, type AdditionDraft } from "./commercial-additions";
-import logoUrl from "@/assets/manwinwin-logo.png";
 import { additionValidUntil } from "./commercial-addition-terms";
-import { proposalIdentity, servicesSummary } from "./commercial-proposal-journey";
+import { groupAdditionLines, proposalIdentity, servicesSummary } from "./commercial-proposal-journey";
+import { documentChrome, documentDate, PROPOSAL_DESIGN_CSS } from "./proposal-document-design";
 
 export const additionMoney = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n);
 export function additionVersionLabel(proposal: Partial<Proposal>, pt: boolean) {
@@ -43,7 +43,9 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
       const reference = l.referenceUnitPrice == null ? "" : `\n${pt ? "Tarifa de referência" : "Reference tariff"}: ${money(l.referenceUnitPrice)}/${l.unitPeriod === "month" ? pt ? "mês" : "month" : l.unitPeriod === "once" ? pt ? "aquisição" : "purchase" : pt ? "ano" : "year"}${l.unitPrice !== l.referenceUnitPrice ? ` → ${money(l.unitPrice!)}` : ""}`;
       const discounts = commercial ? [(l.initialDiscountPct||0)>0?`${pt?"Desconto inicial":"Initial discount"}: ${l.initialDiscountPct}%`:"",(l.renewalDiscountPct||0)>0?`${pt?"Desconto renovação":"Renewal discount"}: ${l.renewalDiscountPct}%`:""].filter(Boolean).map(t=>`\n${t}`).join("") : "";
       const service=draft.selection.services?.find(s=>`SERVICE_${s.id}`===l.code);
-      return [componentLabel(l.label) + (service?` · ${service.modality} · ${service.unit}`:"") + reference + discounts, String(l.quantity), money(l.oneTime), money(l.annual), money(l.dueNow)];
+      const modality = service && pt ? ({online:"remota",onsite:"presencial",other:"outra modalidade"} as const)[service.modality] : service?.modality;
+      const unit = service && pt ? ({session:"sessão",hour:"hora",day:"dia",fixed:"preço fixo"} as const)[service.unit] : service?.unit;
+      return [componentLabel(l.label) + (service?` · ${modality} · ${unit}`:"") + reference + discounts, String(l.quantity), money(l.oneTime), money(l.annual), money(l.dueNow)];
     }),
     summary: [
       ...(pt ? [
@@ -77,18 +79,52 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
   return content;
 }
 const escape = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+/** One presentation model for both the direct PDF and editable Word. */
+export function additionDocumentLayout(proposal: Partial<Proposal>, draft: AdditionDraft) {
+  const c = additionDocumentContent(proposal,draft),pt=c.pt,commercial=draft.selection.commercial;
+  const customer=proposal.client_name || draft.baseline.clientName;
+  const money=(n:number)=>new Intl.NumberFormat(pt?"pt-PT":"en-GB",{style:"currency",currency:"EUR"}).format(n);
+  const rows=groupAdditionLines(draft.quote.lines).map(group=>{
+    const primary=group[0],index=draft.quote.lines.indexOf(primary),description=c.rows[index][0];
+    const support=group.slice(1).map(line=>{
+      const row=c.rows[draft.quote.lines.indexOf(line)];
+      const notes=row[0].split("\n").slice(1).filter(note=>!(/^(Tarifa de referência|Reference tariff):/.test(note)&&line.unitPrice===line.referenceUnitPrice));
+      return `${row[0].split("\n")[0].replace(/^.*?—\s*/,"")}: ${money(line.annual)}${notes.length?"\n"+notes.join("\n"):""}`;
+    });
+    const parts=description.split("\n");parts[0]=`${primary.quantity} × ${parts[0]}`;
+    return [`${parts.join("\n")}${support.length?"\n"+support.join("\n"):""}`,...(["oneTime","annual","dueNow"] as const).map(key=>money(group.reduce((sum,line)=>sum+line[key],0)))];
+  });
+  const details=c.details.filter(x=>!x.startsWith("Documento:")&&!x.startsWith("Document:")&&!x.startsWith("Início:")&&!x.startsWith("Effective date:")&&!x.startsWith("Período cobrado:")&&!x.startsWith("Billable months:")&&!x.startsWith("Proposta de ")&&!x.startsWith("Proposal date:"));
+  const familyIndex=details.findIndex(x=>x.startsWith(draft.baseline.family||"Business")),basisIndex=details.findIndex(x=>x.startsWith("Valores ")||x.startsWith("Offer basis:"));
+  if(familyIndex>=0&&basisIndex>=0){details[familyIndex]+=" · "+details[basisIndex];details.splice(basisIndex,1);}
+  return {c,customer,title:c.title.replace(` — ${customer}`,""),
+    meta:[
+      [pt?"Data da proposta":"Proposal date",documentDate(commercial?.proposalDate || proposal.proposal_date || draft.selection.effectiveDate,pt?"PT":"EN")],
+      [pt?"Validade":"Validity",commercial?`${commercial.validityDays} ${pt?"dias, até":"days, until"} ${documentDate(additionValidUntil(commercial),pt?"PT":"EN")}`:"—"],
+      [isServicesOnly(draft.selection)?pt?"Serviços":"Services":pt?"Período desta ampliação":"Addition period",isServicesOnly(draft.selection)?documentDate(draft.selection.effectiveDate,pt?"PT":"EN"):`${draft.quote.months} ${pt?"meses":"months"} · ${draft.selection.effectiveDate} – ${draft.selection.renewalDate}`],
+    ],
+    details,
+    headers:[c.headers[0],c.headers[2],c.headers[3],c.headers[4]],
+    rows,
+    totalLabel:isServicesOnly(draft.selection)?pt?"Total dos serviços e despesas":"Total services and expenses":pt?"Total desta proposta":"Total of this proposal",
+    total:money(draft.quote.dueNow),
+  };
+}
 export function buildAdditionPrintHtml(proposal: Partial<Proposal>, draft = readAdditionDraft(proposal as Proposal)) {
   if (!draft) throw new Error("Missing commercial addition snapshot.");
-  const c = additionDocumentContent(proposal, draft);
-  return `<!doctype html><html lang="${c.pt ? "pt" : "en"}"><head><meta charset="utf-8"><title>${escape(c.title)}</title><style>
-  @page{size:A4;margin:18mm}body{font:11pt Arial,sans-serif;color:#2c343c;line-height:1.45}header{border-bottom:2px solid #e01f2c;padding-bottom:12px}img{width:175px}h1{font-size:19pt}h2{font-size:13pt;margin-top:22px}table{width:100%;border-collapse:collapse;font-size:9pt}th,td{padding:9px 7px;border-bottom:1px solid #ddd;text-align:right}th:first-child,td:first-child{text-align:left}th{background:#f1f4f6}thead{display:table-header-group}tr{break-inside:avoid}.summary{border-left:3px solid #e01f2c;padding-left:14px;break-inside:avoid}.terms{white-space:pre-wrap;overflow-wrap:anywhere}footer{font-size:8pt;color:#627180;margin-top:28px;border-top:1px solid #ddd;padding-top:7px}</style></head><body>
-  <header><img src="${logoUrl}" alt="ManWinWin"><h1>${escape(c.title)}</h1></header>${c.details.map(x => `<p>${escape(x)}</p>`).join("")}
-  <h2>${escape(c.headings.investment)}</h2><table><thead><tr>${c.headers.map(x => `<th>${x}</th>`).join("")}</tr></thead><tbody>${c.rows.map(row => `<tr>${row.map(x => `<td class="terms">${escape(x)}</td>`).join("")}</tr>`).join("")}</tbody></table>
-  <section class="summary">${c.summary.map(x => `<p>${escape(x)}</p>`).join("")}</section>${c.services.map(x=>`<p>${escape(x)}</p>`).join("")}<h2>${escape(c.headings.terms)}</h2><p class="terms">${escape(c.terms)}</p>${c.notes ? `<h2>${escape(c.headings.notes)}</h2><p class="terms">${escape(c.notes)}</p>` : ""}<footer style="display:flex;justify-content:space-between;align-items:center"><span>ManWinWin Software<br>(+351) 214 309 100<br>support@manwinwin.com<br>www.manwinwin.com</span><img src="/customer-export/iso9001.png" alt="ISO 9001 Bureau Veritas" style="width:90px"></footer><script>window.onload=()=>window.print();</script></body></html>`;
+  const m=additionDocumentLayout(proposal,draft),c=m.c;
+  const chrome=documentChrome({...proposal,language:c.pt?"PT":"EN"},c.pt?"Proposta de investimento":"Investment proposal");
+  return `<!doctype html><html lang="${c.pt?"pt":"en"}"><head><meta charset="utf-8"><title>${escape(c.title)}</title><style>${PROPOSAL_DESIGN_CSS}</style></head><body>${chrome.header}<main>
+  <div class="document-intro"><h1>${escape(m.title)}</h1><p class="customer">${escape(m.customer)}</p></div>
+  <div class="document-meta">${m.meta.map(([label,value])=>`<span>${escape(label)}<br><strong>${escape(value)}</strong></span>`).join("")}</div>
+  ${m.details.map(x=>`<p class="small">${escape(x)}</p>`).join("")}
+  <h2>${escape(c.headings.investment)}</h2><table><thead><tr>${m.headers.map((x,i)=>`<th${i?' class="num"':""}>${escape(x)}</th>`).join("")}</tr></thead><tbody>${m.rows.map(row=>`<tr>${row.map((x,i)=>`<td class="${i?"num":"terms"}">${escape(x)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  <div class="investment-total"><span>${escape(m.totalLabel)}<small>${c.pt?"Acresce IVA à taxa legal aplicável":"Excluding applicable taxes"}</small></span><span class="value">${escape(m.total)}</span></div>
+  <section class="renewal-section">${c.summary.slice(1,3).map(x=>`<p><strong>${escape(x)}</strong></p>`).join("")}</section>${c.summary.slice(3).map(x=>`<p class="small">${escape(x)}</p>`).join("")}
+  ${draft.selection.implementationReview==="separate"?c.services.map(x=>`<p>${escape(x)}</p>`).join(""):""}<h2>${escape(c.headings.terms)}</h2><p class="terms">${escape(c.terms)}</p>${c.notes?`<h2>${escape(c.headings.notes)}</h2><p class="notes">${escape(c.notes)}</p>`:""}
+  </main>${chrome.footer}<script>Promise.all([document.fonts.ready,...Array.from(document.images).map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r}))]).then(()=>window.print());</script></body></html>`;
 }
-export function printAddition(proposal: Partial<Proposal>, draft: AdditionDraft) {
-  const html = buildAdditionPrintHtml(proposal, draft);
-  const win = window.open("", "_blank", "width=1000,height=1100");
-  if (!win) throw new Error("Allow pop-ups for PartnerOS and try again.");
-  win.document.write(html); win.document.close();
+export async function printAddition(proposal: Partial<Proposal>, draft: AdditionDraft) {
+  const {downloadAdditionPdf}=await import("./commercial-addition-pdf");
+  await downloadAdditionPdf(proposal,draft);
 }

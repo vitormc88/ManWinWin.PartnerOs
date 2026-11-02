@@ -1607,7 +1607,7 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
         .single();
       if (error || !prop) throw error || new Error("Proposal not found");
       const snapshot = currentBusinessSnapshot(prop as unknown as Proposal);
-      printBusinessProposal({ proposal: snapshot, cfg: snapshot.business_config, rules }, printWindow);
+      await printBusinessProposal({ proposal: snapshot, cfg: snapshot.business_config, rules }, printWindow);
       toast.success("PDF preview opened with the current selection — proposal not modified");
     } catch (e: any) {
       printWindow.close();
