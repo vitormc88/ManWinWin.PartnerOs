@@ -1,7 +1,7 @@
 /**
- * Business proposal print/PDF flow. Opens a print-styled window with the
- * same content as the DOCX, sourced from the validated Business engine.
- * The user uses the browser's "Save as PDF" to export.
+ * Business document composition, sourced from the validated Business engine.
+ * PDF is generated directly in a reserved preview window. Editable Word uses
+ * the same content; neither export changes proposal status.
  */
 import logoUrl from "@/assets/manwinwin-logo.png";
 import type { PricingRule, Proposal, ProposalLicenseModel, ProposalMode } from "@/types/proposal";

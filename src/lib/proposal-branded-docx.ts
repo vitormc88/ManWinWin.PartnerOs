@@ -25,7 +25,7 @@ export async function generateBrandedDocx(html: string): Promise<Blob> {
     const el=node as Element;
     if(el.tagName==="BR")return [new TextRun({break:1})];
     const opts={...options,...(el.matches("strong,b")?{bold:true}:{}),...(el.matches("em,i")?{italics:true}:{}),...(el.matches(".discount,.disc")?{color:D.green}:{}),...(el.matches(".muted,.item-note,small")?{color:options.color==="FFFFFF"?"D1DDE3":D.muted,size:16}:{})};
-    return [...el.childNodes].flatMap(n=>runs(n,opts));
+    return [...(el.tagName==="SMALL"&&el.closest(".investment-total")?[new TextRun({break:1})]:[]),...[...el.childNodes].flatMap(n=>runs(n,opts))];
   }
   function paragraph(el:Element, extra:IParagraphOptions={}):Paragraph {
     const heading=/^H[1-3]$/.test(el.tagName), size=el.tagName==="H1"?42:el.tagName==="H2"?23:el.tagName==="H3"?21:19;
@@ -64,7 +64,7 @@ export async function generateBrandedDocx(html: string): Promise<Blob> {
     return [...el.children].flatMap(walk);
   }
   function header(){
-    return new Header({children:[new Table({width:{size:WIDTH,type:WidthType.DXA},columnWidths:[3600,6718],borders:{top:none,bottom:line,left:none,right:none,insideHorizontal:none,insideVertical:none},rows:[new TableRow({children:[new TableCell({borders:{top:none,bottom:line,left:none,right:none},margins:{bottom:130},children:[new Paragraph({children:[new ImageRun({data:logo,type:"png",transformation:{width:140,height:43},altText:{name:"logo",title:"ManWinWin Software",description:"ManWinWin Software"}})]})]}),new TableCell({borders:{top:none,bottom:line,left:none,right:none},margins:{bottom:130},children:[new Paragraph({alignment:AlignmentType.RIGHT,children:[new TextRun({text:identity,font:D.font,size:15,color:D.muted})]})]})]})]})]});
+    return new Header({children:[new Table({width:{size:WIDTH,type:WidthType.DXA},columnWidths:[3600,6718],borders:{top:none,bottom:line,left:none,right:none,insideHorizontal:none,insideVertical:none},rows:[new TableRow({children:[new TableCell({borders:{top:none,bottom:line,left:none,right:none},margins:{bottom:130},children:[new Paragraph({children:[new ImageRun({data:logo,type:"png",transformation:{width:140,height:43},altText:{name:"logo",title:"ManWinWin Software",description:"ManWinWin Software"}})]})]}),new TableCell({borders:{top:none,bottom:line,left:none,right:none},margins:{bottom:130},children:identity.split(/\r?\n/).map(text=>new Paragraph({alignment:AlignmentType.RIGHT,spacing:{after:0,line:190},children:[new TextRun({text,font:D.font,size:15,color:D.muted})]}))})]})]})]});
   }
   function footer(){
     const contact=["ManWinWin Software","(+351) 214 309 100","support@manwinwin.com","www.manwinwin.com"];
