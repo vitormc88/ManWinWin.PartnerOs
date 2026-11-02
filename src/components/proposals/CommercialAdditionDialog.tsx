@@ -15,7 +15,7 @@ import { useModuleAccess } from "@/hooks/useModuleAccess";
 import { supabase } from "@/integrations/supabase/client";
 import type { Proposal } from "@/types/proposal";
 import type { ProposalSource } from "@/lib/proposal-source";
-import { ADDITION_PRODUCTS, ADDITION_SCHEMA, additionBaselineFromSnapshot, initialAdditionSelection, initialAdditionCommercial, calculateAddition, readAdditionDraft, type AdditionAction, type AdditionSelection, type AdditionDraft } from "@/lib/commercial-additions";
+import { ADDITION_PRODUCTS, ADDITION_SCHEMA, additionBaselineFromSnapshot, initialAdditionSelection, initialAdditionCommercial, calculateAddition, isServicesOnly, readAdditionDraft, type AdditionAction, type AdditionSelection, type AdditionDraft } from "@/lib/commercial-additions";
 import { additionMoney } from "@/lib/commercial-addition-documents";
 import { workflowErrorMessages } from "@/lib/proposal-workflow";
 import type { CommercialContext } from "./CreateProposalDialog";
@@ -124,7 +124,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const sourceValid = proposalSource?.source_type === "client" && proposalSource.client_id === baseline.clientId && proposalSource.contract_id === baseline.contractId && proposalSource.license_id === baseline.licenseId;
   const canManage = canManageClient ?? (!readOnly && canEdit("clients"));
   const readonly = !canManage || (saved != null && saved.status !== "Draft");
-  const effectiveTerms = saved && !editing ? saved.payment_terms || "" : selection.commercial ? additionPaymentText(selection.commercial.payment, selection.commercial.language) : terms;
+  const effectiveTerms = saved && !editing ? saved.payment_terms || "" : selection.commercial ? additionPaymentText(selection.commercial.payment, selection.commercial.language, isServicesOnly(selection)) : terms;
   const unauthorizedAdjustments = !isHQ && Object.entries(selection.commercial?.adjustments || {}).some(([code,a]) => a.unitPrice != null || a.initialDiscountPct > (code.startsWith("SERVICE_")?maxServicesDiscount:maxDiscount) || a.renewalDiscountPct > maxDiscount);
   const blockers = [...quote.blockers, ...additionPreparationBlockers(baseline, selection),
     ...(preparationSource==="current"?[]:[preparationSource==="stale"?"The original document changed. Recover the saved work as a new revision.":"The source document could not yet be verified. Reopen this preparation before saving."]),

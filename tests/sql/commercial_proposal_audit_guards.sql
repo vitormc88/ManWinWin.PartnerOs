@@ -2,6 +2,15 @@
 reset role;
 select set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
 insert into pricing_rules values('BUS_RCI_LIVE_SESSION',true,'EUR','one-time',405,null) on conflict do nothing;
+do $$ declare c jsonb;begin
+ c:='{"version":2,"language":"PT","payment":{"invoice":"award","awardPercent":100,"awardDueDays":0,"installationDueDays":30,"activation":"full_payment","reference":"Proposed conditions in this proposal"}}';
+ assert private.addition_payment_text(c)=E'Fatura de 100% na adjudicação, pronto pagamento.\nAtivação após confirmação do pagamento integral.\nCondições propostas neste documento, sujeitas a aceitação.';
+ assert private.addition_service_payment_text(c)=E'Fatura de 100% na adjudicação, pronto pagamento.\nInício dos serviços após confirmação do pagamento integral.\nCondições propostas neste documento, sujeitas a aceitação.';
+ c:=jsonb_set(c,'{language}','"EN"');
+ assert private.addition_service_payment_text(c)=E'100% invoiced on award, due immediately.\nService commencement after confirmation of full payment.\nConditions proposed in this document, subject to acceptance.';
+ c:=jsonb_set(c,'{payment,reference}','"PO-TEST"');assert private.addition_payment_text(c) like '%Commercial reference: PO-TEST';
+end $$;
+\echo 'PASS: server and editor payment text parity in Portuguese and English, with real line breaks'
 create function pg_temp.services_only_payload() returns jsonb language plpgsql as $$
 declare data jsonb:=pg_temp.combined_payload();d jsonb;s jsonb;begin
  d:=data#>'{business_config,commercial_addition}';s:=d->'selection';
@@ -14,12 +23,14 @@ end $$;
 begin;
 do $$ declare data jsonb;p uuid;n uuid;arr numeric;con_updated timestamptz;lic_updated timestamptz;begin
  data:=pg_temp.services_only_payload();
+ data:=data||jsonb_build_object('payment_terms',private.addition_service_payment_text(data#>'{business_config,commercial_addition,selection,commercial}'));
  begin
   perform save_commercial_addition_draft(null,null,jsonb_set(data,'{business_config,commercial_addition,selection,services,0,unit}','"day"'));
   raise exception 'QA expected tariff rejection';
  exception when others then if sqlerrm like '%QA expected%' then raise;end if;assert sqlerrm like '%approved training catalogue rule%';end;
  select total_value,updated_at into arr,con_updated from contracts limit 1;select updated_at into lic_updated from licenses limit 1;
  p:=save_commercial_addition_draft(null,null,data);perform commercial_addition_action(p,'validate');
+ assert (select payment_terms from proposals where id=p) like '%Service commencement%';
  perform commercial_addition_action(p,'accept',jsonb_build_object('date',current_date,'evidence_type','purchase_order','reference','QA-SERVICES'));
  assert (select total_value from contracts limit 1)=arr;
  assert (select updated_at from contracts limit 1)=con_updated,'Services must not alter contract header';

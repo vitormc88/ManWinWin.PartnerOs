@@ -8,7 +8,7 @@ export function upfrontAdditionPayment(previous: AdditionPayment): AdditionPayme
     reference: previous.reference.trim() && !isGeneratedPaymentReference(previous.reference) ? previous.reference : PROPOSED_PAYMENT_REFERENCE };
 }
 
-export function additionPaymentText(p: AdditionPayment, language: "PT" | "EN") {
+export function additionPaymentText(p: AdditionPayment, language: "PT" | "EN", servicesOnly = false) {
   if (!["award", "split"].includes(p.invoice) || !["full_payment", "award_payment", "on_award"].includes(p.activation)) {
     return language === "PT" ? "Condições de pagamento e ativação por definir." : "Payment and activation conditions have not been agreed yet.";
   }
@@ -22,7 +22,8 @@ export function additionPaymentText(p: AdditionPayment, language: "PT" | "EN") {
   const reference = isGeneratedPaymentReference(p.reference)
     ? pt ? "Condições propostas neste documento, sujeitas a aceitação." : "Conditions proposed in this document, subject to acceptance."
     : `${pt ? "Referência comercial" : "Commercial reference"}: ${p.reference}`;
-  return `${invoice}\n${activation}\n${reference}`;
+  const commencement = servicesOnly ? activation.replace(/^Ativação /,"Início dos serviços ").replace(/^Activation /,"Service commencement ") : activation;
+  return `${invoice}\n${commencement}\n${reference}`;
 }
 export function additionValidUntil(c: AdditionCommercial) {
   const date = new Date(`${c.proposalDate}T00:00:00Z`);
