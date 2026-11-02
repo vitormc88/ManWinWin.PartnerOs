@@ -101,12 +101,13 @@ export async function createBrandedProposalPdf(html:string,assets:Assets=load) {
       const groups=[...el.children],width=(CW-18*(groups.length-1))/groups.length;
       const blocks=groups.map(group=>[...group.querySelectorAll("h2,li,p")].map(node=>({heading:node.tagName==="H2",lines:wrap((node.tagName==="LI"?"• ":"")+text(node),node.tagName==="H2"?bold:font,node.tagName==="H2"?10:8.5,width-9)})));
       const heights=blocks.map(block=>block.reduce((sum,b)=>sum+b.lines.length*(b.heading?14:12)+(b.heading?12:4),0));
-      // The final line's trailing leading/gap is not printed content.
-      const height=Math.max(...heights)-12;
+      // Reserve the full tallest column and a real gap before the next section.
+      const height=Math.max(...heights)+12;
       if(height<H-210){
         ensure(height);const start=y;
-        blocks.forEach((block,i)=>{let yy=start;const x=M+i*(width+18);block.forEach(b=>{b.lines.forEach(line=>{page.drawText(line,{x:x+7,y:yy,font:b.heading?bold:font,size:b.heading?10:8.5,color:b.heading?navy:ink});yy-=b.heading?14:12;});yy-=b.heading?12:4;});});
-        y=start-height;return;
+        let bottom=start;
+        blocks.forEach((block,i)=>{let yy=start;const x=M+i*(width+18);block.forEach(b=>{b.lines.forEach(line=>{page.drawText(line,{x:x+7,y:yy,font:b.heading?bold:font,size:b.heading?10:8.5,color:b.heading?navy:ink});yy-=b.heading?14:12;});yy-=b.heading?12:4;});bottom=Math.min(bottom,yy);});
+        y=bottom-12;return;
       }
     }
     if(el.matches(".year-total,.investment-total")){total(el);return;}
