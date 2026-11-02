@@ -14,6 +14,7 @@ on:
       - 'tests/sql/fin02/**'
       - 'tests/sql/commercial_addition_lifecycle*'
       - 'tests/sql/commercial_addition_simple_editor.sql'
+      - 'tests/sql/commercial_proposal_audit*'
       - 'tests/sql/proposal_preparation*'
       - 'supabase/migrations/*proposal_preparation*'
       - 'supabase/migrations/*commercial_addition*'
@@ -41,7 +42,7 @@ jobs:
       - name: Run synthetic SQL cases; no TEST or PROD access
         env:
           PGPASSWORD: synthetic-qa-only
-        run: psql -h 127.0.0.1 -U postgres -d additions_qa -v ON_ERROR_STOP=1 -f tests/sql/commercial_addition_lifecycle_qa.sql -f tests/sql/commercial_addition_simple_editor.sql
+        run: psql -h 127.0.0.1 -U postgres -d additions_qa -v ON_ERROR_STOP=1 -f tests/sql/commercial_proposal_audit_qa.sql
   candidate-merged-tree:
     name: Verify Lovable scaffold gone; PR49 and PR51 preserved
     runs-on: ubuntu-latest

@@ -33,6 +33,14 @@ export function removeService(s: AdditionSelection,id:string): AdditionSelection
   const adjustments={...s.commercial?.adjustments};delete adjustments[`SERVICE_${id}`];
   return {...s,services:s.services?.filter(l=>l.id!==id),...(s.commercial?{commercial:{...s.commercial,adjustments}}:{})};
 }
+/** A changed service scope must never retain the approval for a catalogue session. */
+export function updateProposalService(s: AdditionSelection, id: string, patch: Partial<AdditionService>): AdditionSelection {
+  return {...s, services:s.services?.map(line=>{
+    if(line.id!==id)return line;
+    const changed = line.ruleCode && ((patch.unit!=null&&patch.unit!==line.unit)||(patch.modality!=null&&patch.modality!==line.modality));
+    return {...line,...patch,...(changed?{ruleCode:null,unitPrice:null,reference:""}: {})};
+  })};
+}
 export function serviceFromCatalogue(rules:PricingRule[],code:string,label:string,modality:AdditionService["modality"],unit:AdditionService["unit"]):AdditionService {
   const rule=rules.find(r=>r.active&&r.code===code&&r.currency==="EUR"&&r.unit_type==="one-time"&&Number(r.unit_price)>0);
   return {id:crypto.randomUUID(),label,modality,unit,quantity:1,unitPrice:rule?Number(rule.unit_price):null,ruleCode:rule?code:null,reference:rule?`Active catalogue: ${code}`:"",expense:false};

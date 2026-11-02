@@ -1,5 +1,5 @@
 import type { Proposal } from "@/types/proposal";
-import { readAdditionDraft, type AdditionDraft } from "./commercial-additions";
+import { isServicesOnly, readAdditionDraft, type AdditionDraft } from "./commercial-additions";
 import logoUrl from "@/assets/manwinwin-logo.png";
 import { additionValidUntil } from "./commercial-addition-terms";
 import { proposalIdentity, servicesSummary } from "./commercial-proposal-journey";
@@ -15,7 +15,7 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
   const money = (n: number) => new Intl.NumberFormat(pt ? "pt-PT" : "en-GB", { style: "currency", currency: "EUR" }).format(n);
   const componentLabel = (label: string) => !pt ? label : Object.entries({ "Additional BackOffice SaaS hosting":"Alojamento SaaS do BackOffice adicional", "Additional BackOffice":"Acesso BackOffice adicional", "Additional WEB / Mobility":"Acesso WEB / Mobilidade adicional", "Maintenance Requests":"Pedidos à Manutenção", "Stock Management":"Gestão de Stock", "Purchase Management":"Gestão de Encomendas", "Purchase Orders":"Gestão de Encomendas", "Import Tool":"Importador", "Advanced Reports":"Relatórios avançados", "S&AT included":"S&AT incluído", "incremental S&AT":"S&AT incremental" }).reduce((text,[from,to])=>text.replace(from,to),label);
   const date = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) ? s.split("-").reverse().join(pt ? "/" : "-") : s;
-  return {
+  const content = {
     pt,
     versionLabel: additionVersionLabel(proposal, pt),
     headings: { investment: pt ? "Resumo do investimento" : "Incremental investment", terms: pt ? "Condições de faturação, pagamento e ativação" : "Payment terms", notes: pt ? "Notas / condições especiais" : "Notes / special conditions" },
@@ -66,6 +66,15 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
     terms: proposal.payment_terms || "Payment terms require agreement before issue.",
     notes: proposal.notes || "",
   };
+  if (isServicesOnly(draft.selection)) {
+    content.title = `${pt ? "Proposta de serviços ManWinWin" : "ManWinWin services proposal"} — ${proposal.client_name || draft.baseline.clientName}`;
+    content.details = content.details.filter(line=>!line.startsWith("Período cobrado:")&&!line.startsWith("Billable months:")&&!line.startsWith("BackOffice:"));
+    content.details = content.details.map(line=>line.startsWith("Início:")?`Início dos serviços: ${date(draft.selection.effectiveDate)} · prestação única.`:line.startsWith("Effective date:")?`Services from ${draft.selection.effectiveDate} · one-time purchase.`:line);
+    content.summary[2] = pt ? "Contrato, ARR e renovação inalterados. Sem ativação de licença." : "Contract, ARR and renewal unchanged. No license activation required.";
+    content.summary = content.summary.filter(line=>!line.includes("S&AT"));
+    content.summary[content.summary.length-1]=pt?"Esta proposta adjudica apenas os serviços e despesas indicados, sem alterar a licença ou a data de renovação.":"This proposal awards only the listed services and expenses. License and renewal date remain unchanged.";
+  }
+  return content;
 }
 const escape = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 export function buildAdditionPrintHtml(proposal: Partial<Proposal>, draft = readAdditionDraft(proposal as Proposal)) {

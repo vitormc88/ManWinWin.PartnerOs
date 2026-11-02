@@ -1,4 +1,4 @@
-import { calculateAddition, type AdditionBaseline, type AdditionSelection, type AdditionLine, type AdditionAdjustment } from "./commercial-additions";
+import { calculateAddition, isServicesOnly, type AdditionBaseline, type AdditionSelection, type AdditionLine, type AdditionAdjustment } from "./commercial-additions";
 import type { PricingRule } from "@/types/proposal";
 
 /** Only Business UseIT capital components have two genuinely different calculations. */
@@ -69,6 +69,7 @@ export function additionFieldIssues(s: AdditionSelection, lines: AdditionLine[],
 }
 
 export function additionPreparationBlockers(b: AdditionBaseline, s: AdditionSelection) {
+  if (isServicesOnly(s)) return [];
   return !s.baselineAnnualConfirmed || b.recordedAnnual == null || !Number.isFinite(b.recordedAnnual) || b.recordedAnnual < 0
     ? ["Confirm the recorded annual baseline and the matching customer/partner price basis before issuing the proposal."] : [];
 }

@@ -1,6 +1,6 @@
 import { describe,it,expect } from "vitest";
 import { calculateAddition,additionBaselineFromSnapshot,type AdditionBaseline,type AdditionSelection } from "../commercial-additions";
-import { newCustomerProposal,setSoftwareDiscount,setServicesDiscount,removeService,reconcileCustomerBasket } from "../customer-proposal-editor";
+import { newCustomerProposal,setSoftwareDiscount,setServicesDiscount,removeService,reconcileCustomerBasket,updateProposalService } from "../customer-proposal-editor";
 import { additionDocumentContent } from "../commercial-addition-documents";
 import type {PricingRule} from "@/types/proposal";
 const b:AdditionBaseline={clientId:"c",clientName:"Synthetic",licenseId:"l",contractId:"k",partnerId:null,family:"Business",model:"useit",plan:null,deployment:"saas",backoffice:10,web:11,owned:[],renewalDate:"2028-04-14",priceTable:"2023",recordedAnnual:14031,satActive:true};
@@ -8,6 +8,23 @@ const rule=(code:string,price:number,unit="yearly",pct:number|null=null)=>({id:c
 const rules=[rule("BUS_USEIT_ADDITIONAL_BACKOFFICE",352),rule("BUS_SAAS_HOSTING_ADDITIONAL_BACKOFFICE",10,"per-user-month"),rule("BUS_WEB_MOBILE_USER",20,"per-user-month"),rule("web_user",20,"per-user-month"),rule("requests_module",600),rule("BUS_USEIT_STOCK_MODULE",648),rule("BUS_KEEPIT_STOCK_MODULE",1750,"one-time"),rule("BUS_KEEPIT_SAT",0,"yearly",17),rule("impl_session",360,"one-time")];
 const selection=():AdditionSelection=>({...newCustomerProposal(b,"2026-10-29"),baselineAnnualConfirmed:true});
 describe("Combined customer proposals",()=>{
+ it("requires a new approved tariff when a catalogue session becomes an onsite day",()=>{
+  const s={...selection(),services:[{id:"a",label:"Training",quantity:2,unit:"session" as const,modality:"online" as const,unitPrice:360,ruleCode:"impl_session",reference:"Catalogue",expense:false}]};
+  const next=updateProposalService(s,"a",{unit:"day",modality:"onsite"});
+  expect(next.services?.[0]).toMatchObject({quantity:2,unit:"day",modality:"onsite",unitPrice:null,ruleCode:null,reference:""});
+  expect(calculateAddition(b,next,rules).blockers.join()).toContain("approved unit price");
+  const forged={...s,services:[{...s.services[0],unit:"day" as const}]};
+  expect(calculateAddition(b,forged,rules).blockers.join()).toContain("approved unit price");
+ });
+ it("quotes services near and after renewal with zero software months and no baseline confirmation",()=>{
+  for(const day of ["2026-11-01","2026-12-01"]){
+   const short={...b,renewalDate:"2026-11-21",recordedAnnual:null};
+   const s={...newCustomerProposal(short,day),services:[{id:"a",label:"Training",quantity:2,unit:"session" as const,modality:"online" as const,unitPrice:360,ruleCode:"impl_session",reference:"Catalogue",expense:false}]};
+   const q=calculateAddition(short,s,rules);expect(q.blockers).toEqual([]);expect(q.months).toBe(0);expect(q.dueNow).toBe(720);expect(q.annualIncrease).toBe(0);
+   const content=additionDocumentContent({id:"p",version:1},{schema:"commercial_addition_v1",action:"add_users",baseline:short,selection:s,rules,quote:q});
+   expect(content.summary.join()).toContain("Sem ativação de licença");expect(content.details.join()).not.toContain("Período cobrado:");expect(content.summary.join()).not.toContain("por confirmar");
+  }
+ });
  it("keeps Barcino proration and ARR separate from discounted one-time services",()=>{
   let s={...selection(),backoffice:1,services:[{id:"training",label:"Onsite training",modality:"onsite" as const,unit:"day" as const,quantity:2,unitPrice:695,ruleCode:null,reference:"Approved quote",expense:false},{id:"expenses",label:"Travel",modality:"onsite" as const,unit:"fixed" as const,quantity:1,unitPrice:250,ruleCode:null,reference:"Approved travel",expense:true}]};
   const before=structuredClone(b);s=setServicesDiscount(s,25) as typeof s;

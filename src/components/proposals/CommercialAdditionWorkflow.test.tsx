@@ -11,7 +11,28 @@ vi.mock("sonner",()=>({toast:{success:vi.fn(),error:state.error}}));
 vi.mock("@/integrations/supabase/client",()=>({supabase:{rpc:state.rpc,from:()=>({select:()=>({eq:()=>({single:async()=>({data:{id:"qa",status:state.status},error:null})})})})}}));
 const show=(status="Ready",canManage=true,savedCurrent=true)=>render(<CommercialAdditionWorkflow proposal={{id:"qa",status} as Proposal} canManage={canManage} savedCurrent={savedCurrent} onUpdated={state.updated}/>);
 beforeEach(()=>{cleanup();vi.clearAllMocks();state.isHQ=false;state.ledger=null;state.failed=false;state.status="Ready";state.rpc.mockResolvedValue({error:null});});
+function scopedOffer(status:string,servicesOnly=false):Proposal {
+ const commercial=initialAdditionCommercial("2026-01-01");commercial.validityDays=1;
+ return {id:"qa",status,proposal_date:"2026-01-01",validity_days:1,business_config:{commercial_addition:{schema:"commercial_addition_v1",action:"add_users",baseline:{clientId:"c",clientName:"QA",backoffice:1,web:1,owned:[]},selection:{editorVersion:3,backoffice:0,web:servicesOnly?0:1,products:[],services:servicesOnly?[{id:"a",label:"Training",quantity:1,unit:"session",modality:"online",unitPrice:360,ruleCode:"impl_session",reference:"Catalogue",expense:false}]:[],priceReview:"QA",monthReview:"",effectiveDate:"2026-01-01",renewalDate:"2027-01-01",commercial},rules:[],quote:{blockers:[],lines:[],dueNow:360,annualIncrease:0}}}} as unknown as Proposal;
+}
 describe("Addition workflow UI",()=>{
+ it("does not offer license activation for adjudicated services",()=>{
+  render(<CommercialAdditionWorkflow proposal={scopedOffer("Accepted",true)} canManage savedCurrent onUpdated={state.updated}/>);
+  expect(screen.getByText(/Adjudicated · Services awarded/)).toBeInTheDocument();expect(screen.queryByRole("button",{name:"Activate awarded additions"})).toBeNull();
+ });
+ it("blocks a partner from accepting an expired offer and explains HQ review",()=>{
+  render(<CommercialAdditionWorkflow proposal={scopedOffer("Ready")} canManage savedCurrent onUpdated={state.updated}/>);
+  fireEvent.click(screen.getByRole("button",{name:"Adjudicate"}));expect(screen.getByRole("alert")).toHaveTextContent("Ask HQ");
+  fireEvent.change(screen.getByLabelText("Adjudication evidence"),{target:{value:"purchase_order"}});fireEvent.change(screen.getByLabelText("PO number, signed document or email reference"),{target:{value:"PO-X"}});fireEvent.click(screen.getByRole("checkbox"));
+  expect(screen.getByRole("button",{name:"Confirm Adjudicate"})).toBeDisabled();expect(state.rpc).not.toHaveBeenCalled();
+ });
+ it("requires an explicit HQ extension reason and confirmation with acceptance",async()=>{
+  state.isHQ=true;render(<CommercialAdditionWorkflow proposal={scopedOffer("Ready")} canManage savedCurrent onUpdated={state.updated}/>);
+  fireEvent.click(screen.getByRole("button",{name:"Adjudicate"}));fireEvent.change(screen.getByLabelText("Adjudication evidence"),{target:{value:"purchase_order"}});fireEvent.change(screen.getByLabelText("PO number, signed document or email reference"),{target:{value:"PO-X"}});
+  fireEvent.click(screen.getByRole("checkbox",{name:/I checked the accepted document/}));expect(screen.getByRole("button",{name:"Confirm Adjudicate"})).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Validity extension reason"),{target:{value:"Approved current commercial terms"}});fireEvent.click(screen.getByRole("checkbox",{name:/I authorize extending/}));
+  fireEvent.click(screen.getByRole("button",{name:"Confirm Adjudicate"}));await waitFor(()=>expect(state.rpc).toHaveBeenCalledWith("commercial_addition_action",expect.objectContaining({_action:"accept",_details:expect.objectContaining({validity_extension_confirmed:true,validity_extension_reason:"Approved current commercial terms"})})));
+ });
  it("validates through the official operation only on explicit click",async()=>{show("Draft");expect(state.rpc).not.toHaveBeenCalled();fireEvent.click(screen.getByRole("button",{name:"Mark Ready"}));await waitFor(()=>expect(state.rpc).toHaveBeenCalledWith("commercial_addition_action",expect.objectContaining({_action:"validate",_proposal_id:"qa"})));});
  it("requires evidence before adjudicating and never invokes activation",async()=>{show();fireEvent.click(screen.getByRole("button",{name:"Adjudicate"}));const confirm=screen.getByRole("button",{name:"Confirm Adjudicate"});expect(confirm).toBeDisabled();fireEvent.change(screen.getByLabelText("Adjudication evidence"),{target:{value:"purchase_order"}});expect(confirm).toBeDisabled();fireEvent.change(screen.getByLabelText("PO number, signed document or email reference"),{target:{value:"PO-123"}});fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(confirm);await waitFor(()=>expect(state.rpc).toHaveBeenCalledOnce());expect(state.rpc.mock.calls[0][1]).toMatchObject({_action:"accept",_details:{reference:"PO-123",evidence_type:"purchase_order"}});expect(screen.queryByRole("option",{name:"HQ documented exception"})).toBeNull();});
  it("blocks activation until receipt reference and explicit payment confirmation",async()=>{show("Accepted");fireEvent.click(screen.getByRole("button",{name:"Activate awarded additions"}));const confirm=screen.getByRole("button",{name:"Confirm Activate awarded additions"});expect(confirm).toBeDisabled();fireEvent.change(screen.getByLabelText("Payment / receipt reference"),{target:{value:"RECEIPT-1"}});expect(confirm).toBeDisabled();fireEvent.click(screen.getByRole("checkbox"));fireEvent.click(confirm);await waitFor(()=>expect(state.rpc).toHaveBeenCalledWith("commercial_addition_action",expect.objectContaining({_action:"activate",_details:expect.objectContaining({payment_confirmed:true,reference:"RECEIPT-1"})})));});

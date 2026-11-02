@@ -108,7 +108,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
     queryKey: ["proposals", "by-client", client?.id, clientName],
     queryFn: async () => {
       const cols: string =
-        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, implementation_net, renewal_change_mode, version, proposal_date, created_at, journey:business_config->commercial_journey, addition_action:business_config->commercial_addition->>action, commercial_addition_fulfillments(activated_at)";
+        "id, client_id, source_type, client_name, project_name, status, total_year_1, total_recurring, implementation_net, renewal_change_mode, version, proposal_date, created_at, journey:business_config->commercial_journey, addition_action:business_config->commercial_addition->>action, commercial_addition_fulfillments(activated_at,requires_license_activation)";
       const filters: string[] = [];
       if (client?.id) filters.push(`client_id.eq.${client.id}`);
       if (clientName) filters.push(`client_name.eq.${clientName.replace(/[(),]/g, " ")}`);
@@ -558,7 +558,7 @@ export function CommercialWorkspace({ client, primaryLicense, primaryContract, m
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className="text-[10px]">{p.addition_action && p.status === "Accepted" ? (p.commercial_addition_fulfillments?.activated_at ? "License updated" : "Adjudicated · Activation pending") : p.addition_action && p.status === "Lost" ? "Rejected" : p.status || "Draft"}</Badge>
+                    <Badge variant="outline" className="text-[10px]">{p.addition_action && p.status === "Accepted" ? (p.commercial_addition_fulfillments?.requires_license_activation===false?"Services awarded":p.commercial_addition_fulfillments?.activated_at ? "License updated" : "Adjudicated · Activation pending") : p.addition_action && p.status === "Lost" ? "Rejected" : p.status || "Draft"}</Badge>
                     <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 </button>

@@ -11,6 +11,12 @@ const save=vi.fn(),download=vi.fn();
 function Demo(){const [selection,change]=useState(newCustomerProposal(b,"2026-11-01")),[step,setStep]=useState(0),[notes,setNotes]=useState("");const quote=calculateAddition(b,selection,rules);return <CustomerProposalEditor open close={()=>{}} baseline={b} selection={selection} change={change} quote={quote} draft={{schema:"commercial_addition_v1",action:"add_modules",baseline:b,selection,rules,quote}} rules={rules} blockers={quote.blockers} isHQ maxDiscount={100} maxServicesDiscount={100} busy={false} canSave step={step} setStep={setStep} notes={notes} setNotes={setNotes} terms="100% upfront" save={save} download={download}/>;}
 afterEach(()=>{cleanup();vi.clearAllMocks();});
 describe("Customer proposal experience",()=>{
+ it("clears catalogue approval when delivery changes and removes renewal review for services only",()=>{
+  render(<Demo/>);fireEvent.click(screen.getByRole("button",{name:"2. Services"}));fireEvent.click(screen.getByRole("button",{name:"+ Remote session"}));
+  fireEvent.change(screen.getByLabelText("Delivery"),{target:{value:"onsite"}});
+  expect(screen.getByLabelText("€ / unit")).toHaveValue(null);expect(screen.getByLabelText(/Approved price reference/)).toBeVisible();
+  fireEvent.click(screen.getByRole("button",{name:"4. Review & generate"}));expect(screen.queryByText("Existing annual renewal")).not.toBeInTheDocument();
+ });
  it("makes Professional modules and plugins available and explains the missing tariff at selection",()=>{
   render(<Demo/>);const stock=screen.getByRole("checkbox",{name:"Stock Management"});expect(stock).toBeEnabled();fireEvent.click(stock);
   expect(screen.getByLabelText("Stock Management · €/year")).toBeVisible();fireEvent.change(screen.getByLabelText("Stock Management · €/year"),{target:{value:"400"}});fireEvent.change(screen.getByLabelText("Price reference"),{target:{value:"Approved HQ tariff"}});
