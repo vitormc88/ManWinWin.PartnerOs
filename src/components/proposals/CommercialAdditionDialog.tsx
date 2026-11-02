@@ -59,7 +59,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     let cancelled=false;
     if(!working?.proposal_id){setPreparationSource("current");return;}
     setPreparationSource("checking");
-    void supabase.from("proposals").select("status,updated_at").eq("id",working.proposal_id).single().then(({data,error})=>{
+    void Promise.resolve(supabase.from("proposals").select("status,updated_at").eq("id",working.proposal_id).single()).then(({data,error})=>{
       if(cancelled)return;
       setPreparationSource(error||!data?"error":data.status!=="Draft"||new Date(data.updated_at).getTime()!==new Date(working.proposal_updated_at!).getTime()?"stale":"current");
     }).catch(()=>{if(!cancelled)setPreparationSource("error");});
