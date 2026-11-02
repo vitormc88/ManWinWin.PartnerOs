@@ -158,15 +158,20 @@ export function additionMonths(start: string, end: string, policy: AdditionSelec
   const endOfCompleteMonth = new Date(Date.UTC(year, a.getUTCMonth() + complete, Math.min(a.getUTCDate(), new Date(Date.UTC(year, a.getUTCMonth() + complete + 1, 0)).getUTCDate())));
   return policy === "started" && endOfCompleteMonth < b ? complete + 1 : complete;
 }
+export function isServicesOnly(s: AdditionSelection): boolean {
+  return s.editorVersion === 3 && s.backoffice === 0 && s.web === 0 && s.products.length === 0 && !!s.services?.length;
+}
 function calculateCatalogueAddition(b: AdditionBaseline, s: AdditionSelection, rules: PricingRule[]): AdditionQuote {
   const blockers: string[] = [], lines: AdditionLine[] = [];
-  const months = additionMonths(s.effectiveDate, s.renewalDate, s.monthPolicy, s.agreedMonths);
+  const servicesOnly = isServicesOnly(s);
+  const months = servicesOnly ? 0 : additionMonths(s.effectiveDate, s.renewalDate, s.monthPolicy, s.agreedMonths);
   if (!b.clientId || !b.licenseId || !b.contractId) blockers.push("A linked client, license and contract are required.");
   if (b.currency && b.currency !== "EUR") blockers.push("This addition catalogue supports EUR contracts only; a reviewed currency conversion is required.");
-  if (!b.family || !b.deployment || (b.family === "Business" && !b.model) || (b.family === "Professional" && !b.plan)) blockers.push("Current license identity or hosting is incomplete; reconcile the source first.");
+  if (!servicesOnly && (!b.family || !b.deployment || (b.family === "Business" && !b.model) || (b.family === "Professional" && !b.plan))) blockers.push("Current license identity or hosting is incomplete; reconcile the source first.");
   if (b.renewalDate !== s.renewalDate) blockers.push("Renewal date must match the source contract; reconcile it before quoting.");
-  if (months == null || months <= 0) blockers.push("Choose a valid effective date and an explicit positive billable-month policy.");
-  if (s.monthPolicy === "agreed" && !s.monthReview.trim()) blockers.push("Explain the agreed billable months.");
+  if (!servicesOnly && (months == null || months <= 0)) blockers.push("Choose a valid effective date and an explicit positive billable-month policy.");
+  if (servicesOnly && (!utcDay(s.effectiveDate) || (s.commercial && s.effectiveDate < s.commercial.proposalDate))) blockers.push("Enter a service start date on or after the proposal date.");
+  if (!servicesOnly && s.monthPolicy === "agreed" && !s.monthReview.trim()) blockers.push("Explain the agreed billable months.");
   if (!s.pricingBasis || !s.priceReview.trim()) blockers.push("Review the applicable price table and record the pricing decision.");
   if (!s.offerBasis) blockers.push("Choose customer prices or a confirmed Navaltik/partner basis.");
   if (!s.implementationReview) blockers.push("Review whether implementation services are needed; none are added automatically.");
@@ -235,7 +240,7 @@ function calculateCatalogueAddition(b: AdditionBaseline, s: AdditionSelection, r
       const tariff = rule ? Number(rule.unit_price) : service.unitPrice;
       if (!/^[a-zA-Z0-9_-]{1,60}$/.test(service.id) || !service.label.trim() || !["online", "onsite", "other"].includes(service.modality) || !["session", "hour", "day", "fixed"].includes(service.unit)
         || !Number.isFinite(service.quantity) || service.quantity <= 0 || service.quantity > 1000 || tariff == null || !Number.isFinite(tariff) || tariff <= 0 || tariff > 100000000 || !service.reference.trim()
-        || service.ruleCode && (!["impl_session","BUS_RCI_LIVE_SESSION"].includes(service.ruleCode) || !rule || rule.currency !== "EUR" || rule.unit_type !== "one-time" || tariff !== service.unitPrice)) {
+        || service.ruleCode && (!["impl_session","BUS_RCI_LIVE_SESSION"].includes(service.ruleCode) || service.unit !== "session" || service.modality !== "online" || service.expense || !rule || rule.currency !== "EUR" || rule.unit_type !== "one-time" || tariff !== service.unitPrice)) {
         blockers.push(`${service.label || "Service"}: enter a valid quantity, approved unit price and price reference.`); continue;
       }
       // Services and expenses are not prorated, shared with software or added to ARR.

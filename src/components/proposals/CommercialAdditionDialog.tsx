@@ -17,6 +17,7 @@ import type { Proposal } from "@/types/proposal";
 import type { ProposalSource } from "@/lib/proposal-source";
 import { ADDITION_PRODUCTS, ADDITION_SCHEMA, additionBaselineFromSnapshot, initialAdditionSelection, initialAdditionCommercial, calculateAddition, readAdditionDraft, type AdditionAction, type AdditionSelection, type AdditionDraft } from "@/lib/commercial-additions";
 import { additionMoney } from "@/lib/commercial-addition-documents";
+import { workflowErrorMessages } from "@/lib/proposal-workflow";
 import type { CommercialContext } from "./CreateProposalDialog";
 import { CommercialAdditionWorkflow } from "./CommercialAdditionWorkflow";
 import { additionPaymentText, isGeneratedPaymentReference, PROPOSED_PAYMENT_REFERENCE } from "@/lib/commercial-addition-terms";
@@ -53,6 +54,17 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const savedDraft = readAdditionDraft(editingProposal);
   const preparation = readPreparation(editingProposal);
   const [working, setWorking] = useState<PreparationDraft | null>(preparation);
+  const [preparationSource, setPreparationSource] = useState<"current"|"checking"|"stale"|"error">(preparation?.proposal_id?"checking":"current");
+  useEffect(()=>{
+    let cancelled=false;
+    if(!working?.proposal_id){setPreparationSource("current");return;}
+    setPreparationSource("checking");
+    void Promise.resolve(supabase.from("proposals").select("status,updated_at").eq("id",working.proposal_id).single()).then(({data,error})=>{
+      if(cancelled)return;
+      setPreparationSource(error||!data?"error":data.status!=="Draft"||new Date(data.updated_at).getTime()!==new Date(working.proposal_updated_at!).getTime()?"stale":"current");
+    }).catch(()=>{if(!cancelled)setPreparationSource("error");});
+    return()=>{cancelled=true;};
+  },[working?.proposal_id,working?.proposal_updated_at]);
   const [baseline] = useState(() => savedDraft?.baseline ?? additionBaselineFromSnapshot(commercialContext?.existingCustomer));
   const [selection, setSelection] = useState<AdditionSelection>(() => {
     const restored = savedDraft?.selection;
@@ -115,6 +127,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const effectiveTerms = saved && !editing ? saved.payment_terms || "" : selection.commercial ? additionPaymentText(selection.commercial.payment, selection.commercial.language) : terms;
   const unauthorizedAdjustments = !isHQ && Object.entries(selection.commercial?.adjustments || {}).some(([code,a]) => a.unitPrice != null || a.initialDiscountPct > (code.startsWith("SERVICE_")?maxServicesDiscount:maxDiscount) || a.renewalDiscountPct > maxDiscount);
   const blockers = [...quote.blockers, ...additionPreparationBlockers(baseline, selection),
+    ...(preparationSource==="current"?[]:[preparationSource==="stale"?"The original document changed. Recover the saved work as a new revision.":"The source document could not yet be verified. Reopen this preparation before saving."]),
     ...(editing && selection.implementationReview==="separate" ? [...serviceReviewErrors(selection.serviceReview),...(!selection.serviceReview?.id?["Save the linked services budget request before issuing software."]:[]),...(!selection.softwareOnlyAcknowledged?["Confirm this document covers software only; services need a separate quotation and acceptance."]:[])] : []),
     ...(servicesDirty?["Save the linked services budget request before saving software."]:[]),
     ...(editing&&selection.implementationReview==="separate"&&selection.serviceReview?.id&&!servicesVerified?["Load and verify the linked services budget request before issuing software."]:[]),
@@ -143,7 +156,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
   const documentProposal: Partial<Proposal> = { ...(saved || {}), client_name: baseline.clientName, language: selection.commercial?.language || "EN", payment_terms: effectiveTerms, notes, version: saved?.version };
 
   const save = async () => {
-      if (readonly || busy || servicesDirty || !user || !sourceValid || !Number.isSafeInteger(selection.backoffice) || !Number.isSafeInteger(selection.web) || selection.backoffice < 0 || selection.web < 0 || (editingProposal && !savedDraft)) return false;
+      if (readonly || busy || preparationSource!=="current" || servicesDirty || !user || !sourceValid || !Number.isSafeInteger(selection.backoffice) || !Number.isSafeInteger(selection.web) || selection.backoffice < 0 || selection.web < 0 || (editingProposal && !savedDraft)) return false;
     setBusy(true);
     try {
       if (blockers.length) {
@@ -184,7 +197,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
       await qc.invalidateQueries({queryKey:["proposal-preparations"]});
       toast.success("Addition saved as Draft. Client, license, contract and renewal are unchanged.");
       return row as unknown as Proposal;
-    } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to save the addition draft."); }
+    } catch (error) { toast.error(workflowErrorMessages(error).join(" · ")); }
     finally { setBusy(false); }
     return false;
   };
@@ -209,7 +222,18 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to generate the document. The saved proposal is available in follow-up."); }
     finally { setBusy(false); }
   };
-  const canSave = !readonly && !busy && sourceValid && (!editingProposal || !!savedDraft)
+  const recoverPreparation=async()=>{
+    if(!working||busy||preparationSource!=="stale")return;
+    setBusy(true);
+    try{
+      const {data,error}=await supabase.rpc("recover_addition_preparation" as never,{_id:working.id,_expected_updated_at:working.updated_at} as never);
+      if(error)throw error;
+      setWorking(data as unknown as PreparationDraft);setPreparationSource("current");
+      await qc.invalidateQueries({queryKey:["proposal-preparations"]});
+      toast.success("Your saved edits are recovered. Complete them and save a new revision; the original document is preserved.");
+    }catch(error){toast.error(workflowErrorMessages(error).join(" · "));}finally{setBusy(false);}
+  };
+  const canSave = !readonly && !busy && preparationSource==="current" && sourceValid && (!editingProposal || !!savedDraft)
     && !servicesDirty
     && [selection.backoffice,selection.web].every(n=>Number.isSafeInteger(n)&&n>=0);
   const showEditor = editing && !readonly;
@@ -243,7 +267,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
       const scoped=normalizeAdditionScope(baseline,next,rules);
       if(previous.offerBasis!==next.offerBasis||previous.licenseShare!==next.licenseShare||previous.hostingShare!==next.hostingShare)scoped.baselineAnnualConfirmed=false;
       return previous.products!==next.products||previous.backoffice!==next.backoffice||previous.web!==next.web?reconcileCustomerBasket(baseline,previous,scoped,rules):scoped;
-    })} quote={quote} draft={draft} rules={rules} blockers={blockers} isHQ={isHQ} maxDiscount={maxDiscount} maxServicesDiscount={maxServicesDiscount} busy={busy} canSave={canSave} step={step} setStep={setStep} notes={notes} setNotes={setNotes} terms={effectiveTerms} save={()=>{void save();}} download={()=>{void exportDocument("pdf",true);}}/>
+    })} quote={quote} draft={draft} rules={rules} blockers={blockers} isHQ={isHQ} maxDiscount={maxDiscount} maxServicesDiscount={maxServicesDiscount} busy={busy} canSave={canSave} recoveryNeeded={preparationSource==="stale"} recover={()=>{void recoverPreparation();}} step={step} setStep={setStep} notes={notes} setNotes={setNotes} terms={effectiveTerms} save={()=>{void save();}} download={()=>{void exportDocument("pdf",true);}}/>
     :<Dialog open={open} onOpenChange={requestClose}><DialogContent className="max-w-4xl max-h-[92dvh] overflow-y-auto"><DialogHeader><DialogTitle>{saved?proposalIdentity(saved):"Proposal"} — {baseline.clientName}</DialogTitle></DialogHeader>{saved?<>
       <ProposalRevisionContext proposal={saved}/><AdditionReviewSummary draft={readAdditionDraft(saved)||draft} terms={saved.payment_terms||""} notes={saved.notes||""}/>
       <div className="flex flex-wrap gap-2"><Button disabled={busy||!!blockers.length} onClick={()=>exportDocument("pdf")}>Download PDF</Button><Button variant="outline" disabled={busy||!!blockers.length} onClick={()=>exportDocument("word")}>Download Word</Button>{canManage&&saved.status==="Draft"?<Button variant="outline" onClick={()=>{setEditing(true);setStep(0);}}>Edit draft</Button>:null}{canManage&&["Ready","Sent"].includes(saved.status)?<Button variant="outline" disabled={busy} onClick={createRevision}>Create revision</Button>:null}</div>

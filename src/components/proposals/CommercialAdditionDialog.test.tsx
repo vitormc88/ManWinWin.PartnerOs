@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { CommercialAdditionDialog } from "./CommercialAdditionDialog";
 import { calculateAddition, initialAdditionSelection, initialAdditionCommercial, type AdditionDraft, type AdditionBaseline } from "@/lib/commercial-additions";
 import type { Proposal, PricingRule } from "@/types/proposal";
+import { preparationProposal, type PreparationDraft } from "@/lib/proposal-preparation";
 vi.mock("./ProposalRevisionContext", () => ({ ProposalRevisionContext: () => null }));
 vi.mock("@/hooks/usePartners",()=>({usePartner:()=>({data:null,isLoading:false,isError:false})}));
 vi.mock("./CommercialAdditionWorkflow", () => ({ CommercialAdditionWorkflow: (props: unknown) => { state.workflow(props); return null; } }));
@@ -32,6 +33,18 @@ const show = (p = proposal()) => {
 };
 beforeEach(() => { cleanup(); vi.clearAllMocks(); state.isHQ = true; state.editable = true; state.pricing = []; state.savedRow=null; state.pdf.mockResolvedValue(undefined); state.rpc.mockResolvedValue({ data: "saved", error: null }); });
 describe("Addition proposal editor", () => {
+  it("recovers a stale linked preparation without losing its chosen scope or editing the issued document",async()=>{
+    const d=draft();d.selection={...d.selection,editorVersion:3,services:[],commercial:initialAdditionCommercial("2026-10-29")};
+    const row={id:"work",client_id:"c",license_id:"l",contract_id:"k",partner_uuid:null,proposal_id:"original",proposal_updated_at:"2026-10-29T00:00:00Z",kind:"addition",body:{draft:d,notes:"Saved customer notes"},updated_at:"2026-10-30T00:00:00Z"} as PreparationDraft;
+    state.savedRow={id:"original",status:"Ready",updated_at:"2026-11-02T00:00:00Z"};
+    const recovered={...row,proposal_id:null,proposal_updated_at:null,updated_at:"2026-11-02T01:00:00Z"};state.rpc.mockResolvedValue({data:recovered,error:null});
+    render(<CommercialAdditionDialog open onOpenChange={()=>{}} proposalSource={source} editingProposal={preparationProposal(row,"Synthetic customer")}/>);
+    const recover=await screen.findByRole("button",{name:"Recover as new revision"});expect(screen.getByRole("button",{name:"Save Draft"})).toBeDisabled();
+    expect(screen.getByLabelText("Additional BackOffice")).toHaveValue(1);fireEvent.click(recover);
+    await waitFor(()=>expect(state.rpc).toHaveBeenCalledWith("recover_addition_preparation",{_id:"work",_expected_updated_at:row.updated_at}));
+    await waitFor(()=>expect(screen.queryByRole("button",{name:"Recover as new revision"})).not.toBeInTheDocument());expect(screen.getByLabelText("Additional BackOffice")).toHaveValue(1);
+    expect(state.savedRow).toMatchObject({status:"Ready"});
+  });
   it("allows an unchanged saved snapshot to reach validation without comparing reconstructed defaults",()=>{
     const d=draft();d.selection={...d.selection,commercial:initialAdditionCommercial("2026-10-29")};
     d.selection.commercial!.payment={invoice:"award",awardPercent:100,awardDueDays:0,installationDueDays:30,activation:"full_payment",reference:"Proposed terms: 100% upfront; activation after full payment"};
