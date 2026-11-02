@@ -1,6 +1,6 @@
 import type { Proposal, ProposalItem } from "@/types/proposal";
 import { formatEuro, frequencyLabel as i18nFrequencyLabel, t } from "./proposal-i18n";
-import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRenewalValue, getSectionDiscountSummary } from "./proposal-engine";
+import { computeTotals, enrichProposalItem, getItemEffectiveDiscount, getItemRenewalValue } from "./proposal-engine";
 import { getCommercialIncludes, getCommercialItemLabel } from "./proposal-commercial";
 import logoUrl from "@/assets/manwinwin-logo.png";
 import { proposalDocumentTitle, proposalTermLines, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
@@ -24,8 +24,6 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
   const softwarePct = Number(proposal.software_discount_pct || 0);
   const servicesPct = Number(proposal.services_discount_pct || 0);
   const totals = computeTotals(items, softwarePct, servicesPct);
-  const softwareDiscountSummary = getSectionDiscountSummary(items, "software", softwarePct, servicesPct);
-  const servicesDiscountSummary = getSectionDiscountSummary(items, "services", softwarePct, servicesPct);
   const includes = getCommercialIncludes(proposal.plan, proposal.language, proposal.include_requests_module, proposal.web_users);
   const termLines = proposalTermLines(proposal.payment_terms);
   const normalizeTermHeading = (value: string) => value.trim().replace(/:$/, "").toLocaleLowerCase();
@@ -49,7 +47,10 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     const baseLabel = getCommercialItemLabel(it, proposal);
     const labelHasQty = /\(×\d+\)/.test(baseLabel);
     const qtySuffix = it.qty > 1 && !labelHasQty ? ` <span class="muted">×${it.qty}</span>` : "";
-    return `${esc(baseLabel)}${qtySuffix}`;
+    const description = rawItem.category === "service" || rawItem.category === "custom"
+      ? (rawItem.description || "").replace(/\b(\d+(?:\.\d+)?) (standard )?hours?\b/gi,(_,n,standard)=>`${n} ${lang==="PT"||lang==="ES"?(Number(n)===1?"hora":"horas"):Number(n)===1?"hour":"hours"}${standard?(lang==="PT"?" de implementação":lang==="ES"?" de implementación":" of implementation"):""}`)
+      : "";
+    return `${esc(baseLabel)}${qtySuffix}${description ? `<br><small class="item-note">${esc(description)}</small>` : ""}`;
   };
 
   const frequencyLabel = (rawItem: ProposalItem) => {
@@ -101,16 +102,9 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     </tr>`;
   };
 
-  const softwareUniformLabel = softwareDiscountSummary.mode === "uniform-section"
-    ? s.softwareDiscountLabel(Number(softwareDiscountSummary.pct || 0))
-    : s.softwareDiscountsTotalLabel;
-  const servicesUniformLabel = servicesDiscountSummary.mode === "uniform-section"
-    ? s.servicesDiscountLabel(Number(servicesDiscountSummary.pct || 0))
-    : s.servicesDiscountsTotalLabel;
-
   /**
    * Render a section as a single table.
-   * - With discounts: Item | Gross | Discount | Net  + gross/discount/net subtotal rows.
+   * - With discounts: Item | Gross | Discount | Net + a single net subtotal.
    * - Without discounts: Item | Total | Frequency  + single subtotal row.
    *
    * Subtotal rows live in <tbody> (not <tfoot>) so the browser does NOT
@@ -121,8 +115,6 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     list: ProposalItem[],
     grossAmount: number,
     netAmount: number,
-    discountAmount: number,
-    discountLabel: string,
     showDiscountColumns: boolean,
   ) => {
     if (list.length === 0) return "";
@@ -136,8 +128,6 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
         </thead>
         <tbody>
           ${list.map(detailedLineRow).join("")}
-          <tr class="subtotal-row"><td colspan="3">${esc(s.grossSubtotal(title))}</td><td class="num">${formatEuro(grossAmount, lang)}</td></tr>
-          ${discountAmount > 0 ? `<tr class="subtotal-row discount-row"><td colspan="3">${esc(discountLabel)}</td><td class="num">− ${formatEuro(discountAmount, lang)}</td></tr>` : ""}
           <tr class="subtotal-row strong"><td colspan="3">${esc(s.netSubtotal(title))}</td><td class="num">${formatEuro(netAmount, lang)}</td></tr>
         </tbody>
       </table>`;
@@ -250,8 +240,8 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 
   <div class="includes">
     <h2>${esc(s.includes)}</h2>
-    <ul>${includes.included.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>
-    ${includes.optional.length ? `<div class="subsection">${esc(s.optionalNotIncluded)}</div><ul>${includes.optional.map((item) => `<li>${esc(item)}</li>`).join("")}</ul>` : ""}
+    <p>${includes.included.map(esc).join(" · ")}</p>
+    ${includes.optional.length ? `<p class="small"><strong>${esc(s.optionalNotIncluded)}</strong><br>${includes.optional.map(esc).join(" · ")}</p>` : ""}
   </div>
 
   <div class="year-bar"><span class="label">${esc(s.year1)}</span><span class="bar"></span></div>
@@ -261,8 +251,6 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     software,
     totals.softwareGrossSubtotal,
     totals.softwareSubtotal,
-    totals.softwareDiscountAmount,
-    softwareUniformLabel,
     softwareHasDiscount,
   )}
   ${sectionBlock(
@@ -270,8 +258,6 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     services,
     totals.servicesGrossSubtotal,
     totals.servicesSubtotal,
-    totals.servicesDiscountAmount,
-    servicesUniformLabel,
     servicesHasDiscount,
   )}
 
@@ -300,8 +286,10 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     <p>${esc(s.validityNote(proposal.validity_days))}</p>
   </div>
 
-  ${proposal.hosting === "SaaS" ? `<h2>${esc(s.saasFeatures)}</h2><ul>${s.saasFeaturesList.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-  <h2>${esc(s.satTitle)}</h2><ul>${s.satList.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+  <section class="scope-grid">
+  ${proposal.hosting === "SaaS" ? `<section class="scope-group"><h2>${esc(s.saasFeatures)}</h2><ul>${s.saasFeaturesList.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>` : ""}
+  <section class="scope-group"><h2>${esc(s.satTitle)}</h2><ul>${s.satList.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>
+  </section>
 
   <div class="footer"><span>ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE}</span><span>${esc(proposal.client_name)} · v${proposal.version}</span></div>
   <script>setTimeout(() => window.print(), 600);</script>

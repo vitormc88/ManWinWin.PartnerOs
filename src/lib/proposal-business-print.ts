@@ -134,49 +134,6 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
   if (!cfg.pluginSLA) optional.push(s.pluginSLA);
   if (!cfg.api) optional.push(s.apiManwinwin);
 
-  const optionsHtml = (() => {
-    const parts: string[] = [];
-    if (out.keepit) {
-      const swNet = out.keepit.software
-        .filter((l) => l.category !== "web_user")
-        .reduce((a, l) => a + l.netAmount, 0);
-      parts.push(`<h3>${esc(s.optionAKeepIT)}</h3><ul>`);
-      parts.push(`<li>${esc(s.keepItLicenseAmount)}: <strong>${esc(fmt(swNet))}</strong></li>`);
-      parts.push(`<li>${esc(s.satAnnual)}: <strong>${esc(fmt(out.keepit.sat?.netAmount || 0))}</strong></li>`);
-      if (cfg.additionalWebUsers > 0) {
-        const w = out.keepit.software.find((l) => l.category === "web_user");
-        parts.push(`<li>${esc(s.webMobileAdditionalAnnual)}: ${esc(fmt(w?.netAmount || 0))}</li>`);
-      }
-      if (cfg.api && out.keepit.api)
-        parts.push(`<li>${esc(s.apiAnnual)}: ${esc(fmt(out.keepit.api.netAmount))}</li>`);
-      if (cfg.deployment === "saas") {
-        const ho = out.keepit.hosting.reduce((a, l) => a + l.netAmount, 0);
-        parts.push(`<li>${esc(s.saasHostingAnnual)}: ${esc(fmt(ho))}</li>`);
-      }
-      parts.push(`</ul>`);
-    }
-    if (out.useit) {
-      const annual = out.useit.software
-        .filter((l) => l.category !== "web_user")
-        .reduce((a, l) => a + l.netAmount, 0);
-      parts.push(`<h3>${esc(s.optionBUseIT)}</h3><ul>`);
-      parts.push(`<li>${esc(s.useItAnnualLicenseAmount)}: <strong>${esc(fmt(annual))}</strong></li>`);
-      parts.push(`<li>${esc(s.satIncluded)}</li>`);
-      if (cfg.additionalWebUsers > 0) {
-        const w = out.useit.software.find((l) => l.category === "web_user");
-        parts.push(`<li>${esc(s.webMobileAdditionalAnnual)}: ${esc(fmt(w?.netAmount || 0))}</li>`);
-      }
-      if (cfg.api && out.useit.api)
-        parts.push(`<li>${esc(s.apiAnnual)}: ${esc(fmt(out.useit.api.netAmount))}</li>`);
-      if (cfg.deployment === "saas") {
-        const ho = out.useit.hosting.reduce((a, l) => a + l.netAmount, 0);
-        parts.push(`<li>${esc(s.saasHostingAnnual)}: ${esc(fmt(ho))}</li>`);
-      }
-      parts.push(`</ul>`);
-    }
-    return parts.join("");
-  })();
-
   const servicesHtml = (() => {
     const implType = cfg.implementation.type;
     const title =
@@ -292,19 +249,18 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
 
 <h2>${esc(s.softwareConfigHeading)}</h2>
 <ul>${swDescItems.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-<p><strong>${esc(s.modulesIncludedHeading)}</strong></p>
-<ul>${modules.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-${plugins.length ? `<p><strong>${esc(s.pluginsIncludedHeading)}</strong></p><ul>${plugins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
-${cfg.api ? `<ul><li>${esc(s.apiManwinwin)}</li></ul>` : ""}
+<p><strong>${esc(s.modulesIncludedHeading)}</strong><br>${modules.map(esc).join(" · ")}</p>
+${plugins.length || cfg.api ? `<p><strong>${esc(s.pluginsIncludedHeading)}</strong><br>${[...plugins,...(cfg.api?[s.apiManwinwin]:[])].map(esc).join(" · ")}</p>` : ""}
 ${optional.length ? `<p class="muted small"><strong>${esc(s.optionalNotIncludedFull)}</strong><br>${optional.map(esc).join(" · ")}</p>` : ""}
 
-<h2>${esc(s.optionsTitle)}</h2>
-${optionsHtml}
-
-<section class="keep-together services-section">
+${primary.services.length ? `<section class="keep-together services-section">
   <h2>${esc(s.servicesTitle)}</h2>
   ${servicesHtml}
-</section>
+</section>` : ""}
+
+<h2>${esc(s.optionsTitle)}</h2>
+${showK?`<h3>${esc(s.optionAKeepIT)}</h3><p>${esc(s.permanentKeepITLicense)} · ${esc(s.satAnnual)}</p>`:""}
+${showU?`<h3>${esc(s.optionBUseIT)}</h3><p>${esc(s.annualUseITLicense)} · ${esc(s.satIncluded)}</p>`:""}
 
 <section class="summary-section">
   <h2>${esc(s.investmentSummaryTitle)}</h2>
@@ -324,11 +280,11 @@ ${proposal.notes?.trim() ? `<h2>${esc(businessNotesTitle(proposal.language))}</h
   <li>${esc(s.satEscalationNote)}</li>
 </ul>
 
-<h2>${esc(cfg.deployment === "saas" ? s.featuresSaasTitle : s.featuresClientServerTitle)}</h2>
+<section class="scope-grid"><section class="scope-group"><h2>${esc(cfg.deployment === "saas" ? s.featuresSaasTitle : s.featuresClientServerTitle)}</h2>
 <ul>${(cfg.deployment === "saas" ? s.saasFeatures : s.clientServerFeatures).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-
-<h2>${esc(s.satTitle)}</h2>
+</section><section class="scope-group"><h2>${esc(s.satTitle)}</h2>
 <ul>${s.satList.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+</section></section>
 
 ${cfg.api ? `<h2>${esc(s.apiTitle)}</h2><ul>${s.apiList.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 

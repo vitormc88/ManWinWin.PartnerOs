@@ -30,7 +30,7 @@ export async function generateBrandedDocx(html: string): Promise<Blob> {
   function paragraph(el:Element, extra:IParagraphOptions={}):Paragraph {
     const heading=/^H[1-3]$/.test(el.tagName), size=el.tagName==="H1"?42:el.tagName==="H2"?23:el.tagName==="H3"?21:19;
     const isSmall=el.matches(".small,.footnote,.y1-note,.eyebrow");
-    return new Paragraph({spacing:{before:heading?160:0,after:heading?80:75,line:254},keepNext:heading,keepLines:true,widowControl:true,
+    return new Paragraph({spacing:{before:heading?160:0,after:heading?80:75,line:254},keepNext:heading,keepLines:heading,widowControl:true,
       ...(el.tagName==="H2"?{border:{left:{style:BorderStyle.SINGLE,color:D.red,size:12,space:6}}}:{}),
       children:runs(el,{size:isSmall?16:size,bold:heading,color:heading?D.navy:isSmall?D.muted:D.ink}),...extra});
   }
@@ -56,8 +56,15 @@ export async function generateBrandedDocx(html: string): Promise<Blob> {
   function walk(el:Element):Block[] {
     if(el.matches("script,style,button,.brand-header,.brand-footer"))return [];
     if(el.tagName==="TABLE")return [table(el)];
+    if(el.matches(".scope-grid")){
+      const groups=[...el.children],width=Math.floor(WIDTH/groups.length);
+      return [new Table({width:{size:WIDTH,type:WidthType.DXA},columnWidths:groups.map(()=>width),layout:TableLayoutType.FIXED,borders:{top:none,bottom:none,left:none,right:none,insideHorizontal:none,insideVertical:none},rows:[new TableRow({cantSplit:true,children:groups.map(group=>new TableCell({width:{size:width,type:WidthType.DXA},borders:{top:none,bottom:none,left:none,right:none},margins:{top:80,bottom:80,left:0,right:160},children:walk(group)}))})]})];
+    }
     if(el.matches(".year-total,.investment-total"))return [totalBlock(el),new Paragraph({spacing:{after:80},children:[]})];
-    if(el.matches(".document-meta"))return [paragraph(el,{shading:{fill:D.surface,type:ShadingType.CLEAR,color:"auto"},spacing:{before:0,after:200},children:[new TextRun({text:[...el.children].map(c=>{const copy=c.cloneNode(true) as Element;copy.querySelectorAll("br").forEach(br=>br.replaceWith(dom.createTextNode(": ")));return copy.textContent;}).join("   ·   "),font:D.font,size:17,color:D.muted})]})];
+    if(el.matches(".document-meta")){
+      const cells=[...el.children],width=Math.floor(WIDTH/cells.length);
+      return [new Table({width:{size:WIDTH,type:WidthType.DXA},columnWidths:cells.map(()=>width),layout:TableLayoutType.FIXED,borders:{top:none,bottom:none,left:none,right:none,insideHorizontal:none,insideVertical:none},rows:[new TableRow({cantSplit:true,children:cells.map(cell=>new TableCell({width:{size:width,type:WidthType.DXA},margins:{top:120,bottom:120,left:120,right:120},shading:{fill:D.surface,type:ShadingType.CLEAR,color:"auto"},borders:{top:none,bottom:none,left:none,right:none},children:[new Paragraph({spacing:{after:0,line:245},children:runs(cell,{size:17,color:D.muted})})]}))})]}),new Paragraph({spacing:{after:90},children:[]})];
+    }
     if(el.tagName==="LI")return [paragraph(el,{spacing:{after:35,line:240},indent:{left:180,hanging:180},children:[new TextRun({text:"•  ",font:D.font,size:18,color:D.muted}),...runs(el)]})];
     if(el.matches("h1,h2,h3,p,.subsection,.year-bar"))return [paragraph(el)];
     if(el.tagName==="DIV" && ![...el.children].some(c=>c.matches("div,section,table,h1,h2,h3,p,ul")))return el.textContent?.trim()?[paragraph(el)]:[];

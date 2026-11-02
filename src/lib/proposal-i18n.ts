@@ -508,9 +508,9 @@ export function isLanguageSupported(lang: string): boolean {
 export function formatEuro(value: number, lang: ProposalLanguage = "EN"): string {
   const locale = lang === "PT" ? "pt-PT" : lang === "ES" ? "es-ES" : "en-GB";
   const formatted = new Intl.NumberFormat(locale, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Math.round(value));
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
   return `${formatted} €`;
 }
 

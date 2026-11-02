@@ -41,7 +41,9 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
     ],
     rows: draft.quote.lines.map(l => {
       const reference = l.referenceUnitPrice == null ? "" : `\n${pt ? "Tarifa de referência" : "Reference tariff"}: ${money(l.referenceUnitPrice)}/${l.unitPeriod === "month" ? pt ? "mês" : "month" : l.unitPeriod === "once" ? pt ? "aquisição" : "purchase" : pt ? "ano" : "year"}${l.unitPrice !== l.referenceUnitPrice ? ` → ${money(l.unitPrice!)}` : ""}`;
-      const discounts = commercial ? [(l.initialDiscountPct||0)>0?`${pt?"Desconto inicial":"Initial discount"}: ${l.initialDiscountPct}%`:"",(l.renewalDiscountPct||0)>0?`${pt?"Desconto renovação":"Renewal discount"}: ${l.renewalDiscountPct}%`:""].filter(Boolean).map(t=>`\n${t}`).join("") : "";
+      const initialGross=(l.referenceOneTime ?? l.oneTime)+(l.referenceAnnual ?? l.annual)*(draft.quote.months ?? 0)/12;
+      const saving=Math.max(0,Math.round((initialGross-l.dueNow)*100)/100);
+      const discounts = commercial ? [(l.initialDiscountPct||0)>0?`${pt?"Desconto inicial":"Initial discount"}: ${l.initialDiscountPct}%${saving>0?` · ${pt?"poupa":"save"} ${money(saving)}`:""}`:"",(l.renewalDiscountPct||0)>0?`${pt?"Desconto renovação":"Renewal discount"}: ${l.renewalDiscountPct}%`:""].filter(Boolean).map(t=>`\n${t}`).join("") : "";
       const service=draft.selection.services?.find(s=>`SERVICE_${s.id}`===l.code);
       const modality = service && pt ? ({online:"remota",onsite:"presencial",other:"outra modalidade"} as const)[service.modality] : service?.modality;
       const unit = service && pt ? ({session:"sessão",hour:"hora",day:"dia",fixed:"preço fixo"} as const)[service.unit] : service?.unit;
@@ -94,6 +96,12 @@ export function additionDocumentLayout(proposal: Partial<Proposal>, draft: Addit
     const parts=description.split("\n");parts[0]=`${primary.quantity} × ${parts[0]}`;
     return [`${parts.join("\n")}${support.length?"\n"+support.join("\n"):""}`,...(["oneTime","annual","dueNow"] as const).map(key=>money(group.reduce((sum,line)=>sum+line[key],0)))];
   });
+  const rowGroups=groupAdditionLines(draft.quote.lines).map(group=>group[0].kind==="service"||group[0].kind==="expense"?"services":"software");
+  const renewalMetrics=isServicesOnly(draft.selection)?[[pt?"Contrato e renovação":"Contract and renewal",pt?"Sem alteração":"Unchanged"]]:[
+    [pt?"Acréscimo na próxima renovação":"Increase at the next renewal",`+ ${money(draft.quote.annualIncrease)} / ${pt?"ano":"year"}`],
+    [pt?"Novo valor anual do contrato":"New annual contract total",draft.quote.renewalAnnual==null?pt?"Por confirmar — rever o contrato atual":"Not confirmed — review the existing contract":`${money(draft.quote.renewalAnnual)} / ${pt?"ano":"year"}`],
+  ];
+  const summaryNotes=c.summary.slice(3).map(line=>line.includes("S&AT")?(draft.baseline.model==="keepit"?pt?"O valor inicial inclui o S&AT adicional proporcional ao período indicado.":"The initial investment includes additional S&AT for the stated period.":pt?"S&AT incluído no licenciamento.":"S&AT is included in the license."):line);
   const details=c.details.filter(x=>!x.startsWith("Documento:")&&!x.startsWith("Document:")&&!x.startsWith("Início:")&&!x.startsWith("Effective date:")&&!x.startsWith("Período cobrado:")&&!x.startsWith("Billable months:")&&!x.startsWith("Proposta de ")&&!x.startsWith("Proposal date:"));
   const familyIndex=details.findIndex(x=>x.startsWith(draft.baseline.family||"Business")),basisIndex=details.findIndex(x=>x.startsWith("Valores ")||x.startsWith("Offer basis:"));
   if(familyIndex>=0&&basisIndex>=0){details[familyIndex]+=" · "+details[basisIndex];details.splice(basisIndex,1);}
@@ -101,11 +109,11 @@ export function additionDocumentLayout(proposal: Partial<Proposal>, draft: Addit
     meta:[
       [pt?"Data da proposta":"Proposal date",documentDate(commercial?.proposalDate || proposal.proposal_date || draft.selection.effectiveDate,pt?"PT":"EN")],
       [pt?"Validade":"Validity",commercial?`${commercial.validityDays} ${pt?"dias, até":"days, until"} ${documentDate(additionValidUntil(commercial),pt?"PT":"EN")}`:"—"],
-      [isServicesOnly(draft.selection)?pt?"Serviços":"Services":pt?"Período desta ampliação":"Addition period",isServicesOnly(draft.selection)?documentDate(draft.selection.effectiveDate,pt?"PT":"EN"):`${draft.quote.months} ${pt?"meses":"months"} · ${draft.selection.effectiveDate} – ${draft.selection.renewalDate}`],
+      [isServicesOnly(draft.selection)?pt?"Serviços":"Services":pt?"Período desta ampliação":"Addition period",isServicesOnly(draft.selection)?documentDate(draft.selection.effectiveDate,pt?"PT":"EN"):`${draft.quote.months} ${pt?(draft.quote.months===1?"mês":"meses"):(draft.quote.months===1?"month":"months")} · ${draft.selection.effectiveDate} – ${draft.selection.renewalDate}`],
     ],
-    details,
+    details:details.map(line=>line.replace(` · ${c.versionLabel}`,"")),
     headers:[c.headers[0],c.headers[2],c.headers[3],c.headers[4]],
-    rows,
+    rows,rowGroups,renewalMetrics,summaryNotes,
     totalLabel:isServicesOnly(draft.selection)?pt?"Total dos serviços e despesas":"Total services and expenses":pt?"Total desta proposta":"Total of this proposal",
     total:money(draft.quote.dueNow),
   };
@@ -114,13 +122,13 @@ export function buildAdditionPrintHtml(proposal: Partial<Proposal>, draft = read
   if (!draft) throw new Error("Missing commercial addition snapshot.");
   const m=additionDocumentLayout(proposal,draft),c=m.c;
   const chrome=documentChrome({...proposal,language:c.pt?"PT":"EN"},c.pt?"Proposta de investimento":"Investment proposal");
-  return `<!doctype html><html lang="${c.pt?"pt":"en"}"><head><meta charset="utf-8"><title>${escape(c.title)}</title><style>${PROPOSAL_DESIGN_CSS}</style></head><body>${chrome.header}<main>
+  return `<!doctype html><html lang="${c.pt?"pt":"en"}"><head><meta charset="utf-8"><title>${escape(c.title)}</title><style>${PROPOSAL_DESIGN_CSS}</style></head><body>${chrome.header}<main class="document-compact">
   <div class="document-intro"><h1>${escape(m.title)}</h1><p class="customer">${escape(m.customer)}</p></div>
   <div class="document-meta">${m.meta.map(([label,value])=>`<span>${escape(label)}<br><strong>${escape(value)}</strong></span>`).join("")}</div>
   ${m.details.map(x=>`<p class="small">${escape(x)}</p>`).join("")}
-  <h2>${escape(c.headings.investment)}</h2><table><thead><tr>${m.headers.map((x,i)=>`<th${i?' class="num"':""}>${escape(x)}</th>`).join("")}</tr></thead><tbody>${m.rows.map(row=>`<tr>${row.map((x,i)=>`<td class="${i?"num":"terms"}">${escape(x)}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  <h2>${escape(c.headings.investment)}</h2><table><thead><tr>${m.headers.map((x,i)=>`<th${i?' class="num"':""}>${escape(x)}</th>`).join("")}</tr></thead><tbody>${m.rows.map((row,index)=>`${index===0||m.rowGroups[index]!==m.rowGroups[index-1]?`<tr class="header-row"><td colspan="4">${m.rowGroups[index]==="services"?(c.pt?"Serviços e despesas · prestação única":"Services and expenses · one-time"):(c.pt?"Software e acessos":"Software and accesses")}</td></tr>`:""}<tr>${row.map((x,i)=>`<td class="${i?"num":"terms"}">${escape(x)}</td>`).join("")}</tr>`).join("")}</tbody></table>
   <div class="investment-total"><span>${escape(m.totalLabel)}<small>${c.pt?"Acresce IVA à taxa legal aplicável":"Excluding applicable taxes"}</small></span><span class="value">${escape(m.total)}</span></div>
-  <section class="renewal-section">${c.summary.slice(1,3).map(x=>`<p><strong>${escape(x)}</strong></p>`).join("")}</section>${c.summary.slice(3).map(x=>`<p class="small">${escape(x)}</p>`).join("")}
+  <div class="document-meta renewal-metrics">${m.renewalMetrics.map(([label,value])=>`<span>${escape(label)}<br><strong>${escape(value)}</strong></span>`).join("")}</div>${!isServicesOnly(draft.selection)?`<p class="small">${c.pt?"A data de renovação mantém-se:":"Renewal date remains:"} ${escape(documentDate(draft.selection.renewalDate,c.pt?"PT":"EN"))}</p>`:""}${m.summaryNotes.map(x=>`<p class="small">${escape(x)}</p>`).join("")}
   ${draft.selection.implementationReview==="separate"?c.services.map(x=>`<p>${escape(x)}</p>`).join(""):""}<h2>${escape(c.headings.terms)}</h2><p class="terms">${escape(c.terms)}</p>${c.notes?`<h2>${escape(c.headings.notes)}</h2><p class="notes">${escape(c.notes)}</p>`:""}
   </main>${chrome.footer}<script>Promise.all([document.fonts.ready,...Array.from(document.images).map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r}))]).then(()=>window.print());</script></body></html>`;
 }

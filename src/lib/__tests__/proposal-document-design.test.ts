@@ -23,7 +23,7 @@ describe("Approved proposal identity across PDF and editable Word",()=>{
     expect(dom.querySelector("main")?.textContent).toContain("123.45 €");
     expect(dom.querySelector("main script")).toBeNull();
     expect(dom.querySelector(".client")?.textContent).toBe(p.client_name);
-    expect(html.indexOf("Frozen amount")).toBeLessThan(html.indexOf("Scope remains intact"));
+    expect(html.indexOf("Scope remains intact")).toBeLessThan(html.indexOf("Frozen amount"));
     expect(JSON.stringify(p)).toBe(before);
     expect(PROPOSAL_DESIGN_CSS).not.toContain("overflow:hidden");
   });
@@ -37,6 +37,7 @@ describe("Approved proposal identity across PDF and editable Word",()=>{
       const text=new DOMParser().parseFromString(xml,"application/xml").documentElement.textContent;
       for(const value of ["KeepIT","UseIT","25%","−90.00 €","10,270.00 €","2,270.00 €","First condition","Second condition & taxes"])expect(text).toContain(value);
       expect(xml).toContain("<w:tblHeader/>");expect(xml).toContain("<w:cantSplit/>");expect(xml).toContain("Ubuntu");
+      expect(xml).toMatch(/First condition<\/w:t><\/w:r><w:r><w:br\/><\/w:r>/);
       const footerName=Object.keys(zip.files).find(x=>/word\/footer\d+\.xml$/.test(x))!;
       const footer=await zip.file(footerName)!.async("string");expect(footer).toContain("PAGE");expect(footer).toContain("NUMPAGES");expect(footer).toContain("ISO 9001");
     }finally{spy.mockRestore();}

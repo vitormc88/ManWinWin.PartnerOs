@@ -185,13 +185,13 @@ describe("Gate 1 — APS renewal document payload", () => {
     expect(xml).toContain("Incremental implementation");
 
     // Amounts.
-    expect(xml).toContain("1,800 €"); // target plan license
-    expect(xml).toContain("240 €"); // billable web unit price
-    expect(xml).toContain("720 €"); // 3 × 240
-    expect(xml).toContain("1,650 €"); // implementation gross
-    expect(xml).toContain("825 €"); // discount / net
-    expect(xml).toContain("3,345 €"); // Year 1
-    expect(xml).toContain("2,520 €"); // Year 2+
+    expect(xml).toContain("1,800.00 €"); // target plan license
+    expect(xml).toContain("240.00 €"); // billable web unit price
+    expect(xml).toContain("720.00 €"); // 3 × 240
+    expect(xml).toContain("1,650.00 €"); // implementation gross
+    expect(xml).toContain("825.00 €"); // discount / net
+    expect(xml).toContain("3,345.00 €"); // Year 1
+    expect(xml).toContain("2,520.00 €"); // Year 2+
 
     // Entitlement table columns.
     expect(xml).toContain("Total licensed");
