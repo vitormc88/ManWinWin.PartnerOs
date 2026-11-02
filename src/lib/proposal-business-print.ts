@@ -17,6 +17,8 @@ import { formatEuro } from "./proposal-i18n";
 import { assertBusinessOptionsComputable } from "./proposal-business-readiness";
 import { proposalDocumentTitle, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
 import { businessPaymentSection, businessNotesTitle } from "./proposal-business-terms";
+import { brandOpportunityHtml } from "./proposal-document-design";
+import { openProposalPdf } from "./proposal-pdf-window";
 
 const esc = (v: any) =>
   String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -45,13 +47,11 @@ export interface BusinessPrintOptions {
   rules: PricingRule[];
 }
 
-export function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOptions, printWindow?: Window) {
+export async function printBusinessProposal({ proposal, cfg, rules }: BusinessPrintOptions, printWindow?: Window) {
   const html = buildBusinessProposalPrintHtml({ proposal, cfg, rules });
   const win = printWindow || window.open("", "_blank", "width=900,height=1200");
   if (!win) throw new Error("Allow pop-ups for PartnerOS, then generate the PDF again.");
-  win.document.open();
-  win.document.write(html);
-  win.document.close();
+  await openProposalPdf(html,win);
 }
 
 export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: BusinessPrintOptions): string {
@@ -88,7 +88,7 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
     return `<td class="${cls.join(" ")}">${esc(fmt(val))}</td>`;
   };
 
-  const tableRows = rows
+  const renderRows = (selectedRows: typeof rows) => selectedRows
     .map((r) => {
       if (r.isHeader) {
         const colspan = 1 + (showK ? 1 : 0) + (showU ? 1 : 0);
@@ -102,6 +102,11 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
       return `<tr class="${r.isTotal ? "total-row" : ""}">${labelCell}${k}${u}</tr>`;
     })
     .join("");
+  const tableHeader=`<thead><tr><th>${esc(s.itemColumn)}</th>${showK?`<th class="num">${esc(`${s.optionAColumn}${showU?"":` · ${s.selectedOption}`}`)}</th>`:""}${showU?`<th class="num">${esc(`${s.optionBColumn}${showK?"":` · ${s.selectedOption}`}`)}</th>`:""}</tr></thead>`;
+  const year2Index=rows.findIndex((r,i)=>i>0&&r.isHeader);
+  const investmentTables=showK&&showU||year2Index<0
+    ? `<table class="summary">${tableHeader}<tbody>${renderRows(rows)}</tbody></table>`
+    : `<table class="summary">${tableHeader}<tbody>${renderRows(rows.slice(0,year2Index).filter(r=>!r.isTotal))}</tbody></table><div class="year-total"><span>${esc(s.totalOfYear1)}</span><span>${esc(fmt(primary.totalYear1))}</span></div><div class="renewal-section"><table class="summary">${tableHeader}<tbody>${renderRows(rows.slice(year2Index).filter(r=>!r.isTotal))}</tbody></table><div class="year-total"><span>${esc(s.totalPerYear2Plus)}</span><span>${esc(fmt(primary.totalYear2Plus))}</span></div></div>`;
 
   const swDescItems: string[] = [];
   swDescItems.push(s.defaultBackoffice);
@@ -285,17 +290,13 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
   <div class="restricted">${esc(s.restricted)}</div>
 </div>
 
-<h2>${esc(s.investmentProposal)}</h2>
-<p><strong>${esc(s.forImplementation(proposal.client_name))}</strong></p>
-<p style="color:#c00;font-weight:700">${esc(s.businessSubtitle)}</p>
-
 <h2>${esc(s.softwareConfigHeading)}</h2>
 <ul>${swDescItems.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 <p><strong>${esc(s.modulesIncludedHeading)}</strong></p>
 <ul>${modules.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 ${plugins.length ? `<p><strong>${esc(s.pluginsIncludedHeading)}</strong></p><ul>${plugins.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
 ${cfg.api ? `<ul><li>${esc(s.apiManwinwin)}</li></ul>` : ""}
-${optional.length ? `<p class="muted small" style="font-style:italic;margin-top:14px"><strong>${esc(s.optionalNotIncludedFull)}</strong></p><ul class="muted small" style="font-style:italic">${optional.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+${optional.length ? `<p class="muted small"><strong>${esc(s.optionalNotIncludedFull)}</strong><br>${optional.map(esc).join(" · ")}</p>` : ""}
 
 <h2>${esc(s.optionsTitle)}</h2>
 ${optionsHtml}
@@ -307,16 +308,7 @@ ${optionsHtml}
 
 <section class="summary-section">
   <h2>${esc(s.investmentSummaryTitle)}</h2>
-  <table class="summary">
-    <thead>
-      <tr>
-        <th>${esc(s.itemColumn)}</th>
-         ${showK ? `<th class="num">${esc(`${s.optionAColumn}${showU ? "" : ` · ${s.selectedOption}`}`)}</th>` : ""}
-         ${showU ? `<th class="num">${esc(`${s.optionBColumn}${showK ? "" : ` · ${s.selectedOption}`}`)}</th>` : ""}
-      </tr>
-    </thead>
-    <tbody>${tableRows}</tbody>
-  </table>
+  ${investmentTables}
 </section>
 
 <h2>${esc(s.billingHeader)}</h2>
@@ -344,5 +336,5 @@ ${cfg.api ? `<h2>${esc(s.apiTitle)}</h2><ul>${s.apiList.map((x) => `<li>${esc(x)
 <script>setTimeout(() => window.print(), 600);</script>
 </body></html>`;
 
-  return html;
+  return brandOpportunityHtml(html, proposal, "ManWinWin Business");
 }

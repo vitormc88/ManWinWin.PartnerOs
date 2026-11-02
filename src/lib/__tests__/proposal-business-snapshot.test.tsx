@@ -1,9 +1,12 @@
+import { beforeEach, afterEach } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Packer } from "docx";
 import { inflateRawSync } from "node:zlib";
 import { BusinessPreviewStep } from "@/components/proposals/BusinessSteps";
 import { buildBusinessProposalPrintHtml, printBusinessProposal } from "@/lib/proposal-business-print";
+import { openProposalPdf } from "@/lib/proposal-pdf-window";
+vi.mock("@/lib/proposal-pdf-window",()=>({openProposalPdf:vi.fn().mockResolvedValue(undefined)}));
 import { generateBusinessProposalDocx } from "@/lib/proposal-business-docx";
 import { buildBusinessDocumentSnapshot, businessDocumentMatchesSaved } from "@/lib/proposal-business-snapshot";
 import { tBusiness } from "@/lib/proposal-business-i18n";
@@ -123,14 +126,18 @@ describe("Business proposal current document snapshot", () => {
     } finally { spy.mockRestore(); }
   });
 
-  it("uses a synchronously reserved print window instead of opening another popup", () => {
+  it("uses a synchronously reserved print window instead of opening another popup", async () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
     const target = { document: { open: vi.fn(), write: vi.fn(), close: vi.fn() } };
     try {
-      printBusinessProposal({ proposal: saved, cfg, rules }, target as unknown as Window);
+      await printBusinessProposal({ proposal: saved, cfg, rules }, target as unknown as Window);
       expect(open).not.toHaveBeenCalled();
-      expect(target.document.write).toHaveBeenCalledWith(expect.stringContaining("Commercial Licensing Options"));
-      expect(() => printBusinessProposal({ proposal: saved, cfg, rules })).toThrow("Allow pop-ups");
+      expect(openProposalPdf).toHaveBeenCalledWith(expect.stringContaining("Commercial Licensing Options"),target);
+      await expect(printBusinessProposal({ proposal: saved, cfg, rules })).rejects.toThrow("Allow pop-ups");
     } finally { open.mockRestore(); }
   });
 });
+
+// Document branding is a required asset, isolated from network in regression fixtures.
+beforeEach(()=>vi.stubGlobal("fetch",vi.fn().mockResolvedValue({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)})));
+afterEach(()=>vi.unstubAllGlobals());

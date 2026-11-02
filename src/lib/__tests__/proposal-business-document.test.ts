@@ -1,3 +1,4 @@
+import { beforeEach, afterEach } from "vitest";
 import { describe, expect, it, vi } from "vitest";
 import { Packer } from "docx";
 import { inflateRawSync } from "node:zlib";
@@ -173,7 +174,7 @@ describe("Business proposal document transparency", () => {
     expect(html).toContain("Total onsite services: 9,790 €");
     expect(html).toContain("TOTAL OF THE YEAR (Year 1)");
     expect(html).toContain('class="keep-together services-section"');
-    expect(html).toContain('class="header-logo"');
+    expect(html).toContain('class="brand-header"');
     expect(html).toContain('class="summary-section"');
   });
 
@@ -201,3 +202,7 @@ describe("Business proposal document transparency", () => {
     expect(html).toContain("2,400 €");
   });
 });
+
+// Document branding is a required asset, isolated from network in regression fixtures.
+beforeEach(()=>vi.stubGlobal("fetch",vi.fn().mockResolvedValue({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)})));
+afterEach(()=>vi.unstubAllGlobals());

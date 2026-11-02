@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, afterEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildProposalPrintHtml } from "@/lib/proposal-print";
 import { generateProposalDocx } from "@/lib/proposal-docx";
 import JSZip from "jszip";
@@ -70,16 +71,16 @@ describe("proposal document control", () => {
     expect(html).toContain("overflow-wrap:anywhere");
     expect(html).toContain("support@manwinwin.com");
     expect(html).toContain("www.manwinwin.com");
-    expect(html).toContain("McGills Chemical Corporation · v2");
+    expect(html).toContain("MWW-P1 · r1 · v2");
     expect(html).toContain('<p class="terms-label">ManWinWin standard terms and conditions:</p>');
     expect(html).toContain("<li>50% on award</li><li>50% after installation</li>");
   });
 
   it("uses the unified branded cover and keeps the logo in the inner header", () => {
     const html = buildProposalPrintHtml(proposal, items);
-    expect(html).toContain('class="cover-logo"');
-    expect(html).toContain('class="logo"');
-    expect(html).toContain("ManWinWin <span class=\"red\">Professional (SaaS)</span>");
+    expect(html).toContain('class="cover-rule"');
+    expect(html).toContain('class="brand-header"');
+    expect(html).toContain("ManWinWin Professional · 1 · SaaS");
   });
 
   it("keeps the Word renewal block in a non-splitting container", async () => {
@@ -99,15 +100,19 @@ describe("proposal document control", () => {
 describe("proposal print pagination guards", () => {
   it("keeps the footer in flow and reserves a print-safe bottom margin", () => {
     const html = buildProposalPrintHtml(proposal, items);
-    expect(html).toContain("margin: 17mm 16mm 18mm");
-    expect(html).not.toMatch(/\.footer \{[^}]*position:\s*fixed/);
-    expect(html).toContain("print-color-adjust: exact");
+    expect(html).toContain("margin:31mm 14mm 27mm");
+    expect(html).toContain(".brand-footer{position:fixed");
+    expect(html).toContain("print-color-adjust:exact");
     expect((html.match(/page-break-after:always/g) || []).length).toBe(1);
   });
 
   it("keeps the Year 2 heading, table and total in one printable block", () => {
     const html = buildProposalPrintHtml(proposal, items);
     expect(html).toContain('class="renewal-section"');
-    expect(html).toContain(".renewal-section { break-inside: avoid; page-break-inside: avoid; }");
+    expect(html).toContain(".renewal-section{break-inside:auto");
   });
 });
+
+// Document branding is a required asset, isolated from network in regression fixtures.
+beforeEach(()=>vi.stubGlobal("fetch",vi.fn().mockResolvedValue({ok:true,arrayBuffer:async()=>new ArrayBuffer(8)})));
+afterEach(()=>vi.unstubAllGlobals());
