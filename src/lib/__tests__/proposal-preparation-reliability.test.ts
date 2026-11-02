@@ -11,6 +11,13 @@ const rules=[rule("BUS_USEIT_ADDITIONAL_BACKOFFICE",352),rule("BUS_KEEPIT_ADDITI
 function selection() {const c=initialAdditionCommercial("2026-10-31");c.payment=upfrontAdditionPayment(c.payment);return {...initialAdditionSelection(b,"2026-10-31"),backoffice:1,monthPolicy:"complete" as const,pricingBasis:"direct" as const,offerBasis:"customer" as const,implementationReview:"not_needed" as const,priceReview:"QA approved",baselineAnnualConfirmed:true,commercial:c};}
 
 describe("Proposal reliability after real audit findings",()=>{
+  it("describes service commencement without a license activation in both languages",()=>{
+    const s=selection();
+    expect(additionPaymentText(s.commercial.payment,"PT",true)).toContain("Início dos serviços após confirmação do pagamento integral");
+    expect(additionPaymentText(s.commercial.payment,"EN",true)).toContain("Service commencement after confirmation of full payment");
+    expect(additionPaymentText(s.commercial.payment,"EN",true)).not.toContain("Activation");
+    expect(additionPaymentText(s.commercial.payment,"EN")).toContain("Activation after");
+  });
   it("edits preset billing without exporting an obsolete 100% upfront claim in either language",()=>{
     const s=selection();s.commercial.payment={...s.commercial.payment,invoice:"split",awardPercent:50};
     for(const lang of ["PT","EN"] as const){const text=additionPaymentText(s.commercial.payment,lang);expect(text).toContain("50%");expect(text).not.toContain("100% upfront");}

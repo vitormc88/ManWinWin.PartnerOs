@@ -14,12 +14,14 @@ end $$;
 begin;
 do $$ declare data jsonb;p uuid;n uuid;arr numeric;con_updated timestamptz;lic_updated timestamptz;begin
  data:=pg_temp.services_only_payload();
+ data:=data||jsonb_build_object('payment_terms',private.addition_service_payment_text(data#>'{business_config,commercial_addition,selection,commercial}'));
  begin
   perform save_commercial_addition_draft(null,null,jsonb_set(data,'{business_config,commercial_addition,selection,services,0,unit}','"day"'));
   raise exception 'QA expected tariff rejection';
  exception when others then if sqlerrm like '%QA expected%' then raise;end if;assert sqlerrm like '%approved training catalogue rule%';end;
  select total_value,updated_at into arr,con_updated from contracts limit 1;select updated_at into lic_updated from licenses limit 1;
  p:=save_commercial_addition_draft(null,null,data);perform commercial_addition_action(p,'validate');
+ assert (select payment_terms from proposals where id=p) like '%Service commencement%';
  perform commercial_addition_action(p,'accept',jsonb_build_object('date',current_date,'evidence_type','purchase_order','reference','QA-SERVICES'));
  assert (select total_value from contracts limit 1)=arr;
  assert (select updated_at from contracts limit 1)=con_updated,'Services must not alter contract header';
