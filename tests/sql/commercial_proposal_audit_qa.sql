@@ -2,5 +2,5 @@
 \set ON_ERROR_STOP on
 \ir commercial_addition_lifecycle_qa.sql
 \ir commercial_addition_simple_editor.sql
-\ir ../../supabase/migrations/20261102000339_commercial_proposal_audit_guards.sql
+\ir ../../supabase/migrations/20261102110325_commercial_proposal_audit_guards.sql
 \ir commercial_proposal_audit_guards.sql
