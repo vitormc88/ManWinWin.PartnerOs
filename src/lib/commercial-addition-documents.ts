@@ -45,7 +45,7 @@ export function additionDocumentContent(proposal: Partial<Proposal>, draft: Addi
       const service=draft.selection.services?.find(s=>`SERVICE_${s.id}`===l.code);
       const modality = service && pt ? ({online:"remota",onsite:"presencial",other:"outra modalidade"} as const)[service.modality] : service?.modality;
       const unit = service && pt ? ({session:"sessão",hour:"hora",day:"dia",fixed:"preço fixo"} as const)[service.unit] : service?.unit;
-      return [componentLabel(l.label) + (service?` · ${modality} · ${unit}`:"") + reference + discounts, String(l.quantity), money(l.oneTime), money(l.annual), money(l.dueNow)];
+      return [componentLabel(l.label) + (service?`${modality&&!componentLabel(l.label).toLocaleLowerCase().includes(modality.toLocaleLowerCase())?` · ${modality}`:""} · ${unit}`:"") + reference + discounts, String(l.quantity), money(l.oneTime), money(l.annual), money(l.dueNow)];
     }),
     summary: [
       ...(pt ? [
