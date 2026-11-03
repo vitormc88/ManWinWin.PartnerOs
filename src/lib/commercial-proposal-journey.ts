@@ -20,11 +20,19 @@ export function serviceReviewErrors(s?: ServiceReview): string[] {
     s.status==="quoted"&&!s.quoteReference.trim() && "Enter the separate services quotation reference.",
     !s.nextDate && "Choose the next services review date."].filter((x):x is string=>!!x);
 }
-export function proposalIdentity(p: Partial<Proposal> & {journey?: unknown}): string {
+export type ProposalReferenceFields = Pick<Partial<Proposal>,"id"|"version"|"business_config"|"commercial_reference"|"commercial_revision">;
+export function proposalIdentity(p: ProposalReferenceFields & {journey?: unknown}): string {
+  if(p.commercial_reference && p.commercial_revision) return `${p.commercial_reference} · ${proposalRevisionLabel(p)}`;
   const journey = ((p.business_config as unknown as {commercial_journey?:{rootId?:string;revision?:number}})?.commercial_journey ?? p.journey) as {rootId?:string;revision?:number}|undefined;
   const root = journey?.rootId || p.id;
   if (!root) return "Unsaved preview";
   return `MWW-${root.replace(/-/g,"").slice(0,8).toUpperCase()} · r${journey?.revision || 1} · v${p.version || 1}`;
+}
+export function proposalRevisionLabel(p: ProposalReferenceFields): string {
+  return p.commercial_reference && p.commercial_revision ? `Rev. ${String(p.commercial_revision).padStart(2,"0")}` : `v${p.version||1}`;
+}
+export function proposalFileIdentity(p: ProposalReferenceFields): string {
+  return p.commercial_reference && p.commercial_revision ? `${p.commercial_reference}_Rev_${String(p.commercial_revision).padStart(2,"0")}` : p.id && p.version ? `v${p.version}` : "preview";
 }
 export function proposalJourney(p: Proposal) {
   return (p.business_config as unknown as {commercial_journey?:{rootId:string;revision:number;revisionOf:string}})?.commercial_journey;

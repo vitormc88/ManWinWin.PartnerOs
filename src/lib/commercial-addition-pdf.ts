@@ -1,3 +1,4 @@
+import { proposalFileIdentity } from "./commercial-proposal-journey";
 import type { Proposal } from "@/types/proposal";
 import type { AdditionDraft } from "./commercial-additions";
 import { buildAdditionPrintHtml } from "./commercial-addition-documents";
@@ -11,6 +12,6 @@ export async function createAdditionPdf(proposal: Partial<Proposal>, draft: Addi
 export async function downloadAdditionPdf(proposal:Partial<Proposal>,draft:AdditionDraft) {
   const bytes=await createAdditionPdf(proposal,draft);
   const blob=new Blob([bytes as BlobPart],{type:"application/pdf"}),url=URL.createObjectURL(blob);
-  const a=document.createElement("a");a.href=url;a.download=`ManWinWin_${draft.baseline.clientName.replace(/[^a-zA-Z0-9_-]/g,"_")}_${proposal.id && proposal.version ? `v${proposal.version}` : "preview"}.pdf`;a.click();
+  const a=document.createElement("a");a.href=url;a.download=`ManWinWin_${draft.baseline.clientName.replace(/[^a-zA-Z0-9_-]/g,"_")}_${proposalFileIdentity(proposal)}.pdf`;a.click();
   setTimeout(()=>URL.revokeObjectURL(url),30000);
 }

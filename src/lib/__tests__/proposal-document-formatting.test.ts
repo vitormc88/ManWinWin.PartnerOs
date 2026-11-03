@@ -56,6 +56,16 @@ const items: ProposalItem[] = [
 ];
 
 describe("proposal document control", () => {
+  it("uses the same commercial reference in title, filename, cover and footer",()=>{
+    const p={...proposal,commercial_reference:"MWW-2026-0123",commercial_revision:2,commercial_root_id:"root",version:19};
+    expect(proposalDocumentTitle(p)).toContain("MWW-2026-0123 · Rev. 02");
+    expect(proposalFileName(p)).toBe("MWW-2026-0123_Proposal_McGills_Chemical_Corporation_Rev_02.docx");
+    const dom=new DOMParser().parseFromString(buildProposalPrintHtml(p,items),"text/html");
+    expect(dom.querySelector(".brand-header")?.textContent).toContain("MWW-2026-0123 · Rev. 02");
+    expect(dom.querySelector(".brand-footer")?.textContent).toContain("MWW-2026-0123 · Rev. 02");
+    expect(dom.querySelector(".cover")?.textContent).toContain("Rev. 02");
+    expect(dom.body.textContent).not.toContain("v19");
+  });
   it("retains cents and places the licensed scope before prices",()=>{
     expect(formatEuro(24437.25,"EN")).toBe("24,437.25 €");
     expect(formatEuro(3523.65,"PT")).toContain("3523,65");

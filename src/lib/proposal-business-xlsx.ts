@@ -11,6 +11,7 @@
  */
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { proposalFileIdentity } from "./commercial-proposal-journey";
 import {
   computeBusinessOptions,
   ONSITE_RATES,
@@ -665,7 +666,7 @@ export const generateBusinessXlsx = (opts: BusinessXlsxOptions): BusinessXlsxRes
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   const date = (proposal.proposal_date || new Date().toISOString().slice(0, 10)).slice(0, 10);
-  const fileName = `Business_Proposal_${safeFile(proposal.client_name)}_${date}_v${proposal.version}.xlsx`;
+  const fileName = `Business_Proposal_${safeFile(proposal.client_name)}_${date}_${proposalFileIdentity(proposal)}.xlsx`;
   return { blob, fileName };
 };
 

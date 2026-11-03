@@ -1,6 +1,7 @@
 import { useDealActivities } from "@/hooks/useCommissions";
 import { useDealProposals } from "@/hooks/useProposals";
 import { Badge } from "@/components/ui/badge";
+import { proposalIdentity } from "@/lib/commercial-proposal-journey";
 import { isMeaningfulCustomerInteraction, isSystemActivity, TAG_STYLE } from "@/lib/activity-log";
 import { MessageSquare, Tag as TagIcon, FileText, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,7 +83,7 @@ export function RelationshipSummary({ dealId }: Props) {
           icon={<FileText className="h-3.5 w-3.5 text-indigo-500" />}
           label={lifecycle.state === "sent" ? "Proposal sent" : "Proposal generated"}
           value={latestProposal
-            ? `v${latestProposal.version || 1} · ${lifecycle.state === "sent" ? "sent" : "ready"} · ${relTime(
+            ? `${proposalIdentity(latestProposal)} · ${lifecycle.state === "sent" ? "sent" : "ready"} · ${relTime(
                 lifecycle.state === "sent" && lifecycle.sentAt ? lifecycle.sentAt : new Date(latestProposal.created_at)
               )}`
             : "No proposal yet"}

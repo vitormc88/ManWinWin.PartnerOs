@@ -218,7 +218,7 @@ export function CommercialAdditionDialog({ open, onOpenChange, proposalSource, e
     try {
       if (format === "pdf") { const { downloadAdditionPdf } = await import("@/lib/commercial-addition-pdf"); await downloadAdditionPdf(row, exportingDraft); }
       else { const { downloadAdditionDocx } = await import("@/lib/commercial-addition-docx"); await downloadAdditionDocx(row, exportingDraft); }
-      if (persist) toast.success(`Proposal v${row.version} saved and downloaded. Use Mark Ready in follow-up after final review.`);
+      if (persist) toast.success(`${proposalIdentity(row)} saved and downloaded. Use Mark Ready in follow-up after final review.`);
     } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to generate the document. The saved proposal is available in follow-up."); }
     finally { setBusy(false); }
   };

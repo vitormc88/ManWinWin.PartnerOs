@@ -1,3 +1,4 @@
+import { proposalIdentity } from "@/lib/commercial-proposal-journey";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Trash2, Plus, FileX, Printer, Copy, Pencil, FileSpreadsheet } from "lucide-react";
@@ -92,7 +93,7 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
       const created = await dup.mutateAsync(id);
       const res = await loadProposalAndItems(created.id);
       if (res) setEditingProposal({ ...(res.prop as Proposal), items: res.items as ProposalItem[] });
-      toast.success(`Duplicated as v${created.version} (Draft)`);
+      toast.success(`Duplicated as ${proposalIdentity(created)} (Draft)`);
     } catch (e: any) {
       toast.error(e?.message || "Failed to duplicate");
     }
@@ -255,7 +256,7 @@ export function ProposalsTab({ dealId, defaultClientName, defaultCountry }: Prop
                             : ` — Plan ${p.plan} (${p.hosting})`}
                         </p>
                         <Badge variant={statusVariant(p.status)} className="text-[10px]">{p.status}</Badge>
-                        <Badge variant="outline" className="text-[10px]">v{p.version}</Badge>
+                        <Badge variant="outline" className="text-[10px]">{proposalIdentity(p)}</Badge>
                         <Badge variant="outline" className="text-[10px]">{p.language}</Badge>
                         {isBusiness && (
                           <Badge variant="secondary" className="text-[10px]">Business</Badge>

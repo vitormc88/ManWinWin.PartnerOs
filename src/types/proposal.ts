@@ -112,6 +112,11 @@ export interface ProposalItem {
 
 export interface Proposal {
   id: string;
+  /** Immutable, server-issued commercial identity; omitted only on unsaved/legacy fixtures. */
+  commercial_reference?: string | null;
+  commercial_revision?: number | null;
+  commercial_root_id?: string | null;
+  legacy_reference?: string | null;
   /** Legacy deal reference. New reads use deal_id. */
   lead_id: string | null;
   source_type: "deal" | "renewal" | "client";

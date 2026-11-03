@@ -1,14 +1,15 @@
 import type { Proposal } from "@/types/proposal";
+import { proposalIdentity, proposalRevisionLabel } from "./commercial-proposal-journey";
 
 export const PROPOSAL_SUPPORT_EMAIL = "support@manwinwin.com";
 export const PROPOSAL_WEBSITE = "www.manwinwin.com";
 
-export function proposalDocumentTitle(proposal: Pick<Proposal, "client_name" | "version">, label = "Investment Proposal") {
-  return `${label} — ${proposal.client_name} — v${proposal.version}`;
+export function proposalDocumentTitle(proposal: Pick<Proposal, "client_name" | "version"> & Partial<Proposal>, label = "Investment Proposal") {
+  return `${label} — ${proposal.client_name} — ${proposal.commercial_reference?proposalIdentity(proposal):proposalRevisionLabel(proposal)}`;
 }
 
 export function proposalFileName(
-  proposal: Pick<Proposal, "client_name" | "version">,
+  proposal: Pick<Proposal, "client_name" | "version"> & Partial<Proposal>,
   prefix = "Proposal",
 ) {
   const client = proposal.client_name
@@ -18,7 +19,7 @@ export function proposalFileName(
     .replace(/_{2,}/g, "_")
     .replace(/^[._-]+|[._-]+$/g, "")
     .slice(0, 80) || "Client";
-  return `${prefix}_${client}_v${proposal.version}.docx`;
+  return `${proposal.commercial_reference?`${proposal.commercial_reference}_`:""}${prefix}_${client}_${proposalRevisionLabel(proposal).replace(/\. /g,"_")}.docx`;
 }
 
 /** Keep entered terms readable without changing their wording. */

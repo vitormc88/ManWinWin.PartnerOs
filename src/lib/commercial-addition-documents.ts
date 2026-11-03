@@ -1,13 +1,13 @@
 import type { Proposal } from "@/types/proposal";
 import { isServicesOnly, readAdditionDraft, type AdditionDraft } from "./commercial-additions";
 import { additionValidUntil } from "./commercial-addition-terms";
-import { groupAdditionLines, proposalIdentity, servicesSummary } from "./commercial-proposal-journey";
+import { groupAdditionLines, proposalIdentity, proposalRevisionLabel, servicesSummary } from "./commercial-proposal-journey";
 import { documentChrome, documentDate, PROPOSAL_DESIGN_CSS } from "./proposal-document-design";
 
 export const additionMoney = (n: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "EUR" }).format(n);
 export function additionVersionLabel(proposal: Partial<Proposal>, pt: boolean) {
   if (!proposal.id || !proposal.version) return pt ? "Pré-visualização não guardada" : "Unsaved preview";
-  return proposal.status === "Draft" ? (pt ? `Rascunho v${proposal.version} — por validar` : `Draft v${proposal.version} — not validated`) : `v${proposal.version}`;
+  return proposal.status === "Draft" ? (pt ? `Rascunho ${proposalRevisionLabel(proposal)} — por validar` : `Draft ${proposalRevisionLabel(proposal)} — not validated`) : proposalRevisionLabel(proposal);
 }
 export function additionDocumentContent(proposal: Partial<Proposal>, draft: AdditionDraft) {
   if (draft.quote.blockers.length) throw new Error("Resolve all commercial addition blockers before exporting.");

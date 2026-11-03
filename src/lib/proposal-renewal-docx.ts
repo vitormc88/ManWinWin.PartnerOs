@@ -25,6 +25,7 @@ import {
   ImageRun,
   PageNumber,
 } from "docx";
+import { proposalIdentity } from "./commercial-proposal-journey";
 import { saveAs } from "file-saver";
 import type { Proposal, ProposalItem } from "@/types/proposal";
 import { formatEuro } from "@/lib/proposal-i18n";
@@ -192,7 +193,7 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
   children.push(p(`${clientName} — ${identity}`, { bold: true, size: 26 }));
   children.push(
     p(
-      `Proposal v${(proposal as any).version ?? 1} · ${(proposal as any).proposal_date || ""} · Renewal date: ${
+      `${proposalIdentity(proposal)} · ${(proposal as any).proposal_date || ""} · Renewal date: ${
         baseline?.renewalDate || NOT_RECORDED
       }`,
       { size: 20, color: "6B7280" },
@@ -387,7 +388,7 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
   const doc = new Document({
     creator: "PartnerOS",
     title: proposalDocumentTitle(proposal, "Renewal Proposal"),
-    subject: `Renewal Proposal · ${clientName} · v${(proposal as any).version ?? 1}`,
+    subject: `Renewal Proposal · ${clientName} · ${proposalIdentity(proposal)}`,
     styles: { default: { document: { run: { font: "Calibri", size: 22 } } } },
     sections: [
       {
@@ -404,7 +405,7 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
                 alignment: AlignmentType.CENTER,
                 border: { top: { style: BorderStyle.SINGLE, size: 6, color: RED, space: 4 } },
                 children: [
-                  new TextRun({ text: `ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE} · ${clientName} · v${(proposal as any).version ?? 1} · Page `, color: "9CA3AF", size: 16, font: "Calibri" }),
+                  new TextRun({ text: `ManWinWin Software · ${PROPOSAL_SUPPORT_EMAIL} · ${PROPOSAL_WEBSITE} · ${clientName} · ${proposalIdentity(proposal)} · Page `, color: "9CA3AF", size: 16, font: "Calibri" }),
                   new TextRun({ children: [PageNumber.CURRENT], color: "9CA3AF", size: 16, font: "Calibri" }),
                   new TextRun({ text: " of ", color: "9CA3AF", size: 16, font: "Calibri" }),
                   new TextRun({ children: [PageNumber.TOTAL_PAGES], color: "9CA3AF", size: 16, font: "Calibri" }),

@@ -1,11 +1,20 @@
 import { describe,it,expect } from "vitest";
-import { newServiceReview,serviceReviewErrors,proposalIdentity,revisionPayload,groupAdditionLines,servicesSummary } from "../commercial-proposal-journey";
+import { newServiceReview,serviceReviewErrors,proposalIdentity,proposalRevisionLabel,proposalFileIdentity,revisionPayload,groupAdditionLines,servicesSummary } from "../commercial-proposal-journey";
 import { additionDocumentContent } from "../commercial-addition-documents";
 import type { Proposal } from "@/types/proposal";
 import type { AdditionDraft,AdditionLine } from "../commercial-additions";
 const services={...newServiceReview(),id:"services-1",owner:"Rita",scope:"Training stock and purchases",modality:"compare" as const,quantity:2,requestedDiscount:25,expenses:"Travel quoted separately",nextDate:"2026-11-03"};
 const draft={schema:"commercial_addition_v1",action:"add_users",baseline:{clientId:"c",clientName:"QA",backoffice:1,web:1},selection:{backoffice:2,web:1,products:["stock"],implementationReview:"separate",serviceReview:services,commercial:{language:"EN",proposalDate:"2026-10-29",validityDays:30}},rules:[],quote:{blockers:[],lines:[],dueNow:100,annualIncrease:20,renewalAnnual:120,afterBackoffice:3,afterWeb:2}} as unknown as AdditionDraft;
 describe("Commercial proposal identity and linked services",()=>{
+ it("uses the server reference and one revision regardless of legacy version and date changes",()=>{
+   const p={id:"old-uuid",version:19,proposal_date:"2027-04-02",commercial_reference:"MWW-2026-0123",commercial_revision:2};
+   expect(proposalIdentity(p)).toBe("MWW-2026-0123 · Rev. 02");
+   expect(proposalRevisionLabel(p)).toBe("Rev. 02");
+   expect(proposalFileIdentity(p)).toBe("MWW-2026-0123_Rev_02");
+   const changedDate={...p,proposal_date:"2028-01-01"};
+   expect(proposalIdentity(changedDate)).toBe(proposalIdentity(p));
+   expect(proposalIdentity({...p,commercial_revision:101})).toBe("MWW-2026-0123 · Rev. 101");
+ });
  it("retains original issued snapshot and creates an explicit independent revision payload",()=>{
    const original={id:"aaaa-bbbb",version:2,status:"Sent",business_config:{commercial_addition:draft},payment_terms:"100% upfront"} as unknown as Proposal;
    const next=revisionPayload(original,draft,"2026-11-01");expect(next.business_config.commercial_journey).toEqual({rootId:"aaaa-bbbb",revision:2,revisionOf:"aaaa-bbbb"});
