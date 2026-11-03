@@ -113,6 +113,8 @@ begin
   end loop;
 end;
 $$;
+-- Flush existing deferred financial guards before the next table-definition change.
+set constraints all immediate;
 drop trigger zzz_proposal_numbering_backfill on public.proposals;
 drop function pg_temp.preserve_proposal_numbering_metadata();
 
