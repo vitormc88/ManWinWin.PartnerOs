@@ -3,7 +3,7 @@ import { BrandMark } from "@/components/BrandMark";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { getAuthFlowState } from "@/lib/auth-flow";
+import { getAuthFlowState, initialAuthFlow } from "@/lib/auth-flow";
 
 type DiagnosticReason =
   | "expired"
@@ -49,7 +49,11 @@ export default function ResetPassword() {
     if (consumedRef.current) return;
     consumedRef.current = true;
 
-    const flow = getAuthFlowState();
+    const currentFlow = getAuthFlowState();
+    const flow = { ...currentFlow,
+      isInviteFlow: currentFlow.isInviteFlow || initialAuthFlow.isInviteFlow,
+      shouldForcePasswordSetup: currentFlow.shouldForcePasswordSetup || initialAuthFlow.shouldForcePasswordSetup,
+    };
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const search = new URLSearchParams(window.location.search);
     const errorCode =
@@ -61,6 +65,9 @@ export default function ResetPassword() {
       hashParams.get("error_description") || search.get("error_description") || "";
     const code = search.get("code") || hashParams.get("code");
 
+    // A type=invite marker alone cannot turn an unrelated session into a link.
+    const hasLinkCredentials = currentFlow.hasTokens || currentFlow.hasCodeExchange
+      || initialAuthFlow.hasTokens || initialAuthFlow.hasCodeExchange;
     setIsInvite(flow.isInviteFlow);
 
     // Diagnose Supabase-returned errors first.
@@ -82,9 +89,8 @@ export default function ResetPassword() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (
         event === "PASSWORD_RECOVERY" ||
-        event === "SIGNED_IN" ||
-        event === "INITIAL_SESSION" ||
-        event === "TOKEN_REFRESHED"
+        (hasLinkCredentials && flow.shouldForcePasswordSetup && (event === "SIGNED_IN" ||
+        event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED"))
       ) {
         // Only flip to valid if a session actually exists.
         supabase.auth.getSession().then(({ data }) => {
@@ -101,7 +107,7 @@ export default function ResetPassword() {
       try {
         // 1. Already-established session (hash auto-consumed by supabase-js)?
         const { data: existing } = await supabase.auth.getSession();
-        if (existing.session) {
+        if (existing.session && hasLinkCredentials && flow.shouldForcePasswordSetup) {
           console.log("[reset-password] existing session found");
           setTokenValid(true);
           setChecking(false);
@@ -126,7 +132,7 @@ export default function ResetPassword() {
         }
 
         // 3. Hash tokens flow — wait briefly for supabase-js to consume them.
-        if (flow.shouldForcePasswordSetup) {
+        if (hasLinkCredentials && flow.shouldForcePasswordSetup) {
           // The onAuthStateChange listener above will flip tokenValid.
           // Add a fallback timeout in case nothing fires.
           setTimeout(async () => {
@@ -176,18 +182,24 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
+      if (!tokenValid) throw new Error("Open the latest access email to set your password.");
+      const { data: verified, error: verifyError } = await supabase.auth.getUser();
+      if (verifyError || !verified.user) throw new Error("Access link expired. Request a new link.");
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase
+        const { error: profileError } = await supabase
           .from("profiles")
           .update({
             invitation_status: "active",
             invitation_accepted_at: new Date().toISOString(),
           })
           .eq("id", user.id);
+        if (profileError) {
+          toast.warning("Password saved, but account status could not be updated. Contact your administrator.");
+        }
       }
 
       toast.success(
