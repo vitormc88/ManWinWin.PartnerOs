@@ -1,3 +1,4 @@
+import { proposalIdentity } from "@/lib/commercial-proposal-journey";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { CommercialReviewDialog } from "./CommercialReviewDialog";
 import { ProposalLeaveGuard } from "./ProposalLeaveGuard";
@@ -1678,7 +1679,7 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
           <DialogTitle className="flex items-center gap-2 flex-wrap">
             <FileText className="h-5 w-5" />
             {editingProposal
-              ? `${readOnly ? "Proposal" : "Edit Proposal"} v${editingProposal.version}`
+              ? `${readOnly ? "Proposal" : "Edit Proposal"} ${proposalIdentity(editingProposal)}`
               : "New Proposal"}
             {!showWizard && ` — ${STEPS[step]}`}
             {readOnly && (
