@@ -56,6 +56,14 @@ const items: ProposalItem[] = [
 ];
 
 describe("proposal document control", () => {
+  it("identifies a new Portuguese proposal export as an unsaved preview", () => {
+    const html = buildProposalPrintHtml({ ...proposal, id: "", version: 0, language: "PT", notes: "Condições em edição" }, items);
+    const dom = new DOMParser().parseFromString(html, "text/html");
+    for (const selector of ["title", ".cover", ".brand-header", ".brand-footer"]) {
+      expect(dom.querySelector(selector)?.textContent).toContain("Pré-visualização não guardada");
+    }
+    expect(dom.querySelector("main")?.textContent).toContain("Condições em edição");
+  });
   it("uses the same commercial reference in title, filename, cover and footer",()=>{
     const p={...proposal,commercial_reference:"MWW-2026-0123",commercial_revision:2,commercial_root_id:"root",version:19};
     expect(proposalDocumentTitle(p)).toContain("MWW-2026-0123 · Rev. 02");
