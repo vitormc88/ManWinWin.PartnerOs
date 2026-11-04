@@ -60,6 +60,7 @@ import { storeProposalDocument, signProposalDocument } from "@/lib/proposal-docu
 import { downloadBusinessXlsx } from "@/lib/proposal-business-xlsx";
 import { downloadBusinessProposalDocx } from "@/lib/proposal-business-docx";
 import { printBusinessProposal } from "@/lib/proposal-business-print";
+import { printProposal } from "@/lib/proposal-print";
 import { buildBusinessDocumentSnapshot, businessDocumentMatchesSaved } from "@/lib/proposal-business-snapshot";
 import { CommercialAdditionDialog } from "./CommercialAdditionDialog";
 import { ADDITION_ACTIONS } from "@/lib/commercial-additions";
@@ -1547,6 +1548,45 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
   const handleGenerate = () =>
     generateStoredDocx((prop, docItems) => downloadProposalDocx(prop, docItems as any));
 
+  const handleGenerateProfessionalPdf = async () => {
+    const printWindow = window.open("", "_blank", "width=900,height=1200");
+    if (!printWindow) {
+      toast.error("Allow pop-ups for PartnerOS, then click Generate PDF again.");
+      return;
+    }
+
+    const saved = unsavedEdits ? null : editingProposal;
+    const snapshot = {
+      ...saved,
+      version: saved?.version ?? 0,
+      status: saved?.status ?? "Draft",
+      language,
+      plan,
+      hosting,
+      client_name: clientName,
+      project_name: projectName || null,
+      country: country || null,
+      proposal_date: proposalDate,
+      validity_days: validityDays,
+      payment_terms: paymentTerms,
+      notes: notes || null,
+      include_requests_module: includeRequests,
+      web_users: webUsers,
+      implementation_type: implType,
+      service_days: onsiteDays || null,
+      service_hours: saved?.service_hours ?? null,
+      software_discount_pct: 0,
+      services_discount_pct: 0,
+    } as Proposal;
+
+    try {
+      await printProposal(snapshot, items, printWindow);
+    } catch (error) {
+      printWindow.close();
+      toast.error("PDF generation failed: " + (error instanceof Error ? error.message : "Please try again."));
+    }
+  };
+
   /** Reopened proposals can re-download the document already stored. */
   const storedDocxPath = (editingProposal as any)?.docx_url as string | undefined;
   const handleDownloadStoredDocx = async () => {
@@ -2585,12 +2625,20 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
                     <p className="text-sm text-muted-foreground mt-1">
                       Plan {plan} · {hosting} · {language} · Year 1: <strong>{formatPrice(totals.totalYear1)}</strong>
                     </p>
+                    {!isRenewalProposal && <p className="text-xs text-muted-foreground mt-2">
+                      Generate PDF downloads the current preview. Use Save as Draft to keep changes.
+                    </p>}
                   </div>
-                  <div className="flex justify-center gap-2">
+                  <div className="flex justify-center gap-2 flex-wrap">
                     <Button variant="outline" onClick={handleSaveDraft} disabled={writeBlocked}>Save as Draft</Button>
                     <Button onClick={handleGenerate} disabled={writeBlocked}>
                       <Download className="h-4 w-4 mr-2" />Generate DOCX
                     </Button>
+                    {!isRenewalProposal && (
+                      <Button variant="outline" onClick={handleGenerateProfessionalPdf} disabled={writeBlocked || hydrationPending}>
+                        <Download className="h-4 w-4 mr-2" />Generate PDF
+                      </Button>
+                    )}
                   </div>
                 </>
               )}

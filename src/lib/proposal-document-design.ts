@@ -10,7 +10,9 @@ export const DOCUMENT_DESIGN = {
 } as const;
 export const documentEscape = (s: string) => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 export function documentReference(p: Partial<Proposal>) {
-  return p.id && p.version ? proposalIdentity(p) : p.language === "PT" ? "Pré-visualização não guardada" : "Unsaved preview";
+  return p.id && p.version ? proposalIdentity(p)
+    : p.language === "PT" ? "Pré-visualização não guardada"
+    : p.language === "ES" ? "Vista previa sin guardar" : "Unsaved preview";
 }
 export function documentDate(value: string, language = "EN") {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -61,8 +63,9 @@ export function brandOpportunityHtml(html: string, p: Proposal, product: string)
   const date = documentDate(p.proposal_date, lang);
   const validLabel = lang === "PT" ? "Validade" : lang === "ES" ? "Validez" : "Validity";
   const days = lang === "EN" ? "days" : "dias";
-  const cover = `<section class="cover"><div class="cover-rule"></div><h1>${title}</h1><div class="product">${esc(product)}</div><div class="client">${esc(p.client_name)}</div><div class="cover-meta">${esc(p.project_name || "")}${p.country ? ` · ${esc(p.country)}` : ""}</div><div class="cover-meta">${esc(date)}</div><div class="cover-meta">${validLabel}: ${p.validity_days} ${days} · ${esc(proposalRevisionLabel(p))}</div>${restricted ? `<div class="restricted">${restricted}</div>` : ""}</section>`;
+  const coverReference = p.id && p.version ? proposalRevisionLabel(p) : documentReference(p);
+  const cover = `<section class="cover"><div class="cover-rule"></div><h1>${title}</h1><div class="product">${esc(product)}</div><div class="client">${esc(p.client_name)}</div><div class="cover-meta">${esc(p.project_name || "")}${p.country ? ` · ${esc(p.country)}` : ""}</div><div class="cover-meta">${esc(date)}</div><div class="cover-meta">${validLabel}: ${p.validity_days} ${days} · ${esc(coverReference)}</div>${restricted ? `<div class="restricted">${restricted}</div>` : ""}</section>`;
   const chrome = documentChrome(p, title.replace(/<[^>]*>/g,""));
   const intro = `<div class="document-intro"><h1>${esc(product)}</h1><p class="customer">${esc(p.client_name)}</p></div><div class="document-meta"><span>${esc(date)}</span><span>${validLabel}: <strong>${p.validity_days} ${days}</strong></span><span>${esc(documentReference(p))}</span></div>`;
-  return `<!doctype html><html lang="${lang.toLowerCase()}"><head><meta charset="utf-8"><title>${title} — ${esc(p.client_name)} — ${esc(proposalIdentity(p))}</title><style>${PROPOSAL_DESIGN_CSS}</style></head><body><button class="noprint" onclick="window.print()">Print / Save as PDF</button>${chrome.header}${cover}<main>${intro}${body}</main>${chrome.footer}<script>Promise.all([document.fonts.ready,...Array.from(document.images).map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r}))]).then(()=>setTimeout(()=>window.print(),150));</script></body></html>`;
+  return `<!doctype html><html lang="${lang.toLowerCase()}"><head><meta charset="utf-8"><title>${title} — ${esc(p.client_name)} — ${esc(documentReference(p))}</title><style>${PROPOSAL_DESIGN_CSS}</style></head><body><button class="noprint" onclick="window.print()">Print / Save as PDF</button>${chrome.header}${cover}<main>${intro}${body}</main>${chrome.footer}<script>Promise.all([document.fonts.ready,...Array.from(document.images).map(i=>i.complete?Promise.resolve():new Promise(r=>{i.onload=r;i.onerror=r}))]).then(()=>setTimeout(()=>window.print(),150));</script></body></html>`;
 }
