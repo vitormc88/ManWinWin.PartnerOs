@@ -207,8 +207,9 @@ describe("Business proposal document transparency", () => {
     expect(services).toContain("Per Diem");
     expect(services).toContain("10 days");
     expect(services).not.toMatch(/€|Client days|BackOffice days|Total onsite/i);
-    expect(main.querySelector(".summary-section")?.textContent).toContain("€");
-    expect(html).toContain("Total onsite services: 9,790.00 €");
+    const investment = main.querySelector(".summary-section")?.textContent;
+    expect(investment).toContain("Implementation services");
+    expect(investment).toContain("9,790.00 €");
     expect(html).toContain("TOTAL OF THE YEAR (Year 1)");
     expect(html).toContain('class="keep-together services-section"');
     expect(html).toContain('class="brand-header"');
