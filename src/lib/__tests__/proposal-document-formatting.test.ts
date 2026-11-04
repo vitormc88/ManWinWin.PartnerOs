@@ -79,6 +79,10 @@ describe("proposal document control", () => {
     expect(formatEuro(3523.65,"PT")).toContain("3523,65");
     const html=buildProposalPrintHtml(proposal,[...items,{...items[1],description:"15 standard hours",unit_price:1890,total:1890}]);
     const main=new DOMParser().parseFromString(html,"text/html").querySelector("main")!;
+    expect(main.querySelectorAll(".includes > ul")).toHaveLength(2);
+    expect(main.querySelectorAll(".includes > ul:first-of-type > li").length).toBeGreaterThan(1);
+    expect(main.querySelectorAll(".solution-details > section")).toHaveLength(2);
+    expect(main.querySelector(".scope-grid")).toBeNull();
     expect(main.innerHTML.indexOf('class="includes"')).toBeLessThan(main.innerHTML.indexOf('class="year-bar"'));
     expect(main.textContent).toContain("15 hours of implementation");
   });

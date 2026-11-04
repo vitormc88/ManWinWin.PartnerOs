@@ -225,9 +225,9 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
 
 <h2>${esc(s.softwareConfigHeading)}</h2>
 <ul>${swDescItems.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-<p><strong>${esc(s.modulesIncludedHeading)}</strong><br>${modules.map(esc).join(" · ")}</p>
-${plugins.length || cfg.api ? `<p><strong>${esc(s.pluginsIncludedHeading)}</strong><br>${[...plugins,...(cfg.api?[s.apiManwinwin]:[])].map(esc).join(" · ")}</p>` : ""}
-${optional.length ? `<p class="muted small"><strong>${esc(s.optionalNotIncludedFull)}</strong><br>${optional.map(esc).join(" · ")}</p>` : ""}
+<h3>${esc(s.modulesIncludedHeading)}</h3><ul>${modules.map(item => `<li>${esc(item)}</li>`).join("")}</ul>
+${plugins.length || cfg.api ? `<h3>${esc(s.pluginsIncludedHeading)}</h3><ul>${[...plugins,...(cfg.api?[s.apiManwinwin]:[])].map(item => `<li>${esc(item)}</li>`).join("")}</ul>` : ""}
+${optional.length ? `<h3>${esc(s.optionalNotIncludedFull)}</h3><ul>${optional.map(item => `<li>${esc(item)}</li>`).join("")}</ul>` : ""}
 
 ${primary.services.length ? `<section class="keep-together services-section">
   <h2>${esc(s.servicesTitle)}</h2>
@@ -256,7 +256,7 @@ ${proposal.notes?.trim() ? `<h2>${esc(businessNotesTitle(proposal.language))}</h
   <li>${esc(s.satEscalationNote)}</li>
 </ul>
 
-<section class="scope-grid"><section class="scope-group"><h2>${esc(cfg.deployment === "saas" ? s.featuresSaasTitle : s.featuresClientServerTitle)}</h2>
+<section class="solution-details"><section class="scope-group"><h2>${esc(cfg.deployment === "saas" ? s.featuresSaasTitle : s.featuresClientServerTitle)}</h2>
 <ul>${(cfg.deployment === "saas" ? s.saasFeatures : s.clientServerFeatures).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
 </section><section class="scope-group"><h2>${esc(s.satTitle)}</h2>
 <ul>${s.satList.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
