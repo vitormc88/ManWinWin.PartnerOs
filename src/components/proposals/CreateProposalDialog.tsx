@@ -100,6 +100,7 @@ import { useRenewalBaseline } from "@/hooks/useRenewalBaseline";
 import { RenewalBaselinePanel } from "./RenewalBaselinePanel";
 import { buildBaselineProposalItems, baselineLicenseModel } from "@/lib/renewal-baseline";
 import { RenewalPriceAdjustmentPanel } from "./RenewalPriceAdjustmentPanel";
+import { calculateWebReduction, type WebReductionInput } from "@/lib/renewal-web-reduction";
 import { hydratedPaymentTerms } from "@/lib/renewal-price-adjustment";
 import { unambiguousPaymentTerms } from "@/lib/renewal-price-adjustment";
 import { downloadRenewalProposalDocx } from "@/lib/proposal-renewal-docx";
@@ -423,7 +424,27 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
   const [notes, setNotes] = useState("");
 
   // Items (editable)
-  const [items, setItems] = useState<ProposalItem[]>([]);
+  const [editableItems, setItems] = useState<ProposalItem[]>([]);
+  const [webReductionInput, setWebReductionInput] = useState<WebReductionInput | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const saved = (editingProposal as (Proposal & { entitlements?: {
+      web?: { total: number; billable: number }; web_reduction?: { annual: number | null; reason: string };
+    } }) | null | undefined)?.entitlements;
+    setWebReductionInput(saved?.web && saved.web_reduction ? {
+      billable: saved.web.billable,
+      annual: saved.web_reduction.annual == null ? "" : String(saved.web_reduction.annual),
+      reason: saved.web_reduction.reason,
+    } : saved?.web && editingProposal?.status === "Draft" && hydration?.changeMode === "straight" &&
+        renewalBaseline?.webUsers != null && saved.web.total < renewalBaseline.webUsers ? {
+      billable: saved.web.billable,
+      annual: String(editingProposal.total_recurring ?? ""),
+      reason: editingProposal.notes ?? "",
+    } : null);
+  }, [open, editingProposal?.id, renewalBaseline?.webUsers]);
+  const webReduction = isContractRenewal && changeMode === "straight" && renewalBaseline && webReductionInput
+    ? calculateWebReduction(renewalBaseline, webReductionInput, editableItems) : null;
+  const items = webReduction?.items ?? editableItems;
 
   /**
    * Renewal plan change — pure computation from the real contract baseline and
@@ -966,10 +987,21 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
       { totalYear1: money.totalYear1, itemCount: items.length },
     );
     // A declared upgrade/downgrade must be fully resolved before a document.
-    if (!planChange.applicable || planChange.blockers.length === 0) return base;
+    const reviewedAmount = hydration?.entitlements?.web_reduction as { annual?: number } | undefined;
+    const alreadyReviewed = editingProposal?.status !== "Draft" && reviewedAmount?.annual === webReduction?.entitlements.web_reduction.annual &&
+      editingProposal?.web_users === webReduction?.total;
+    const webBlockers: string[] = [];
+    if (webReduction && !webReduction.ready) webBlockers.push(webReduction.blocker);
+    if (webReduction?.ready && !webReduction.hasSeparatePrice) {
+      if (money.totalRecurring !== webReduction.entitlements.web_reduction.annual) {
+        webBlockers.push("The recurring lines must match the agreed annual renewal amount.");
+      }
+      if (!isHQ && !alreadyReviewed) webBlockers.push("HQ must review the agreed annual amount before issuing this renewal.");
+    }
+    if (!webBlockers.length && (!planChange.applicable || planChange.blockers.length === 0)) return base;
     return {
       ok: false,
-      blockers: [...planChange.blockers, ...base.blockers],
+      blockers: [...webBlockers, ...planChange.blockers, ...base.blockers],
       warnings: [...base.warnings, ...planChange.warnings],
     };
   }, [
@@ -979,6 +1011,10 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
     effectiveVariant,
     money.totalYear1,
     items.length,
+    webReduction,
+    isHQ,
+    hydration,
+    editingProposal,
     planChange,
   ]);
 
@@ -1176,7 +1212,7 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
         software_discount_pct: 0,
         services_discount_pct: 0,
         include_requests_module: isBusinessCatalogue ? businessConfig.includeRequests : includeRequests,
-        web_users: isBusinessCatalogue ? businessConfig.additionalWebUsers : webUsers,
+        web_users: webReduction?.total ?? (isBusinessCatalogue ? businessConfig.additionalWebUsers : webUsers),
         service_days: isBusinessProduct ? null : onsiteDays || null,
         software_subtotal: money.softwareSubtotal,
         services_subtotal: money.servicesSubtotal,
@@ -1191,7 +1227,8 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
         source_plan: planChange.applicable ? planChange.currentPlan : persistedChange?.sourcePlan ?? null,
         target_plan: planChange.applicable ? planChange.targetPlan : persistedChange?.targetPlan ?? null,
         // Entitlements + incremental implementation provenance (renewals).
-        entitlements: planChange.applicable ? planChange.entitlementSnapshot : persistedChange?.entitlements ?? null,
+        entitlements: webReduction?.entitlements ?? (planChange.applicable ? planChange.entitlementSnapshot
+          : hydration?.entitlements?.web_reduction ? null : hydration?.entitlements ?? null),
         implementation_source: planChange.applicable
           ? planChange.implementation.source
           : persistedChange?.implementationSource ?? null,
@@ -1552,6 +1589,8 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
         plan: planChange.applicable ? planChange.targetPlan : plan,
         total_year_1: money.totalYear1,
         total_recurring: money.totalRecurring,
+        web_users: webReduction?.total ?? editingProposal?.web_users ?? webUsers,
+        entitlements: webReduction?.entitlements ?? hydration?.entitlements,
       } as unknown as Proposal;
       await downloadRenewalProposalDocx({
         proposal: proposalForDoc,
@@ -2135,6 +2174,38 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
                 </p>
               </div>
 
+              {changeMode === "straight" && renewalBaseline?.includedWebUsers != null && renewalBaseline.webUsers != null &&
+                renewalBaseline.webUsers > renewalBaseline.includedWebUsers && (() => {
+                  const included = renewalBaseline.includedWebUsers;
+                  const currentBillable = renewalBaseline.webUsers - included;
+                  const billable = webReductionInput?.billable ?? currentBillable;
+                  return <div className="space-y-2 rounded-lg border p-4">
+                    <h4 className="text-sm font-semibold">WEB accesses at renewal</h4>
+                    <p className="text-sm">Total: {renewalBaseline.webUsers} → {included + billable} · {included} included</p>
+                    <Label htmlFor="renewal-billable-web">Billable WEB accesses to renew</Label>
+                    <Input id="renewal-billable-web" type="number" min={0} max={currentBillable} step={1}
+                      value={billable} disabled={readOnly} onChange={(event) => {
+                        const value = Math.min(currentBillable, Math.max(0, Math.trunc(Number(event.target.value))));
+                        setUnsavedEdits(true);
+                        if (value === currentBillable && webReduction?.itemIndex != null && webReduction.itemIndex >= 0) {
+                          const edited = editableItems[webReduction.itemIndex];
+                          const original = buildBaselineProposalItems(renewalBaseline).find(item => item.item_code === edited?.item_code || item.item_name === edited?.item_name);
+                          if (original) setItems(prev => prev.map((item, index) => index === webReduction.itemIndex ? original : item));
+                        }
+                        setWebReductionInput(value === currentBillable ? null : { billable: value, annual: "", reason: "" });
+                      }} />
+                    {webReduction && !webReduction.hasSeparatePrice && <>
+                      <Label htmlFor="renewal-web-annual">Agreed annual amount ({renewalBaseline.currency})</Label>
+                      <Input id="renewal-web-annual" type="number" min={0} step="0.01" value={webReductionInput?.annual ?? ""}
+                        disabled={readOnly} onChange={(event) => { setUnsavedEdits(true); setWebReductionInput(prev => prev && { ...prev, annual: event.target.value }); }} />
+                      <Label htmlFor="renewal-web-reason">Reason for the agreed amount</Label>
+                      <Input id="renewal-web-reason" value={webReductionInput?.reason ?? ""} disabled={readOnly}
+                        onChange={(event) => { setUnsavedEdits(true); setWebReductionInput(prev => prev && { ...prev, reason: event.target.value }); }} />
+                      {!isHQ && <p className="text-xs text-muted-foreground">Save a draft for HQ to review the agreed price.</p>}
+                    </>}
+                    {webReduction?.ready && <p className="text-sm">Proposed annual total: {money.totalRecurring.toFixed(2)} {renewalBaseline.currency}</p>}
+                  </div>;
+                })()}
               {planChangeAvailable && (
                 <RenewalPlanChangePanel
                   mode={changeMode}
@@ -2253,7 +2324,7 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
                   canAuthorizeManualImplementation={isHQ}
                 />
               )}
-              {usesContractBaselineItems && renewalBaseline && !readOnly && (
+              {usesContractBaselineItems && renewalBaseline && !readOnly && !webReduction && (
                 <RenewalPriceAdjustmentPanel
                   baselineItems={buildBaselineProposalItems(renewalBaseline)}
                   items={items}
@@ -2269,7 +2340,7 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
                 </div>
                 <div className="divide-y">
                   {previewItems.map((it, idx) => (
-                    <div key={idx} className="p-3 grid grid-cols-12 gap-2 items-end">
+                    <fieldset key={idx} disabled={idx === webReduction?.itemIndex} className="p-3 grid grid-cols-12 gap-2 items-end">
                       {(() => {
                         // All discounts are now line-item — pass 0 here so we
                         // never read a "section" source. Both Software and
@@ -2369,7 +2440,7 @@ function StandardProposalDialog({ open, onOpenChange, dealId, proposalSource = n
                           </>
                         );
                       })()}
-                    </div>
+                    </fieldset>
                   ))}
                   {items.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">No items</div>}
                 </div>

@@ -364,7 +364,16 @@ export async function buildRenewalProposalDocument(opts: RenewalDocxOptions): Pr
 
   // ── Changes from current contract ─────────────────────────────────────
   children.push(redBarHeading("Changes from Current Contract"));
-  if (comparison.isStraightRenewal) {
+  const entitlements = (proposal as Proposal & { entitlements?: {
+    web?: { total?: number }; web_reduction?: { previous_total?: number };
+  } }).entitlements;
+  const webTarget = entitlements?.web?.total;
+  const previousWeb = entitlements?.web_reduction?.previous_total ?? baseline?.webUsers;
+  const webReduced = webTarget != null && previousWeb != null && webTarget < previousWeb;
+  if (webReduced) {
+    children.push(p(`• WEB accesses: ${previousWeb} → ${webTarget}`, { size: 21 }));
+  }
+  if (comparison.isStraightRenewal && !webReduced) {
     children.push(p("Straight renewal — no changes to the current contract configuration or pricing.", { size: 21 }));
     comparison.changes
       .filter((c) => c.kind === "variant_selected")

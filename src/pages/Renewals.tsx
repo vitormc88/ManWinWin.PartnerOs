@@ -390,6 +390,9 @@ export default function Renewals() {
                         {renewalProposal
                           ? `Version ${renewalProposal.version} · ${proposalStatusLabel(renewalProposal.status, true)}`
                           : proposalError ? "Could not load the proposal." : proposalLoading ? "Loading proposal…" : "No proposal created yet."}
+                        {renewalProposal?.status === "Draft" &&
+                          (renewalProposal.entitlements as { web_reduction?: { pricing?: string } } | null)?.web_reduction?.pricing === "manual" &&
+                          " · WEB reduction pending HQ price review"}
                       </p>
                       <Button size="sm" variant={detailClosed || !canEdit("renewals") ? "outline" : "default"} disabled={proposalLoading || proposalError || (!renewalProposal && (detailClosed || !canEdit("renewals")))} onClick={() => setShowProposal(true)} className="gap-2">
                         <FileText className="h-4 w-4" />

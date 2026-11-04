@@ -68,6 +68,7 @@ export interface BaselineRecurringLine {
   key: string;
   label: string;
   lineType: string;
+  declaredType?: string;
   amount: number;
   needsReview: boolean;
 }
@@ -93,6 +94,7 @@ export interface RenewalBaseline {
 
   backofficeUsers: number | null;
   webUsers: number | null;
+  includedWebUsers?: number | null;
   mobileUsers: number | null;
 
   modules: BaselineModule[];
@@ -292,6 +294,7 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
       key: String((c.line as any)?.id ?? `line-${idx}`),
       label: str((c.line as any)?.description) || lineTypeLabel(c.effectiveType),
       lineType: c.effectiveType,
+      declaredType: str((c.line as any)?.line_type) ?? undefined,
       amount: Number((c.line as any)?.amount || 0),
       needsReview: c.isUnclassified,
     }));
@@ -331,6 +334,7 @@ export function buildRenewalBaseline(sources: BaselineSources): RenewalBaseline 
 
     backofficeUsers,
     webUsers,
+    includedWebUsers: num(license?.included_web_accesses),
     mobileUsers,
 
     modules,
