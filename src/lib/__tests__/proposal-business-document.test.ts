@@ -106,6 +106,26 @@ const proposal = {
 } as Proposal;
 
 describe("Business proposal document transparency", () => {
+  it.each([
+    ["PT", "10 dias", "Âmbito dos serviços", "Inclui 1 dia por ano"],
+    ["EN", "10 days", "Scope of services", "Includes 1 day per year"],
+    ["ES", "10 días", "Alcance de los servicios", "Incluye 1 día al año"],
+  ] as const)("localizes the onsite scope and annual benefit in %s", (language, days, scope, benefit) => {
+    const html = buildBusinessProposalPrintHtml({ proposal: { ...proposal, language }, cfg: config, rules });
+    const main = new DOMParser().parseFromString(html, "text/html").querySelector("main")!;
+    expect(main.querySelector(".services-section")?.textContent).toContain(days);
+    expect(main.querySelector(".services-section")?.textContent).toContain(scope);
+    expect(main.querySelector(".services-section")?.textContent).not.toContain(benefit);
+    expect(main.textContent?.split(benefit)).toHaveLength(3);
+  });
+  it("shows explicit remote hours and additional sessions independently", () => {
+    const cfg: BusinessConfig = { ...config, implementation: { type: "RCI Business", liveSessions: 2 } };
+    const rciRules = [...rules, rule("BUS_RCI_BASE", 2500, { notes: "21 hours" }), rule("BUS_RCI_LIVE_SESSION", 405)];
+    const html = buildBusinessProposalPrintHtml({ proposal: { ...proposal, language: "ES" }, cfg, rules: rciRules });
+    const scope = new DOMParser().parseFromString(html, "text/html").querySelector(".services-section")?.textContent;
+    expect(scope).toContain("En línea · 21 horas");
+    expect(scope).toContain("2 sesiones adicionales");
+  });
   it.each(["compare_keepit_useit","keepit_only","useit_only"] as const)("presents configuration and services before investment for %s",mode=>{
     const html=buildBusinessProposalPrintHtml({proposal:{...proposal,proposal_mode:mode},cfg:config,rules});
     const main=new DOMParser().parseFromString(html,"text/html").querySelector("main")!;

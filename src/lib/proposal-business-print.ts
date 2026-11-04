@@ -19,6 +19,7 @@ import { proposalDocumentTitle, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from 
 import { businessPaymentSection, businessNotesTitle } from "./proposal-business-terms";
 import { brandOpportunityHtml } from "./proposal-document-design";
 import { openProposalPdf } from "./proposal-pdf-window";
+import { annualConsultancyBenefit, explicitServiceHours, implementationScope, serviceQuantity } from "./proposal-service-scope";
 
 const esc = (v: any) =>
   String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -142,7 +143,15 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
     const discSvc = primary.services.reduce((a, l) => a + l.discountAmount, 0);
     const netSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
     const hasDisc = discSvc > 0;
-    const parts: string[] = [`<h3>${esc(title)}</h3><ul>`];
+    const onsiteDays = primary.services.find(line => line.code.startsWith("onsite_client_"))?.qty ?? 0;
+    const rciBase = primary.services.find(line => line.code === "BUS_RCI_BASE");
+    const hours = rciBase ? explicitServiceHours(rules.find(rule => rule.code === rciBase.code && rule.active !== false)?.notes) : null;
+    const scope = implType === "Onsite" && onsiteDays > 0
+      ? implementationScope(lang, "onsite", serviceQuantity(lang, onsiteDays, "day"))
+      : implType === "RCI Business" && rciBase
+        ? implementationScope(lang, "online", hours ? serviceQuantity(lang, hours, "hour") : undefined)
+        : "";
+    const parts: string[] = [`<h3>${esc(title)}</h3>${scope}<ul>`];
     if (implType === "Onsite") {
       const region = cfg.implementation.onsiteRegion || "Portugal";
       const rates = ONSITE_RATES[region];
@@ -167,7 +176,10 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
       return parts.join("");
     }
     primary.services.forEach((l) => {
-      parts.push(`<li>${esc(l.label)} — ${esc(fmt(l.amount))}</li>`);
+      const label = l.code === "BUS_RCI_BASE" ? s.rciBase
+        : l.code === "BUS_RCI_LIVE_SESSION" ? serviceQuantity(lang, l.qty, "session")
+        : l.qty > 1 ? `${l.label} ×${l.qty}` : l.label;
+      parts.push(`<li>${esc(label)} — ${esc(fmt(l.amount))}</li>`);
     });
     if (primary.services.length > 0) {
       if (hasDisc) {
@@ -259,8 +271,8 @@ ${primary.services.length ? `<section class="keep-together services-section">
 </section>` : ""}
 
 <h2>${esc(s.optionsTitle)}</h2>
-${showK?`<h3>${esc(s.optionAKeepIT)}</h3><p>${esc(s.permanentKeepITLicense)} · ${esc(s.satAnnual)}</p>`:""}
-${showU?`<h3>${esc(s.optionBUseIT)}</h3><p>${esc(s.annualUseITLicense)} · ${esc(s.satIncluded)}</p>`:""}
+${showK?`<h3>${esc(s.optionAKeepIT)}</h3><p>${esc(s.permanentKeepITLicense)} · ${esc(s.satAnnual)}${(out.keepit?.satBreakdown.baseSatDay ?? 0) > 0 ? `<br>${esc(annualConsultancyBenefit(lang))}` : ""}</p>`:""}
+${showU?`<h3>${esc(s.optionBUseIT)}</h3><p>${esc(s.annualUseITLicense)} · ${esc(s.satIncluded)}${(out.useit?.useItDerivation?.baseSatDay ?? 0) > 0 ? `<br>${esc(annualConsultancyBenefit(lang))}` : ""}</p>`:""}
 
 <section class="summary-section">
   <h2>${esc(s.investmentSummaryTitle)}</h2>
