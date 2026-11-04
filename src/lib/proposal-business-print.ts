@@ -7,7 +7,6 @@ import logoUrl from "@/assets/manwinwin-logo.png";
 import type { PricingRule, Proposal, ProposalLicenseModel, ProposalMode } from "@/types/proposal";
 import {
   computeBusinessOptions,
-  ONSITE_RATES,
   type BusinessConfig,
   type BusinessOptionTotals,
 } from "./proposal-business-engine";
@@ -139,10 +138,6 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
     const implType = cfg.implementation.type;
     const title =
       implType === "RCI Business" ? s.rciTitle : implType === "Onsite" ? s.onsiteTitle : s.customServicesTitle;
-    const grossSvc = primary.services.reduce((a, l) => a + l.amount, 0);
-    const discSvc = primary.services.reduce((a, l) => a + l.discountAmount, 0);
-    const netSvc = primary.services.reduce((a, l) => a + l.netAmount, 0);
-    const hasDisc = discSvc > 0;
     const onsiteDays = primary.services.find(line => line.code.startsWith("onsite_client_"))?.qty ?? 0;
     const rciBase = primary.services.find(line => line.code === "BUS_RCI_BASE");
     const hours = rciBase ? explicitServiceHours(rules.find(rule => rule.code === rciBase.code && rule.active !== false)?.notes) : null;
@@ -151,45 +146,14 @@ export function buildBusinessProposalPrintHtml({ proposal, cfg, rules }: Busines
       : implType === "RCI Business" && rciBase
         ? implementationScope(lang, "online", hours ? serviceQuantity(lang, hours, "hour") : undefined)
         : "";
-    const parts: string[] = [`<h3>${esc(title)}</h3>${scope}<ul>`];
-    if (implType === "Onsite") {
-      const region = cfg.implementation.onsiteRegion || "Portugal";
-      const rates = ONSITE_RATES[region];
-      const cd = cfg.implementation.onsiteClientDays || 0;
-      const bd = cfg.implementation.onsiteBackofficeDays || 0;
-      parts.push(`<li>${esc(s.region)}: ${esc(region)}</li>`);
-      if (cd > 0)
-        parts.push(`<li>${esc(s.clientDays)}: ${cd} × ${esc(fmt(rates.client))} = <strong>${esc(fmt(cd * rates.client))}</strong></li>`);
-      if (bd > 0)
-        parts.push(`<li>${esc(s.backofficeDays)}: ${bd} × ${esc(fmt(rates.backoffice))} = <strong>${esc(fmt(bd * rates.backoffice))}</strong></li>`);
-      primary.services
-        .filter((line) => line.code === "custom")
-        .forEach((line) => {
-          parts.push(`<li>${esc(line.label)}: <strong>${esc(fmt(line.amount))}</strong></li>`);
-        });
-      if (hasDisc) {
-        parts.push(`<li>${esc(s.servicesGrossTotal)}: ${esc(fmt(grossSvc))}</li>`);
-        parts.push(`<li class="disc">${esc(s.servicesDiscount)}: -${esc(fmt(discSvc))}</li>`);
-      }
-      parts.push(`<li><strong>${esc(s.totalOnsite)}: ${esc(fmt(netSvc))}</strong></li>`);
-      parts.push(`</ul><p class="muted small">${esc(s.travelNote)}</p>`);
-      return parts.join("");
-    }
-    primary.services.forEach((l) => {
-      const label = l.code === "BUS_RCI_BASE" ? s.rciBase
+    const labels = primary.services
+      .filter(line => implType !== "Onsite" || line.code === "custom")
+      .map(l => l.code === "BUS_RCI_BASE" ? s.rciBase
         : l.code === "BUS_RCI_LIVE_SESSION" ? serviceQuantity(lang, l.qty, "session")
-        : l.qty > 1 ? `${l.label} ×${l.qty}` : l.label;
-      parts.push(`<li>${esc(label)} — ${esc(fmt(l.amount))}</li>`);
-    });
-    if (primary.services.length > 0) {
-      if (hasDisc) {
-        parts.push(`<li>${esc(s.servicesGrossTotal)}: ${esc(fmt(grossSvc))}</li>`);
-        parts.push(`<li class="disc">${esc(s.servicesDiscount)}: -${esc(fmt(discSvc))}</li>`);
-      }
-      parts.push(`<li><strong>${esc(s.servicesNetTotal)}: ${esc(fmt(netSvc))}</strong></li>`);
-    }
-    parts.push(`</ul>`);
-    return parts.join("");
+        : l.qty > 1 ? `${l.label} ×${l.qty}` : l.label);
+    return `<h3>${esc(title)}</h3>${scope}
+      ${labels.length ? `<ul>${labels.map(label => `<li>${esc(label)}</li>`).join("")}</ul>` : ""}
+      ${implType === "Onsite" ? `<p class="muted small">${esc(s.travelNote)}</p>` : ""}`;
   })();
 
   const html = `<!doctype html>
@@ -271,8 +235,8 @@ ${primary.services.length ? `<section class="keep-together services-section">
 </section>` : ""}
 
 <h2>${esc(s.optionsTitle)}</h2>
-${showK?`<h3>${esc(s.optionAKeepIT)}</h3><p>${esc(s.permanentKeepITLicense)} · ${esc(s.satAnnual)}${(out.keepit?.satBreakdown.baseSatDay ?? 0) > 0 ? `<br>${esc(annualConsultancyBenefit(lang))}` : ""}</p>`:""}
-${showU?`<h3>${esc(s.optionBUseIT)}</h3><p>${esc(s.annualUseITLicense)} · ${esc(s.satIncluded)}${(out.useit?.useItDerivation?.baseSatDay ?? 0) > 0 ? `<br>${esc(annualConsultancyBenefit(lang))}` : ""}</p>`:""}
+${showK?`<h3>${esc(s.optionAKeepIT)}</h3><p>${esc(s.permanentKeepITLicense)} · ${esc(s.satAnnual)}${(out.keepit?.satBreakdown.baseSatDay ?? 0) > 0 ? `<br><strong>${esc(annualConsultancyBenefit(lang))}</strong>` : ""}</p>`:""}
+${showU?`<h3>${esc(s.optionBUseIT)}</h3><p>${esc(s.annualUseITLicense)} · ${esc(s.satIncluded)}${(out.useit?.useItDerivation?.baseSatDay ?? 0) > 0 ? `<br><strong>${esc(annualConsultancyBenefit(lang))}</strong>` : ""}</p>`:""}
 
 <section class="summary-section">
   <h2>${esc(s.investmentSummaryTitle)}</h2>

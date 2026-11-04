@@ -117,6 +117,7 @@ describe("Business proposal document transparency", () => {
     expect(main.querySelector(".services-section")?.textContent).toContain(scope);
     expect(main.querySelector(".services-section")?.textContent).not.toContain(benefit);
     expect(main.textContent?.split(benefit)).toHaveLength(3);
+    expect([...main.querySelectorAll("strong")].filter(element => element.textContent?.startsWith(benefit))).toHaveLength(2);
   });
   it("shows explicit remote hours and additional sessions independently", () => {
     const cfg: BusinessConfig = { ...config, implementation: { type: "RCI Business", liveSessions: 2 } };
@@ -125,6 +126,7 @@ describe("Business proposal document transparency", () => {
     const scope = new DOMParser().parseFromString(html, "text/html").querySelector(".services-section")?.textContent;
     expect(scope).toContain("En línea · 21 horas");
     expect(scope).toContain("2 sesiones adicionales");
+    expect(scope).not.toContain("€");
   });
   it.each(["compare_keepit_useit","keepit_only","useit_only"] as const)("presents configuration and services before investment for %s",mode=>{
     const html=buildBusinessProposalPrintHtml({proposal:{...proposal,proposal_mode:mode},cfg:config,rules});
@@ -198,10 +200,16 @@ describe("Business proposal document transparency", () => {
     expect(total?.keepitY1).toBe(31_244);
   });
 
-  it("lists Per Diem explicitly in the real Business print document", () => {
+  it("keeps the onsite scope free of prices and includes services in the investment summary", () => {
     const html = buildBusinessProposalPrintHtml({ proposal, cfg: config, rules });
-    expect(html).toContain("Per Diem: <strong>330.00 €</strong>");
-    expect(html).toContain("Total onsite services: 9,790.00 €");
+    const main = new DOMParser().parseFromString(html, "text/html").querySelector("main")!;
+    const services = main.querySelector(".services-section")?.textContent;
+    expect(services).toContain("Per Diem");
+    expect(services).toContain("10 days");
+    expect(services).not.toMatch(/€|Client days|BackOffice days|Total onsite/i);
+    const investment = main.querySelector(".summary-section")?.textContent;
+    expect(investment).toContain("Implementation services");
+    expect(investment).toContain("9,790.00 €");
     expect(html).toContain("TOTAL OF THE YEAR (Year 1)");
     expect(html).toContain('class="keep-together services-section"');
     expect(html).toContain('class="brand-header"');
