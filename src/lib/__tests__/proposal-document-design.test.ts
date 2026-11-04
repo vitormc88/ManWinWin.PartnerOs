@@ -7,11 +7,11 @@ import type { Proposal } from "@/types/proposal";
 
 afterEach(()=>vi.unstubAllGlobals());
 describe("Approved proposal identity across PDF and editable Word",()=>{
-  it("keeps revisions, unsaved previews and draft validation states explicit",()=>{
+  it("keeps revisions and preview references, and labels draft documents Restrito",()=>{
     expect(documentReference({language:"PT"})).toBe("Pré-visualização não guardada");
     const chrome=documentChrome({id:"abcdef12",version:4,status:"Draft",language:"PT"},"Proposta");
     expect(chrome.header).toContain("MWW-ABCDEF12 · r1 · v4");
-    expect(chrome.header).toContain("Rascunho · por validar");
+    expect(chrome.header).toContain("<br>Restrito</div>");
     expect(chrome.footer).toContain("iso9001.png");
   });
   it("escapes client content and retains the single authoritative investment table",()=>{
