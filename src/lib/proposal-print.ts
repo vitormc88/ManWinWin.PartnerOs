@@ -6,6 +6,7 @@ import logoUrl from "@/assets/manwinwin-logo.png";
 import { proposalDocumentTitle, proposalTermLines, PROPOSAL_SUPPORT_EMAIL, PROPOSAL_WEBSITE } from "./proposal-document-control";
 import { brandOpportunityHtml } from "./proposal-document-design";
 import { openProposalPdf } from "./proposal-pdf-window";
+import { explicitServiceHours, implementationScope, serviceQuantity } from "./proposal-service-scope";
 
 /**
  * Open a print-friendly window with the proposal rendered as HTML.
@@ -36,6 +37,14 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 
   const software = items.filter((i) => i.category === "software" || i.category === "addon");
   const services = items.filter((i) => i.category === "service" || (i.category === "custom" && !i.is_recurring));
+  const implementation = services.find(item => /^impl_online_p[123]$/.test(item.item_code ?? ""));
+  const implementationHours = explicitServiceHours(implementation?.description) ?? proposal.service_hours;
+  const onsiteDays = proposal.service_days;
+  const serviceScope = implementation && proposal.implementation_type === "Onsite"
+    ? implementationScope(lang, "onsite", onsiteDays && onsiteDays > 0 ? serviceQuantity(lang, onsiteDays, "day") : undefined)
+    : implementation && proposal.implementation_type === "Online"
+      ? implementationScope(lang, "online", implementationHours && implementationHours > 0 ? serviceQuantity(lang, implementationHours, "hour") : undefined)
+      : "";
   const recurring = items.filter((i) => i.is_recurring);
 
   // Per-section discount presence — drives whether columns appear
@@ -116,12 +125,14 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     grossAmount: number,
     netAmount: number,
     showDiscountColumns: boolean,
+    scope = "",
   ) => {
     if (list.length === 0) return "";
 
     if (showDiscountColumns) {
       return `
       <h2>${esc(title)}</h2>
+      ${scope}
       <table class="lines">
         <thead>
           <tr><th>${esc(s.colItem)}</th><th class="num">${esc(s.colGross)}</th><th class="num">${esc(s.discount)}</th><th class="num">${esc(s.colNet)}</th></tr>
@@ -136,6 +147,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     // Simple — no discounts in this section
     return `
       <h2>${esc(title)}</h2>
+      ${scope}
       <table class="lines">
         <thead>
           <tr><th>${esc(s.colItem)}</th><th class="num">${esc(s.colTotal)}</th><th>${esc(s.colFrequency)}</th></tr>
@@ -259,6 +271,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     totals.servicesGrossSubtotal,
     totals.servicesSubtotal,
     servicesHasDiscount,
+    serviceScope,
   )}
 
   <div class="year-total"><span>${esc(s.totalOfYear)}</span><span>${formatEuro(totals.totalYear1, lang)}</span></div>
