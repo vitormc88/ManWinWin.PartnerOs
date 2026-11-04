@@ -25,6 +25,7 @@ export interface ClosableRenewalLike {
 
 export interface ClosableProposalLike {
   id?: string | null;
+  entitlements?: unknown;
   status?: string | null;
   product_family?: string | null;
   license_model?: string | null;

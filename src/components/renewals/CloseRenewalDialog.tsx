@@ -51,6 +51,7 @@ export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName, in
     open
   );
   const closeRenewal = useCloseRenewal();
+  const webChange = ctx?.proposal?.entitlements as { web_reduction?: { previous_total: number }; web?: { total: number } } | null;
   const navigate = useNavigate();
 
   const preview = useMemo(
@@ -190,6 +191,10 @@ export function CloseRenewalDialog({ open, onOpenChange, renewal, clientName, in
                 <div className="grid grid-cols-2 gap-y-2 text-sm">
                   <span className="text-muted-foreground">Recurring before</span>
                   <span className="text-right tabular-nums">{formatMoney(preview.previousRecurring)}</span>
+                  {webChange?.web_reduction && webChange.web && <>
+                    <span>WEB accesses</span>
+                    <span className="text-right tabular-nums">{webChange.web_reduction.previous_total} → {webChange.web.total}</span>
+                  </>}
                   <span className="text-muted-foreground">Recurring after</span>
                   {preview.impactAvailable ? (
                     <>
