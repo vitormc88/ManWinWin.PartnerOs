@@ -252,8 +252,8 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
 
   <div class="includes">
     <h2>${esc(s.includes)}</h2>
-    <p>${includes.included.map(esc).join(" · ")}</p>
-    ${includes.optional.length ? `<p class="small"><strong>${esc(s.optionalNotIncluded)}</strong><br>${includes.optional.map(esc).join(" · ")}</p>` : ""}
+    <ul>${includes.included.map(item => `<li>${esc(item)}</li>`).join("")}</ul>
+    ${includes.optional.length ? `<h3>${esc(s.optionalNotIncluded)}</h3><ul>${includes.optional.map(item => `<li>${esc(item)}</li>`).join("")}</ul>` : ""}
   </div>
 
   <div class="year-bar"><span class="label">${esc(s.year1)}</span><span class="bar"></span></div>
@@ -299,7 +299,7 @@ export function buildProposalPrintHtml(proposal: Proposal, items: ProposalItem[]
     <p>${esc(s.validityNote(proposal.validity_days))}</p>
   </div>
 
-  <section class="scope-grid">
+  <section class="solution-details">
   ${proposal.hosting === "SaaS" ? `<section class="scope-group"><h2>${esc(s.saasFeatures)}</h2><ul>${s.saasFeaturesList.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>` : ""}
   <section class="scope-group"><h2>${esc(s.satTitle)}</h2><ul>${s.satList.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></section>
   </section>
