@@ -51,7 +51,7 @@ export async function generateBrandedDocx(html: string): Promise<Blob> {
   }
   function totalBlock(el:Element):Table {
     const spans=[...el.children];
-    return new Table({width:{size:WIDTH,type:WidthType.DXA},columnWidths:[5700,4618],layout:TableLayoutType.FIXED,borders:{top:none,bottom:none,left:none,right:none,insideHorizontal:none,insideVertical:none},rows:[new TableRow({cantSplit:true,children:spans.slice(0,2).map((s,i)=>new TableCell({width:{size:i?4618:5700,type:WidthType.DXA},margins:{top:170,bottom:170,left:180,right:180},shading:{fill:D.navy,type:ShadingType.CLEAR,color:"auto"},borders:{top:none,bottom:none,left:none,right:none},children:[new Paragraph({alignment:i?AlignmentType.RIGHT:AlignmentType.LEFT,spacing:{after:0},children:runs(s,{bold:true,size:i?30:21,color:"FFFFFF"})})]}))})]});
+    return new Table({width:{size:WIDTH,type:WidthType.DXA},columnWidths:[5700,4618],layout:TableLayoutType.FIXED,borders:{top:none,bottom:none,left:none,right:none,insideHorizontal:none,insideVertical:none},rows:[new TableRow({cantSplit:true,children:spans.slice(0,2).map((s,i)=>new TableCell({width:{size:i?4618:5700,type:WidthType.DXA},margins:{top:90,bottom:90,left:150,right:150},shading:{fill:D.navy,type:ShadingType.CLEAR,color:"auto"},borders:{top:none,bottom:none,left:none,right:none},children:[new Paragraph({alignment:i?AlignmentType.RIGHT:AlignmentType.LEFT,spacing:{after:0},children:runs(s,{bold:true,size:i?24:18,color:"FFFFFF"})})]}))})]});
   }
   function walk(el:Element):Block[] {
     if(el.matches("script,style,button,.brand-header,.brand-footer"))return [];
