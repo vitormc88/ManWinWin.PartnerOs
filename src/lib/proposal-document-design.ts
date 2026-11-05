@@ -37,7 +37,7 @@ table{width:100%;border-collapse:collapse;font-size:8.5pt;line-height:1.4;margin
 
 export function documentChrome(p: Partial<Proposal>, title: string) {
   const ref = documentEscape(documentReference(p));
-  const state = p.status === "Draft" ? t(p.language ?? "EN").restricted : "";
+  const state = t(p.language ?? "EN").restricted;
   return {
     header: `<header class="brand-header"><img src="${DOCUMENT_DESIGN.logo}" alt="ManWinWin Software"><div class="identity"><strong>${documentEscape(title)}</strong>${ref}${state ? `<br>${state}` : ""}</div></header>`,
     footer: `<footer class="brand-footer"><div class="contact">ManWinWin Software<br>(+351) 214 309 100<br>support@manwinwin.com<br>www.manwinwin.com</div><span class="reference">${ref}</span><img src="${DOCUMENT_DESIGN.iso}" alt="ISO 9001 Bureau Veritas Certification"></footer>`,

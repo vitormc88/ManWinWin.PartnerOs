@@ -7,6 +7,11 @@ import type { Proposal } from "@/types/proposal";
 
 afterEach(()=>vi.unstubAllGlobals());
 describe("Approved proposal identity across PDF and editable Word",()=>{
+  it.each(["Draft", "Ready", "Sent", "Accepted", "Won"] as const)("retains confidentiality after the proposal becomes %s", status => {
+    for (const [language, label] of [["PT", "Restrito"], ["EN", "Restricted"], ["ES", "Restringido"]] as const) {
+      expect(documentChrome({status, language}, "Proposal").header).toContain(`<br>${label}</div>`);
+    }
+  });
   it("keeps revisions and preview references, and localizes the restricted label",()=>{
     expect(documentReference({language:"PT"})).toBe("Pré-visualização não guardada");
     const chrome=documentChrome({id:"abcdef12",version:4,status:"Draft",language:"PT"},"Proposta");
