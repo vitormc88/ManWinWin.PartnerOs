@@ -88,11 +88,13 @@ export async function createBrandedProposalPdf(html:string,assets:Assets=load) {
   }
   function total(el:Element){
     const cells=[...el.children],left=cells[0]?text(cells[0]):"",right=cells[1]?text(cells[1]):"";
-    const [label,...caption]=left.split("\n"),leftLines=wrap(label,bold,10,CW*.56-24),rightSize=Math.min(20,(CW*.4-24)/bold.widthOfTextAtSize(right,1));
-    const height=Math.max(48,leftLines.length*14+22);ensure(height+12);page.drawRectangle({x:M,y:y-height,width:CW,height,color:navy});
-    leftLines.forEach((s,i)=>page.drawText(s,{x:M+13,y:y-20-i*14,font:bold,size:10,color:white}));
-    if(caption.length)page.drawText(caption.join(" "),{x:M+13,y:y-height+10,font,size:7,color:col("D1DDE3")});
-    page.drawText(right,{x:W-M-13-bold.widthOfTextAtSize(right,rightSize),y:y-height/2-6,font:bold,size:rightSize,color:white});y-=height+15;
+    const [label,...caption]=left.split("\n"),leftLines=wrap(label,bold,9,CW*.56-24),rightSize=Math.min(14,(CW*.4-24)/bold.widthOfTextAtSize(right,1));
+    const captionLines=caption.length?wrap(caption.join(" "),font,7,CW*.56-24):[];
+    const height=Math.max(32,leftLines.length*12+captionLines.length*10+16);ensure(height+8);page.drawRectangle({x:M,y:y-height,width:CW,height,color:navy});
+    const top=y-height/2+(leftLines.length*12+captionLines.length*10)/2-9;
+    leftLines.forEach((s,i)=>page.drawText(s,{x:M+11,y:top-i*12,font:bold,size:9,color:white}));
+    captionLines.forEach((s,i)=>page.drawText(s,{x:M+11,y:top-leftLines.length*12-i*10,font,size:7,color:col("D1DDE3")}));
+    page.drawText(right,{x:W-M-11-bold.widthOfTextAtSize(right,rightSize),y:y-height/2-4.5,font:bold,size:rightSize,color:white});y-=height+10;
   }
   function walk(el:Element):void{
     if(el.matches("script,style,button,.brand-header,.brand-footer"))return;
@@ -119,7 +121,7 @@ export async function createBrandedProposalPdf(html:string,assets:Assets=load) {
     if(el.matches(".summary-section,.renewal-section")){
       // Start the investment on a clean page when its complete table cannot fit.
       const rowCount=el.querySelectorAll("tr").length;
-      const estimate=rowCount*23+el.querySelectorAll("thead").length*18+el.querySelectorAll(".year-total").length*62+45;
+      const estimate=rowCount*23+el.querySelectorAll("thead").length*18+el.querySelectorAll(".year-total").length*42+45;
       ensure(Math.min(estimate,H-205));
     }
     if(el.matches(".services-section,.document-conditions")){
