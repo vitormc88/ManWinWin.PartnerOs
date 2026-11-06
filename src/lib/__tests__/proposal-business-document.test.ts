@@ -120,7 +120,7 @@ describe("Business proposal document transparency", () => {
     expect([...main.querySelectorAll("strong")].filter(element => element.textContent?.startsWith(benefit))).toHaveLength(2);
   });
   it("shows explicit remote hours and additional sessions independently", () => {
-    const cfg: BusinessConfig = { ...config, implementation: { type: "RCI Business", liveSessions: 2 } };
+    const cfg: BusinessConfig = { ...config, implementation: { type: "RCI Business", liveSessions: 2, customServices: [] } };
     const rciRules = [...rules, rule("BUS_RCI_BASE", 2500, { notes: "21 hours" }), rule("BUS_RCI_LIVE_SESSION", 405)];
     const html = buildBusinessProposalPrintHtml({ proposal: { ...proposal, language: "ES" }, cfg, rules: rciRules });
     const scope = new DOMParser().parseFromString(html, "text/html").querySelector(".services-section")?.textContent;
