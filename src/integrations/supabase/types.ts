@@ -6554,10 +6554,6 @@ export type Database = {
           business_config: Json | null
           client_id: string | null
           client_name: string
-          commercial_reference: string
-          commercial_revision: number
-          commercial_root_id: string
-          legacy_reference: string | null
           commercial_fingerprint: string | null
           contract_id: string | null
           country: string | null
@@ -6640,10 +6636,6 @@ export type Database = {
           business_config?: Json | null
           client_id?: string | null
           client_name: string
-          commercial_reference?: string
-          commercial_revision?: number
-          commercial_root_id?: string
-          legacy_reference?: string | null
           commercial_fingerprint?: string | null
           contract_id?: string | null
           country?: string | null
@@ -6726,10 +6718,6 @@ export type Database = {
           business_config?: Json | null
           client_id?: string | null
           client_name?: string
-          commercial_reference?: string
-          commercial_revision?: number
-          commercial_root_id?: string
-          legacy_reference?: string | null
           commercial_fingerprint?: string | null
           contract_id?: string | null
           country?: string | null
