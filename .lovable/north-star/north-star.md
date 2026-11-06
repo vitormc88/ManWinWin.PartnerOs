@@ -6,4 +6,4 @@ ManWinWin partners win new customers and keep existing ones renewing
 
 ## Metric
 
-Proposals won, new and renewal, each month
+Proposals won, new and renewal, each year
