@@ -12,6 +12,7 @@ export const MODULE_KEYS_LIST = [
   "clients",
   "renewals",
   "pipeline",
+  "sales",
   "prospecting",
   "incoming_leads",
   "deal_registrations",
@@ -38,6 +39,7 @@ export const MODULE_LABELS: Record<(typeof MODULE_KEYS_LIST)[number], string> = 
   clients: "Clients & Licenses",
   renewals: "Renewals",
   pipeline: "Pipeline",
+  sales: "Direct Sales",
   prospecting: "Prospecting",
   incoming_leads: "Incoming Leads",
   deal_registrations: "Deal Registrations",
@@ -58,6 +60,7 @@ export const MODULE_LABELS: Record<(typeof MODULE_KEYS_LIST)[number], string> = 
 };
 
 export const INTERNAL_ONLY_MODULES = new Set<string>([
+  "sales",
   "partners",
   "analytics",
   "tiers",

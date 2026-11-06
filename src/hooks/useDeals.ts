@@ -6,21 +6,24 @@ import { canonicalRenewalComponents, selectActiveCycle, isDerivedComponent, supp
 import { withRenewalHistory } from "@/lib/renewal-pipeline";
 import { fetchAllPages } from "@/lib/loss-analysis";
 import { useNotificationInbox } from "@/hooks/useNotificationInbox";
+import { dealScopeKey } from "@/lib/commercial-scope";
 
 export type Deal = Tables<"deals">;
 
 export function useDeals(
-  filters?: { stage?: string; partner_id?: string },
+  filters?: { stage?: string; partner_id?: string; assigned_user_id?: string },
   options?: { enabled?: boolean }
 ) {
   return useQuery({
-    queryKey: ["deals", filters],
+    // Scope segment keeps Direct/Partner/owner-filtered caches apart (Sales S1).
+    queryKey: ["deals", filters, dealScopeKey({ assigned_user_id: filters?.assigned_user_id })],
     enabled: options?.enabled ?? true,
     queryFn: async () => {
 
       let query = supabase.from("deals").select("*").order("created_at", { ascending: false });
       if (filters?.stage) query = query.eq("stage", filters.stage);
       if (filters?.partner_id) query = query.eq("partner_id", filters.partner_id);
+      if (filters?.assigned_user_id) query = query.eq("assigned_user_id", filters.assigned_user_id);
       return fetchAllPages<Deal>((from, to) => query.order("id").range(from, to));
     },
   });
