@@ -24,6 +24,10 @@ import Notifications from "@/pages/Notifications";
 import Pipeline from "@/pages/Pipeline";
 import DealDetail from "@/pages/DealDetail";
 import { DirectSalesGate } from "@/components/sales/DirectSalesGate";
+import SalesOverview from "@/pages/sales/SalesOverview";
+import SalesProposals from "@/pages/sales/SalesProposals";
+import SalesClosedWon from "@/pages/sales/SalesClosedWon";
+import SalesPerformance from "@/pages/sales/SalesPerformance";
 import DealRegistrations from "@/pages/DealRegistrations";
 import Commissions from "@/pages/Commissions";
 import AcademyHome from "@/pages/academy/AcademyHome";
@@ -102,7 +106,12 @@ const App = () => (
               <Route path="/renewals" element={<Renewals />} />
               <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/deals/:id" element={<DealDetail />} />
+              <Route path="/sales" element={<Navigate to="/sales/overview" replace />} />
+              <Route path="/sales/overview" element={<DirectSalesGate><SalesOverview /></DirectSalesGate>} />
               <Route path="/sales/pipeline" element={<DirectSalesGate><Pipeline engine="direct" /></DirectSalesGate>} />
+              <Route path="/sales/proposals" element={<DirectSalesGate><SalesProposals /></DirectSalesGate>} />
+              <Route path="/sales/closed-won" element={<DirectSalesGate><SalesClosedWon /></DirectSalesGate>} />
+              <Route path="/sales/performance" element={<DirectSalesGate><SalesPerformance /></DirectSalesGate>} />
               <Route path="/sales/deals/:id" element={<DirectSalesGate><DealDetail /></DirectSalesGate>} />
               <Route path="/deals/new" element={<ComingSoon />} />
               <Route path="/deal-registrations" element={<DealRegistrations />} />

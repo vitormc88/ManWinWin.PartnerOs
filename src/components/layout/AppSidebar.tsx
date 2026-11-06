@@ -29,6 +29,8 @@ import {
   CheckSquare,
   Target,
   Globe2,
+  FileText,
+  Trophy,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { BrandMark } from "@/components/BrandMark";
@@ -72,8 +74,14 @@ const salesNav = [
   { title: "Commissions", url: "/commissions", icon: DollarSign },
 ];
 
-// Direct Sales (Sprint 1): Pipeline only. Visibility comes from the server-resolved Sales capability.
-const directSalesNav: NavItem[] = [{ title: "Pipeline", url: "/sales/pipeline", icon: Kanban }];
+// Direct Sales module. Visibility comes from the server-resolved Sales capability.
+const directSalesNav: NavItem[] = [
+  { title: "Overview", url: "/sales/overview", icon: LayoutDashboard },
+  { title: "Pipeline", url: "/sales/pipeline", icon: Kanban },
+  { title: "Proposals", url: "/sales/proposals", icon: FileText },
+  { title: "Closed Won", url: "/sales/closed-won", icon: Trophy },
+  { title: "Performance", url: "/sales/performance", icon: BarChart3 },
+];
 
 const partnerOpsNav = [
   {
