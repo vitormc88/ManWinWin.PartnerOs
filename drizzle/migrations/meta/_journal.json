@@ -78,6 +78,13 @@
       "when": 1793979642060,
       "tag": "0010_renewal_web_reduction",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793980473956,
+      "tag": "0011_commercial_proposal_numbering",
+      "breakpoints": true
     }
   ]
 }

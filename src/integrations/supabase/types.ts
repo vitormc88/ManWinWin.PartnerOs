@@ -6831,6 +6831,9 @@ export type Database = {
           client_id: string | null
           client_name: string
           commercial_fingerprint: string | null
+          commercial_reference: string
+          commercial_revision: number
+          commercial_root_id: string
           contract_id: string | null
           country: string | null
           created_at: string
@@ -6862,6 +6865,7 @@ export type Database = {
           include_requests_module: boolean
           language: string
           lead_id: string | null
+          legacy_reference: string | null
           license_id: string | null
           license_model: string | null
           notes: string | null
@@ -6913,6 +6917,9 @@ export type Database = {
           client_id?: string | null
           client_name: string
           commercial_fingerprint?: string | null
+          commercial_reference: string
+          commercial_revision: number
+          commercial_root_id: string
           contract_id?: string | null
           country?: string | null
           created_at?: string
@@ -6944,6 +6951,7 @@ export type Database = {
           include_requests_module?: boolean
           language?: string
           lead_id?: string | null
+          legacy_reference?: string | null
           license_id?: string | null
           license_model?: string | null
           notes?: string | null
@@ -6995,6 +7003,9 @@ export type Database = {
           client_id?: string | null
           client_name?: string
           commercial_fingerprint?: string | null
+          commercial_reference?: string
+          commercial_revision?: number
+          commercial_root_id?: string
           contract_id?: string | null
           country?: string | null
           created_at?: string
@@ -7026,6 +7037,7 @@ export type Database = {
           include_requests_module?: boolean
           language?: string
           lead_id?: string | null
+          legacy_reference?: string | null
           license_id?: string | null
           license_model?: string | null
           notes?: string | null
