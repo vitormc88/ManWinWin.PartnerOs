@@ -1806,6 +1806,184 @@ export type Database = {
           },
         ]
       }
+      commercial_addition_fulfillments: {
+        Row: {
+          accepted_at: string
+          accepted_by: string
+          activated_at: string | null
+          activated_by: string | null
+          activation_snapshot: Json | null
+          annual_after: number
+          annual_before: number
+          annual_increase: number
+          awarded_snapshot: Json
+          client_id: string
+          contract_id: string
+          license_id: string
+          payment_reference: string | null
+          proposal_id: string
+          requires_license_activation: boolean
+          source_snapshot: Json
+        }
+        Insert: {
+          accepted_at?: string
+          accepted_by: string
+          activated_at?: string | null
+          activated_by?: string | null
+          activation_snapshot?: Json | null
+          annual_after: number
+          annual_before: number
+          annual_increase: number
+          awarded_snapshot: Json
+          client_id: string
+          contract_id: string
+          license_id: string
+          payment_reference?: string | null
+          proposal_id: string
+          requires_license_activation?: boolean
+          source_snapshot: Json
+        }
+        Update: {
+          accepted_at?: string
+          accepted_by?: string
+          activated_at?: string | null
+          activated_by?: string | null
+          activation_snapshot?: Json | null
+          annual_after?: number
+          annual_before?: number
+          annual_increase?: number
+          awarded_snapshot?: Json
+          client_id?: string
+          contract_id?: string
+          license_id?: string
+          payment_reference?: string | null
+          proposal_id?: string
+          requires_license_activation?: boolean
+          source_snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_addition_fulfillments_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_activated_by_fkey"
+            columns: ["activated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_activated_by_fkey"
+            columns: ["activated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_activated_by_fkey"
+            columns: ["activated_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_license_id_fkey"
+            columns: ["license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_fulfillments_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: true
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commercial_addition_terms_approvals: {
+        Row: {
+          authorized_at: string
+          authorized_by: string
+          fingerprint: string
+          proposal_id: string
+        }
+        Insert: {
+          authorized_at?: string
+          authorized_by: string
+          fingerprint: string
+          proposal_id: string
+        }
+        Update: {
+          authorized_at?: string
+          authorized_by?: string
+          fingerprint?: string
+          proposal_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_addition_terms_approvals_authorized_by_fkey"
+            columns: ["authorized_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_terms_approvals_authorized_by_fkey"
+            columns: ["authorized_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_terms_approvals_authorized_by_fkey"
+            columns: ["authorized_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "commercial_addition_terms_approvals_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: true
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commissions: {
         Row: {
           approved_at: string | null
@@ -3270,6 +3448,7 @@ export type Database = {
       documents: {
         Row: {
           category_id: string | null
+          content_review: Json
           created_at: string | null
           description: string | null
           file_name: string | null
@@ -3288,6 +3467,7 @@ export type Database = {
         }
         Insert: {
           category_id?: string | null
+          content_review?: Json
           created_at?: string | null
           description?: string | null
           file_name?: string | null
@@ -3306,6 +3486,7 @@ export type Database = {
         }
         Update: {
           category_id?: string | null
+          content_review?: Json
           created_at?: string | null
           description?: string | null
           file_name?: string | null
@@ -6464,6 +6645,101 @@ export type Database = {
           },
         ]
       }
+      proposal_preparations: {
+        Row: {
+          body: Json
+          client_id: string
+          contract_id: string
+          created_at: string
+          created_by: string
+          id: string
+          kind: string
+          license_id: string
+          partner_uuid: string | null
+          proposal_id: string | null
+          proposal_updated_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: Json
+          client_id: string
+          contract_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          kind: string
+          license_id: string
+          partner_uuid?: string | null
+          proposal_id?: string | null
+          proposal_updated_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: Json
+          client_id?: string
+          contract_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          kind?: string
+          license_id?: string
+          partner_uuid?: string | null
+          proposal_id?: string | null
+          proposal_updated_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_preparations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_preparations_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_preparations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_preparations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_by_user"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proposal_preparations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_sales_performance"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "proposal_preparations_license_id_fkey"
+            columns: ["license_id"]
+            isOneToOne: false
+            referencedRelation: "licenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_preparations_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposal_status_events: {
         Row: {
           action: string
@@ -8276,6 +8552,10 @@ export type Database = {
         Returns: boolean
       }
       can_manage_client: { Args: { _client_id: string }; Returns: boolean }
+      can_manage_client_additions: {
+        Args: { _client_id: string }
+        Returns: boolean
+      }
       can_manage_deal: { Args: { _deal_id: string }; Returns: boolean }
       can_manage_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_manage_partner: { Args: { _partner_id: string }; Returns: boolean }
@@ -8346,6 +8626,18 @@ export type Database = {
           _renewal_id: string
         }
         Returns: Json
+      }
+      commercial_addition_action: {
+        Args: { _action: string; _details?: Json; _proposal_id: string }
+        Returns: Json
+      }
+      complete_proposal_preparation: {
+        Args: {
+          _payload: Json
+          _preparation_id: string
+          _preparation_updated_at: string
+        }
+        Returns: string
       }
       convert_target_account_to_lead: {
         Args: { _account_id: string; _notes?: string }
@@ -8624,6 +8916,10 @@ export type Database = {
         }
         Returns: Json
       }
+      recover_addition_preparation: {
+        Args: { _expected_updated_at: string; _id: string }
+        Returns: Json
+      }
       refresh_partner_revenue_totals: {
         Args: { p_partner_id: string }
         Returns: undefined
@@ -8707,6 +9003,28 @@ export type Database = {
       }
       resolve_renewal_owner: { Args: { _renewal_id: string }; Returns: string }
       resolve_user_by_name: { Args: { _name: string }; Returns: string }
+      save_commercial_addition_draft: {
+        Args: {
+          _expected_updated_at: string
+          _payload: Json
+          _proposal_id: string
+        }
+        Returns: string
+      }
+      save_proposal_preparation: {
+        Args: {
+          _body: Json
+          _client_id: string
+          _contract_id: string
+          _expected_updated_at: string
+          _id: string
+          _kind: string
+          _license_id: string
+          _proposal_id?: string
+          _proposal_updated_at?: string
+        }
+        Returns: Json
+      }
       save_renewal_proposal: {
         Args: {
           _items: Json

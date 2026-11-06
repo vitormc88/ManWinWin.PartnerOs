@@ -1,0 +1,83 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793979057267,
+      "tag": "0000_content_governance",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793979096466,
+      "tag": "0001_commercial_addition_atomic_drafts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793979153847,
+      "tag": "0002_commercial_addition_adjudication_activation",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793979199556,
+      "tag": "0003_commercial_addition_scoped_pipeline_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793979302760,
+      "tag": "0004_commercial_addition_detailed_terms",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793979334664,
+      "tag": "0005_proposal_preparation_workspace",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793979418126,
+      "tag": "0006_commercial_addition_simple_editor",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793979574157,
+      "tag": "0007_commercial_proposal_audit_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793979597589,
+      "tag": "0008_commercial_service_payment_wording",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793979615530,
+      "tag": "0009_commercial_payment_text_alignment",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793979642060,
+      "tag": "0010_renewal_web_reduction",
+      "breakpoints": true
+    }
+  ]
+}
