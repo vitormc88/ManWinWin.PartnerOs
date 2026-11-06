@@ -126,3 +126,13 @@ describe("resolveSupabaseEnv", () => {
     }
   });
 });
+
+describe("draft isolated backend (Sales S1)", () => {
+  const draftUrl = "https://abc-thr_x.lovableproject.com/_port_8001";
+  it("accepts the draft-local backend on preview hosts", () => {
+    expect(resolveSupabaseEnv({ url: draftUrl, publishableKey: "sb_publishable_x", hostname: "abc.lovableproject.com" }).projectRef).toBe("draft-local");
+  });
+  it("still refuses it on the production host", () => {
+    expect(() => resolveSupabaseEnv({ url: draftUrl, publishableKey: "sb_publishable_x", hostname: "partneros.manwinwin.com" })).toThrow();
+  });
+});

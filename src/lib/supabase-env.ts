@@ -14,6 +14,23 @@ export const PROD_HOSTS = ["partneros.manwinwin.com"];
 
 export type ResolvedEnvironment = "production" | "test";
 
+/** Ref reported for a Lovable draft's isolated sandbox backend (never a real Supabase project). */
+export const DRAFT_LOCAL_REF = "draft-local";
+
+/**
+ * A Lovable draft's isolated backend is proxied at https://<draft>.lovableproject.com/_port_8001.
+ * Accepted only on non-production hosts; production still requires the PROD ref.
+ */
+export function isDraftLocalBackendUrl(url?: string | null): boolean {
+  try {
+    const u = new URL((url ?? "").trim());
+    return u.protocol === "https:" && /\.(lovableproject\.com|lovable\.app)$/.test(u.hostname.toLowerCase())
+      && u.pathname.replace(/\/$/, "") === "/_port_8001" && !u.search && !u.hash;
+  } catch {
+    return false;
+  }
+}
+
 export interface SupabaseEnvInput {
   url?: string | null;
   publishableKey?: string | null;
@@ -95,6 +112,10 @@ export function resolveSupabaseEnv(input: SupabaseEnvInput): ResolvedSupabaseEnv
     throw new SupabaseEnvironmentError(
       `Supabase configuration error: VITE_SUPABASE_PUBLISHABLE_KEY is missing for the ${label} environment.`,
     );
+  }
+
+  if (environment === "test" && isDraftLocalBackendUrl(url)) {
+    return { environment, projectRef: DRAFT_LOCAL_REF, url, publishableKey };
   }
 
   const urlRef = extractProjectRefFromUrl(url);

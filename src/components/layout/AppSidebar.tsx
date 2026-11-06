@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useExplorerAccess } from '@/hooks/useExplorerAccess';
 import { useMyPermissions } from "@/hooks/useUsers";
 import { useAcademyAnalyticsPerms } from "@/hooks/useAcademyAnalytics";
+import { useSalesCapability } from "@/hooks/useSalesCapability";
 import { LogOut, UserCog } from "lucide-react";
 import {
   LayoutDashboard,
@@ -71,6 +72,9 @@ const salesNav = [
   { title: "Commissions", url: "/commissions", icon: DollarSign },
 ];
 
+// Direct Sales (Sprint 1): Pipeline only. Visibility comes from the server-resolved Sales capability.
+const directSalesNav: NavItem[] = [{ title: "Pipeline", url: "/sales/pipeline", icon: Kanban }];
+
 const partnerOpsNav = [
   {
     title: "Partner Academy",
@@ -108,7 +112,9 @@ export function AppSidebar() {
   const isAdmin = roles.includes("hq_admin");
   const isPartnerUser = profile?.is_hq !== true;
 
+  const salesCap = useSalesCapability();
   const canSee = (url: string) => {
+    if (url.startsWith("/sales/")) return salesCap.hasAccess;
     if(url === '/customer-explorer')return profile?.is_active === true && !explorerAccess.isError && explorerAccess.data?.read===true;
     if (url === "/academy/analytics") {
       return isAdmin || academyAnalyticsPerms?.academy_analytics_view === true;
@@ -212,6 +218,7 @@ export function AppSidebar() {
       <SidebarContent className="min-h-0 flex-1 px-1.5">
         {!collapsed && <div className="px-3 pt-1 pb-2"><Input aria-label="Find a module" placeholder="Find a module…" value={navigationSearch} onChange={e => setNavigationSearch(e.target.value)} className="h-9 bg-sidebar-accent text-sidebar-foreground placeholder:text-sidebar-muted border-sidebar-border" />{navigationSearch && <button className="mt-1 text-xs text-sidebar-foreground underline" onClick={() => setNavigationSearch('')}>Clear navigation search</button>}<p className="text-xs text-sidebar-muted mt-1">Filters menu items you can access.</p></div>}
         {renderGroup("Main", mainNav)}
+        {renderGroup("Sales", directSalesNav)}
         {renderGroup("Sales CRM", salesNav)}
         {renderGroup("Partner Ops", partnerOpsNav)}
         {renderGroup("Resources", resourcesNav)}

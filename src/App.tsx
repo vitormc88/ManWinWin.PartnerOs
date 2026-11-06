@@ -23,6 +23,7 @@ import Analytics from "@/pages/Analytics";
 import Notifications from "@/pages/Notifications";
 import Pipeline from "@/pages/Pipeline";
 import DealDetail from "@/pages/DealDetail";
+import { DirectSalesGate } from "@/components/sales/DirectSalesGate";
 import DealRegistrations from "@/pages/DealRegistrations";
 import Commissions from "@/pages/Commissions";
 import AcademyHome from "@/pages/academy/AcademyHome";
@@ -101,6 +102,8 @@ const App = () => (
               <Route path="/renewals" element={<Renewals />} />
               <Route path="/pipeline" element={<Pipeline />} />
               <Route path="/deals/:id" element={<DealDetail />} />
+              <Route path="/sales/pipeline" element={<DirectSalesGate><Pipeline engine="direct" /></DirectSalesGate>} />
+              <Route path="/sales/deals/:id" element={<DirectSalesGate><DealDetail /></DirectSalesGate>} />
               <Route path="/deals/new" element={<ComingSoon />} />
               <Route path="/deal-registrations" element={<DealRegistrations />} />
               <Route path="/prospecting" element={<Prospecting />} />

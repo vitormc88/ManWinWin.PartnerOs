@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.4"
-  }
   public: {
     Tables: {
       _backup_partners_v1: {
@@ -3055,8 +3050,10 @@ export type Database = {
           num_assets: number | null
           num_maintenance_team: number | null
           partner_id: string | null
+          partner_uuid: string | null
           probability: number | null
           register_date: string | null
+          sales_engine: string | null
           sector: string | null
           source_owner_id: string | null
           source_synced_at: string | null
@@ -3100,8 +3097,10 @@ export type Database = {
           num_assets?: number | null
           num_maintenance_team?: number | null
           partner_id?: string | null
+          partner_uuid?: string | null
           probability?: number | null
           register_date?: string | null
+          sales_engine?: string | null
           sector?: string | null
           source_owner_id?: string | null
           source_synced_at?: string | null
@@ -3145,8 +3144,10 @@ export type Database = {
           num_assets?: number | null
           num_maintenance_team?: number | null
           partner_id?: string | null
+          partner_uuid?: string | null
           probability?: number | null
           register_date?: string | null
+          sales_engine?: string | null
           sector?: string | null
           source_owner_id?: string | null
           source_synced_at?: string | null
@@ -3182,6 +3183,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_analytics_sales_performance"
             referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "deals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partner_metrics"
+            referencedColumns: ["partner_id"]
+          },
+          {
+            foreignKeyName: "deals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_partner_uuid_fkey"
+            columns: ["partner_uuid"]
+            isOneToOne: false
+            referencedRelation: "v_analytics_partner_summary"
+            referencedColumns: ["partner_id"]
           },
         ]
       }
@@ -8665,6 +8687,16 @@ export type Database = {
         Returns: number
       }
       customer_explorer_settings: { Args: never; Returns: Json }
+      deal_row_access: {
+        Args: {
+          _assigned: string
+          _engine: string
+          _mode: string
+          _partner_id: string
+          _uid: string
+        }
+        Returns: boolean
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -8763,6 +8795,10 @@ export type Database = {
         Returns: boolean
       }
       is_academy_admin: { Args: never; Returns: boolean }
+      is_direct_deal_ref: {
+        Args: { _entity: string; _related_type: string }
+        Returns: boolean
+      }
       is_hq_user: { Args: { _user_id: string }; Returns: boolean }
       is_partner_manager_for_partner: {
         Args: { _partner_id: string; _user_id: string }
@@ -8786,6 +8822,13 @@ export type Database = {
         }
         Returns: string
       }
+      list_direct_sales_owners: {
+        Args: never
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
       mark_proposal_sent: {
         Args: {
           _method?: string
@@ -8804,6 +8847,7 @@ export type Database = {
         }
         Returns: number
       }
+      my_sales_capability: { Args: never; Returns: string }
       normalize_country: { Args: { _input: string }; Returns: string }
       notifications_daily_run: { Args: { _dry_run?: boolean }; Returns: Json }
       notify: {
@@ -9015,6 +9059,7 @@ export type Database = {
       }
       resolve_renewal_owner: { Args: { _renewal_id: string }; Returns: string }
       resolve_user_by_name: { Args: { _name: string }; Returns: string }
+      sales_capability: { Args: { _uid: string }; Returns: string }
       save_commercial_addition_draft: {
         Args: {
           _expected_updated_at: string
@@ -9216,3 +9261,4 @@ export const Constants = {
     },
   },
 } as const
+

@@ -89,6 +89,7 @@ const ROUTE_MODULES: RouteModule[] = [
   { prefix: "/renewals", path: "/renewals", moduleKey: "renewals" },
   { prefix: "/pipeline", path: "/pipeline", moduleKey: "pipeline" },
   { prefix: "/deals", path: "/pipeline", moduleKey: "pipeline" },
+  { prefix: "/sales", path: "/sales/pipeline", moduleKey: "sales" },
   { prefix: "/prospecting", path: "/prospecting", moduleKey: "prospecting" },
   { prefix: "/incoming-leads", path: "/incoming-leads", moduleKey: "incoming_leads" },
   { prefix: "/deal-registrations", path: "/deal-registrations", moduleKey: "deal_registrations" },

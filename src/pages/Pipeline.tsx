@@ -55,6 +55,8 @@ import {
 import { loadDealGateContext } from "@/lib/pipeline-gate-context";
 import { StageGateDialog } from "@/components/commercial/StageGateDialog";
 import { useLogStageGateOverride } from "@/hooks/useAgreedNextSteps";
+import { useSalesCapability, useDirectSalesOwners } from "@/hooks/useSalesCapability";
+import { isDirect as isDirectDeal } from "@/lib/commercial-scope";
 
 function formatDaysAgo(d: Date | null): string {
   if (!d) return "—";
@@ -73,10 +75,22 @@ function formatRelativeFuture(d: Date | null): string | null {
   return `in ${days}d`;
 }
 
-export default function Pipeline() {
+/**
+ * Shared Pipeline composition. engine="direct" is the thin Direct Sales (new_business) view:
+ * same stages/board/list/filters/health/gates; no Partner picker; Sales Owner filter for managers.
+ * RLS is authoritative for which deals are returned.
+ */
+export default function Pipeline({ engine = "partner" }: { engine?: "partner" | "direct" } = {}) {
+  const isDirect = engine === "direct";
   const { isHQ, profile } = useAuth();
   const access = useModuleAccess();
-  const editable = !access.isLoading && access.canEdit("pipeline");
+  const salesCap = useSalesCapability();
+  const { data: directOwners = [] } = useDirectSalesOwners(isDirect && salesCap.isManager);
+  const [ownerFilter, setOwnerFilter] = useState("all");
+  const editable = isDirect
+    ? salesCap.canEdit
+    : !access.isLoading && access.canEdit("pipeline");
+  const dealHref = (id: string) => (isDirect ? `/sales/deals/${id}` : `/deals/${id}`);
   const [view, setView] = useState<"board" | "list">("board");
   const [closedTab, setClosedTab] = useState<"Won" | "Lost">("Lost");
   const [closedPage, setClosedPage] = useState(1);
@@ -101,7 +115,9 @@ export default function Pipeline() {
   } | null>(null);
   const [gatePending, setGatePending] = useState(false);
   const logOverride = useLogStageGateOverride();
-  const { data: deals = [], isLoading, isError, refetch } = useDeals();
+  const { data: allDeals = [], isLoading, isError, refetch } = useDeals();
+  // Direct view shows only explicit new_business deals; the Partner view never shows them.
+  const deals = allDeals.filter((d) => isDirectDeal(d as any) === isDirect);
   const { data: partners = [] } = usePartners();
   const {
     data: healthMap,
@@ -112,11 +128,13 @@ export default function Pipeline() {
   const queryClient = useQueryClient();
 
   const partnerMap = new Map(partners.map((p) => [p.id, p.company_name]));
-  const partnerScoped = isPartnerScopedView({
-    isHQ: !!isHQ,
-    partnerId: profile?.partner_id,
-    visiblePartnerCount: partners.length,
-  });
+  const partnerScoped =
+    isDirect ||
+    isPartnerScopedView({
+      isHQ: !!isHQ,
+      partnerId: profile?.partner_id,
+      visiblePartnerCount: partners.length,
+    });
   const selectablePartners = partners.filter(
     (p) => includeArchived || (p.status === "Active" && p.is_active !== false),
   );
@@ -128,6 +146,7 @@ export default function Pipeline() {
     partnerFilter,
     healthFilter,
     signalFilter,
+    ownerFilter,
     dashboardFilter,
     closedTab,
   ]);
@@ -160,7 +179,9 @@ export default function Pipeline() {
       (signalFilter === "no-followup" &&
         !!h?.warnings.includes("No follow-up")) ||
       (signalFilter === "overdue" && !!h?.hasOverdueTask);
-    return matchSearch && matchPartner && matchHealth && matchSignal;
+    const matchOwner =
+      !isDirect || ownerFilter === "all" || d.assigned_user_id === ownerFilter;
+    return matchSearch && matchPartner && matchHealth && matchSignal && matchOwner;
   });
 
   // Single source of truth: "open" = status Open AND stage is a rendered active Kanban stage.
@@ -380,7 +401,7 @@ export default function Pipeline() {
       <div className="flex items-center justify-between animate-reveal-up">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">
-            Sales Pipeline
+            {isDirect ? "Direct Sales Pipeline" : "Sales Pipeline"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {open.length} open opportunities ·{" "}
@@ -388,12 +409,18 @@ export default function Pipeline() {
             {hotDeals} hot
           </p>
         </div>
-        {editable && (
+        {editable && !isDirect && (
           <Button size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4 mr-1.5" /> New Opportunity
           </Button>
         )}
       </div>
+
+      {isDirect && (
+        <div role="note" className="rounded-lg border bg-secondary/50 px-4 py-2 text-sm text-muted-foreground">
+          Direct Sales closing is not enabled yet — Won and Award &amp; Convert are blocked for Direct opportunities.
+        </div>
+      )}
 
       {/* Commercial KPIs */}
       <div
@@ -529,6 +556,21 @@ export default function Pipeline() {
               ))}
           </select>
         )}
+        {isDirect && salesCap.isManager && (
+          <select
+            aria-label="Sales Owner"
+            value={ownerFilter}
+            onChange={(e) => setOwnerFilter(e.target.value)}
+            className="h-9 px-3 rounded-lg border bg-card text-sm text-muted-foreground"
+          >
+            <option value="all">All Sales Owners</option>
+            {directOwners.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.full_name || "Unnamed"}
+              </option>
+            ))}
+          </select>
+        )}
         <select
           aria-label="Health"
           value={healthFilter}
@@ -574,6 +616,7 @@ export default function Pipeline() {
         )}
         {(search ||
           partnerFilter !== "all" ||
+          ownerFilter !== "all" ||
           healthFilter !== "all" ||
           signalFilter !== "none") && (
           <Button
@@ -582,6 +625,7 @@ export default function Pipeline() {
             onClick={() => {
               setSearch("");
               setPartnerFilter("all");
+              setOwnerFilter("all");
               setHealthFilter("all");
               setSignalFilter("none");
             }}
@@ -664,7 +708,7 @@ export default function Pipeline() {
                       return (
                         <Link
                           key={deal.id}
-                          to={`/deals/${deal.id}`}
+                          to={dealHref(deal.id)}
                           draggable={editable}
                           onDragStart={(e) =>
                             editable &&
@@ -796,7 +840,7 @@ export default function Pipeline() {
                     "Opportunity",
                     "Stage",
                     ...(partnerScoped ? [] : ["Partner"]),
-                    "Owner",
+                    isDirect ? "Sales Owner" : "Owner",
                     "Value",
                     "Expected close",
                   ].map((h) => (
@@ -814,7 +858,7 @@ export default function Pipeline() {
                       <td className="p-3">
                         <Link
                           className="font-medium hover:underline"
-                          to={`/deals/${d.id}`}
+                          to={dealHref(d.id)}
                         >
                           {d.company_name}
                         </Link>
@@ -896,7 +940,7 @@ export default function Pipeline() {
             .map((deal) => (
               <Link
                 key={deal.id}
-                to={`/deals/${deal.id}`}
+                to={dealHref(deal.id)}
                 className="flex items-center justify-between gap-3 border rounded-lg p-3 hover:bg-secondary/30"
               >
                 <div className="min-w-0">

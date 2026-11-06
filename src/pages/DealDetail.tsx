@@ -36,6 +36,8 @@ import { DealCommunicationTab } from "@/components/deals/DealCommunicationTab";
 import { activityTabLabel } from "@/lib/activity-stream";
 import { RelationshipSummary } from "@/components/deals/RelationshipSummary";
 import { stageLabel } from "@/lib/pipeline-gates";
+import { useSalesCapability, useDirectSalesOwners } from "@/hooks/useSalesCapability";
+import { isDirect as isDirectDeal } from "@/lib/commercial-scope";
 import { DiscoveryWorkspace } from "@/components/commercial/DiscoveryWorkspace";
 import { NextStepPanel } from "@/components/commercial/NextStepPanel";
 import { QualificationSnapshot } from "@/components/deals/QualificationSnapshot";
@@ -71,8 +73,15 @@ export default function DealDetail() {
   const { data: partnerUsers = [] } = usePartnerUsers(dealPartnerId);
   const { data: assignableUsers = [] } = useAssignableUsers();
   const { data: profilesMap } = useAllProfilesMap();
+  // Direct Sales (new_business): no Partner presentation, Sales Owner only, closing interlocked server-side.
+  const isDirect = !!deal && isDirectDeal(deal as any);
+  const salesCap = useSalesCapability();
+  const { data: directOwners = [] } = useDirectSalesOwners(isDirect);
+  const backHref = isDirect ? "/sales/pipeline" : "/pipeline";
   // Owner picker source: HQ-aware partner-scoped union (HQ sees everyone, partners see own org)
-  const ownerCandidates = (() => {
+  const ownerCandidates = isDirect
+    ? directOwners.map((o) => ({ id: o.id, full_name: o.full_name, email: "" }))
+    : (() => {
     const ids = new Set<string>();
     const merged: { id: string; full_name: string | null; email: string }[] = [];
     [...assignableUsers, ...partnerUsers].forEach((u: any) => {
@@ -117,8 +126,8 @@ export default function DealDetail() {
       country: editForm.country || null,
       industry: editForm.industry || editForm.sector || null,
       lead_source: editForm.lead_source || null,
-      partner_id: editForm.partner_id || null,
-      assigned_user_id: editForm.assigned_user_id || null,
+      ...(isDirect ? {} : { partner_id: editForm.partner_id || null }),
+      ...(isDirect && !salesCap.isManager ? {} : { assigned_user_id: editForm.assigned_user_id || null }),
       assigned_salesperson:
         (editForm.assigned_user_id
           ? (ownerCandidates.find(u => u.id === editForm.assigned_user_id)?.full_name || null)
@@ -189,7 +198,7 @@ export default function DealDetail() {
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3 animate-reveal-up">
-        <Link to="/pipeline" className="h-8 w-8 rounded-lg border bg-card flex items-center justify-center hover:bg-secondary transition-colors">
+        <Link to={backHref} aria-label={isDirect ? "Back to Direct Sales pipeline" : "Back to pipeline"} className="h-8 w-8 rounded-lg border bg-card flex items-center justify-center hover:bg-secondary transition-colors">
           <ArrowLeft className="h-4 w-4" />
         </Link>
         <div className="flex-1 min-w-0">
@@ -209,7 +218,13 @@ export default function DealDetail() {
         </div>
         {!editing && (
           <div className="flex items-center gap-2">
-            {deal.stage !== "Lost" && <MarkAsWonButton deal={deal} />}
+            {isDirect ? (
+              <span className="text-xs text-muted-foreground border rounded-md px-2 py-1" title="Won and Award & Convert are blocked for Direct opportunities">
+                Direct closing not enabled
+              </span>
+            ) : (
+              deal.stage !== "Lost" && <MarkAsWonButton deal={deal} />
+            )}
             {deal.stage !== "Won" && deal.stage !== "Lost" && <MarkAsLostButton deal={deal} />}
             <Button size="sm" onClick={() => setShowCreateProposal(true)}>
               <FileText className="h-3.5 w-3.5 mr-1.5" />Generate Proposal
@@ -287,7 +302,7 @@ export default function DealDetail() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Country</Label><CountryCombobox value={editForm.country} onChange={v => setEditForm((f: any) => ({ ...f, country: v }))} /></div>
-                <div>
+                {!isDirect && <div>
                   <Label>Linked Partner</Label>
                   <Select value={editForm.partner_id || "none"} onValueChange={v => setEditForm((f: any) => ({ ...f, partner_id: v === "none" ? "" : v }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -296,12 +311,13 @@ export default function DealDetail() {
                       {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.company_name}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
+                </div>}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div id="deal-owner-field">
-                  <Label>Assigned To</Label>
+                  <Label>{isDirect ? "Sales Owner" : "Assigned To"}</Label>
                   <Select
+                    disabled={isDirect && !salesCap.isManager}
                     value={editForm.assigned_user_id || "none"}
                     onValueChange={v => {
                       const uid = v === "none" ? null : v;
