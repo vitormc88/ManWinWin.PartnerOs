@@ -1,4 +1,5 @@
 import { resourceLanguage } from './ux-discovery';
+import type { Json } from '@/integrations/supabase/types';
 
 export const RESOURCE_PURPOSES = ['Brochure','Sales presentation','Demo','User manual','Installation guide','Technical reference','Pricing & licensing','Implementation & services','Business case','Other'] as const;
 export type ResourceReview = {
@@ -6,9 +7,11 @@ export type ResourceReview = {
   display_title: string; language: string; product: string; purpose: string; version_label: string;
   reviewed_at?: string; reviewed_by?: string;
 };
-export type ResourceRecord = {id:string;title:string;file_name?:string|null;file_type?:string|null;file_url?:string|null;tags?:string[]|null;content_review?:ResourceReview|null};
+export type ResourceRecord = {id:string;title:string;file_name?:string|null;file_type?:string|null;file_url?:string|null;tags?:string[]|null;content_review?:ResourceReview|Json|null};
 export function reviewOf(doc: ResourceRecord): ResourceReview {
-  return doc.content_review?.status ? doc.content_review : {status:'needs_review',display_title:'',language:'',product:'',purpose:'',version_label:''};
+  const raw = doc.content_review;
+  if (raw && typeof raw === 'object' && !Array.isArray(raw) && typeof (raw as ResourceReview).status === 'string') return raw as ResourceReview;
+  return {status:'needs_review',display_title:'',language:'',product:'',purpose:'',version_label:''};
 }
 export function resourceTitle(doc: ResourceRecord) { return reviewOf(doc).display_title || doc.title; }
 export function proposedResourceTitle(doc: ResourceRecord): string {
